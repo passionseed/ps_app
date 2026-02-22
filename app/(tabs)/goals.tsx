@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { router } from "expo-router";
 
 export default function GoalsScreen() {
   return (
@@ -10,6 +11,7 @@ export default function GoalsScreen() {
         <Text style={styles.title}>Goals</Text>
         <Pressable
           style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
+          onPress={() => router.push("/goal-create")}
         >
           {({ pressed }) => (
             <Text style={[styles.addBtnText, pressed && styles.addBtnTextPressed]}>
