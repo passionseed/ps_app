@@ -26,6 +26,7 @@ export default function GoalCreateScreen() {
   const [goalText, setGoalText] = useState("");
   const [smartGrade, setSmartGrade] = useState<SmartGradeResult | null>(null);
   const [grading, setGrading] = useState(false);
+  const [gradeError, setGradeError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Measurement
@@ -43,6 +44,7 @@ export default function GoalCreateScreen() {
   const [realityResult, setRealityResult] = useState<RealityCheckResult | null>(null);
   const [checkingReality, setCheckingReality] = useState(false);
   const [realityDone, setRealityDone] = useState(false);
+  const [realityError, setRealityError] = useState<string | null>(null);
 
   // Invite
   const [friendSearch, setFriendSearch] = useState("");
@@ -63,10 +65,13 @@ export default function GoalCreateScreen() {
     debounceRef.current = setTimeout(async () => {
       setGrading(true);
       try {
+        setGradeError(null);
         const result = await gradeGoal(goalText);
         setSmartGrade(result);
-      } catch {
-        // silently fail
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[smart-grade] error:", msg, err);
+        setGradeError(msg);
       } finally {
         setGrading(false);
       }
@@ -90,8 +95,10 @@ export default function GoalCreateScreen() {
       });
       setRealityResult(result);
       setRealityDone(true);
-    } catch {
-      // silently fail
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[reality-check] error:", msg, err);
+      setRealityError(msg);
     } finally {
       setCheckingReality(false);
     }
@@ -151,6 +158,9 @@ export default function GoalCreateScreen() {
           />
 
           {/* SMART Grade */}
+          {gradeError && (
+            <Text style={styles.errorText}>⚠️ Grade error: {gradeError}</Text>
+          )}
           {grading && (
             <View style={styles.gradeRow}>
               <ActivityIndicator size="small" color="#111" />
@@ -369,6 +379,9 @@ export default function GoalCreateScreen() {
               )}
             </Pressable>
 
+            {realityError && (
+              <Text style={[styles.errorText, { marginTop: 12 }]}>⚠️ Error: {realityError}</Text>
+            )}
             {realityResult && (
               <View style={styles.realityResult}>
                 <Text style={styles.likelihoodText}>
@@ -687,5 +700,12 @@ const styles = StyleSheet.create({
     color: "#555",
     textAlign: "center",
     marginTop: 8,
+  },
+  errorText: {
+    fontSize: 11,
+    fontFamily: "Orbit_400Regular",
+    color: "#FF4444",
+    marginTop: 8,
+    lineHeight: 16,
   },
 });
