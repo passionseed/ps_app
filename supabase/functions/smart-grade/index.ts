@@ -1,6 +1,4 @@
-import Anthropic from "npm:@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
+import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +11,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const genAI = new GoogleGenerativeAI(Deno.env.get("AI_SDK_GEMINI_KEY")!);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+
     const { goalText } = await req.json();
 
     if (!goalText || goalText.trim().length < 5) {
@@ -21,13 +22,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 300,
-      messages: [
-        {
-          role: "user",
-          content: `Evaluate this goal on SMART criteria (Specific, Measurable, Achievable, Relevant, Time-bound).
+    const result = await model.generateContent(
+      `Evaluate this goal on SMART criteria (Specific, Measurable, Achievable, Relevant, Time-bound).
 
 Goal: "${goalText}"
 
@@ -41,20 +37,20 @@ Respond with JSON only, no explanation:
     "relevant": <null if good, or one short tip string>,
     "time_bound": <null if good, or one short tip string>
   }
-}`,
-        },
-      ],
-    });
+}`
+    );
 
-    const raw = message.content[0].type === "text" ? message.content[0].text : "{}";
-    const result = JSON.parse(raw);
+    const raw = result.response.text();
+    // Strip markdown code blocks if present
+    const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "");
+    const parsed = JSON.parse(cleaned);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify({ error: "grading failed" }), {
+    console.error("[smart-grade error]", err);
+    return new Response(JSON.stringify({ error: "grading failed", details: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

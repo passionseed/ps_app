@@ -70,7 +70,10 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{ 
+        headerShown: false,
+        sceneStyle: { backgroundColor: "#FDFFF5" },
+      }}
     >
       <Tabs.Screen name="goals" />
       <Tabs.Screen name="proofs" />
@@ -81,16 +84,25 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
+    position: "absolute",
+    bottom: Platform.OS === "ios" ? 28 : 20,
+    left: 20,
+    right: 20,
     flexDirection: "row",
-    backgroundColor: "#111",
-    paddingBottom: Platform.OS === "ios" ? 28 : 12,
-    paddingTop: 12,
+    backgroundColor: "#FDFFF5",
+    borderRadius: 40,
+    paddingVertical: 16,
     paddingHorizontal: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 12,
   },
   tabItem: {
     flex: 1,
     alignItems: "center",
-    gap: 4,
+    gap: 2,
     position: "relative",
     paddingVertical: 4,
   },
@@ -98,28 +110,28 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   tabIcon: {
-    fontSize: 18,
-    color: "#555",
+    fontSize: 20,
+    color: "#999",
   },
   tabIconActive: {
-    color: "#BFFF00",
+    color: "#111",
   },
   tabLabel: {
     fontSize: 10,
     fontFamily: "Orbit_400Regular",
     fontWeight: "400",
-    color: "#555",
+    color: "#999",
     letterSpacing: 0.5,
   },
   tabLabelActive: {
-    color: "#FDFFF5",
+    color: "#111",
   },
   tabIndicator: {
     position: "absolute",
-    top: 0,
+    bottom: -4,
     width: 24,
-    height: 2,
+    height: 3,
     backgroundColor: "#BFFF00",
-    borderRadius: 1,
+    borderRadius: 2,
   },
 });

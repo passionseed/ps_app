@@ -64,13 +64,17 @@ export default function GoalCreateScreen() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setGrading(true);
+      setGradeError(null);
       try {
-        setGradeError(null);
+        console.log("[smart-grade] calling with:", goalText);
+        console.log("[smart-grade] function URL:", `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/smart-grade`);
         const result = await gradeGoal(goalText);
+        console.log("[smart-grade] result:", result);
         setSmartGrade(result);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error("[smart-grade] error:", msg, err);
+        const stack = err instanceof Error ? err.stack : "";
+        console.error("[smart-grade] error:", msg, stack, err);
         setGradeError(msg);
       } finally {
         setGrading(false);
@@ -80,19 +84,25 @@ export default function GoalCreateScreen() {
 
   const handleRealityCheck = async () => {
     setCheckingReality(true);
+    setRealityError(null);
     try {
-      const durationValue =
-        durationType === "count"
-          ? `${durationCount} ${durationCountUnit}`
-          : durationDate;
+      console.log("[reality-check] calling with:", {
+        goalText,
+        measurementTypes: selectedMeasurements,
+        frequencyCount: freqCount,
+        frequencyUnit: freqUnit,
+        durationType,
+        durationValue: durationType === "count" ? `${durationCount} ${durationCountUnit}` : durationDate,
+      });
       const result = await realityCheck({
         goalText,
         measurementTypes: selectedMeasurements,
         frequencyCount: freqCount,
         frequencyUnit: freqUnit,
         durationType,
-        durationValue,
+        durationValue: durationType === "count" ? `${durationCount} ${durationCountUnit}` : durationDate,
       });
+      console.log("[reality-check] result:", result);
       setRealityResult(result);
       setRealityDone(true);
     } catch (err: unknown) {

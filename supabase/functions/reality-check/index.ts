@@ -1,6 +1,4 @@
-import Anthropic from "npm:@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
+import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +11,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const genAI = new GoogleGenerativeAI(Deno.env.get("AI_SDK_GEMINI_KEY")!);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+
     const { goalText, measurementTypes, frequencyCount, frequencyUnit, durationType, durationValue } =
       await req.json();
 
@@ -21,13 +22,8 @@ Deno.serve(async (req) => {
         ? `until ${durationValue}`
         : `for ${durationValue}`;
 
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 400,
-      messages: [
-        {
-          role: "user",
-          content: `Do a reality check on this goal commitment:
+    const result = await model.generateContent(
+      `Do a reality check on this goal commitment:
 
 Goal: "${goalText}"
 Proof type: ${measurementTypes.join(", ")}
@@ -38,21 +34,21 @@ Respond with JSON only:
 {
   "likelihood": <0-100 integer, % chance they complete this>,
   "pitfalls": [<2-3 short strings, common failure points>],
-  "suggestions": [<1-2 short strings, concrete improvements>]
-}`,
-        },
-      ],
-    });
+  "suggestions": [<1-2 short strings, concrete improvements]>
+}`
+    );
 
-    const raw = message.content[0].type === "text" ? message.content[0].text : "{}";
-    const result = JSON.parse(raw);
+    const raw = result.response.text();
+    // Strip markdown code blocks if present
+    const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "");
+    const parsed = JSON.parse(cleaned);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify({ error: "reality check failed" }), {
+    console.error("[reality-check error]", err);
+    return new Response(JSON.stringify({ error: "reality check failed", details: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

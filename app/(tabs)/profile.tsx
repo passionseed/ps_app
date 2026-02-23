@@ -1,13 +1,8 @@
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { StatusBar } from "expo-status-bar";
-
-const MOCK_USER = {
-  name: "You",
-  handle: "@you",
-  goalsActive: 0,
-  proofsSubmitted: 0,
-  streak: 0,
-};
+import { router } from "expo-router";
+import { useAuth } from "../../lib/auth";
+import { supabase } from "../../lib/supabase";
 
 function StatBox({
   value,
@@ -25,6 +20,16 @@ function StatBox({
 }
 
 export default function ProfileScreen() {
+  const { user, signInWithGoogle } = useAuth();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.replace("/");
+  };
+
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "You";
+  const email = user?.email || "";
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -44,17 +49,17 @@ export default function ProfileScreen() {
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>▲</Text>
           </View>
-          <Text style={styles.name}>{MOCK_USER.name}</Text>
-          <Text style={styles.handle}>{MOCK_USER.handle}</Text>
+          <Text style={styles.name}>{displayName}</Text>
+          <Text style={styles.handle}>{email}</Text>
         </View>
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <StatBox value={MOCK_USER.goalsActive} label="Goals" />
+          <StatBox value={0} label="Goals" />
           <View style={styles.statDivider} />
-          <StatBox value={MOCK_USER.proofsSubmitted} label="Proofs" />
+          <StatBox value={0} label="Proofs" />
           <View style={styles.statDivider} />
-          <StatBox value={`${MOCK_USER.streak}d`} label="Streak" />
+          <StatBox value="0d" label="Streak" />
         </View>
 
         {/* Actions */}
@@ -100,6 +105,7 @@ export default function ProfileScreen() {
             styles.signOutBtn,
             pressed && styles.signOutBtnPressed,
           ]}
+          onPress={handleSignOut}
         >
           {({ pressed }) => (
             <Text

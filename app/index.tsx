@@ -5,10 +5,12 @@ import {
   StyleSheet,
   Text,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { SvgXml, Svg, Defs, RadialGradient, Stop, Polygon } from "react-native-svg";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
+import { useAuth } from "../lib/auth";
 
 const svgs = [
   `<svg width="130" height="254" viewBox="0 0 130 254" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="63.6232" cy="27.6719" r="24.3776" stroke="black" stroke-width="6.58854"/><path d="M89.4513 23.8411L122.451 33.5L66.2586 85.3411M66.2586 158.841L11.9513 252.341M66.2586 158.841L126.951 252.341M66.2586 158.841V85.3411M66.2586 85.3411L4.95128 35.8411L40.5633 19.3411M66.2586 85.3411V54.026" stroke="black" stroke-width="5.27083"/></svg>`,
@@ -27,6 +29,8 @@ const COLORS = [
 ];
 
 export default function Page() {
+  const { signInWithGoogle, loading: authLoading } = useAuth();
+  const [signingIn, setSigningIn] = useState(false);
   const [hypeActive, setHypeActive] = useState(false);
   const [colorIdx, setColorIdx] = useState(0);
 
@@ -139,13 +143,22 @@ export default function Page() {
             styles.signInBtn,
             pressed && styles.signInBtnPressed,
           ]}
-          onPress={() => router.replace("/(tabs)/goals")}
+          onPress={async () => {
+            setSigningIn(true);
+            try {
+              await signInWithGoogle();
+            } catch (e) {
+              console.error("Sign in error:", e);
+              setSigningIn(false);
+            }
+          }}
+          disabled={signingIn || authLoading}
         >
           {({ pressed }) => (
             <Text
               style={[styles.signInText, pressed && styles.signInTextPressed]}
             >
-              Sign in
+              {signingIn || authLoading ? <ActivityIndicator color="#111" /> : "Sign in"}
             </Text>
           )}
         </Pressable>

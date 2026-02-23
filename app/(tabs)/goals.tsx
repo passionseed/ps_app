@@ -2,7 +2,11 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 
+const MOCK_GOALS: string[] = [];
+
 export default function GoalsScreen() {
+  const hasGoals = MOCK_GOALS.length > 0;
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -26,13 +30,30 @@ export default function GoalsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>○</Text>
-          <Text style={styles.emptyTitle}>No goals yet</Text>
-          <Text style={styles.emptyBody}>
-            Set a goal and invite friends{"\n"}to keep each other accountable.
-          </Text>
-        </View>
+        {hasGoals ? (
+          <Text style={styles.placeholder}>Your goals will appear here</Text>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>○</Text>
+            <Text style={styles.emptyTitle}>No goals yet</Text>
+            <Text style={styles.emptyBody}>
+              Set a goal and invite friends{"\n"}to keep each other accountable.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.emptyCtaBtn,
+                pressed && styles.emptyCtaBtnPressed,
+              ]}
+              onPress={() => router.push("/goal-create")}
+            >
+              {({ pressed }) => (
+                <Text style={[styles.emptyCtaText, pressed && styles.emptyCtaTextPressed]}>
+                  Create your first goal
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -109,5 +130,30 @@ const styles = StyleSheet.create({
     color: "#555",
     textAlign: "center",
     lineHeight: 20,
+  },
+  placeholder: {
+    padding: 24,
+    textAlign: "center",
+    color: "#555",
+    fontFamily: "Orbit_400Regular",
+  },
+  emptyCtaBtn: {
+    backgroundColor: "#BFFF00",
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    marginTop: 24,
+  },
+  emptyCtaBtnPressed: {
+    backgroundColor: "#9FE800",
+  },
+  emptyCtaText: {
+    fontSize: 15,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#111",
+  },
+  emptyCtaTextPressed: {
+    color: "#111",
   },
 });
