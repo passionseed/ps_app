@@ -6,140 +6,167 @@ import {
   Pressable,
   ActivityIndicator,
   StyleSheet,
+  Keyboard,
+  Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useState, useRef, useCallback } from "react";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { gradeGoal, realityCheck, SmartGradeResult, RealityCheckResult } from "../lib/ai";
+import {
+  gradeGoal,
+  realityCheck,
+  parseGoal,
+  SmartGradeResult,
+  RealityCheckResult,
+  GoalParseResult,
+} from "../lib/ai";
+import { useAuth } from "../lib/auth";
 
 const MEASUREMENT_OPTIONS = [
+  { id: "photo", label: "📷 Photo" },
   { id: "video", label: "📹 Video" },
   { id: "screenshot", label: "📸 Screenshot" },
-  { id: "text", label: "📝 Text log" },
-  { id: "voice", label: "🎤 Voice note" },
+  { id: "text", label: "📝 Text" },
+  { id: "voice", label: "🎤 Voice" },
 ];
 
-const FREQ_UNITS = ["day", "week", "month"] as const;
+const SMART_DIMS = [
+  { key: "specific", label: "S", full: "Specific" },
+  { key: "measurable", label: "M", full: "Measurable" },
+  { key: "achievable", label: "A", full: "Achievable" },
+  { key: "relevant", label: "R", full: "Relevant" },
+  { key: "time_bound", label: "T", full: "Time-bound" },
+] as const;
 
 export default function GoalCreateScreen() {
-  // Goal text
+  const { profile } = useAuth();
+
   const [goalText, setGoalText] = useState("");
   const [smartGrade, setSmartGrade] = useState<SmartGradeResult | null>(null);
   const [grading, setGrading] = useState(false);
   const [gradeError, setGradeError] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Measurement
+  const [parsedGoal, setParsedGoal] = useState<GoalParseResult | null>(null);
+  const [parseChipDismissed, setParseChipDismissed] = useState(false);
+
   const [selectedMeasurements, setSelectedMeasurements] = useState<string[]>([]);
+  const [proofDescription, setProofDescription] = useState("");
 
-  // Time
-  const [freqCount, setFreqCount] = useState(3);
-  const [freqUnit, setFreqUnit] = useState<"day" | "week" | "month">("week");
-  const [durationType, setDurationType] = useState<"count" | "date">("count");
-  const [durationCount, setDurationCount] = useState(8);
-  const [durationCountUnit, setDurationCountUnit] = useState<"weeks" | "months">("weeks");
-  const [durationDate, setDurationDate] = useState("");
-
-  // Reality check
   const [realityResult, setRealityResult] = useState<RealityCheckResult | null>(null);
   const [checkingReality, setCheckingReality] = useState(false);
   const [realityDone, setRealityDone] = useState(false);
   const [realityError, setRealityError] = useState<string | null>(null);
 
-  // Invite
   const [friendSearch, setFriendSearch] = useState("");
 
-  // Derived reveal flags
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const goalInputRef = useRef<TextInput>(null);
+  const friendInputRef = useRef<TextInput>(null);
+
   const showMeasurement = goalText.trim().length > 5;
-  const showTime = selectedMeasurements.length > 0;
-  const showRealityCheck =
-    showTime &&
-    freqCount > 0 &&
-    (durationType === "count" ? durationCount > 0 : durationDate.length > 0);
+  const showRealityCheck = selectedMeasurements.length > 0;
   const showInvite = realityDone;
 
-  // SMART grade on blur with debounce
+  const userProfileForGrading = profile
+    ? { life_areas: profile.life_areas, direction: profile.direction, values: profile.values }
+    : null;
+
+  const runGrading = useCallback(
+    async (
+      text: string,
+      proofTypes: string[],
+      proofDesc: string,
+      parsed: GoalParseResult | null
+    ) => {
+      if (text.trim().length < 5) return;
+      setGrading(true);
+      setGradeError(null);
+      try {
+        const result = await gradeGoal({
+          goalText: text,
+          proofTypes,
+          proofDescription: proofDesc,
+          userProfile: userProfileForGrading,
+          parsedFrequency: parsed?.humanReadable ?? null,
+        });
+        setSmartGrade(result);
+      } catch (err: unknown) {
+        setGradeError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setGrading(false);
+      }
+    },
+    [profile]
+  );
+
   const handleGoalBlur = useCallback(async () => {
     if (goalText.trim().length < 5) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      setGrading(true);
-      setGradeError(null);
-      try {
-        console.log("[smart-grade] calling with:", goalText);
-        console.log("[smart-grade] function URL:", `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/smart-grade`);
-        const result = await gradeGoal(goalText);
-        console.log("[smart-grade] result:", result);
-        setSmartGrade(result);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        const stack = err instanceof Error ? err.stack : "";
-        console.error("[smart-grade] error:", msg, stack, err);
-        setGradeError(msg);
-      } finally {
-        setGrading(false);
+      setParseChipDismissed(false);
+      // Fire parse + grade in parallel
+      const [parseResult] = await Promise.all([
+        parseGoal(goalText).catch(() => null),
+        runGrading(goalText, selectedMeasurements, proofDescription, null),
+      ]);
+      if (parseResult) {
+        setParsedGoal(parseResult);
+        // Re-grade with frequency context
+        if (parseResult.humanReadable) {
+          await runGrading(goalText, selectedMeasurements, proofDescription, parseResult);
+        }
       }
     }, 800);
-  }, [goalText]);
+  }, [goalText, selectedMeasurements, proofDescription, runGrading]);
+
+  const handleProofChange = useCallback(
+    (newTypes: string[], newDesc: string) => {
+      runGrading(goalText, newTypes, newDesc, parsedGoal);
+    },
+    [goalText, parsedGoal, runGrading]
+  );
+
+  const toggleMeasurement = (id: string) => {
+    const next = selectedMeasurements.includes(id)
+      ? selectedMeasurements.filter((m) => m !== id)
+      : [...selectedMeasurements, id];
+    setSelectedMeasurements(next);
+    handleProofChange(next, proofDescription);
+  };
 
   const handleRealityCheck = async () => {
+    Keyboard.dismiss();
     setCheckingReality(true);
     setRealityError(null);
     try {
-      console.log("[reality-check] calling with:", {
-        goalText,
-        measurementTypes: selectedMeasurements,
-        frequencyCount: freqCount,
-        frequencyUnit: freqUnit,
-        durationType,
-        durationValue: durationType === "count" ? `${durationCount} ${durationCountUnit}` : durationDate,
-      });
       const result = await realityCheck({
         goalText,
-        measurementTypes: selectedMeasurements,
-        frequencyCount: freqCount,
-        frequencyUnit: freqUnit,
-        durationType,
-        durationValue: durationType === "count" ? `${durationCount} ${durationCountUnit}` : durationDate,
+        proofTypes: selectedMeasurements,
+        parsedFrequency: parsedGoal?.humanReadable ?? null,
       });
-      console.log("[reality-check] result:", result);
       setRealityResult(result);
       setRealityDone(true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("[reality-check] error:", msg, err);
-      setRealityError(msg);
+      setRealityError(err instanceof Error ? err.message : String(err));
     } finally {
       setCheckingReality(false);
     }
   };
 
-  const toggleMeasurement = (id: string) => {
-    setSelectedMeasurements((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
-    );
-  };
-
   const scoreColor = (score: number) => {
     if (score >= 80) return "#BFFF00";
     if (score >= 50) return "#FFE500";
-    return "#FF4444";
-  };
-
-  const durationSummary = () => {
-    const freq = `${freqCount}× per ${freqUnit}`;
-    const dur =
-      durationType === "count"
-        ? `for ${durationCount} ${durationCountUnit}`
-        : `until ${durationDate}`;
-    return `${freq}, ${dur}`;
+    return "#FF6B6B";
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <StatusBar style="dark" />
 
-      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
           <Text style={styles.backBtn}>← Back</Text>
@@ -154,61 +181,81 @@ export default function GoalCreateScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Section 1: Goal Text ── */}
+        {/* Section 1: Goal */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>🎯 What's your goal?</Text>
-          <TextInput
-            style={styles.goalInput}
-            multiline
-            placeholder="I will..."
-            placeholderTextColor="#999"
-            value={goalText}
-            onChangeText={setGoalText}
-            onBlur={handleGoalBlur}
-          />
+          <View style={styles.inputCard}>
+            <TextInput
+              ref={goalInputRef}
+              style={styles.goalInput}
+              multiline
+              placeholder={"I will...  (include how often, e.g. 3× a week)"}
+              placeholderTextColor="#999"
+              value={goalText}
+              onChangeText={setGoalText}
+              onBlur={handleGoalBlur}
+              blurOnSubmit={false}
+            />
+          </View>
 
-          {/* SMART Grade */}
-          {gradeError && (
-            <Text style={styles.errorText}>⚠️ Grade error: {gradeError}</Text>
+          {/* Parse chip */}
+          {parsedGoal?.humanReadable && !parseChipDismissed && (
+            <View style={styles.parseChip}>
+              <Text style={styles.parseChipText}>
+                📅 {parsedGoal.humanReadable} · interpreted from your goal
+              </Text>
+              <Pressable onPress={() => setParseChipDismissed(true)}>
+                <Text style={styles.parseChipDismiss}>✕</Text>
+              </Pressable>
+            </View>
           )}
+
+          {gradeError && <Text style={styles.errorText}>⚠️ {gradeError}</Text>}
           {grading && (
             <View style={styles.gradeRow}>
               <ActivityIndicator size="small" color="#111" />
               <Text style={styles.gradingText}>Grading...</Text>
             </View>
           )}
+
           {!grading && smartGrade && (
             <View style={styles.gradeContainer}>
-              <View
-                style={[
-                  styles.scoreBadge,
-                  { borderColor: scoreColor(smartGrade.score) },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.scoreText,
-                    { color: scoreColor(smartGrade.score) },
-                  ]}
-                >
-                  {smartGrade.score}% SMART
-                </Text>
+              <View style={styles.overallRow}>
+                <Text style={styles.overallLabel}>SMART Score</Text>
+                <View style={[styles.scoreBadge, { backgroundColor: scoreColor(smartGrade.score) }]}>
+                  <Text style={styles.scoreText}>{smartGrade.score}%</Text>
+                </View>
               </View>
-              {Object.entries(smartGrade.tips)
-                .filter(([, tip]) => tip !== null)
-                .map(([dim, tip]) => (
-                  <Text key={dim} style={styles.tipText}>
-                    ⚠️ {dim.replace("_", "-")}: {tip}
-                  </Text>
-                ))}
+              {SMART_DIMS.map(({ key, label, full }) => {
+                const score = smartGrade.scores?.[key] ?? 0;
+                const tip = smartGrade.tips[key];
+                return (
+                  <View key={key} style={styles.dimRow}>
+                    <View style={styles.dimLabelWrap}>
+                      <Text style={styles.dimLetter}>{label}</Text>
+                      <Text style={styles.dimFull}>{full}</Text>
+                    </View>
+                    <View style={styles.dimBarTrack}>
+                      <View
+                        style={[
+                          styles.dimBarFill,
+                          { width: `${score}%` as any, backgroundColor: scoreColor(score) },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.dimScore, { color: scoreColor(score) }]}>{score}</Text>
+                    {tip && <Text style={styles.dimTip}>⚠️ {tip}</Text>}
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
 
-        {/* ── Section 2: Measurement ── */}
+        {/* Section 2: Proof type */}
         {showMeasurement && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>📏 How will you prove it?</Text>
+            <Text style={styles.sectionLabel}>📏 Proof type</Text>
             <View style={styles.chipRow}>
               {MEASUREMENT_OPTIONS.map((opt) => {
                 const selected = selectedMeasurements.includes(opt.id);
@@ -218,235 +265,98 @@ export default function GoalCreateScreen() {
                     style={[styles.chip, selected && styles.chipSelected]}
                     onPress={() => toggleMeasurement(opt.id)}
                   >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        selected && styles.chipTextSelected,
-                      ]}
-                    >
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
                       {opt.label}
                     </Text>
                   </Pressable>
                 );
               })}
             </View>
-          </View>
-        )}
 
-        {/* ── Section 3: Time Commitment ── */}
-        {showTime && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>⏱️ Time commitment</Text>
-
-            {/* Frequency */}
-            <Text style={styles.subLabel}>Frequency</Text>
-            <View style={styles.row}>
-              <Pressable
-                style={styles.stepper}
-                onPress={() => setFreqCount((v) => Math.max(1, v - 1))}
-              >
-                <Text style={styles.stepperText}>−</Text>
-              </Pressable>
-              <Text style={styles.stepperValue}>{freqCount}</Text>
-              <Pressable
-                style={styles.stepper}
-                onPress={() => setFreqCount((v) => Math.min(30, v + 1))}
-              >
-                <Text style={styles.stepperText}>+</Text>
-              </Pressable>
-              <Text style={styles.unitLabel}>times per</Text>
-              <View style={styles.unitSelector}>
-                {FREQ_UNITS.map((u) => (
-                  <Pressable
-                    key={u}
-                    style={[
-                      styles.unitChip,
-                      freqUnit === u && styles.unitChipSelected,
-                    ]}
-                    onPress={() => setFreqUnit(u)}
-                  >
-                    <Text
-                      style={[
-                        styles.unitChipText,
-                        freqUnit === u && styles.unitChipTextSelected,
-                      ]}
-                    >
-                      {u}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {/* Duration */}
-            <Text style={styles.subLabel}>Duration</Text>
-            <View style={styles.row}>
-              <Pressable
-                style={[
-                  styles.durationToggle,
-                  durationType === "count" && styles.durationToggleSelected,
-                ]}
-                onPress={() => setDurationType("count")}
-              >
-                <Text
-                  style={[
-                    styles.durationToggleText,
-                    durationType === "count" && styles.durationToggleTextSelected,
-                  ]}
-                >
-                  # weeks
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.durationToggle,
-                  durationType === "date" && styles.durationToggleSelected,
-                ]}
-                onPress={() => setDurationType("date")}
-              >
-                <Text
-                  style={[
-                    styles.durationToggleText,
-                    durationType === "date" && styles.durationToggleTextSelected,
-                  ]}
-                >
-                  end date
-                </Text>
-              </Pressable>
-            </View>
-
-            {durationType === "count" ? (
-              <View style={styles.row}>
-                <Pressable
-                  style={styles.stepper}
-                  onPress={() => setDurationCount((v) => Math.max(1, v - 1))}
-                >
-                  <Text style={styles.stepperText}>−</Text>
-                </Pressable>
-                <Text style={styles.stepperValue}>{durationCount}</Text>
-                <Pressable
-                  style={styles.stepper}
-                  onPress={() => setDurationCount((v) => v + 1)}
-                >
-                  <Text style={styles.stepperText}>+</Text>
-                </Pressable>
-                <View style={styles.unitSelector}>
-                  {(["weeks", "months"] as const).map((u) => (
-                    <Pressable
-                      key={u}
-                      style={[
-                        styles.unitChip,
-                        durationCountUnit === u && styles.unitChipSelected,
-                      ]}
-                      onPress={() => setDurationCountUnit(u)}
-                    >
-                      <Text
-                        style={[
-                          styles.unitChipText,
-                          durationCountUnit === u && styles.unitChipTextSelected,
-                        ]}
-                      >
-                        {u}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            ) : (
+            <Text style={[styles.sectionLabel, { marginTop: 16 }]}>
+              📝 Proof description (optional)
+            </Text>
+            <View style={styles.inputCard}>
               <TextInput
-                style={styles.dateInput}
-                placeholder="YYYY-MM-DD"
+                style={styles.proofInput}
+                multiline
+                placeholder="Describe what the proof should show..."
                 placeholderTextColor="#999"
-                value={durationDate}
-                onChangeText={setDurationDate}
+                value={proofDescription}
+                onChangeText={(v) => {
+                  setProofDescription(v);
+                  handleProofChange(selectedMeasurements, v);
+                }}
               />
-            )}
-
-            {/* Summary line */}
-            {showRealityCheck && (
-              <View style={styles.summaryBox}>
-                <Text style={styles.summaryText}>📅 {durationSummary()}</Text>
-              </View>
-            )}
+            </View>
           </View>
         )}
 
-        {/* ── Section 4: Reality Check ── */}
+        {/* Section 3: Reality Check */}
         {showRealityCheck && (
           <View style={styles.section}>
             <Pressable
-              style={[
-                styles.realityBtn,
-                checkingReality && styles.realityBtnDisabled,
-              ]}
+              style={[styles.realityBtn, checkingReality && styles.realityBtnDisabled]}
               onPress={handleRealityCheck}
               disabled={checkingReality}
             >
               {checkingReality ? (
-                <ActivityIndicator size="small" color="#FDFFF5" />
+                <ActivityIndicator size="small" color="#111" />
               ) : (
-                <Text style={styles.realityBtnText}>🔍 Reality Check</Text>
+                <Text style={styles.realityBtnText}>🔍 Run Reality Check</Text>
               )}
             </Pressable>
 
-            {realityError && (
-              <Text style={[styles.errorText, { marginTop: 12 }]}>⚠️ Error: {realityError}</Text>
-            )}
+            {realityError && <Text style={styles.errorText}>⚠️ {realityError}</Text>}
             {realityResult && (
               <View style={styles.realityResult}>
-                <Text style={styles.likelihoodText}>
-                  {realityResult.likelihood}% chance you'll complete this
-                </Text>
+                <Text style={styles.likelihoodText}>{realityResult.likelihood}% likelihood</Text>
                 {realityResult.pitfalls.map((p, i) => (
-                  <Text key={i} style={styles.pitfallText}>
-                    ⚠️ {p}
-                  </Text>
+                  <Text key={i} style={styles.pitfallText}>⚠️ {p}</Text>
                 ))}
                 {realityResult.suggestions.map((s, i) => (
-                  <Text key={i} style={styles.suggestionText}>
-                    💡 {s}
-                  </Text>
+                  <Text key={i} style={styles.suggestionText}>💡 {s}</Text>
                 ))}
               </View>
             )}
           </View>
         )}
 
-        {/* ── Section 5: Invite Friends ── */}
+        {/* Section 4: Invite */}
         {showInvite && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>👥 Invite friends</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by username..."
-              placeholderTextColor="#999"
-              value={friendSearch}
-              onChangeText={setFriendSearch}
-            />
+            <View style={styles.inputCard}>
+              <TextInput
+                ref={friendInputRef}
+                style={styles.searchInput}
+                placeholder="Search username..."
+                placeholderTextColor="#999"
+                value={friendSearch}
+                onChangeText={setFriendSearch}
+                returnKeyType="done"
+              />
+            </View>
             <Pressable style={styles.shareBtn}>
-              <Text style={styles.shareBtnText}>🔗 Share invite link</Text>
+              <Text style={styles.shareBtnText}>🔗 Copy invite link</Text>
             </Pressable>
             <Text style={styles.inviteNote}>
-              Friends set their own goal. Challenge starts once you approve at least one.
+              Friends set their own goal. Challenge starts once you both approve.
             </Text>
           </View>
         )}
 
-        {/* ── Start Challenge ── */}
         {showInvite && (
           <View style={styles.section}>
-            <Pressable style={[styles.startBtn, styles.startBtnDisabled]} disabled>
+            <Pressable style={styles.startBtn}>
               <Text style={styles.startBtnText}>🚀 Start Challenge</Text>
             </Pressable>
-            <Text style={styles.startNote}>
-              Waiting for a friend to submit their goal
-            </Text>
           </View>
         )}
 
-        <View style={{ height: 60 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -454,206 +364,229 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FDFFF5" },
   header: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "space-between",
     paddingTop: 64,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 16,
-    borderBottomWidth: 2,
-    borderBottomColor: "#111",
   },
   backBtn: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: "Orbit_400Regular",
     color: "#111",
     width: 60,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
+    fontWeight: "600",
     color: "#111",
     letterSpacing: 1,
   },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 24 },
-  section: { marginBottom: 32 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 8 },
+  section: { marginBottom: 28 },
   sectionLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "Orbit_400Regular",
     color: "#111",
-    marginBottom: 12,
-    letterSpacing: 0.5,
+    marginBottom: 10,
+    fontWeight: "500",
   },
-  subLabel: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    color: "#555",
-    marginBottom: 8,
-    marginTop: 12,
+  inputCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   goalInput: {
-    borderWidth: 2,
-    borderColor: "#111",
-    padding: 14,
-    minHeight: 100,
+    padding: 16,
+    minHeight: 80,
     fontSize: 15,
     fontFamily: "Orbit_400Regular",
     color: "#111",
-    textAlignVertical: "top",
+  },
+  parseChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5FFD6",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginTop: 10,
+    gap: 8,
+  },
+  parseChipText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#4A7000",
+  },
+  parseChipDismiss: {
+    fontSize: 12,
+    color: "#888",
   },
   gradeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: 10,
+    marginTop: 12,
   },
   gradingText: {
     fontSize: 12,
     fontFamily: "Orbit_400Regular",
-    color: "#555",
+    color: "#666",
   },
-  gradeContainer: { marginTop: 10, gap: 6 },
+  gradeContainer: {
+    marginTop: 12,
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  overallRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  overallLabel: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#666",
+    letterSpacing: 0.5,
+  },
   scoreBadge: {
-    alignSelf: "flex-start",
-    borderWidth: 2,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
+    borderRadius: 20,
   },
   scoreText: {
     fontSize: 13,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
-  },
-  tipText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    color: "#555",
-    lineHeight: 18,
-  },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  chip: {
-    borderWidth: 2,
-    borderColor: "#111",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  chipSelected: { backgroundColor: "#111" },
-  chipText: {
-    fontSize: 13,
-    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
     color: "#111",
   },
-  chipTextSelected: { color: "#BFFF00" },
-  row: {
+  dimRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
     flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 8,
   },
-  stepper: {
-    borderWidth: 2,
-    borderColor: "#111",
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
+  dimLabelWrap: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 4,
+    width: 90,
   },
-  stepperText: {
-    fontSize: 18,
-    fontFamily: "Orbit_400Regular",
-    color: "#111",
-    lineHeight: 20,
-  },
-  stepperValue: {
-    fontSize: 20,
-    fontFamily: "Orbit_400Regular",
-    color: "#111",
-    minWidth: 32,
-    textAlign: "center",
-  },
-  unitLabel: {
+  dimLetter: {
     fontSize: 13,
     fontFamily: "Orbit_400Regular",
-    color: "#555",
-  },
-  unitSelector: { flexDirection: "row", gap: 6 },
-  unitChip: {
-    borderWidth: 2,
-    borderColor: "#111",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  unitChipSelected: { backgroundColor: "#111" },
-  unitChipText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
     color: "#111",
   },
-  unitChipTextSelected: { color: "#BFFF00" },
-  durationToggle: {
-    borderWidth: 2,
-    borderColor: "#111",
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+  dimFull: {
+    fontSize: 10,
+    fontFamily: "Orbit_400Regular",
+    color: "#999",
   },
-  durationToggleSelected: { backgroundColor: "#111" },
-  durationToggleText: {
+  dimBarTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: "#F0F0F0",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  dimBarFill: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dimScore: {
     fontSize: 12,
     fontFamily: "Orbit_400Regular",
-    color: "#111",
+    fontWeight: "600",
+    width: 28,
+    textAlign: "right",
   },
-  durationToggleTextSelected: { color: "#BFFF00" },
-  dateInput: {
-    borderWidth: 2,
-    borderColor: "#111",
-    padding: 12,
+  dimTip: {
+    fontSize: 10,
+    fontFamily: "Orbit_400Regular",
+    color: "#999",
+    width: "100%",
+    paddingLeft: 98,
+    lineHeight: 14,
+  },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  chipSelected: { backgroundColor: "#111" },
+  chipText: { fontSize: 13, fontFamily: "Orbit_400Regular", color: "#111" },
+  chipTextSelected: { color: "#BFFF00" },
+  proofInput: {
+    padding: 14,
+    minHeight: 60,
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    color: "#111",
-  },
-  summaryBox: {
-    marginTop: 14,
-    borderWidth: 2,
-    borderColor: "#BFFF00",
-    backgroundColor: "#F5FFD6",
-    padding: 10,
-  },
-  summaryText: {
-    fontSize: 13,
     fontFamily: "Orbit_400Regular",
     color: "#111",
   },
   realityBtn: {
-    backgroundColor: "#111",
-    padding: 16,
+    backgroundColor: "#BFFF00",
+    borderRadius: 16,
+    padding: 18,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
   },
   realityBtnDisabled: { opacity: 0.5 },
   realityBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: "Orbit_400Regular",
-    color: "#BFFF00",
-    letterSpacing: 1,
+    fontWeight: "600",
+    color: "#111",
+    letterSpacing: 0.5,
   },
   realityResult: {
     marginTop: 16,
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    padding: 16,
     gap: 8,
-    borderWidth: 2,
-    borderColor: "#111",
-    padding: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   likelihoodText: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
     color: "#111",
-    marginBottom: 4,
   },
   pitfallText: {
     fontSize: 13,
     fontFamily: "Orbit_400Regular",
-    color: "#555",
+    color: "#666",
     lineHeight: 18,
   },
   suggestionText: {
@@ -663,59 +596,58 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   searchInput: {
-    borderWidth: 2,
-    borderColor: "#111",
-    padding: 12,
+    padding: 14,
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
     color: "#111",
-    marginBottom: 12,
   },
   shareBtn: {
-    borderWidth: 2,
-    borderColor: "#111",
-    padding: 14,
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    padding: 16,
     alignItems: "center",
-    marginBottom: 12,
+    marginTop: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   shareBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: "Orbit_400Regular",
     color: "#111",
   },
   inviteNote: {
     fontSize: 12,
     fontFamily: "Orbit_400Regular",
-    color: "#555",
+    color: "#666",
     textAlign: "center",
+    marginTop: 16,
     lineHeight: 18,
   },
   startBtn: {
     backgroundColor: "#BFFF00",
-    padding: 18,
+    borderRadius: 20,
+    padding: 20,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#111",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  startBtnDisabled: { opacity: 0.4 },
   startBtnText: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
     color: "#111",
     letterSpacing: 1,
   },
-  startNote: {
+  errorText: {
     fontSize: 12,
     fontFamily: "Orbit_400Regular",
-    color: "#555",
-    textAlign: "center",
+    color: "#FF6B6B",
     marginTop: 8,
-  },
-  errorText: {
-    fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    color: "#FF4444",
-    marginTop: 8,
-    lineHeight: 16,
   },
 });
