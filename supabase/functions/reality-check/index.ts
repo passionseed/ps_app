@@ -14,32 +14,25 @@ Deno.serve(async (req) => {
     const genAI = new GoogleGenerativeAI(Deno.env.get("AI_SDK_GEMINI_KEY")!);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-    const { goalText, measurementTypes, frequencyCount, frequencyUnit, durationType, durationValue } =
-      await req.json();
+    const { goalText, proofTypes, parsedFrequency } = await req.json();
 
-    const durationStr =
-      durationType === "date"
-        ? `until ${durationValue}`
-        : `for ${durationValue}`;
+    const frequencyStr = parsedFrequency ?? "frequency not specified";
 
     const result = await model.generateContent(
       `Do a reality check on this goal commitment:
 
 Goal: "${goalText}"
-Proof type: ${measurementTypes.join(", ")}
-Frequency: ${frequencyCount} times per ${frequencyUnit}
-Duration: ${durationStr}
+Proof type: ${(proofTypes ?? []).join(", ") || "not specified"}
+Frequency: ${frequencyStr}
 
 Respond with JSON only:
 {
   "likelihood": <0-100 integer, % chance they complete this>,
   "pitfalls": [<2-3 short strings, common failure points>],
-  "suggestions": [<1-2 short strings, concrete improvements]>
-}`
+  "suggestions": [<1-2 short strings, concrete improvements>]}`
     );
 
     const raw = result.response.text();
-    // Strip markdown code blocks if present
     const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "");
     const parsed = JSON.parse(cleaned);
 
@@ -48,9 +41,9 @@ Respond with JSON only:
     });
   } catch (err) {
     console.error("[reality-check error]", err);
-    return new Response(JSON.stringify({ error: "reality check failed", details: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "reality check failed", details: String(err) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
