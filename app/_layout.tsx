@@ -4,20 +4,26 @@ import { useEffect } from "react";
 import { AuthProvider, useAuth } from "../lib/auth";
 
 function RootNavigator() {
-  const { session, loading } = useAuth();
+  const { session, loading, profile, profileLoading } = useAuth();
 
   useEffect(() => {
-    if (loading) return;
-    if (session) {
-      router.replace("/(tabs)/goals");
-    } else {
+    if (loading || profileLoading) return;
+    if (!session) {
       router.replace("/");
+      return;
     }
-  }, [session, loading]);
+    // Profile null = no row yet = needs onboarding
+    if (!profile || !profile.onboarding_done) {
+      router.replace("/onboarding");
+    } else {
+      router.replace("/(tabs)/goals");
+    }
+  }, [session, loading, profile, profileLoading]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="onboarding" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="goal-create" />
     </Stack>
