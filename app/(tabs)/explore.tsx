@@ -1,10 +1,7 @@
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useAuth } from "../../lib/auth";
 
-export default function ProfileScreen() {
-  const { user } = useAuth();
-
+export default function ExploreScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -12,16 +9,10 @@ export default function ProfileScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <Text style={styles.header}>Profile</Text>
-        {user ? (
-          <Text style={styles.text}>
-            Logged in as: {user.email}
-          </Text>
-        ) : (
-          <Text style={styles.text}>
-            Not logged in yet. Add authentication features here.
-          </Text>
-        )}
+        <Text style={styles.header}>Explore</Text>
+        <Text style={styles.text}>
+          Discover new features and content here.
+        </Text>
       </ScrollView>
     </View>
   );

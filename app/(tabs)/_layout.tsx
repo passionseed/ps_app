@@ -4,13 +4,13 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Pressable } from "react-native";
 
 const TAB_ICONS: Record<string, { label: string; icon: string; activeIcon: string }> = {
-  goals: {
-    label: "Goals",
+  home: {
+    label: "Home",
     icon: "○",
     activeIcon: "●",
   },
-  proofs: {
-    label: "Proofs",
+  explore: {
+    label: "Explore",
     icon: "□",
     activeIcon: "■",
   },
@@ -70,13 +70,13 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{ 
+      screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: "#FDFFF5" },
       }}
     >
-      <Tabs.Screen name="goals" />
-      <Tabs.Screen name="proofs" />
+      <Tabs.Screen name="home" />
+      <Tabs.Screen name="explore" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );

@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "prova",
-    "scheme": "prova",
-    "slug": "prova",
+    "name": "Passion Seed",
+    "scheme": "passion-seed",
+    "slug": "passion-seed",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bunyasit.prova"
+      "bundleIdentifier": "com.passionseed.app"
     },
     "android": {
       "adaptiveIcon": {
