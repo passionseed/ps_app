@@ -7,6 +7,7 @@ export type NodeType =
   | "assessment"
   | "project"
   | "file_upload"
+  | "learning"
   | "end";
 
 export type NodeProgressStatus =
@@ -16,14 +17,45 @@ export type NodeProgressStatus =
   | "passed"
   | "failed";
 
+export interface NodeContentRecord {
+  id: string;
+  node_id: string;
+  content_type: "video" | "canva_slide" | "text_with_images" | "resource_link" | "text";
+  content_url?: string;
+  content_body?: string;
+  content_title?: string;
+  display_order?: number;
+  created_at: string;
+}
+
+export interface NodeAssessment {
+  id: string;
+  node_id: string;
+  assessment_type: "quiz" | "text_answer" | "image_upload" | "file_upload";
+  quiz_questions?: QuizQuestionDB[];
+  created_at?: string;
+}
+
+export interface QuizQuestionDB {
+  id: string;
+  assessment_id: string;
+  question_text: string;
+  options?: Array<{ option: string; text: string }>;
+  correct_option?: string;
+}
+
 export interface MapNode {
   id: string;
   map_id: string;
   title: string;
-  content: NodeContent;
+  content?: NodeContent;
   node_type: NodeType;
-  position_x: number;
-  position_y: number;
+  position_x?: number;
+  position_y?: number;
+  instructions?: string; // For learning nodes with root-level instructions
+  metadata?: Record<string, unknown>; // For nodes with metadata (position, etc.)
+  node_content?: NodeContentRecord[]; // Actual content from node_content table
+  node_assessments?: NodeAssessment[]; // Assessments from node_assessments table
   created_at: string;
   updated_at: string;
 }
@@ -74,16 +106,16 @@ export interface StudentNodeProgress {
   node_id: string;
   status: NodeProgressStatus;
   submission?: NodeSubmission;
-  score?: number;
   feedback?: string;
-  started_at: string;
+  arrived_at?: string;
+  started_at?: string;
+  submitted_at?: string;
   updated_at: string;
 }
 
 export interface NodeSubmission {
   // Quiz submission
   answers?: Record<string, string | string[]>;
-  score?: number;
 
   // File upload submission
   file_url?: string;

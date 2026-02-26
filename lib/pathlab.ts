@@ -15,21 +15,36 @@ import type { MapNode, StudentNodeProgress } from "../types/map";
 export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
+  // Get seeds
+  const { data: seedsData, error: seedsError } = await supabase
     .from("seeds")
-    .select(`
-      *,
-      category:seed_categories(*),
-      path:paths(id, total_days)
-    `)
+    .select("*")
     .eq("seed_type", "pathlab")
     .order("created_at", { ascending: false });
 
-  if (error) throw new Error(error.message);
+  if (seedsError) {
+    console.error("Error loading seeds:", seedsError);
+    throw new Error(seedsError.message);
+  }
+
+  if (!seedsData || seedsData.length === 0) {
+    return [];
+  }
+
+  // Get paths for these seeds
+  const { data: pathsData } = await supabase
+    .from("paths")
+    .select("id, seed_id, total_days")
+    .in("seed_id", seedsData.map(s => s.id));
+
+  // Combine seeds with their paths
+  const seeds = seedsData.map(seed => ({
+    ...seed,
+    path: pathsData?.find(p => p.seed_id === seed.id) || null,
+  })) as Seed[];
 
   // If user is logged in, get their enrollments
   if (user) {
-    const seeds = data as Seed[];
     const pathIds = seeds.map(s => s.path?.id).filter(Boolean);
 
     if (pathIds.length > 0) {
@@ -46,22 +61,34 @@ export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
     }
   }
 
-  return (data as Seed[]).map(s => ({ ...s, enrollment: null }));
+  return seeds.map(s => ({ ...s, enrollment: null }));
 }
 
 export async function getSeedById(seedId: string): Promise<Seed | null> {
-  const { data, error } = await supabase
+  const { data: seedData, error: seedError } = await supabase
     .from("seeds")
-    .select(`
-      *,
-      category:seed_categories(*),
-      path:paths(id, total_days)
-    `)
+    .select("*")
     .eq("id", seedId)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
-  return data as Seed | null;
+  if (seedError) {
+    console.error("Error loading seed:", seedError);
+    throw new Error(seedError.message);
+  }
+
+  if (!seedData) return null;
+
+  // Get the path for this seed
+  const { data: pathData } = await supabase
+    .from("paths")
+    .select("id, total_days")
+    .eq("seed_id", seedId)
+    .maybeSingle();
+
+  return {
+    ...seedData,
+    path: pathData || null,
+  } as Seed;
 }
 
 // ============ Path Enrollment ============
@@ -158,11 +185,26 @@ export async function getNodesByIds(nodeIds: string[]): Promise<MapNode[]> {
 
   const { data, error } = await supabase
     .from("map_nodes")
-    .select("*")
+    .select(`
+      *,
+      node_content(*),
+      node_assessments(
+        id,
+        assessment_type,
+        quiz_questions(*)
+      )
+    `)
     .in("id", nodeIds);
 
   if (error) throw new Error(error.message);
-  return data || [];
+
+  // Map database schema to mobile app schema
+  return (data || []).map(node => ({
+    ...node,
+    content: node.metadata || {},
+    position_x: 0,
+    position_y: 0,
+  }));
 }
 
 export async function getNodeProgress(nodeIds: string[]): Promise<StudentNodeProgress[]> {
@@ -183,7 +225,6 @@ export async function updateNodeProgress(params: {
   nodeId: string;
   status: string;
   submission?: Record<string, unknown>;
-  score?: number;
 }): Promise<StudentNodeProgress> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
@@ -195,7 +236,6 @@ export async function updateNodeProgress(params: {
       node_id: params.nodeId,
       status: params.status,
       submission: params.submission || null,
-      score: params.score || null,
       updated_at: new Date().toISOString(),
     }, {
       onConflict: "user_id,node_id",
@@ -279,40 +319,86 @@ export async function getUserActiveEnrollments() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
+  const { data: enrollments, error: enrollError } = await supabase
     .from("path_enrollments")
-    .select(`
-      *,
-      path:paths(
-        *,
-        seed:seeds(*)
-      )
-    `)
+    .select("*")
     .eq("user_id", user.id)
     .in("status", ["active", "paused"])
     .order("enrolled_at", { ascending: false });
 
-  if (error) throw new Error(error.message);
-  return data || [];
+  if (enrollError) {
+    console.error("Error loading active enrollments:", enrollError);
+    throw new Error(enrollError.message);
+  }
+
+  if (!enrollments || enrollments.length === 0) return [];
+
+  // Get paths for these enrollments
+  const pathIds = enrollments.map(e => e.path_id);
+  const { data: paths } = await supabase
+    .from("paths")
+    .select("*")
+    .in("id", pathIds);
+
+  if (!paths) return enrollments;
+
+  // Get seeds for these paths
+  const seedIds = paths.map(p => p.seed_id);
+  const { data: seeds } = await supabase
+    .from("seeds")
+    .select("*")
+    .in("id", seedIds);
+
+  // Combine the data
+  return enrollments.map(enrollment => ({
+    ...enrollment,
+    path: {
+      ...paths.find(p => p.id === enrollment.path_id),
+      seed: seeds?.find(s => s.id === paths.find(p => p.id === enrollment.path_id)?.seed_id),
+    },
+  }));
 }
 
 export async function getUserCompletedEnrollments() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
+  const { data: enrollments, error: enrollError } = await supabase
     .from("path_enrollments")
-    .select(`
-      *,
-      path:paths(
-        *,
-        seed:seeds(*)
-      )
-    `)
+    .select("*")
     .eq("user_id", user.id)
     .eq("status", "explored")
     .order("completed_at", { ascending: false });
 
-  if (error) throw new Error(error.message);
-  return data || [];
+  if (enrollError) {
+    console.error("Error loading completed enrollments:", enrollError);
+    throw new Error(enrollError.message);
+  }
+
+  if (!enrollments || enrollments.length === 0) return [];
+
+  // Get paths for these enrollments
+  const pathIds = enrollments.map(e => e.path_id);
+  const { data: paths } = await supabase
+    .from("paths")
+    .select("*")
+    .in("id", pathIds);
+
+  if (!paths) return enrollments;
+
+  // Get seeds for these paths
+  const seedIds = paths.map(p => p.seed_id);
+  const { data: seeds } = await supabase
+    .from("seeds")
+    .select("*")
+    .in("id", seedIds);
+
+  // Combine the data
+  return enrollments.map(enrollment => ({
+    ...enrollment,
+    path: {
+      ...paths.find(p => p.id === enrollment.path_id),
+      seed: seeds?.find(s => s.id === paths.find(p => p.id === enrollment.path_id)?.seed_id),
+    },
+  }));
 }
