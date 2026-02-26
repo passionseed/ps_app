@@ -1,6 +1,31 @@
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { useFonts } from "expo-font";
-import { AuthProvider } from "../lib/auth";
+import { useEffect } from "react";
+import { AuthProvider, useAuth } from "../lib/auth";
+
+function RootNavigator() {
+  const { session, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (session) {
+      router.replace("/(tabs)/discover");
+    } else {
+      router.replace("/");
+    }
+  }, [session, loading]);
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="seed/[id]" options={{ presentation: "card" }} />
+      <Stack.Screen name="path/[enrollmentId]" options={{ presentation: "card" }} />
+      <Stack.Screen name="reflection/[enrollmentId]" options={{ presentation: "modal" }} />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -11,10 +36,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <RootNavigator />
     </AuthProvider>
   );
 }

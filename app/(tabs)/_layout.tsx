@@ -4,20 +4,20 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Pressable } from "react-native";
 
 const TAB_ICONS: Record<string, { label: string; icon: string; activeIcon: string }> = {
-  home: {
-    label: "Home",
-    icon: "○",
-    activeIcon: "●",
+  discover: {
+    label: "Discover",
+    icon: "🔍",
+    activeIcon: "🔎",
   },
-  explore: {
-    label: "Explore",
-    icon: "□",
-    activeIcon: "■",
+  "my-paths": {
+    label: "My Paths",
+    icon: "📚",
+    activeIcon: "📖",
   },
   profile: {
     label: "Profile",
-    icon: "△",
-    activeIcon: "▲",
+    icon: "👤",
+    activeIcon: "👤",
   },
 };
 
@@ -28,6 +28,8 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
         const tab = TAB_ICONS[route.name];
+
+        if (!tab) return null;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -75,8 +77,8 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: "#FDFFF5" },
       }}
     >
-      <Tabs.Screen name="home" />
-      <Tabs.Screen name="explore" />
+      <Tabs.Screen name="discover" />
+      <Tabs.Screen name="my-paths" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );
@@ -111,10 +113,9 @@ const styles = StyleSheet.create({
   },
   tabIcon: {
     fontSize: 20,
-    color: "#999",
   },
   tabIconActive: {
-    color: "#111",
+    // Active state handled by emoji swap
   },
   tabLabel: {
     fontSize: 10,
