@@ -60,24 +60,44 @@ export default function DailyPathScreen() {
       setEnrollment(enrollmentData as EnrollmentWithPath);
 
       // Get today's path day
+      console.log("Fetching path day for:", {
+        path_id: enrollmentData.path_id,
+        current_day: enrollmentData.current_day,
+      });
+
       const dayData = await getPathDay(
         enrollmentData.path_id,
         enrollmentData.current_day
       );
+
+      console.log("Path day data received:", JSON.stringify(dayData, null, 2));
+
+      if (!dayData) {
+        console.error("❌ NO PATH DAY FOUND for path_id:", enrollmentData.path_id, "day:", enrollmentData.current_day);
+      } else if (!dayData.node_ids || dayData.node_ids.length === 0) {
+        console.error("⚠️ PATH DAY EXISTS but node_ids is empty or null:", dayData);
+      }
+
       setPathDay(dayData);
 
-      if (dayData && dayData.node_ids.length > 0) {
+      if (dayData && dayData.node_ids && dayData.node_ids.length > 0) {
+        console.log("Fetching nodes for IDs:", dayData.node_ids);
+
         // Get nodes for today
         const nodesData = await getNodesByIds(dayData.node_ids);
+        console.log("Nodes received:", nodesData.length, "nodes");
         setNodes(nodesData);
 
         // Get progress for nodes
         const progressData = await getNodeProgress(dayData.node_ids);
+        console.log("Progress data received:", progressData.length, "progress records");
         const progressMap: Record<string, StudentNodeProgress> = {};
         progressData.forEach((p) => {
           progressMap[p.node_id] = p;
         });
         setProgress(progressMap);
+      } else {
+        console.log("No nodes found for this day. DayData:", dayData);
       }
     } catch (error) {
       console.error("Failed to load path data:", error);
@@ -194,6 +214,7 @@ export default function DailyPathScreen() {
             index={index + 1}
             completed={progress[node.id]?.status === "passed"}
             onComplete={() => handleNodeComplete(node.id)}
+            enrollmentId={enrollmentId!}
           />
         ))}
 
@@ -229,11 +250,13 @@ function TaskCard({
   index,
   completed,
   onComplete,
+  enrollmentId,
 }: {
   node: MapNode;
   index: number;
   completed: boolean;
   onComplete: () => void;
+  enrollmentId: string;
 }) {
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -269,6 +292,11 @@ function TaskCard({
     }
   };
 
+  const handlePress = () => {
+    if (completed) return;
+    router.push(`/node/${node.id}?enrollmentId=${enrollmentId}`);
+  };
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -276,7 +304,7 @@ function TaskCard({
         completed && styles.taskCardCompleted,
         pressed && styles.taskCardPressed,
       ]}
-      onPress={completed ? undefined : onComplete}
+      onPress={handlePress}
       disabled={completed}
     >
       <View style={styles.taskIndex}>

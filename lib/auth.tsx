@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    const redirectTo = "passionseed://google-auth";
+    const redirectTo = "passion-seed://google-auth";
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
