@@ -66,6 +66,10 @@ export default function StepChat({
       }
     } catch (e) {
       console.error('Chat error:', e);
+      setBubbles((prev) => [
+        ...prev,
+        { role: 'model', text: "Sorry, I had trouble connecting. Please try again." },
+      ]);
     } finally {
       setLoading(false);
     }
