@@ -20,9 +20,12 @@ export default function StepCareers({ userId, userName, educationLevel, interest
   const [customInput, setCustomInput] = useState('');
   const [customCareers, setCustomCareers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(false);
     const allSelected = interests.flatMap((c) => c.selected);
     callOnboardingChat({
       mode: 'suggest_careers',
@@ -35,8 +38,13 @@ export default function StepCareers({ userId, userName, educationLevel, interest
     }).then((res) => {
       setSuggestions(res.action_data?.careers ?? []);
       setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+    }).catch(() => {
+      setLoading(false);
+      setError(true);
+    });
+  };
+
+  useEffect(() => { load(); }, []);
 
   const toggleSuggestion = (career: string) => {
     setSelected((prev) =>
@@ -69,6 +77,17 @@ export default function StepCareers({ userId, userName, educationLevel, interest
       <View style={styles.loading}>
         <ActivityIndicator color="#BFFF00" size="large" />
         <Text style={styles.loadingText}>Finding paths for you...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.errorText}>Couldn't connect. Check your internet and try again.</Text>
+        <Pressable style={styles.retryBtn} onPress={load}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </Pressable>
       </View>
     );
   }
@@ -131,6 +150,9 @@ export default function StepCareers({ userId, userName, educationLevel, interest
 const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
   loadingText: { fontFamily: 'Orbit_400Regular', color: 'rgba(255,255,255,0.6)', fontSize: 15 },
+  errorText: { fontFamily: 'Orbit_400Regular', color: 'rgba(255,255,255,0.6)', fontSize: 15, textAlign: 'center', paddingHorizontal: 32 },
+  retryBtn: { backgroundColor: '#BFFF00', borderRadius: 100, paddingVertical: 12, paddingHorizontal: 32, marginTop: 8 },
+  retryBtnText: { fontFamily: 'Orbit_400Regular', fontWeight: '700', fontSize: 15, color: '#0a0514' },
   scroll: { padding: 24, paddingBottom: 48 },
   title: { fontFamily: 'Orbit_400Regular', fontWeight: '700', fontSize: 24, color: '#fff', marginBottom: 8 },
   subtitle: { fontFamily: 'Orbit_400Regular', fontWeight: '300', fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 28 },
