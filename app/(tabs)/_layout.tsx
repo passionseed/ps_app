@@ -1,9 +1,13 @@
 import { Tabs } from "expo-router";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet, Platform } from "react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Pressable } from "react-native";
+import { AppText } from "../../components/AppText";
 
-const TAB_ICONS: Record<string, { label: string; icon: string; activeIcon: string }> = {
+const TAB_ICONS: Record<
+  string,
+  { label: string; icon: string; activeIcon: string }
+> = {
   discover: {
     label: "Discover",
     icon: "🔍",
@@ -54,12 +58,16 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             accessibilityState={isFocused ? { selected: true } : {}}
             accessibilityLabel={options.tabBarAccessibilityLabel}
           >
-            <Text style={[styles.tabIcon, isFocused && styles.tabIconActive]}>
+            <AppText
+              style={[styles.tabIcon, isFocused && styles.tabIconActive]}
+            >
               {isFocused ? tab.activeIcon : tab.icon}
-            </Text>
-            <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
+            </AppText>
+            <AppText
+              style={[styles.tabLabel, isFocused && styles.tabLabelActive]}
+            >
               {tab.label}
-            </Text>
+            </AppText>
             {isFocused && <View style={styles.tabIndicator} />}
           </Pressable>
         );
@@ -119,8 +127,6 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 10,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
     color: "#999",
     letterSpacing: 0.5,
   },

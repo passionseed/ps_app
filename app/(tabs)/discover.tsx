@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Pressable,
@@ -13,6 +12,7 @@ import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { getAvailableSeeds } from "../../lib/pathlab";
 import type { SeedWithEnrollment } from "../../types/seeds";
+import { AppText } from "../../components/AppText";
 
 export default function DiscoverScreen() {
   const [seeds, setSeeds] = useState<SeedWithEnrollment[]>([]);
@@ -44,7 +44,7 @@ export default function DiscoverScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#BFFF00" />
-        <Text style={styles.loadingText}>Loading paths...</Text>
+        <AppText style={styles.loadingText}>Loading paths...</AppText>
       </View>
     );
   }
@@ -55,10 +55,12 @@ export default function DiscoverScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Discover</Text>
-        <Text style={styles.headerSubtitle}>
+        <AppText variant="bold" style={styles.headerTitle}>
+          Discover
+        </AppText>
+        <AppText style={styles.headerSubtitle}>
           Test a career path in just 4-5 days
-        </Text>
+        </AppText>
       </View>
 
       {/* Seeds List */}
@@ -72,9 +74,11 @@ export default function DiscoverScreen() {
       >
         {seeds.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🌱</Text>
-            <Text style={styles.emptyText}>No paths available yet</Text>
-            <Text style={styles.emptySubtext}>Check back soon!</Text>
+            <AppText style={styles.emptyIcon}>🌱</AppText>
+            <AppText variant="bold" style={styles.emptyText}>
+              No paths available yet
+            </AppText>
+            <AppText style={styles.emptySubtext}>Check back soon!</AppText>
           </View>
         ) : (
           seeds.map((seed) => (
@@ -107,15 +111,21 @@ function SeedCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.seedCard, pressed && styles.seedCardPressed]}
+      style={({ pressed }) => [
+        styles.seedCard,
+        pressed && styles.seedCardPressed,
+      ]}
       onPress={onPress}
     >
       {/* Cover Image */}
       {seed.cover_image_url ? (
-        <Image source={{ uri: seed.cover_image_url }} style={styles.seedImage} />
+        <Image
+          source={{ uri: seed.cover_image_url }}
+          style={styles.seedImage}
+        />
       ) : (
         <View style={[styles.seedImage, styles.seedImagePlaceholder]}>
-          <Text style={styles.seedImagePlaceholderText}>🌱</Text>
+          <AppText style={styles.seedImagePlaceholderText}>🌱</AppText>
         </View>
       )}
 
@@ -124,23 +134,27 @@ function SeedCard({
         {/* Category badge */}
         {seed.category && (
           <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{seed.category.name}</Text>
+            <AppText variant="bold" style={styles.categoryText}>
+              {seed.category.name}
+            </AppText>
           </View>
         )}
 
-        <Text style={styles.seedTitle}>{seed.title}</Text>
+        <AppText variant="bold" style={styles.seedTitle}>
+          {seed.title}
+        </AppText>
 
         {seed.slogan && (
-          <Text style={styles.seedSlogan} numberOfLines={2}>
+          <AppText style={styles.seedSlogan} numberOfLines={2}>
             {seed.slogan}
-          </Text>
+          </AppText>
         )}
 
         {/* Duration */}
         <View style={styles.seedMeta}>
-          <Text style={styles.seedDuration}>
+          <AppText style={styles.seedDuration}>
             {totalDays} days · 30 min/day
-          </Text>
+          </AppText>
         </View>
 
         {/* Progress indicator if enrolled */}
@@ -154,15 +168,17 @@ function SeedCard({
                 ]}
               />
             </View>
-            <Text style={styles.progressText}>
-              {isActive ? `Day ${currentDay}/${totalDays}` : seed.enrollment?.status}
-            </Text>
+            <AppText style={styles.progressText}>
+              {isActive
+                ? `Day ${currentDay}/${totalDays}`
+                : seed.enrollment?.status}
+            </AppText>
           </View>
         )}
       </View>
 
       {/* Arrow */}
-      <Text style={styles.seedArrow}>→</Text>
+      <AppText style={styles.seedArrow}>→</AppText>
     </Pressable>
   );
 }
@@ -180,7 +196,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
-    fontFamily: "Orbit_400Regular",
     fontSize: 14,
     color: "#666",
   },
@@ -191,15 +206,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 32,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
     color: "#111",
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
     color: "#666",
   },
   scrollView: {
@@ -220,15 +231,11 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
     color: "#111",
     marginBottom: 4,
   },
   emptySubtext: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
     color: "#666",
   },
   seedCard: {
@@ -268,22 +275,16 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 10,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
     color: "#111",
     textTransform: "uppercase",
   },
   seedTitle: {
     fontSize: 20,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
     color: "#111",
     marginBottom: 4,
   },
   seedSlogan: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
     color: "#666",
     marginBottom: 12,
     lineHeight: 20,
@@ -294,8 +295,6 @@ const styles = StyleSheet.create({
   },
   seedDuration: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
     color: "#999",
   },
   progressContainer: {
@@ -315,8 +314,6 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
     color: "#666",
   },
   seedArrow: {
