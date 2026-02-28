@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   ActivityIndicator,
@@ -10,6 +9,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../lib/auth";
 import AnimatedBackground from "../components/AnimatedBackground";
+import { AppText } from "../components/AppText";
 
 export default function LandingPage() {
   const { signInWithGoogle, loading: authLoading } = useAuth();
@@ -37,24 +37,27 @@ export default function LandingPage() {
           <View style={styles.logoContainer}>
             <Image
               source={require("../assets/passionseed-logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
+              style={[styles.logoImage, { width: 120, height: 120 }]}
             />
           </View>
 
           {/* Tagline */}
           <View style={styles.taglineContainer}>
-            <Text style={styles.tagline}>Discover your path</Text>
+            <AppText variant="bold" style={styles.tagline}>
+              ค้นหาเส้นทางที่ใช่
+            </AppText>
             <View style={styles.highlightWrapper}>
-              <Text style={styles.taglineHighlight}>before you commit</Text>
+              <AppText variant="bold" style={styles.taglineHighlight}>
+                ก่อนตัดสินใจจริง
+              </AppText>
             </View>
           </View>
 
           {/* Description */}
-          <Text style={styles.description}>
-            Test career paths in 30 mins/day for 4-5 days.{"\n"}
-            Find what truly excites you.
-          </Text>
+          <AppText style={styles.description}>
+            ทดลองอาชีพในฝัน เพียง 30 นาทีต่อวัน{"\n"}
+            เพื่อค้นพบตัวตนที่แท้จริงของคุณ
+          </AppText>
 
           {/* Sign In Button */}
           <Pressable
@@ -76,16 +79,18 @@ export default function LandingPage() {
                   }}
                   style={styles.googleIcon}
                 />
-                <Text style={styles.signInText}>Continue with Google</Text>
+                <AppText variant="bold" style={styles.signInText}>
+                  เข้าสู่ระบบด้วย Google
+                </AppText>
               </View>
             )}
           </Pressable>
 
           {/* Features */}
           <View style={styles.features}>
-            <FeatureItem icon="🎯" text="30 min daily tasks" />
-            <FeatureItem icon="📝" text="Daily reflections" />
-            <FeatureItem icon="🗺️" text="University roadmap" />
+            <FeatureItem icon="🎯" text={`ภารกิจรายวัน\n30 นาที`} />
+            <FeatureItem icon="📝" text={`สะท้อนความรู้สึก\nทุกวัน`} />
+            <FeatureItem icon="🗺️" text={`แนวทางการ\nเรียนต่อ`} />
           </View>
         </View>
       </View>
@@ -97,9 +102,9 @@ function FeatureItem({ icon, text }: { icon: string; text: string }) {
   return (
     <View style={styles.featureItem}>
       <View style={styles.featureIconContainer}>
-        <Text style={styles.featureIcon}>{icon}</Text>
+        <AppText style={styles.featureIcon}>{icon}</AppText>
       </View>
-      <Text style={styles.featureText}>{text}</Text>
+      <AppText style={styles.featureText}>{text}</AppText>
     </View>
   );
 }
@@ -107,112 +112,114 @@ function FeatureItem({ icon, text }: { icon: string; text: string }) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#0a0514", // Fallback color behind SVG gradient
+    backgroundColor: "#0a0514",
   },
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: 16,
   },
   glassCard: {
     width: "100%",
-    maxWidth: 400,
-    backgroundColor: "rgba(30, 15, 60, 0.4)",
-    borderRadius: 24,
+    maxWidth: 440,
+    backgroundColor: "rgba(20, 10, 40, 0.5)",
+    borderRadius: 40,
     padding: 32,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "rgba(255, 255, 255, 0.15)",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.7,
+    shadowRadius: 30,
     alignItems: "center",
-    backdropFilter: "blur(12px)", // Note: web only, RN uses external libs for true blur
+    backdropFilter: "blur(24px)",
   } as any,
   logoContainer: {
     alignItems: "center",
     marginBottom: 24,
+    width: "100%",
   },
   logoImage: {
-    width: 200,
-    height: 60,
-  },
+    shadowColor: "#BFFF00",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+  } as any,
   taglineContainer: {
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 24,
   },
   tagline: {
-    fontSize: 26,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
+    fontSize: 32,
     color: "#fff",
-    marginBottom: 4,
+    marginBottom: 10,
+    textAlign: "center",
+    letterSpacing: 0.5,
   },
   highlightWrapper: {
     backgroundColor: "#BFFF00",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    transform: [{ rotate: "-2deg" }],
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    transform: [{ rotate: "-1.5deg" }],
+    shadowColor: "#BFFF00",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
   },
   taglineHighlight: {
     fontSize: 24,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
+    color: "#0a0514",
+    textAlign: "center",
   },
   description: {
-    fontSize: 15,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
-    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 17,
+    color: "rgba(255, 255, 255, 0.9)",
     textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 36,
+    lineHeight: 28,
+    marginBottom: 44,
   },
   signInBtn: {
     backgroundColor: "#fff",
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 100, // Very rounded
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    borderRadius: 100,
     width: "100%",
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 44,
     shadowColor: "#BFFF00",
-    shadowOffset: { width: 0, height: 0 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 16,
+    elevation: 10,
   },
   signInBtnPressed: {
-    backgroundColor: "#f0f0f0",
-    transform: [{ scale: 0.98 }],
+    backgroundColor: "#f5f5f5",
+    transform: [{ scale: 0.96 }],
   },
   signInBtnDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   btnContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
+    gap: 14,
   },
   googleIcon: {
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
   },
   signInText: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
+    fontSize: 18,
+    color: "#0a0514",
   },
   features: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
-    gap: 12,
+    gap: 4,
   },
   featureItem: {
     alignItems: "center",
@@ -220,24 +227,22 @@ const styles = StyleSheet.create({
   },
   featureIconContainer: {
     backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 16,
-    width: 48,
-    height: 48,
+    borderRadius: 24,
+    width: 56,
+    height: 56,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   featureIcon: {
-    fontSize: 22,
+    fontSize: 26,
   },
   featureText: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
-    color: "rgba(255, 255, 255, 0.7)",
+    color: "rgba(255, 255, 255, 0.8)",
     textAlign: "center",
-    lineHeight: 16,
+    lineHeight: 15,
   },
 });

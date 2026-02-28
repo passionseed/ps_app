@@ -9,13 +9,15 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo-google-fonts/google-sans": "^0.4.0",
+    "@expo-google-fonts/libre-franklin": "^0.4.2",
     "@expo-google-fonts/orbit": "^0.4.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@supabase/supabase-js": "^2.97.0",
     "expo": "~54.0.33",
     "expo-auth-session": "^7.0.10",
     "expo-constants": "~18.0.13",
-    "expo-font": "^14.0.11",
+    "expo-font": "~14.0.11",
     "expo-linking": "~8.0.11",
     "expo-router": "~6.0.23",
     "expo-sqlite": "~16.0.10",

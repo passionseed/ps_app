@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@expo-google-fonts/google-sans':
+        specifier: ^0.4.0
+        version: 0.4.0
+      '@expo-google-fonts/libre-franklin':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@expo-google-fonts/orbit':
         specifier: ^0.4.0
         version: 0.4.0
@@ -27,7 +33,7 @@ importers:
         specifier: ~18.0.13
         version: 18.0.13(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))
       expo-font:
-        specifier: ^14.0.11
+        specifier: ~14.0.11
         version: 14.0.11(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-linking:
         specifier: ~8.0.11
@@ -585,6 +591,12 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@expo-google-fonts/google-sans@0.4.0':
+    resolution: {integrity: sha512-jKlPbtTbYSW0bn9uSuAT6bVPHCmAiWfF+hdvZMYfXXGqlnDB3b7JPoGwaUxa2RB/RxCwaGM3W7zinDGY9WAsGA==}
+
+  '@expo-google-fonts/libre-franklin@0.4.2':
+    resolution: {integrity: sha512-aUf6qenmy23hL2BteGl8bk1Y1rmxplz3e1HhmjDkFt171aT7gEc4uSbuS1URbD5mUPzt0rv+VuOlKezPlDegew==}
 
   '@expo-google-fonts/orbit@0.4.0':
     resolution: {integrity: sha512-kj4NGC9dDUMiDX3N9n8L/VPRyKFnKl+Aqm6g39yVW2Dw9vLMBD4UsL/qx2BHdEgQY4zd7Fc4wsQam5wX21vXiQ==}
@@ -3842,6 +3854,10 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@expo-google-fonts/google-sans@0.4.0': {}
+
+  '@expo-google-fonts/libre-franklin@0.4.2': {}
 
   '@expo-google-fonts/orbit@0.4.0': {}
 

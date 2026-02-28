@@ -30,7 +30,17 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "node_modules/@expo-google-fonts/google-sans/400Regular/GoogleSans_400Regular.ttf",
+            "node_modules/@expo-google-fonts/google-sans/700Bold/GoogleSans_700Bold.ttf",
+            "node_modules/@expo-google-fonts/libre-franklin/400Regular/LibreFranklin_400Regular.ttf",
+            "node_modules/@expo-google-fonts/libre-franklin/700Bold/LibreFranklin_700Bold.ttf"
+          ]
+        }
+      ],
       "expo-router",
       "expo-sqlite",
       [
