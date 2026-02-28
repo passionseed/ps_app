@@ -113,6 +113,18 @@ export async function callOnboardingChat(params: {
   const { data, error } = await supabase.functions.invoke('onboarding-chat', {
     body: params,
   })
-  if (error) throw error
+  if (error) {
+    // Log full error details for debugging
+    const context = (error as any).context
+    if (context) {
+      try {
+        const body = await context.json()
+        console.error('Edge Function error body:', JSON.stringify(body))
+      } catch {
+        console.error('Edge Function error status:', context.status)
+      }
+    }
+    throw error
+  }
   return data as OnboardingChatResponse
 }
