@@ -44,11 +44,11 @@ function TabIndicator({ focused }: TabIndicatorProps) {
   const pulse = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.spring(pulse, {
+    pulse.stopAnimation();
+    Animated.timing(pulse, {
       toValue: focused ? 1 : 0,
-      damping: 15,
-      stiffness: 220,
-      useNativeDriver: true,
+      duration: 220,
+      useNativeDriver: false,
     }).start();
   }, [focused, pulse]);
 
@@ -73,6 +73,8 @@ function TabIndicator({ focused }: TabIndicatorProps) {
   );
 }
 
+const SelectorShell: ComponentType<any> = Platform.OS === "web" ? View : GlassView;
+
 function GlassTabBarItem({
   route,
   tab,
@@ -89,11 +91,11 @@ function GlassTabBarItem({
   const activeAnim = useRef(new Animated.Value(isFocused ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.spring(activeAnim, {
+    activeAnim.stopAnimation();
+    Animated.timing(activeAnim, {
       toValue: isFocused ? 1 : 0,
-      damping: 14,
-      stiffness: 180,
-      useNativeDriver: true,
+      duration: 180,
+      useNativeDriver: false,
     }).start();
   }, [isFocused, activeAnim]);
 
@@ -111,26 +113,57 @@ function GlassTabBarItem({
     >
       <Animated.View
         style={[
-          styles.glowRing,
+          styles.selectorShell,
           {
-            backgroundColor: tab.halo,
             opacity: activeAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, 0.55],
+              outputRange: [0, 1],
             }),
             transform: [
               {
-                scale: activeAnim.interpolate({
+                scaleX: activeAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0.5, 1.15],
+                  outputRange: [0.72, 1],
+                }),
+              },
+              {
+                scaleY: activeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.75, 1],
                 }),
               },
             ],
           },
         ]}
       />
+      <SelectorShell
+        style={[
+          styles.selectorGlass,
+          {
+            opacity: activeAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 1],
+            }),
+          },
+        ]}
+        {...(Platform.OS === "web" ? {} : { glassEffectStyle: "clear" })}
+      >
+        <Animated.View
+          style={[
+            styles.selectorGlow,
+            {
+              opacity: activeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.7],
+              }),
+              backgroundColor: isFocused ? tab.halo : "transparent",
+            },
+          ]}
+        />
+      </SelectorShell>
       <Animated.View
         style={[
+          styles.tabContentZ,
           {
             transform: [
               {
@@ -178,11 +211,11 @@ function triggerTabHaptics(isFocused: boolean) {
 
 const TabShell: ComponentType<any> = Platform.OS === "web" ? View : GlassView;
 
-function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <TabShell
       style={styles.tabBar}
-      {...(Platform.OS !== "web" ? { glassEffectStyle: { style: "dark", animate: true, animationDuration: 0.4 } } : {})}
+      {...(Platform.OS === "web" ? {} : { glassEffectStyle: "clear" })}
     >
       <View style={styles.glassHalo} />
       {state.routes.map((route, index) => {
@@ -295,6 +328,30 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: "#fff",
   },
+  tabContentZ: {
+    zIndex: 2,
+  },
+  selectorShell: {
+    position: "absolute",
+    left: 8,
+    right: 8,
+    top: 6,
+    bottom: 30,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  selectorGlass: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.36)",
+  },
+  selectorGlow: {
+    ...StyleSheet.absoluteFillObject,
+  },
   activePulse: {
     position: "absolute",
     bottom: 4,
@@ -302,12 +359,5 @@ const styles = StyleSheet.create({
     height: 3,
     backgroundColor: "#ffffff",
     borderRadius: 2,
-  },
-  glowRing: {
-    position: "absolute",
-    width: 58,
-    height: 42,
-    borderRadius: 21,
-    top: -12,
   },
 });
