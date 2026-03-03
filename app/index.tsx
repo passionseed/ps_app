@@ -5,24 +5,62 @@ import {
   Pressable,
   ActivityIndicator,
   Image,
+  Platform,
+  Alert,
+  Linking,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useAuth } from "../lib/auth";
+import * as AppleAuthentication from "expo-apple-authentication";
+import { FontAwesome } from "@expo/vector-icons";
+import {
+  isAppleAccountSetupError,
+  isAuthCancellationError,
+  useAuth,
+} from "../lib/auth";
 import AnimatedBackground from "../components/AnimatedBackground";
 import { AppText } from "../components/AppText";
 
 export default function LandingPage() {
-  const { signInWithGoogle, loading: authLoading } = useAuth();
-  const [signingIn, setSigningIn] = useState(false);
+  const { signInWithGoogle, signInWithApple, loading: authLoading } = useAuth();
+  const [signingInProvider, setSigningInProvider] = useState<
+    "google" | "apple" | null
+  >(null);
 
-  const handleSignIn = async () => {
-    setSigningIn(true);
+  const handleSignIn = async (provider: "google" | "apple") => {
+    if (signingInProvider !== null || authLoading) return;
+
+    setSigningInProvider(provider);
     try {
-      await signInWithGoogle();
+      if (provider === "google") {
+        await signInWithGoogle();
+      } else {
+        await signInWithApple();
+      }
     } catch (e) {
+      if (isAuthCancellationError(e)) {
+        return;
+      }
+
+      if (provider === "apple" && isAppleAccountSetupError(e)) {
+        Alert.alert(
+          "Apple ID Required",
+          "Please sign in to your Apple ID in iOS Settings before using Sign in with Apple.",
+          [
+            { text: "Close", style: "cancel" },
+            {
+              text: "Settings",
+              onPress: () => {
+                void Linking.openSettings();
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       console.error("Sign in error:", e);
     } finally {
-      setSigningIn(false);
+      setSigningInProvider(null);
     }
   };
 
@@ -64,27 +102,53 @@ export default function LandingPage() {
             style={({ pressed }) => [
               styles.signInBtn,
               pressed && styles.signInBtnPressed,
-              (signingIn || authLoading) && styles.signInBtnDisabled,
+              (signingInProvider !== null || authLoading) && styles.signInBtnDisabled,
             ]}
-            onPress={handleSignIn}
-            disabled={signingIn || authLoading}
+            onPress={() => handleSignIn("google")}
+            disabled={signingInProvider !== null || authLoading}
           >
-            {signingIn || authLoading ? (
+            {signingInProvider === "google" || authLoading ? (
               <ActivityIndicator color="#111" />
             ) : (
               <View style={styles.btnContent}>
-                <Image
-                  source={{
-                    uri: "https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg",
-                  }}
-                  style={styles.googleIcon}
-                />
+                <FontAwesome name="google" size={22} color="#4285F4" style={styles.googleIcon} />
                 <AppText variant="bold" style={styles.signInText}>
                   เข้าสู่ระบบด้วย Google
                 </AppText>
               </View>
             )}
           </Pressable>
+
+          {Platform.OS === "ios" ? (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={100}
+              style={[
+                styles.appleButton,
+                (signingInProvider !== null || authLoading) && styles.signInBtnDisabled,
+              ]}
+              onPress={() => handleSignIn("apple")}
+            />
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.appleBtnFallback,
+                pressed && styles.appleBtnFallbackPressed,
+                (signingInProvider !== null || authLoading) && styles.signInBtnDisabled,
+              ]}
+              onPress={() => handleSignIn("apple")}
+              disabled={signingInProvider !== null || authLoading}
+            >
+              {signingInProvider === "apple" || authLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <AppText variant="bold" style={styles.appleBtnText}>
+                  Sign in with Apple
+                </AppText>
+              )}
+            </Pressable>
+          )}
 
           {/* Features */}
           <View style={styles.features}>
@@ -194,6 +258,28 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 10,
   },
+  appleButton: {
+    width: "100%",
+    height: 56,
+    marginBottom: 44,
+  },
+  appleBtnFallback: {
+    backgroundColor: "#111",
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    borderRadius: 100,
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 44,
+  },
+  appleBtnFallbackPressed: {
+    backgroundColor: "#1f1f1f",
+    transform: [{ scale: 0.98 }],
+  },
+  appleBtnText: {
+    fontSize: 18,
+    color: "#fff",
+  },
   signInBtnPressed: {
     backgroundColor: "#f5f5f5",
     transform: [{ scale: 0.96 }],
@@ -208,8 +294,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   googleIcon: {
-    width: 24,
-    height: 24,
+    marginTop: 1,
   },
   signInText: {
     fontSize: 18,
