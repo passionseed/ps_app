@@ -1,5 +1,7 @@
 import * as WebBrowser from "expo-web-browser";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { createContext, useContext, useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
@@ -7,12 +9,73 @@ WebBrowser.maybeCompleteAuthSession();
 
 function extractParamsFromUrl(url: string) {
   const parsedUrl = new URL(url);
-  const hash = parsedUrl.hash.substring(1);
-  const params = new URLSearchParams(hash);
+  const hash = parsedUrl.hash.startsWith("#")
+    ? parsedUrl.hash.substring(1)
+    : parsedUrl.hash;
+  const hashParams = new URLSearchParams(hash);
+  const queryParams = parsedUrl.searchParams;
   return {
-    access_token: params.get("access_token"),
-    refresh_token: params.get("refresh_token"),
+    access_token:
+      hashParams.get("access_token") ?? queryParams.get("access_token"),
+    refresh_token:
+      hashParams.get("refresh_token") ?? queryParams.get("refresh_token"),
   };
+}
+
+function getErrorCode(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string"
+  ) {
+    return (error as { code: string }).code;
+  }
+
+  return "";
+}
+
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+
+  if (error instanceof Error) return error.message;
+  return String(error ?? "");
+}
+
+export function isAuthCancellationError(error: unknown): boolean {
+  const code = getErrorCode(error).toUpperCase();
+  const message = getErrorMessage(error).toLowerCase();
+
+  return (
+    code === "ERR_REQUEST_CANCELED" ||
+    code === "ERR_REQUEST_CANCELLED" ||
+    message.includes("user canceled") ||
+    message.includes("user cancelled")
+  );
+}
+
+export function isAppleAccountSetupError(error: unknown): boolean {
+  const code = getErrorCode(error).toUpperCase();
+  const message = getErrorMessage(error).toLowerCase();
+
+  if (
+    message.includes("not signed in") &&
+    (message.includes("apple") || message.includes("icloud"))
+  ) {
+    return true;
+  }
+
+  return (
+    code === "ERR_REQUEST_UNKNOWN" &&
+    message.includes("authorization attempt failed for an unknown reason")
+  );
 }
 
 type AuthContext = {
@@ -20,6 +83,7 @@ type AuthContext = {
   user: User | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContext>({
@@ -27,6 +91,7 @@ const AuthContext = createContext<AuthContext>({
   user: null,
   loading: true,
   signInWithGoogle: async () => {},
+  signInWithApple: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -48,11 +113,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
-    const redirectTo = "passion-seed://google-auth";
-
+  const signInWithOAuth = async (
+    provider: "google" | "apple",
+    redirectTo: string
+  ) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+      provider,
       options: { redirectTo, skipBrowserRedirect: true },
     });
 
@@ -74,9 +140,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    await signInWithOAuth("google", "passion-seed://google-auth");
+  };
+
+  const signInWithApple = async () => {
+    if (Platform.OS !== "ios") {
+      await signInWithOAuth("apple", "passion-seed://apple-auth");
+      return;
+    }
+
+    const isAvailable = await AppleAuthentication.isAvailableAsync();
+    if (!isAvailable) {
+      throw new Error("Apple Authentication is not available on this device.");
+    }
+
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error("No identityToken returned from Apple.");
+      }
+
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: "apple",
+        token: credential.identityToken,
+      });
+
+      if (error) throw error;
+
+      if (credential.fullName) {
+        const givenName = credential.fullName.givenName ?? "";
+        const middleName = credential.fullName.middleName ?? "";
+        const familyName = credential.fullName.familyName ?? "";
+        const fullName = [givenName, middleName, familyName]
+          .filter(Boolean)
+          .join(" ");
+
+        if (fullName || givenName || familyName) {
+          await supabase.auth.updateUser({
+            data: {
+              full_name: fullName,
+              given_name: givenName || null,
+              family_name: familyName || null,
+            },
+          });
+        }
+      }
+    } catch (error: unknown) {
+      if (isAuthCancellationError(error)) {
+        return;
+      }
+
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading, signInWithGoogle }}
+      value={{
+        session,
+        user: session?.user ?? null,
+        loading,
+        signInWithGoogle,
+        signInWithApple,
+      }}
     >
       {children}
     </AuthContext.Provider>

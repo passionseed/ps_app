@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, TextProps, StyleSheet } from "react-native";
+import { Platform, StyleSheet, Text, TextProps, StyleProp, TextStyle } from "react-native";
 
 interface AppTextProps extends TextProps {
   variant?: "regular" | "bold";
@@ -16,25 +16,49 @@ export const AppText: React.FC<AppTextProps> = ({
   variant = "regular",
   ...props
 }) => {
+  const resolvedStyle = StyleSheet.flatten(style as StyleProp<TextStyle>) || {};
+  const hasThai = (() => {
+    if (typeof children === "string") {
+      return isThai(children);
+    }
+
+    if (Array.isArray(children)) {
+      return children.some(
+        (child) => typeof child === "string" && isThai(child),
+      );
+    }
+
+    return false;
+  })();
+
   let fontFamily =
     variant === "bold" ? "LibreFranklin_Bold" : "LibreFranklin_Regular";
+  const fontSize = typeof resolvedStyle.fontSize === "number"
+    ? resolvedStyle.fontSize
+    : 16;
 
-  if (typeof children === "string" && isThai(children)) {
-    fontFamily = variant === "bold" ? "GoogleSans_Bold" : "GoogleSans_Regular";
-  } else if (Array.isArray(children)) {
-    // If any part of the array is Thai, we might want to switch or just let it be.
-    // Simplifying: if the first string part is Thai, use Google Sans.
-    const hasThai = children.some(
-      (child) => typeof child === "string" && isThai(child),
-    );
-    if (hasThai) {
-      fontFamily =
-        variant === "bold" ? "GoogleSans_Bold" : "GoogleSans_Regular";
-    }
+  if (hasThai) {
+    fontFamily =
+      variant === "bold" ? "BaiJamjuree_500Medium" : "BaiJamjuree_400Regular";
   }
 
   return (
-    <Text style={[styles.base, { fontFamily }, style]} {...props}>
+    <Text
+      style={[
+        styles.base,
+        { fontFamily },
+        hasThai && {
+          lineHeight: Math.max(fontSize * 1.45, fontSize + 8),
+          includeFontPadding: true,
+          paddingTop: 1,
+          ...(Platform.OS === "android"
+            ? { textAlignVertical: "center" as const }
+            : {}),
+        },
+        style,
+      ]}
+      {...props}
+    >
       {children}
     </Text>
   );
