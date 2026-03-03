@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
+import Constants from "expo-constants";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 
@@ -16,6 +17,7 @@ export default function ProfileScreen() {
     user?.user_metadata?.full_name || user?.user_metadata?.name || "Explorer";
   const email = user?.email || "";
   const avatarInitial = displayName.charAt(0).toUpperCase();
+  const appVersion = Constants.expoConfig?.version ?? "dev";
 
   return (
     <View style={styles.container}>
@@ -26,57 +28,61 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-        </View>
-
-        {/* Avatar + name */}
-        <View style={styles.identity}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{avatarInitial}</Text>
+        <View style={styles.mainContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Profile</Text>
           </View>
-          <Text style={styles.name}>{displayName}</Text>
-          <Text style={styles.email}>{email}</Text>
-        </View>
 
-        {/* Stats placeholder */}
-        <View style={styles.statsRow}>
-          <StatBox value="0" label="Paths Explored" />
-          <View style={styles.statDivider} />
-          <StatBox value="0" label="Tasks Done" />
-          <View style={styles.statDivider} />
-          <StatBox value="0d" label="Streak" />
-        </View>
+          {/* Avatar + name */}
+          <View style={styles.identity}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{avatarInitial}</Text>
+            </View>
+            <Text style={styles.name}>{displayName}</Text>
+            <Text style={styles.email}>{email}</Text>
+          </View>
 
-        {/* Coming soon */}
-        <View style={styles.comingSoon}>
-          <Text style={styles.comingSoonIcon}>🚀</Text>
-          <Text style={styles.comingSoonTitle}>Direction Finder</Text>
-          <Text style={styles.comingSoonText}>
-            After exploring paths, unlock AI-powered career direction
-            recommendations tailored to your interests.
-          </Text>
-        </View>
+          {/* Stats placeholder */}
+          <View style={styles.statsRow}>
+            <StatBox value="0" label="Paths Explored" />
+            <View style={styles.statDivider} />
+            <StatBox value="0" label="Tasks Done" />
+            <View style={styles.statDivider} />
+            <StatBox value="0d" label="Streak" />
+          </View>
 
-        {/* Sign out */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.signOutBtn,
-            pressed && styles.signOutBtnPressed,
-          ]}
-          onPress={handleSignOut}
-        >
-          {({ pressed }) => (
-            <Text
-              style={[styles.signOutText, pressed && styles.signOutTextPressed]}
-            >
-              Sign out
+          {/* Coming soon */}
+          <View style={styles.comingSoon}>
+            <Text style={styles.comingSoonIcon}>🚀</Text>
+            <Text style={styles.comingSoonTitle}>Direction Finder</Text>
+            <Text style={styles.comingSoonText}>
+              After exploring paths, unlock AI-powered career direction
+              recommendations tailored to your interests.
             </Text>
-          )}
-        </Pressable>
+          </View>
 
-        <View style={{ height: 120 }} />
+          {/* Sign out */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.signOutBtn,
+              pressed && styles.signOutBtnPressed,
+            ]}
+            onPress={handleSignOut}
+          >
+            {({ pressed }) => (
+              <Text
+                style={[styles.signOutText, pressed && styles.signOutTextPressed]}
+              >
+                Sign out
+              </Text>
+            )}
+          </Pressable>
+        </View>
+
+        <View style={styles.versionContainer}>
+          <Text style={styles.versionText}>Version {appVersion}</Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -100,7 +106,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    flexGrow: 1,
+    paddingBottom: 120,
+  },
+  mainContent: {
+    paddingBottom: 24,
   },
   header: {
     paddingTop: 64,
@@ -225,5 +235,16 @@ const styles = StyleSheet.create({
   },
   signOutTextPressed: {
     color: "#fff",
+  },
+  versionContainer: {
+    marginTop: "auto",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  versionText: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#999",
+    letterSpacing: 0.2,
   },
 });
