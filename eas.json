@@ -19,7 +19,10 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "APP_NAME_SUFFIX": " (Preview)"
+      }
     },
     "production": {
       "autoIncrement": true,

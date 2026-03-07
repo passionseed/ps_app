@@ -1,0 +1,203 @@
+{
+  "fill" : {
+    "automatic-gradient" : "display-p3:0.96783,0.95023,0.92563,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "SVG Image 7.svg",
+          "name" : "SVG Image 7",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 5.6,
+                "translation-in-points" : [
+                  24.04673282491035,
+                  -118.04943595172972
+                ]
+              }
+            },
+            {
+              "idiom" : "watchOS",
+              "value" : {
+                "scale" : 5.6,
+                "translation-in-points" : [
+                  -33.630194261606334,
+                  -101.6988700446567
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "SVG Image 6.svg",
+          "name" : "SVG Image 6",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 5.6,
+                "translation-in-points" : [
+                  -64.32686721376581,
+                  167.50488512996992
+                ]
+              }
+            },
+            {
+              "idiom" : "watchOS",
+              "value" : {
+                "scale" : 5.6,
+                "translation-in-points" : [
+                  -122.0037943002825,
+                  183.85545103704294
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "glass-specializations" : [
+            {
+              "value" : false
+            },
+            {
+              "appearance" : "dark",
+              "value" : true
+            },
+            {
+              "appearance" : "tinted",
+              "value" : true
+            }
+          ],
+          "image-name" : "SVG Image 9.svg",
+          "name" : "SVG Image 9",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 5.6,
+                "translation-in-points" : [
+                  -53.77094002926651,
+                  170.34877294022579
+                ]
+              }
+            },
+            {
+              "idiom" : "watchOS",
+              "value" : {
+                "scale" : 5.6,
+                "translation-in-points" : [
+                  -111.4478671157832,
+                  186.6993388472988
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "SVG Image 8.svg",
+          "name" : "SVG Image 8",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 5.6,
+                "translation-in-points" : [
+                  37.988609343847884,
+                  0
+                ]
+              }
+            },
+            {
+              "idiom" : "watchOS",
+              "value" : {
+                "scale" : 5.6,
+                "translation-in-points" : [
+                  -19.6883177426688,
+                  16.35056590707302
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "hidden" : true,
+          "image-name" : "SVG Image 5.svg",
+          "name" : "SVG Image 5",
+          "position" : {
+            "scale" : 5.6,
+            "translation-in-points" : [
+              -21.115476557613647,
+              -17.249435951729765
+            ]
+          }
+        },
+        {
+          "glass" : true,
+          "hidden" : true,
+          "image-name" : "SVG Image 4.svg",
+          "name" : "SVG Image 4",
+          "position" : {
+            "scale" : 5.6,
+            "translation-in-points" : [
+              54.48450873527213,
+              0
+            ]
+          }
+        },
+        {
+          "hidden" : true,
+          "image-name" : "SVG Image 2.svg",
+          "name" : "SVG Image 2",
+          "position" : {
+            "scale" : 5.6,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
