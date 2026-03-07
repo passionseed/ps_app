@@ -22,8 +22,8 @@ type EnrollmentData = {
     total_days: number;
     seed: {
       title: string;
-    };
-  };
+    }[];
+  }[];
 };
 
 export default function ReflectionScreen() {
@@ -44,7 +44,8 @@ export default function ReflectionScreen() {
 
       const { data } = await supabase
         .from("path_enrollments")
-        .select(`
+        .select(
+          `
           id,
           current_day,
           path:paths(
@@ -52,7 +53,8 @@ export default function ReflectionScreen() {
             total_days,
             seed:seeds(title)
           )
-        `)
+        `,
+        )
         .eq("id", enrollmentId)
         .single();
 
@@ -111,7 +113,7 @@ export default function ReflectionScreen() {
     );
   }
 
-  const isLastDay = enrollment.current_day >= enrollment.path.total_days;
+  const isLastDay = enrollment.current_day >= enrollment.path[0].total_days;
 
   return (
     <View style={styles.container}>
@@ -133,8 +135,12 @@ export default function ReflectionScreen() {
       >
         {/* Day info */}
         <View style={styles.dayInfo}>
-          <Text style={styles.dayBadge}>Day {enrollment.current_day} Complete! 🎉</Text>
-          <Text style={styles.seedName}>{enrollment.path.seed.title}</Text>
+          <Text style={styles.dayBadge}>
+            Day {enrollment.current_day} Complete! 🎉
+          </Text>
+          <Text style={styles.seedName}>
+            {enrollment.path[0].seed[0].title}
+          </Text>
         </View>
 
         {/* Prompts intro */}
@@ -189,7 +195,9 @@ export default function ReflectionScreen() {
 
         {/* Interest Level */}
         <View style={styles.sliderSection}>
-          <Text style={styles.sliderLabel}>How interested are you in this path?</Text>
+          <Text style={styles.sliderLabel}>
+            How interested are you in this path?
+          </Text>
           <View style={styles.sliderRow}>
             <Text style={styles.sliderEmoji}>😐</Text>
             <View style={styles.sliderTrack}>
@@ -257,7 +265,12 @@ export default function ReflectionScreen() {
                 onPress={() => handleSubmit("continue_now")}
                 disabled={submitting}
               >
-                <Text style={[styles.decisionBtnText, styles.decisionBtnTextSecondary]}>
+                <Text
+                  style={[
+                    styles.decisionBtnText,
+                    styles.decisionBtnTextSecondary,
+                  ]}
+                >
                   🚀 I'm on fire! Start Day {enrollment.current_day + 1}
                 </Text>
               </Pressable>
@@ -267,7 +280,12 @@ export default function ReflectionScreen() {
                 onPress={() => handleSubmit("pause")}
                 disabled={submitting}
               >
-                <Text style={[styles.decisionBtnText, styles.decisionBtnTextTertiary]}>
+                <Text
+                  style={[
+                    styles.decisionBtnText,
+                    styles.decisionBtnTextTertiary,
+                  ]}
+                >
                   ⏸️ Pause for now
                 </Text>
               </Pressable>
@@ -277,7 +295,9 @@ export default function ReflectionScreen() {
                 onPress={() => handleSubmit("quit")}
                 disabled={submitting}
               >
-                <Text style={[styles.decisionBtnText, styles.decisionBtnTextDanger]}>
+                <Text
+                  style={[styles.decisionBtnText, styles.decisionBtnTextDanger]}
+                >
                   This isn't for me
                 </Text>
               </Pressable>
