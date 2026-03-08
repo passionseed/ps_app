@@ -27,7 +27,10 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "APP_NAME_SUFFIX": " (Preview)"
+        "APP_NAME_SUFFIX": " (Preview)",
+        "EXPO_PUBLIC_SUPABASE_URL": "${EXPO_PUBLIC_SUPABASE_URL}",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "${EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY}",
+        "EXPO_PUBLIC_PROJECT_ID": "${EXPO_PUBLIC_PROJECT_ID}"
       }
     },
     "production": {
