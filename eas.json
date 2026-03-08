@@ -7,12 +7,18 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "env": {
+        "APP_NAME_SUFFIX": " (Development)"
+      }
     },
     "simulator": {
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
+      "env": {
+        "APP_NAME_SUFFIX": " (Development)"
+      },
       "ios": {
         "simulator": true
       }
