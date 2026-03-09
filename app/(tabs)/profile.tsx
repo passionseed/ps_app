@@ -172,29 +172,30 @@ export default function ProfileScreen() {
               {profile && (
                 <View style={styles.infoSection}>
                   <Text style={styles.sectionTitle}>Education</Text>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Level</Text>
-                    <Text style={styles.infoValue}>
-                      {profile.education_level === "high_school"
-                        ? "High School"
-                        : profile.education_level === "university"
-                          ? "University"
-                          : "Unaffiliated"}
-                    </Text>
-                  </View>
-                  {profile.school_name && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>School</Text>
-                      <Text style={styles.infoValue}>
-                        {profile.school_name}
+                  <View style={styles.statementsWrap}>
+                    <View style={styles.statementChip}>
+                      <Text style={styles.statementChipText}>
+                        {profile.education_level === "high_school"
+                          ? "High School"
+                          : profile.education_level === "university"
+                            ? "University"
+                            : "Unaffiliated"}
                       </Text>
                     </View>
-                  )}
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Language</Text>
-                    <Text style={styles.infoValue}>
-                      {profile.preferred_language === "en" ? "English" : "ไทย"}
-                    </Text>
+                    {profile.school_name && (
+                      <View style={styles.statementChip}>
+                        <Text style={styles.statementChipText}>
+                          {profile.school_name}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.statementChip}>
+                      <Text style={styles.statementChipText}>
+                        {profile.preferred_language === "en"
+                          ? "English"
+                          : "ไทย"}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               )}
@@ -395,6 +396,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#eee",
+    zIndex: 10,
   },
   settingsBtnPressed: {
     backgroundColor: "#f5f5f5",
@@ -471,22 +473,22 @@ const styles = StyleSheet.create({
   signOutBtn: {
     marginHorizontal: 24,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#E5E7EB",
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: "center",
   },
   signOutBtnPressed: {
-    backgroundColor: "#111",
+    backgroundColor: "#F9FAFB",
   },
   signOutText: {
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
-    color: "#666",
+    fontWeight: "500",
+    color: "#9CA3AF",
   },
   signOutTextPressed: {
-    color: "#fff",
+    color: "#6B7280",
   },
   versionContainer: {
     marginTop: "auto",
