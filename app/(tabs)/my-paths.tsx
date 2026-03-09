@@ -1,141 +1,136 @@
-import { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  ActivityIndicator,
-  RefreshControl,
-} from "react-native";
+import { useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { router, useFocusEffect } from "expo-router";
-import { JourneySimulationCard } from "../../components/JourneyBoard";
-import { getFullJourneyBoardData } from "../../lib/journey";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import { CareerPathCard } from "../../components/JourneyBoard/CareerPathCard";
+import { MOCK_PATH_DATA } from "../../lib/mockPathData";
 
 export default function MyPathsScreen() {
-  const [simulations, setSimulations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { paths, profileCareerGoal } = MOCK_PATH_DATA;
+  const [activePathId, setActivePathId] = useState(paths[0]?.id || "");
 
-  const loadSimulations = useCallback(async () => {
-    try {
-      const data = await getFullJourneyBoardData();
-      setSimulations(data);
-    } catch (error) {
-      console.error("Failed to load journey simulations:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const activePath = paths.find((p) => p.id === activePathId) || paths[0];
 
-  // Refresh on focus
-  useFocusEffect(
-    useCallback(() => {
-      loadSimulations();
-    }, [loadSimulations]),
-  );
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadSimulations();
-  }, [loadSimulations]);
+  // Simulate empty state
+  const hasSimulations = paths.length > 0;
 
   const handleBuildPath = () => {
     router.push("/build-path");
   };
 
-  const canAddMore = simulations.length < 3;
-  const atMaxCapacity = simulations.length === 3;
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#BFFF00" />
-      </View>
-    );
-  }
-
-  const hasSimulations = simulations.length > 0;
-
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Paths</Text>
-        <Text style={styles.headerSubtitle}>
-          What do you want to be? Let's work backwards.
-        </Text>
-      </View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
       >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Journeys</Text>
+          <Text style={styles.headerSubtitle}>
+            Plan your path to{" "}
+            <Text style={styles.goalHighlight}>{profileCareerGoal}</Text>
+          </Text>
+        </View>
+
         {!hasSimulations ? (
           /* Empty State */
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🧭</Text>
-            <Text style={styles.emptyTitle}>No paths yet</Text>
+            <View style={styles.emptyIconGroup}>
+              <Text style={styles.emptyEmoji}>🧭</Text>
+            </View>
+            <Text style={styles.emptyTitle}>What do you want to be?</Text>
             <Text style={styles.emptySubtext}>
-              Build up to 3 career simulations. Each one helps you explore a
-              potential future.
+              Build up to 3 career simulations. Each one maps out a path from
+              where you are now to your dream career — with specific steps.
             </Text>
-            <Pressable style={styles.buildPathBtn} onPress={handleBuildPath}>
-              <Text style={styles.buildPathBtnText}>Build a Path</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.buildPathBtn,
+                pressed && styles.buildPathBtnPressed,
+              ]}
+              onPress={handleBuildPath}
+            >
+              <LinearGradient
+                colors={["#BFFF00", "#A3E600"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.buildPathGradient}
+              >
+                <Text style={styles.buildPathBtnText}>Build a Path</Text>
+              </LinearGradient>
             </Pressable>
           </View>
         ) : (
           <>
-            {/* Simulation Count / Max Capacity Notice */}
-            <View style={styles.simulationHeader}>
-              <Text style={styles.simulationCount}>
-                {simulations.length} of 3 paths
-              </Text>
-              {atMaxCapacity && (
-                <Text style={styles.maxCapacityText}>
-                  This is your last slot — make it count. You can delete one
-                  anytime.
-                </Text>
-              )}
+            {/* Path Tab Selector */}
+            <View style={styles.tabContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabScroll}
+              >
+                {paths.map((path) => {
+                  const isActive = path.id === activePathId;
+                  return (
+                    <Pressable
+                      key={path.id}
+                      style={[styles.tab, isActive && styles.tabActive]}
+                      onPress={() => setActivePathId(path.id)}
+                    >
+                      {/* Inner highlight edge */}
+                      <View
+                        style={[
+                          styles.tabHighlight,
+                          isActive && styles.tabHighlightActive,
+                        ]}
+                      />
+                      <Text style={styles.tabEmoji}>{path.careerGoalIcon}</Text>
+                      <View>
+                        <Text
+                          style={[
+                            styles.tabLabel,
+                            isActive && styles.tabLabelActive,
+                          ]}
+                        >
+                          {path.label}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.tabGoal,
+                            isActive && styles.tabGoalActive,
+                          ]}
+                        >
+                          {path.careerGoal}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+
+                {/* Add Path Tab */}
+                {paths.length < 3 && (
+                  <Pressable
+                    style={[styles.tab, styles.tabAdd]}
+                    onPress={handleBuildPath}
+                  >
+                    <Text style={styles.addTabIcon}>+</Text>
+                    <Text style={styles.addTabText}>Add</Text>
+                  </Pressable>
+                )}
+              </ScrollView>
             </View>
 
-            {/* Horizontal Scrolling Simulations */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              pagingEnabled
-              snapToInterval={344}
-              decelerationRate="fast"
-              contentContainerStyle={styles.horizontalScrollContent}
-            >
-              {simulations.map((sim) => (
-                <JourneySimulationCard key={sim.id} simulation={sim} />
-              ))}
-            </ScrollView>
-
-            {/* Add Another Path Button */}
-            {canAddMore && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.addAnotherBtn,
-                  pressed && styles.addAnotherBtnPressed,
-                ]}
-                onPress={handleBuildPath}
-              >
-                <Text style={styles.addAnotherIcon}>+</Text>
-                <Text style={styles.addAnotherText}>
-                  Build Path {simulations.length + 1}
-                </Text>
-              </Pressable>
-            )}
+            {/* Active Path Content */}
+            <View style={styles.pathContent}>
+              {activePath && (
+                <CareerPathCard path={activePath} isActive={true} />
+              )}
+            </View>
           </>
         )}
 
@@ -150,122 +145,175 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FDFFF5",
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: "#FDFFF5",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  header: {
-    paddingTop: 64,
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
-    color: "#666",
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 8,
+    paddingBottom: 40,
   },
+  // Header
+  header: {
+    paddingTop: 64,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 30,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "400",
+    color: "#888",
+    lineHeight: 22,
+  },
+  goalHighlight: {
+    color: "#0040F0",
+    fontWeight: "600",
+  },
+  // Empty State
   emptyState: {
     alignItems: "center",
     paddingVertical: 60,
-    paddingHorizontal: 32,
+    paddingHorizontal: 36,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+  emptyIconGroup: {
+    marginBottom: 20,
+  },
+  emptyEmoji: {
+    fontSize: 56,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#111",
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: "center",
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
-    color: "#666",
+    fontWeight: "400",
+    color: "#888",
     textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
+    marginBottom: 28,
+    lineHeight: 22,
   },
   buildPathBtn: {
-    backgroundColor: "#BFFF00",
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  buildPathBtnPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.97 }],
+  },
+  buildPathGradient: {
     paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 12,
+    paddingHorizontal: 36,
+    borderRadius: 14,
   },
   buildPathBtnText: {
     fontSize: 16,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#111",
   },
-  simulationHeader: {
+  // Tabs
+  tabContainer: {
+    marginBottom: 20,
+  },
+  tabScroll: {
     paddingHorizontal: 24,
-    marginBottom: 16,
+    gap: 10,
   },
-  simulationCount: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
-    color: "#666",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  maxCapacityText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    color: "#BFFF00",
-    marginTop: 4,
-    fontWeight: "500",
-  },
-  horizontalScrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-  },
-  addAnotherBtn: {
-    marginHorizontal: 24,
-    marginTop: 8,
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#BFFF00",
-    borderStyle: "dashed",
-    borderRadius: 12,
-    paddingVertical: 16,
+  tab: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 8,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderBottomWidth: 1.5,
+    borderColor: "rgba(0,0,0,0.06)",
+    borderBottomColor: "rgba(0,0,0,0.1)",
+    minWidth: 100,
+    overflow: "hidden",
+    position: "relative" as const,
+    // Subtle lift 2.5D grounded
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  addAnotherBtnPressed: {
-    backgroundColor: "#F8FFF0",
+  tabActive: {
+    backgroundColor: "#111827", // solid deep gray
+    borderColor: "rgba(16, 185, 129, 0.4)", // emerald border
+    borderBottomColor: "rgba(16, 185, 129, 0.8)", // stronger bottom
+    borderBottomWidth: 2,
   },
-  addAnotherIcon: {
+  tabHighlight: {
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.7)",
+  },
+  tabHighlightActive: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)", // subtle for dark bg
+  },
+  tabEmoji: {
     fontSize: 20,
-    fontWeight: "600",
-    color: "#111",
   },
-  addAnotherText: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: "700",
     color: "#111",
+    fontFamily: "Orbit_400Regular",
+  },
+  tabLabelActive: {
+    color: "#fff",
+  },
+  tabGoal: {
+    fontSize: 11,
+    fontWeight: "400",
+    color: "#888",
+    fontFamily: "Orbit_400Regular",
+  },
+  tabGoalActive: {
+    color: "rgba(255,255,255,0.55)",
+  },
+  tabAdd: {
+    borderStyle: "dashed",
+    borderColor: "#ccc",
+    borderBottomWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    minWidth: 70,
+    gap: 4,
+    shadowOpacity: 0,
+  },
+  addTabIcon: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#888",
+  },
+  addTabText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#888",
+    fontFamily: "Orbit_400Regular",
+  },
+  // Path Content
+  pathContent: {
+    paddingHorizontal: 24,
   },
 });
