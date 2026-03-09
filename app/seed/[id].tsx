@@ -1,34 +1,36 @@
 import { useEffect, useState } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Image,
-  TextInput,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
+import Svg, { Path as SvgPath, Circle } from "react-native-svg";
+import { SvgXml } from "react-native-svg";
 import {
   getSeedById,
   getPathBySeedId,
   getUserEnrollment,
   enrollInPath,
+  getPathDays,
+  getSeedNpcAvatar,
 } from "../../lib/pathlab";
-import type { Seed } from "../../types/seeds";
-import type { Path, PathEnrollment } from "../../types/pathlab";
+import type { Seed, SeedNpcAvatar } from "../../types/seeds";
+import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
+import { AppText } from "../../components/AppText";
 
 export default function SeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [seed, setSeed] = useState<Seed | null>(null);
   const [path, setPath] = useState<Path | null>(null);
+  const [pathDays, setPathDays] = useState<PathDay[]>([]);
+  const [npcAvatar, setNpcAvatar] = useState<SeedNpcAvatar | null>(null);
   const [enrollment, setEnrollment] = useState<PathEnrollment | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
-  const [showWhyForm, setShowWhyForm] = useState(false);
-  const [whyJoined, setWhyJoined] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -38,12 +40,20 @@ export default function SeedDetailScreen() {
         setSeed(seedData);
 
         if (seedData) {
-          const pathData = await getPathBySeedId(seedData.id);
+          const [pathData, npcData] = await Promise.all([
+            getPathBySeedId(seedData.id),
+            getSeedNpcAvatar(seedData.id),
+          ]);
+
           setPath(pathData);
+          setNpcAvatar(npcData);
 
           if (pathData) {
             const enrollmentData = await getUserEnrollment(pathData.id);
             setEnrollment(enrollmentData);
+
+            const daysData = await getPathDays(pathData.id);
+            setPathDays(daysData);
           }
         }
       } catch (error) {
@@ -62,7 +72,6 @@ export default function SeedDetailScreen() {
     try {
       const newEnrollment = await enrollInPath({
         pathId: path.id,
-        whyJoined: whyJoined || undefined,
       });
       setEnrollment(newEnrollment);
       router.push(`/path/${newEnrollment.id}`);
@@ -90,9 +99,9 @@ export default function SeedDetailScreen() {
   if (!seed) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Path not found</Text>
+        <AppText style={styles.errorText}>Path not found</AppText>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Go Back</Text>
+          <AppText style={styles.backBtnText}>Go Back</AppText>
         </Pressable>
       </View>
     );
@@ -103,11 +112,11 @@ export default function SeedDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       {/* Back button */}
       <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backButtonText}>← Back</Text>
+        <AppText style={styles.backButtonText}>←</AppText>
       </Pressable>
 
       <ScrollView
@@ -115,117 +124,97 @@ export default function SeedDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Image */}
-        {seed.cover_image_url ? (
-          <Image source={{ uri: seed.cover_image_url }} style={styles.heroImage} />
-        ) : (
-          <View style={[styles.heroImage, styles.heroImagePlaceholder]}>
-            <Text style={styles.heroPlaceholderText}>🌱</Text>
-          </View>
-        )}
+        {/* Title */}
+        <AppText variant="bold" style={styles.title}>
+          {seed.title}
+        </AppText>
 
-        {/* Content */}
-        <View style={styles.content}>
-          {/* Category */}
-          {seed.category && (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{seed.category.name}</Text>
+        {/* NPC Character and Speech Bubble Side by Side */}
+        <View style={styles.npcContainer}>
+          {/* Speech Bubble on Left with Tail */}
+          <View style={styles.speechBubbleWrapper}>
+            <View style={styles.speechBubble}>
+              <AppText style={styles.description}>
+                {seed.description || "Explore this exciting career path!"}
+              </AppText>
+              <AppText style={styles.dayCount}>
+                {path?.total_days || 5}/6
+              </AppText>
             </View>
-          )}
-
-          {/* Title */}
-          <Text style={styles.title}>{seed.title}</Text>
-
-          {/* Slogan */}
-          {seed.slogan && <Text style={styles.slogan}>{seed.slogan}</Text>}
-
-          {/* Duration */}
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaIcon}>📅</Text>
-              <Text style={styles.metaText}>{path?.total_days || 5} days</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaIcon}>⏱️</Text>
-              <Text style={styles.metaText}>30 min/day</Text>
-            </View>
+            {/* Speech Bubble Tail - Triangle pointing right to NPC */}
+            <View style={styles.speechTailOuter} />
+            <View style={styles.speechTailInner} />
           </View>
 
-          {/* Description */}
-          {seed.description && (
-            <View style={styles.descriptionSection}>
-              <Text style={styles.sectionTitle}>What you'll explore</Text>
-              <Text style={styles.description}>{seed.description}</Text>
-            </View>
-          )}
-
-          {/* What to expect */}
-          <View style={styles.expectSection}>
-            <Text style={styles.sectionTitle}>What to expect</Text>
-            <ExpectItem icon="📝" text="Daily tasks like quizzes, videos, and activities" />
-            <ExpectItem icon="💭" text="Reflection after each day to track your feelings" />
-            <ExpectItem icon="🎯" text="Decide if this path is right for you" />
+          {/* NPC Character on Right */}
+          <View style={styles.npcRightColumn}>
+            {npcAvatar?.svg_data ? (
+              <View style={styles.npcCharacter}>
+                <SvgXml xml={npcAvatar.svg_data} width={240} height={340} />
+              </View>
+            ) : (
+              <View style={styles.npcCharacter}>
+                <View style={styles.npcHead}>
+                  <View style={styles.npcEye} />
+                  <View style={styles.npcMouth} />
+                </View>
+                <View style={styles.npcBody}>
+                  <View style={styles.npcTie} />
+                </View>
+              </View>
+            )}
           </View>
+        </View>
 
-          {/* Enrollment Status */}
-          {isEnrolled && (
-            <View style={styles.enrollmentStatus}>
-              <Text style={styles.enrollmentText}>
-                {enrollment.status === "explored"
-                  ? "✅ You've explored this path"
-                  : `📍 Day ${enrollment.current_day} of ${path?.total_days || 5}`}
-              </Text>
-            </View>
-          )}
+        {/* "Click [Name] for more detail" */}
+        <AppText style={styles.clickHint}>
+          click {npcAvatar?.name || "Sam"} for more detail
+        </AppText>
 
-          {/* Why join form */}
-          {showWhyForm && !isEnrolled && (
-            <View style={styles.whyForm}>
-              <Text style={styles.whyLabel}>Why are you interested? (optional)</Text>
-              <TextInput
-                style={styles.whyInput}
-                placeholder="I want to explore this because..."
-                placeholderTextColor="#999"
-                value={whyJoined}
-                onChangeText={setWhyJoined}
-                multiline
-                numberOfLines={3}
+        {/* Timeline Graph */}
+        <View style={styles.timelineContainer}>
+          <PathTimeline days={pathDays} currentDay={enrollment?.current_day || 0} />
+        </View>
+
+        {/* Progress Bar */}
+        {isEnrolled && enrollment.current_day > 0 && (
+          <View style={styles.progressBarContainer}>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${
+                      ((enrollment.current_day - 1) / (path?.total_days || 5)) * 100
+                    }%`,
+                  },
+                ]}
               />
             </View>
-          )}
-        </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* CTA Button */}
       <View style={styles.ctaContainer}>
         {!isEnrolled ? (
-          showWhyForm ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.ctaButton,
-                pressed && styles.ctaButtonPressed,
-                enrolling && styles.ctaButtonDisabled,
-              ]}
-              onPress={handleStartPath}
-              disabled={enrolling}
-            >
-              {enrolling ? (
-                <ActivityIndicator color="#111" />
-              ) : (
-                <Text style={styles.ctaText}>Start Exploring</Text>
-              )}
-            </Pressable>
-          ) : (
-            <Pressable
-              style={({ pressed }) => [
-                styles.ctaButton,
-                pressed && styles.ctaButtonPressed,
-              ]}
-              onPress={() => setShowWhyForm(true)}
-            >
-              <Text style={styles.ctaText}>Begin This Path</Text>
-            </Pressable>
-          )
+          <Pressable
+            style={({ pressed }) => [
+              styles.ctaButton,
+              pressed && styles.ctaButtonPressed,
+              enrolling && styles.ctaButtonDisabled,
+            ]}
+            onPress={handleStartPath}
+            disabled={enrolling}
+          >
+            {enrolling ? (
+              <ActivityIndicator color="#111" />
+            ) : (
+              <AppText variant="bold" style={styles.ctaText}>
+                Start
+              </AppText>
+            )}
+          </Pressable>
         ) : canContinue ? (
           <Pressable
             style={({ pressed }) => [
@@ -234,7 +223,9 @@ export default function SeedDetailScreen() {
             ]}
             onPress={handleContinuePath}
           >
-            <Text style={styles.ctaText}>Continue Day {enrollment.current_day}</Text>
+            <AppText variant="bold" style={styles.ctaText}>
+              Continue Day {enrollment.current_day}
+            </AppText>
           </Pressable>
         ) : (
           <Pressable
@@ -245,7 +236,9 @@ export default function SeedDetailScreen() {
             ]}
             onPress={handleContinuePath}
           >
-            <Text style={[styles.ctaText, styles.ctaTextSecondary]}>View Report</Text>
+            <AppText variant="bold" style={[styles.ctaText, styles.ctaTextSecondary]}>
+              View Report
+            </AppText>
           </Pressable>
         )}
       </View>
@@ -253,12 +246,78 @@ export default function SeedDetailScreen() {
   );
 }
 
-function ExpectItem({ icon, text }: { icon: string; text: string }) {
+function PathTimeline({ days, currentDay }: { days: PathDay[]; currentDay: number }) {
+  if (days.length === 0) return null;
+
+  // Calculate positions for the curved line - wider to prevent cramping
+  const spacing = 150; // Space between each day
+  const width = Math.max(600, days.length * spacing);
+  const height = 120;
+
+  const points = days.map((_, i) => {
+    const x = 80 + i * spacing;
+    const y = height - 40 - Math.sin((i / (days.length - 1)) * Math.PI) * 30;
+    return { x, y };
+  });
+
+  // Create curved path
+  let pathData = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cpx = (prev.x + curr.x) / 2;
+    pathData += ` Q ${cpx} ${prev.y}, ${curr.x} ${curr.y}`;
+  }
+
   return (
-    <View style={styles.expectItem}>
-      <Text style={styles.expectIcon}>{icon}</Text>
-      <Text style={styles.expectText}>{text}</Text>
-    </View>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.timelineScroll}
+      contentContainerStyle={styles.timelineScrollContent}
+    >
+      <View style={styles.timelineWrapper}>
+        <Svg width={width} height={height}>
+          {/* Curved line */}
+          <SvgPath
+            d={pathData}
+            stroke="#333"
+            strokeWidth={3}
+            fill="none"
+          />
+
+          {/* Day dots */}
+          {points.map((point, i) => (
+            <Circle
+              key={i}
+              cx={point.x}
+              cy={point.y}
+              r={8}
+              fill={i < currentDay ? "#BFFF00" : "#fff"}
+              stroke="#333"
+              strokeWidth={2}
+            />
+          ))}
+        </Svg>
+
+        {/* Day labels */}
+        <View style={styles.dayLabelsContainer}>
+          {days.map((day, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dayLabel,
+                { left: points[i].x - 60, top: points[i].y + 20 },
+              ]}
+            >
+              <AppText style={styles.dayLabelText} numberOfLines={3}>
+                {day.title}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -282,7 +341,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    fontFamily: "Orbit_400Regular",
     color: "#666",
   },
   backBtn: {
@@ -291,171 +349,221 @@ const styles = StyleSheet.create({
   },
   backBtnText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     color: "#BFFF00",
   },
   backButton: {
     position: "absolute",
     top: 50,
-    left: 16,
+    left: 24,
     zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    justifyContent: "center",
+    alignItems: "center",
   },
   backButtonText: {
-    color: "#fff",
-    fontFamily: "Orbit_400Regular",
-    fontSize: 14,
+    fontSize: 24,
+    color: "#111",
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
-  },
-  heroImage: {
-    width: "100%",
-    height: 280,
-    backgroundColor: "#f5f5f5",
-  },
-  heroImagePlaceholder: {
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#e8f5e0",
-  },
-  heroPlaceholderText: {
-    fontSize: 72,
-  },
-  content: {
-    padding: 24,
-  },
-  categoryBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#BFFF00",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginBottom: 12,
-  },
-  categoryText: {
-    fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
-    textTransform: "uppercase",
+    paddingTop: 100,
+    paddingHorizontal: 24,
+    paddingBottom: 120,
   },
   title: {
     fontSize: 28,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
     color: "#111",
-    marginBottom: 8,
+    marginBottom: 24,
+    textAlign: "center",
   },
-  slogan: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
-    color: "#666",
-    lineHeight: 24,
+  npcContainer: {
+    flexDirection: "row",
     marginBottom: 16,
+    gap: 0,
+    alignItems: "flex-start",
   },
-  metaRow: {
-    flexDirection: "row",
-    gap: 24,
-    marginBottom: 24,
+  speechBubbleWrapper: {
+    flex: 1,
+    position: "relative",
+    marginRight: -10,
   },
-  metaItem: {
-    flexDirection: "row",
+  speechBubble: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#111",
+    padding: 16,
+    minHeight: 220,
+    position: "relative",
+  },
+  speechTailOuter: {
+    position: "absolute",
+    right: -14,
+    top: 80,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 20,
+    borderRightWidth: 0,
+    borderTopWidth: 15,
+    borderBottomWidth: 15,
+    borderLeftColor: "#111",
+    borderRightColor: "transparent",
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderStyle: "solid",
+  },
+  speechTailInner: {
+    position: "absolute",
+    right: -11,
+    top: 82,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 18,
+    borderRightWidth: 0,
+    borderTopWidth: 13,
+    borderBottomWidth: 13,
+    borderLeftColor: "#fff",
+    borderRightColor: "transparent",
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderStyle: "solid",
+  },
+  npcRightColumn: {
+    width: 240,
     alignItems: "center",
-    gap: 6,
-  },
-  metaIcon: {
-    fontSize: 16,
-  },
-  metaText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
-    color: "#666",
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
-    marginBottom: 12,
-  },
-  descriptionSection: {
-    marginBottom: 24,
+    marginLeft: 10,
   },
   description: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
-    color: "#444",
-    lineHeight: 22,
-  },
-  expectSection: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#eee",
-    marginBottom: 24,
-  },
-  expectItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+    color: "#111",
+    lineHeight: 20,
     marginBottom: 12,
   },
-  expectIcon: {
-    fontSize: 18,
+  dayCount: {
+    position: "absolute",
+    bottom: 12,
+    right: 16,
+    fontSize: 12,
+    color: "#999",
   },
-  expectText: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
-    color: "#444",
-    lineHeight: 20,
-  },
-  enrollmentStatus: {
-    backgroundColor: "#e8f5e0",
-    borderRadius: 8,
-    padding: 12,
+  npcCharacter: {
     alignItems: "center",
-    marginBottom: 16,
   },
-  enrollmentText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
-    color: "#111",
-  },
-  whyForm: {
-    marginBottom: 16,
-  },
-  whyLabel: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
-    color: "#111",
-    marginBottom: 8,
-  },
-  whyInput: {
+  npcHead: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: "#fff",
+    borderWidth: 3,
+    borderColor: "#111",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  npcEye: {
+    position: "absolute",
+    top: 20,
+    left: 15,
+    width: 20,
+    height: 8,
+    backgroundColor: "#111",
+    borderRadius: 4,
+  },
+  npcMouth: {
+    position: "absolute",
+    bottom: 15,
+    width: 30,
+    height: 3,
+    backgroundColor: "#111",
+  },
+  npcBody: {
+    width: 50,
+    height: 80,
+    backgroundColor: "#fff",
+    borderWidth: 3,
+    borderColor: "#111",
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    position: "relative",
+  },
+  npcTie: {
+    position: "absolute",
+    top: 10,
+    left: 15,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 30,
+    borderStyle: "solid",
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "#ff4444",
+  },
+  clickHint: {
+    fontSize: 12,
+    color: "#999",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  timelineContainer: {
+    marginBottom: 24,
+    backgroundColor: "#fff",
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    color: "#111",
-    minHeight: 80,
-    textAlignVertical: "top",
+    padding: 16,
+    overflow: "hidden",
+  },
+  timelineScroll: {
+    width: "100%",
+  },
+  timelineScrollContent: {
+    paddingRight: 40,
+  },
+  timelineWrapper: {
+    position: "relative",
+    height: 160,
+  },
+  dayLabelsContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  dayLabel: {
+    position: "absolute",
+    width: 120,
+    alignItems: "center",
+  },
+  dayLabelText: {
+    fontSize: 11,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 14,
+  },
+  progressBarContainer: {
+    marginBottom: 16,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: "#eee",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#BFFF00",
+    borderRadius: 4,
   },
   ctaContainer: {
     position: "absolute",
@@ -463,13 +571,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 24,
+    paddingBottom: 40,
     backgroundColor: "#FDFFF5",
     borderTopWidth: 1,
     borderTopColor: "#eee",
   },
   ctaButton: {
     backgroundColor: "#BFFF00",
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: 12,
     alignItems: "center",
   },
@@ -481,13 +590,11 @@ const styles = StyleSheet.create({
   },
   ctaButtonSecondary: {
     backgroundColor: "#fff",
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: "#111",
   },
   ctaText: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
+    fontSize: 18,
     color: "#111",
   },
   ctaTextSecondary: {
