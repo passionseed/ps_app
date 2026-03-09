@@ -1,12 +1,51 @@
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import Constants from "expo-constants";
+import { useEffect, useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
+import { getProfile } from "../../lib/onboarding";
+import type {
+  Profile,
+  InterestCategory,
+  CareerGoal,
+} from "../../types/onboarding";
 
 export default function ProfileScreen() {
   const { user } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [interests, setInterests] = useState<InterestCategory[]>([]);
+  const [careers, setCareers] = useState<CareerGoal[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadData = async () => {
+      setLoading(true);
+      const [profileData, interestsData, careersData] = await Promise.all([
+        getProfile(user.id),
+        supabase.from("user_interests").select("*").eq("user_id", user.id),
+        supabase.from("career_goals").select("*").eq("user_id", user.id),
+      ]);
+
+      setProfile(profileData);
+      setInterests(interestsData.data || []);
+      setCareers(careersData.data || []);
+      setLoading(false);
+    };
+
+    loadData();
+  }, [user?.id]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -15,9 +54,9 @@ export default function ProfileScreen() {
 
   const displayName =
     user?.user_metadata?.full_name || user?.user_metadata?.name || "Explorer";
-  const email = user?.email || "";
-  const avatarInitial = displayName.charAt(0).toUpperCase();
   const appVersion = Constants.expoConfig?.version ?? "dev";
+
+  const formatCareerName = (name: string) => name.split("(")[0].trim();
 
   return (
     <View style={styles.container}>
@@ -29,28 +68,142 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.mainContent}>
-          {/* Header */}
+          {/* Header / Identity with Settings */}
           <View style={styles.header}>
-            <Text style={styles.title}>Profile</Text>
-          </View>
-
-          {/* Avatar + name */}
-          <View style={styles.identity}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{avatarInitial}</Text>
-            </View>
             <Text style={styles.name}>{displayName}</Text>
-            <Text style={styles.email}>{email}</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.settingsBtn,
+                pressed && styles.settingsBtnPressed,
+              ]}
+              onPress={() => router.push("/settings")}
+            >
+              <Text style={styles.settingsBtnText}>⚙️</Text>
+            </Pressable>
           </View>
 
-          {/* Stats placeholder */}
-          <View style={styles.statsRow}>
-            <StatBox value="0" label="Paths Explored" />
-            <View style={styles.statDivider} />
-            <StatBox value="0" label="Tasks Done" />
-            <View style={styles.statDivider} />
-            <StatBox value="0d" label="Streak" />
-          </View>
+          {/* Onboarded Info Sections */}
+          {loading ? (
+            <View style={styles.loadingSection}>
+              <ActivityIndicator color="#BFFF00" />
+            </View>
+          ) : (
+            <>
+              {/* Career Goals - Moved to top */}
+              {careers.length > 0 && (
+                <View style={styles.infoSection}>
+                  <Text style={styles.sectionTitle}>Career Goals</Text>
+                  <View style={styles.careersWrap}>
+                    {careers.map((career, idx) => (
+                      <Pressable
+                        key={idx}
+                        style={({ pressed }) => [
+                          styles.careerChipWrapper,
+                          pressed && {
+                            opacity: 0.9,
+                            transform: [{ scale: 0.98 }],
+                          },
+                        ]}
+                        onPress={() =>
+                          router.push(
+                            `/career/${encodeURIComponent(career.career_name)}`,
+                          )
+                        }
+                      >
+                        <LinearGradient
+                          colors={["rgb(0, 22, 81)", "rgb(0, 64, 240)"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 0, y: 1 }}
+                          style={[
+                            styles.careerChip,
+                            career.source === "user_typed" &&
+                              styles.careerChipCustom,
+                          ]}
+                        >
+                          <View style={styles.careerChipInner}>
+                            <Text
+                              style={[
+                                styles.careerChipText,
+                                career.source === "user_typed" &&
+                                  styles.careerChipTextCustom,
+                              ]}
+                            >
+                              {formatCareerName(career.career_name)}
+                            </Text>
+                          </View>
+                        </LinearGradient>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Stats placeholder */}
+              <View style={styles.statsRow}>
+                <StatBox value="0" label="Paths Explored" />
+                <View style={styles.statDivider} />
+                <StatBox value="0" label="Tasks Done" />
+                <View style={styles.statDivider} />
+                <StatBox value="0d" label="Streak" />
+              </View>
+
+              {/* Education Info */}
+              {profile && (
+                <View style={styles.infoSection}>
+                  <Text style={styles.sectionTitle}>Education</Text>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Level</Text>
+                    <Text style={styles.infoValue}>
+                      {profile.education_level === "high_school"
+                        ? "High School"
+                        : profile.education_level === "university"
+                          ? "University"
+                          : "Unaffiliated"}
+                    </Text>
+                  </View>
+                  {profile.school_name && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>School</Text>
+                      <Text style={styles.infoValue}>
+                        {profile.school_name}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Language</Text>
+                    <Text style={styles.infoValue}>
+                      {profile.preferred_language === "en" ? "English" : "ไทย"}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Interests */}
+              {interests.length > 0 && (
+                <View style={styles.infoSection}>
+                  <Text style={styles.sectionTitle}>Interests</Text>
+                  {interests.map((interest, idx) => (
+                    <View key={idx} style={styles.interestCategory}>
+                      <Text style={styles.categoryName}>
+                        {interest.category_name}
+                      </Text>
+                      {interest.selected && interest.selected.length > 0 && (
+                        <View style={styles.statementsWrap}>
+                          {interest.selected.map((stmt, sidx) => (
+                            <View key={sidx} style={styles.statementChip}>
+                              <Text style={styles.statementChipText}>
+                                {stmt}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
 
           {/* Coming soon */}
           <View style={styles.comingSoon}>
@@ -72,7 +225,10 @@ export default function ProfileScreen() {
           >
             {({ pressed }) => (
               <Text
-                style={[styles.signOutText, pressed && styles.signOutTextPressed]}
+                style={[
+                  styles.signOutText,
+                  pressed && styles.signOutTextPressed,
+                ]}
               >
                 Sign out
               </Text>
@@ -115,46 +271,34 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 64,
     paddingHorizontal: 24,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
-  },
-  identity: {
+    paddingBottom: 24,
     alignItems: "center",
-    paddingTop: 24,
-    paddingBottom: 32,
-    gap: 8,
+    position: "relative",
   },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#BFFF00",
-    alignItems: "center",
+  settingsBtn: {
+    position: "absolute",
+    right: 24,
+    top: 64,
+    width: 40,
+    height: 40,
     justifyContent: "center",
-    marginBottom: 8,
+    alignItems: "center",
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee",
   },
-  avatarText: {
-    fontSize: 32,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
+  settingsBtnPressed: {
+    backgroundColor: "#f5f5f5",
+  },
+  settingsBtnText: {
+    fontSize: 20,
   },
   name: {
-    fontSize: 22,
+    fontSize: 28,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
+    fontWeight: "600",
     color: "#111",
-  },
-  email: {
-    fontSize: 13,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
-    color: "#666",
   },
   statsRow: {
     flexDirection: "row",
@@ -246,5 +390,112 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     color: "#999",
     letterSpacing: 0.2,
+  },
+  loadingSection: {
+    marginHorizontal: 24,
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  infoSection: {
+    marginHorizontal: 24,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#eee",
+    padding: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#111",
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f5f5f5",
+  },
+  infoLabel: {
+    fontSize: 13,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "400",
+    color: "#666",
+  },
+  infoValue: {
+    fontSize: 13,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "500",
+    color: "#111",
+  },
+  interestCategory: {
+    marginBottom: 12,
+  },
+  categoryName: {
+    fontSize: 13,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 8,
+  },
+  statementsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  statementChip: {
+    backgroundColor: "#f0f8e8",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  statementChipText: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#111",
+  },
+  careersWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  careerChipWrapper: {
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  careerChip: {
+    height: 32,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderBottomWidth: 1.5,
+    borderColor: "rgba(99, 141, 255, 0.5)",
+    borderBottomColor: "rgba(99, 141, 255, 0.8)",
+  },
+  careerChipInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  careerChipCustom: {
+    borderWidth: 1,
+    borderColor: "#BFFF00",
+  },
+  careerChipText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "500",
+    color: "#fff",
+  },
+  careerChipTextCustom: {
+    color: "#fff",
   },
 });
