@@ -1,6 +1,6 @@
 // PathLab API functions for mobile app
 import { supabase } from "./supabase";
-import type { Seed, SeedWithEnrollment } from "../types/seeds";
+import type { Seed, SeedWithEnrollment, SeedNpcAvatar } from "../types/seeds";
 import type {
   Path,
   PathDay,
@@ -91,6 +91,21 @@ export async function getSeedById(seedId: string): Promise<Seed | null> {
   } as Seed;
 }
 
+export async function getSeedNpcAvatar(seedId: string): Promise<SeedNpcAvatar | null> {
+  const { data, error } = await supabase
+    .from("seed_npc_avatars")
+    .select("*")
+    .eq("seed_id", seedId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error loading NPC avatar:", error);
+    return null;
+  }
+
+  return data;
+}
+
 // ============ Path Enrollment ============
 
 export async function getPathBySeedId(seedId: string): Promise<Path | null> {
@@ -178,6 +193,17 @@ export async function getPathDay(pathId: string, dayNumber: number): Promise<Pat
 
   if (error) throw new Error(error.message);
   return data;
+}
+
+export async function getPathDays(pathId: string): Promise<PathDay[]> {
+  const { data, error } = await supabase
+    .from("path_days")
+    .select("day_number, title")
+    .eq("path_id", pathId)
+    .order("day_number", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 export async function getNodesByIds(nodeIds: string[]): Promise<MapNode[]> {

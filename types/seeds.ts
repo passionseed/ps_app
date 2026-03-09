@@ -37,3 +37,13 @@ export interface SeedWithEnrollment extends Seed {
     status: string;
   } | null;
 }
+
+export interface SeedNpcAvatar {
+  id: string;
+  seed_id: string;
+  name: string;
+  svg_data: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
