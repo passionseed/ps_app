@@ -58,6 +58,22 @@ export default function ProfileScreen() {
 
   const formatCareerName = (name: string) => name.split("(")[0].trim();
 
+  const mockActivity = [
+    {
+      id: 1,
+      type: "milestone",
+      title: "Unlocked Space Architect Path",
+      date: "Today",
+    },
+    {
+      id: 2,
+      type: "learning",
+      title: "Explored Cyber Security basics",
+      date: "Yesterday",
+    },
+    { id: 3, type: "milestone", title: "Joined the Beta", date: "3 days ago" },
+  ];
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -124,6 +140,25 @@ export default function ProfileScreen() {
             <>
               {/* Career Goals removed / moved to Vision Board */}
 
+              {/* Recent Activity */}
+              <View style={styles.activitySection}>
+                <Text style={styles.sectionTitle}>Recent Activity</Text>
+                {mockActivity.map((activity) => (
+                  <View
+                    key={activity.id}
+                    style={[
+                      styles.activityCard,
+                      activity.type === "milestone"
+                        ? styles.activityCardMilestone
+                        : styles.activityCardLearning,
+                    ]}
+                  >
+                    <Text style={styles.activityTitle}>{activity.title}</Text>
+                    <Text style={styles.activityDate}>{activity.date}</Text>
+                  </View>
+                ))}
+              </View>
+
               {/* Stats placeholder */}
               <View style={styles.statsRow}>
                 <StatBox value="0" label="Paths Explored" />
@@ -164,30 +199,7 @@ export default function ProfileScreen() {
                 </View>
               )}
 
-              {/* Interests */}
-              {interests.length > 0 && (
-                <View style={styles.infoSection}>
-                  <Text style={styles.sectionTitle}>Interests</Text>
-                  {interests.map((interest, idx) => (
-                    <View key={idx} style={styles.interestCategory}>
-                      <Text style={styles.categoryName}>
-                        {interest.category_name}
-                      </Text>
-                      {interest.selected && interest.selected.length > 0 && (
-                        <View style={styles.statementsWrap}>
-                          {interest.selected.map((stmt, sidx) => (
-                            <View key={sidx} style={styles.statementChip}>
-                              <Text style={styles.statementChipText}>
-                                {stmt}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              )}
+              {/* Interests removed / moved to Vision Board */}
             </>
           )}
 
@@ -338,6 +350,38 @@ const styles = StyleSheet.create({
   },
   visionChipTextInterest: {
     color: "#8B5CF6",
+  },
+  activitySection: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+  },
+  activityCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  activityCardMilestone: {
+    shadowColor: "rgba(16, 185, 129, 0.25)",
+  },
+  activityCardLearning: {
+    shadowColor: "rgba(59, 130, 246, 0.25)",
+  },
+  activityTitle: {
+    fontSize: 15,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#111",
+    marginBottom: 4,
+  },
+  activityDate: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#666",
   },
   settingsBtn: {
     position: "absolute",
