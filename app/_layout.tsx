@@ -81,8 +81,7 @@ function AppLaunchScreen() {
       />
       <Animated.Image
         source={require("../assets/passionseed-logo.png")}
-        style={[styles.launchLogo, { transform: [{ scale: logoScale }] }]
-      }
+        style={[styles.launchLogo, { transform: [{ scale: logoScale }] }]}
         resizeMode="contain"
       />
       <View style={styles.launchFooter}>
@@ -130,8 +129,15 @@ function RootNavigator() {
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="seed/[id]" options={{ presentation: "card" }} />
-      <Stack.Screen name="path/[enrollmentId]" options={{ presentation: "card" }} />
-      <Stack.Screen name="reflection/[enrollmentId]" options={{ presentation: "modal" }} />
+      <Stack.Screen
+        name="path/[enrollmentId]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="reflection/[enrollmentId]"
+        options={{ presentation: "modal" }}
+      />
+      <Stack.Screen name="interests" options={{ presentation: "modal" }} />
     </Stack>
   );
 }
