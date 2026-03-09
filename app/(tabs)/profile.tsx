@@ -5,9 +5,9 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import { useEffect, useState } from "react";
@@ -87,17 +87,16 @@ export default function ProfileScreen() {
         <View style={styles.mainContent}>
           {/* Header / Identity with Settings */}
           <LinearGradient
-            colors={["#FFFFFF", "#F0F0FF", "#E6FOFF"]}
+            colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
             style={styles.headerGradient}
           >
             <View style={styles.avatarContainer}>
               <Image
                 source={require("../../assets/passionseed-logo.svg")}
-                style={styles.avatarInner}
-                contentFit="contain"
+                style={styles.avatar}
+                resizeMode="contain"
               />
             </View>
-
             <Text style={styles.name}>{displayName}</Text>
 
             <View style={styles.visionBoard}>
@@ -133,15 +132,12 @@ export default function ProfileScreen() {
             {interests.flatMap((i) => i.selected || []).length > 3 && (
               <Pressable
                 style={({ pressed }) => [
-                  styles.viewAllInterestsBtn,
-                  pressed && styles.viewAllInterestsBtnPressed,
+                  styles.viewInterestsBtn,
+                  pressed && styles.viewInterestsBtnPressed,
                 ]}
-                onPress={() => router.push("/interests")}
+                onPress={() => router.push("/settings")} // Replace with interests page route when ready
               >
-                <Text style={styles.viewAllInterestsText}>
-                  View all {interests.flatMap((i) => i.selected || []).length}{" "}
-                  interests
-                </Text>
+                <Text style={styles.viewInterestsText}>View Top Interests</Text>
               </Pressable>
             )}
 
@@ -309,7 +305,7 @@ function StatBox({ value, label }: { value: string; label: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: "#F4F7FA",
   },
   scroll: {
     flex: 1,
@@ -332,32 +328,30 @@ const styles = StyleSheet.create({
     position: "relative",
     borderRadius: 32,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E2E8F0",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#f0f0f0",
+    elevation: 3,
   },
-  avatarInner: {
-    width: 50,
-    height: 50,
+  avatar: {
+    width: 40,
+    height: 40,
   },
   visionBoard: {
     marginTop: 20,
@@ -396,6 +390,22 @@ const styles = StyleSheet.create({
   },
   visionChipTextInterest: {
     color: "#8B5CF6",
+  },
+  viewInterestsBtn: {
+    marginTop: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: "#F3F4F6",
+  },
+  viewInterestsBtnPressed: {
+    backgroundColor: "#E5E7EB",
+  },
+  viewInterestsText: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#4B5563",
+    fontWeight: "500",
   },
   activitySection: {
     marginHorizontal: 24,
@@ -454,21 +464,6 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#111",
-  },
-  viewAllInterestsBtn: {
-    marginTop: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.04)",
-  },
-  viewAllInterestsBtnPressed: {
-    backgroundColor: "rgba(0, 0, 0, 0.08)",
-  },
-  viewAllInterestsText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    color: "#555",
   },
   statsRow: {
     flexDirection: "row",
