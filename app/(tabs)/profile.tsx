@@ -109,6 +109,7 @@ export default function ProfileScreen() {
                   ))}
                   {interests
                     .flatMap((i) => i.selected || [])
+                    .slice(0, 3)
                     .map((stmt, idx) => (
                       <VisionChip
                         key={`interest-${idx}`}
