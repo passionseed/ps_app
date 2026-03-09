@@ -1,16 +1,23 @@
-import { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Dimensions,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { CareerPathCard } from "../../components/JourneyBoard/CareerPathCard";
 import { MOCK_PATH_DATA } from "../../lib/mockPathData";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CARD_WIDTH = SCREEN_WIDTH - 48;
+const SNAP_INTERVAL = CARD_WIDTH + 16;
+
 export default function MyPathsScreen() {
   const { paths, profileCareerGoal } = MOCK_PATH_DATA;
-  const [activePathId, setActivePathId] = useState(paths[0]?.id || "");
-
-  const activePath = paths.find((p) => p.id === activePathId) || paths[0];
 
   // Simulate empty state
   const hasSimulations = paths.length > 0;
@@ -66,72 +73,36 @@ export default function MyPathsScreen() {
             </Pressable>
           </View>
         ) : (
-          <>
-            {/* Path Tab Selector */}
-            <View style={styles.tabContainer}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tabScroll}
-              >
-                {paths.map((path) => {
-                  const isActive = path.id === activePathId;
-                  return (
-                    <Pressable
-                      key={path.id}
-                      style={[styles.tab, isActive && styles.tabActive]}
-                      onPress={() => setActivePathId(path.id)}
-                    >
-                      {/* Inner highlight edge */}
-                      <View
-                        style={[
-                          styles.tabHighlight,
-                          isActive && styles.tabHighlightActive,
-                        ]}
-                      />
-                      <Text style={styles.tabEmoji}>{path.careerGoalIcon}</Text>
-                      <View>
-                        <Text
-                          style={[
-                            styles.tabLabel,
-                            isActive && styles.tabLabelActive,
-                          ]}
-                        >
-                          {path.label}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.tabGoal,
-                            isActive && styles.tabGoalActive,
-                          ]}
-                        >
-                          {path.careerGoal}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
+          <View style={styles.carouselContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={SNAP_INTERVAL}
+              decelerationRate="fast"
+              snapToAlignment="start"
+              contentContainerStyle={styles.carouselContent}
+            >
+              {paths.map((path) => (
+                <CareerPathCard key={path.id} path={path} isActive={true} />
+              ))}
 
-                {/* Add Path Tab */}
-                {paths.length < 3 && (
-                  <Pressable
-                    style={[styles.tab, styles.tabAdd]}
-                    onPress={handleBuildPath}
-                  >
-                    <Text style={styles.addTabIcon}>+</Text>
-                    <Text style={styles.addTabText}>Add</Text>
-                  </Pressable>
-                )}
-              </ScrollView>
-            </View>
-
-            {/* Active Path Content */}
-            <View style={styles.pathContent}>
-              {activePath && (
-                <CareerPathCard path={activePath} isActive={true} />
+              {/* Add Path Card */}
+              {paths.length < 3 && (
+                <Pressable
+                  style={[
+                    styles.addCardOuter,
+                    { width: CARD_WIDTH, marginRight: 16 },
+                  ]}
+                  onPress={handleBuildPath}
+                >
+                  <View style={styles.addCardInner}>
+                    <Text style={styles.addCardIcon}>+</Text>
+                    <Text style={styles.addCardText}>Build Another Path</Text>
+                  </View>
+                </Pressable>
               )}
-            </View>
-          </>
+            </ScrollView>
+          </View>
         )}
 
         <View style={{ height: 120 }} />
@@ -223,97 +194,38 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
   },
-  // Tabs
-  tabContainer: {
-    marginBottom: 20,
+  // Carousel
+  carouselContainer: {
+    marginTop: 8,
   },
-  tabScroll: {
-    paddingHorizontal: 24,
-    gap: 10,
+  carouselContent: {
+    paddingLeft: 24,
+    paddingRight: 8, // Ensures trailing space after the last card
   },
-  tab: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderBottomWidth: 1.5,
-    borderColor: "rgba(0,0,0,0.06)",
-    borderBottomColor: "rgba(0,0,0,0.1)",
-    minWidth: 100,
-    overflow: "hidden",
-    position: "relative" as const,
-    // Subtle lift 2.5D grounded
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tabActive: {
-    backgroundColor: "#111827", // solid deep gray
-    borderColor: "rgba(16, 185, 129, 0.4)", // emerald border
-    borderBottomColor: "rgba(16, 185, 129, 0.8)", // stronger bottom
-    borderBottomWidth: 2,
-  },
-  tabHighlight: {
-    position: "absolute" as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.7)",
-  },
-  tabHighlightActive: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)", // subtle for dark bg
-  },
-  tabEmoji: {
-    fontSize: 20,
-  },
-  tabLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#111",
-    fontFamily: "Orbit_400Regular",
-  },
-  tabLabelActive: {
-    color: "#fff",
-  },
-  tabGoal: {
-    fontSize: 11,
-    fontWeight: "400",
-    color: "#888",
-    fontFamily: "Orbit_400Regular",
-  },
-  tabGoalActive: {
-    color: "rgba(255,255,255,0.55)",
-  },
-  tabAdd: {
+  // Add Path Card
+  addCardOuter: {
+    backgroundColor: "transparent",
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: "rgba(0,0,0,0.08)",
     borderStyle: "dashed",
-    borderColor: "#ccc",
-    borderBottomWidth: 1,
     justifyContent: "center",
     alignItems: "center",
-    minWidth: 70,
-    gap: 4,
-    shadowOpacity: 0,
+    minHeight: 400, // Make it roughly the height of a career path card
   },
-  addTabIcon: {
-    fontSize: 18,
+  addCardInner: {
+    alignItems: "center",
+    gap: 12,
+  },
+  addCardIcon: {
+    fontSize: 48,
+    fontWeight: "300",
+    color: "#9CA3AF",
+  },
+  addCardText: {
+    fontSize: 16,
     fontWeight: "600",
-    color: "#888",
-  },
-  addTabText: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: "#888",
+    color: "#6B7280",
     fontFamily: "Orbit_400Regular",
-  },
-  // Path Content
-  pathContent: {
-    paddingHorizontal: 24,
   },
 });
