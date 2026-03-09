@@ -12,6 +12,7 @@ import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { submitDailyReflection } from "../../lib/pathlab";
+import { VoiceAIReflection } from "../../components/Reflection";
 import type { PathReflectionDecision } from "../../types/pathlab";
 
 type EnrollmentData = {
@@ -37,6 +38,7 @@ export default function ReflectionScreen() {
   const [confusionLevel, setConfusionLevel] = useState(5);
   const [interestLevel, setInterestLevel] = useState(5);
   const [openResponse, setOpenResponse] = useState("");
+  const [showVoiceAI, setShowVoiceAI] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -78,6 +80,20 @@ export default function ReflectionScreen() {
         openResponse: openResponse || undefined,
         decision,
       });
+
+      // Mock triggering Score Engine after reflection
+      try {
+        console.log("Triggering Score Engine for simulation update");
+        // In a real implementation this would call the Supabase Edge Function
+        await supabase.functions.invoke("score-engine/ingest", {
+          body: {
+            reflectionData: { energyLevel, interestLevel },
+            simulationId: enrollment.id,
+          },
+        });
+      } catch (err) {
+        console.error("Score Engine error", err);
+      }
 
       // Navigate based on decision
       if (decision === "continue_now") {
@@ -217,6 +233,43 @@ export default function ReflectionScreen() {
         </View>
 
         {/* Open response */}
+        {showVoiceAI ? (
+          <View style={{ marginBottom: 32 }}>
+            <VoiceAIReflection
+              onSave={(transcript) => {
+                setOpenResponse(transcript);
+                setShowVoiceAI(false);
+              }}
+              onDismiss={() => setShowVoiceAI(false)}
+            />
+          </View>
+        ) : (
+          <View style={{ alignItems: "center", marginBottom: 16 }}>
+            <Pressable
+              style={{
+                backgroundColor: "#F3F4F6",
+                padding: 12,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+              onPress={() => setShowVoiceAI(true)}
+            >
+              <Text style={{ fontSize: 16 }}>🎙️</Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: "Orbit_400Regular",
+                  color: "#4B5563",
+                }}
+              >
+                Reflect with Voice AI
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         <View style={styles.textSection}>
           <Text style={styles.sliderLabel}>Any thoughts or insights?</Text>
           <TextInput
