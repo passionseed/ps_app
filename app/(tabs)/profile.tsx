@@ -69,7 +69,10 @@ export default function ProfileScreen() {
       >
         <View style={styles.mainContent}>
           {/* Header / Identity with Settings */}
-          <View style={styles.header}>
+          <LinearGradient
+            colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
+            style={styles.headerGradient}
+          >
             <Text style={styles.name}>{displayName}</Text>
             <Pressable
               style={({ pressed }) => [
@@ -80,7 +83,7 @@ export default function ProfileScreen() {
             >
               <Text style={styles.settingsBtnText}>⚙️</Text>
             </Pressable>
-          </View>
+          </LinearGradient>
 
           {/* Onboarded Info Sections */}
           {loading ? (
@@ -268,17 +271,28 @@ const styles = StyleSheet.create({
   mainContent: {
     paddingBottom: 24,
   },
-  header: {
-    paddingTop: 64,
+  headerGradient: {
+    marginHorizontal: 16,
+    marginTop: 48,
+    marginBottom: 24,
     paddingHorizontal: 24,
     paddingBottom: 24,
+    paddingTop: 32,
     alignItems: "center",
     position: "relative",
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: "#CECECE",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   settingsBtn: {
     position: "absolute",
     right: 24,
-    top: 64,
+    top: 24,
     width: 40,
     height: 40,
     justifyContent: "center",
