@@ -74,6 +74,36 @@ export default function ProfileScreen() {
             style={styles.headerGradient}
           >
             <Text style={styles.name}>{displayName}</Text>
+
+            <View style={styles.visionBoard}>
+              {careers.length === 0 && interests.length === 0 ? (
+                <>
+                  <VisionChip text="Game Developer" type="career" />
+                  <VisionChip text="Space Architecture" type="career" />
+                  <VisionChip text="AI Ethics" type="interest" />
+                </>
+              ) : (
+                <>
+                  {careers.map((career, idx) => (
+                    <VisionChip
+                      key={`career-${idx}`}
+                      text={formatCareerName(career.career_name)}
+                      type="career"
+                    />
+                  ))}
+                  {interests
+                    .flatMap((i) => i.selected || [])
+                    .map((stmt, idx) => (
+                      <VisionChip
+                        key={`interest-${idx}`}
+                        text={stmt}
+                        type="interest"
+                      />
+                    ))}
+                </>
+              )}
+            </View>
+
             <Pressable
               style={({ pressed }) => [
                 styles.settingsBtn,
@@ -92,54 +122,7 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <>
-              {/* Career Goals - Moved to top */}
-              {careers.length > 0 && (
-                <View style={styles.infoSection}>
-                  <Text style={styles.sectionTitle}>Career Goals</Text>
-                  <View style={styles.careersWrap}>
-                    {careers.map((career, idx) => (
-                      <Pressable
-                        key={idx}
-                        style={({ pressed }) => [
-                          styles.careerChipWrapper,
-                          pressed && {
-                            opacity: 0.9,
-                            transform: [{ scale: 0.98 }],
-                          },
-                        ]}
-                        onPress={() =>
-                          router.push(
-                            `/career/${encodeURIComponent(career.career_name)}`,
-                          )
-                        }
-                      >
-                        <LinearGradient
-                          colors={["rgb(0, 22, 81)", "rgb(0, 64, 240)"]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 0, y: 1 }}
-                          style={[
-                            styles.careerChip,
-                            career.source === "user_typed" &&
-                              styles.careerChipCustom,
-                          ]}
-                        >
-                          <View style={styles.careerChipInner}>
-                            <Text
-                              style={[
-                                styles.careerChipText,
-                                career.source === "user_typed" &&
-                                  styles.careerChipTextCustom,
-                              ]}
-                            >
-                              {formatCareerName(career.career_name)}
-                            </Text>
-                          </View>
-                        </LinearGradient>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
+              {/* Career Goals removed / moved to Vision Board */}
 
               {/* Stats placeholder */}
               <View style={styles.statsRow}>
@@ -247,6 +230,35 @@ export default function ProfileScreen() {
   );
 }
 
+function VisionChip({
+  text,
+  type,
+}: {
+  text: string;
+  type: "career" | "interest";
+}) {
+  const isCareer = type === "career";
+  return (
+    <View
+      style={[
+        styles.visionChip,
+        isCareer ? styles.visionChipCareer : styles.visionChipInterest,
+      ]}
+    >
+      <Text
+        style={[
+          styles.visionChipText,
+          isCareer
+            ? styles.visionChipTextCareer
+            : styles.visionChipTextInterest,
+        ]}
+      >
+        {text}
+      </Text>
+    </View>
+  );
+}
+
 function StatBox({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.statBox}>
@@ -288,6 +300,44 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
+  },
+  visionBoard: {
+    marginTop: 20,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10,
+    width: "100%",
+  },
+  visionChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    backgroundColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  visionChipCareer: {
+    borderColor: "rgba(16, 185, 129, 0.15)",
+    shadowColor: "rgba(16, 185, 129, 0.25)",
+  },
+  visionChipInterest: {
+    borderColor: "rgba(139, 92, 246, 0.15)",
+    shadowColor: "rgba(139, 92, 246, 0.25)",
+  },
+  visionChipText: {
+    fontSize: 13,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "500",
+  },
+  visionChipTextCareer: {
+    color: "#10B981",
+  },
+  visionChipTextInterest: {
+    color: "#8B5CF6",
   },
   settingsBtn: {
     position: "absolute",
