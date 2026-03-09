@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import { useEffect, useState } from "react";
@@ -86,9 +87,17 @@ export default function ProfileScreen() {
         <View style={styles.mainContent}>
           {/* Header / Identity with Settings */}
           <LinearGradient
-            colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
+            colors={["#FFFFFF", "#F0F0FF", "#E6FOFF"]}
             style={styles.headerGradient}
           >
+            <View style={styles.avatarContainer}>
+              <Image
+                source={require("../../assets/passionseed-logo.svg")}
+                style={styles.avatarInner}
+                contentFit="contain"
+              />
+            </View>
+
             <Text style={styles.name}>{displayName}</Text>
 
             <View style={styles.visionBoard}>
@@ -120,6 +129,21 @@ export default function ProfileScreen() {
                 </>
               )}
             </View>
+
+            {interests.flatMap((i) => i.selected || []).length > 3 && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.viewAllInterestsBtn,
+                  pressed && styles.viewAllInterestsBtnPressed,
+                ]}
+                onPress={() => router.push("/interests")}
+              >
+                <Text style={styles.viewAllInterestsText}>
+                  View all {interests.flatMap((i) => i.selected || []).length}{" "}
+                  interests
+                </Text>
+              </Pressable>
+            )}
 
             <Pressable
               style={({ pressed }) => [
@@ -308,12 +332,32 @@ const styles = StyleSheet.create({
     position: "relative",
     borderRadius: 32,
     borderWidth: 1,
-    borderColor: "#CECECE",
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  avatarInner: {
+    width: 50,
+    height: 50,
   },
   visionBoard: {
     marginTop: 20,
@@ -410,6 +454,21 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#111",
+  },
+  viewAllInterestsBtn: {
+    marginTop: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.04)",
+  },
+  viewAllInterestsBtnPressed: {
+    backgroundColor: "rgba(0, 0, 0, 0.08)",
+  },
+  viewAllInterestsText: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#555",
   },
   statsRow: {
     flexDirection: "row",
