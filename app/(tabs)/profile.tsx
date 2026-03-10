@@ -28,24 +28,36 @@ const MOCK_IKIGAI = {
     label: "Passion",
     emoji: "🔥",
     description: "What you love",
+    insight:
+      "You're driven by creativity and design — keep following this energy!",
+    route: "/ikigai/passion",
   },
   mission: {
     score: 72,
     label: "Mission",
     emoji: "🎯",
     description: "What the world needs",
+    insight:
+      "Strong social awareness. You want to make things better for others.",
+    route: "/ikigai/mission",
   },
   profession: {
     score: 48,
     label: "Profession",
     emoji: "💼",
     description: "What you can be paid for",
+    insight:
+      "This is your growth zone — explore more career paths to boost this score.",
+    route: "/ikigai/profession",
   },
   vocation: {
     score: 61,
     label: "Vocation",
     emoji: "🌍",
     description: "What you're good at",
+    insight:
+      "You have solid foundational skills. Level them up to unlock advanced paths.",
+    route: "/ikigai/vocation",
   },
 };
 
@@ -212,48 +224,23 @@ export default function ProfileScreen() {
               <Text style={styles.playerTitleText}>🎮 {playerTitle}</Text>
             </View>
 
-            {/* Vision Chips (careers & interests) */}
+            {/* Vision Chips — careers only */}
             <View style={styles.visionBoard}>
-              {careers.length === 0 && interests.length === 0 ? (
+              {careers.length === 0 ? (
                 <>
                   <VisionChip text="Game Developer" type="career" />
                   <VisionChip text="Space Architecture" type="career" />
-                  <VisionChip text="AI Ethics" type="interest" />
                 </>
               ) : (
-                <>
-                  {careers.map((career, idx) => (
-                    <VisionChip
-                      key={`career-${idx}`}
-                      text={formatCareerName(career.career_name)}
-                      type="career"
-                    />
-                  ))}
-                  {interests
-                    .flatMap((i) => i.selected || [])
-                    .slice(0, 3)
-                    .map((stmt, idx) => (
-                      <VisionChip
-                        key={`interest-${idx}`}
-                        text={stmt}
-                        type="interest"
-                      />
-                    ))}
-                </>
+                careers.map((career, idx) => (
+                  <VisionChip
+                    key={`career-${idx}`}
+                    text={formatCareerName(career.career_name)}
+                    type="career"
+                  />
+                ))
               )}
             </View>
-
-            {interests.flatMap((i) => i.selected || []).length > 3 && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.viewInterestsBtn,
-                  pressed && styles.viewInterestsBtnPressed,
-                ]}
-                onPress={() => router.push("/settings")}
-              >
-                <Text style={styles.viewInterestsText}>View All Interests</Text>
-              </Pressable>
-            )}
           </LinearGradient>
 
           {/* ── Onboarded Info Sections ── */}
@@ -437,14 +424,31 @@ function StatBox({ value, label }: { value: string; label: string }) {
 function IkigaiCell({
   pillar,
 }: {
-  pillar: { score: number; label: string; emoji: string; description: string };
+  pillar: {
+    score: number;
+    label: string;
+    emoji: string;
+    description: string;
+    insight: string;
+    route: string;
+  };
 }) {
   const pct = pillar.score;
-  // Color based on score
   const fillColor = pct >= 75 ? "#10B981" : pct >= 50 ? "#8B5CF6" : "#F59E0B";
   return (
     <View style={styles.ikigaiCell}>
-      <Text style={styles.ikigaiEmoji}>{pillar.emoji}</Text>
+      <View style={styles.ikigaiCellHeader}>
+        <Text style={styles.ikigaiEmoji}>{pillar.emoji}</Text>
+        <Pressable
+          style={({ pressed }) => [
+            styles.ikigaiDeepBtn,
+            pressed && styles.ikigaiDeepBtnPressed,
+          ]}
+          onPress={() => router.push(pillar.route as any)}
+        >
+          <Text style={styles.ikigaiDeepBtnText}>›</Text>
+        </Pressable>
+      </View>
       <Text style={styles.ikigaiLabel}>{pillar.label}</Text>
       <Text style={styles.ikigaiDescription}>{pillar.description}</Text>
       <View style={styles.ikigaiBarBg}>
@@ -456,6 +460,7 @@ function IkigaiCell({
         />
       </View>
       <Text style={[styles.ikigaiScore, { color: fillColor }]}>{pct}</Text>
+      <Text style={styles.ikigaiInsight}>{pillar.insight}</Text>
     </View>
   );
 }
@@ -707,9 +712,31 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 4,
   },
+  ikigaiCellHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  ikigaiDeepBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  ikigaiDeepBtnPressed: {
+    backgroundColor: "rgba(0,0,0,0.1)",
+  },
+  ikigaiDeepBtnText: {
+    fontSize: 18,
+    color: "#6B7280",
+    lineHeight: 22,
+    marginLeft: 2,
+  },
   ikigaiEmoji: {
     fontSize: 22,
-    marginBottom: 2,
   },
   ikigaiLabel: {
     fontSize: 14,
@@ -738,6 +765,13 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "800",
     marginTop: 4,
+  },
+  ikigaiInsight: {
+    fontSize: 11,
+    fontFamily: "Orbit_400Regular",
+    color: "#6B7280",
+    lineHeight: 16,
+    marginTop: 6,
   },
   insightCard: {
     marginTop: 12,
