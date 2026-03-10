@@ -1,10 +1,10 @@
-# Discover Page Redesign Implementation Plan
+# Profile Page Redesign (Player Dashboard) Implementation Plan
 
 > **For Antigravity:** REQUIRED WORKFLOW: Use `.agent/workflows/execute-plan.md` to execute this plan in single-flow mode.
 
-**Goal:** Transform the Discover page into a game-like Player Dashboard featuring an Avatar, a 2x2 Ikigai grid, a Skills Inventory, and an Achievements Feed based on the approved design spec.
+**Goal:** Transform the Profile page into a game-like Player Dashboard featuring an Avatar, a 2x2 Ikigai grid, a Skills Inventory, and an Achievements Feed based on the approved design spec.
 
-**Architecture:** We will replace the current layout in `app/(tabs)/discover.tsx` with a new scrollable layout. We will use local mock data defined within the component for the initial release (to avoid blocking on backend endpoints) and structure the layout into multiple smaller visual blocks.
+**Architecture:** We will enhance the layout in `app/(tabs)/profile.tsx` with new sections stacked below the existing header. We will use local mock data for the initial release and structure the layout into multiple smaller visual blocks.
 
 **Tech Stack:** React Native, Expo Router, Line Gradients (`expo-linear-gradient`).
 
@@ -14,7 +14,7 @@
 
 **Files:**
 
-- Modify: `/Users/bunyasit/dev/ps_app/app/(tabs)/discover.tsx`
+- Modify: `/Users/bunyasit/dev/ps_app/app/(tabs)/profile.tsx`
 
 **Step 1: Write the failing test**
 
@@ -35,7 +35,7 @@ Manually verify in simulator that the header displays the Avatar and "Level 3 Ex
 **Step 4: Commit**
 
 ```bash
-git add app/\(tabs\)/discover.tsx
+git add app/\(tabs\)/profile.tsx
 git commit -m "feat(discover): scaffolding and player header"
 ```
 
@@ -45,7 +45,7 @@ git commit -m "feat(discover): scaffolding and player header"
 
 **Files:**
 
-- Modify: `/Users/bunyasit/dev/ps_app/app/(tabs)/discover.tsx`
+- Modify: `/Users/bunyasit/dev/ps_app/app/(tabs)/profile.tsx`
 
 **Step 1: Write the failing test**
 
@@ -64,7 +64,7 @@ Manual verification in simulator.
 **Step 4: Commit**
 
 ```bash
-git add app/\(tabs\)/discover.tsx
+git add app/\(tabs\)/profile.tsx
 git commit -m "feat(discover): add 2x2 ikigai compass and insights"
 ```
 
@@ -74,7 +74,7 @@ git commit -m "feat(discover): add 2x2 ikigai compass and insights"
 
 **Files:**
 
-- Modify: `/Users/bunyasit/dev/ps_app/app/(tabs)/discover.tsx`
+- Modify: `/Users/bunyasit/dev/ps_app/app/(tabs)/profile.tsx`
 
 **Step 1: Write the failing test**
 
@@ -93,7 +93,7 @@ Manual verification in simulator.
 **Step 4: Commit**
 
 ```bash
-git add app/\(tabs\)/discover.tsx
+git add app/\(tabs\)/profile.tsx
 git commit -m "feat(discover): add skills inventory section"
 ```
 
@@ -103,7 +103,7 @@ git commit -m "feat(discover): add skills inventory section"
 
 **Files:**
 
-- Modify: `/Users/bunyasit/dev/ps_app/app/(tabs)/discover.tsx`
+- Modify: `/Users/bunyasit/dev/ps_app/app/(tabs)/profile.tsx`
 
 **Step 1: Write the failing test**
 
@@ -123,6 +123,6 @@ Manual verification in simulator.
 **Step 4: Commit**
 
 ```bash
-git add app/\(tabs\)/discover.tsx
+git add app/\(tabs\)/profile.tsx
 git commit -m "feat(discover): add activity and achievements feed"
 ```

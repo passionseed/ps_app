@@ -1,4 +1,4 @@
-# Discover Page Redesign: The Player Dashboard
+# Profile Page Redesign: The Player Dashboard
 
 ## Theme & Concept
 
