@@ -18,8 +18,17 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: CORS });
   }
 
-  const { universityName, facultyName, careerGoal = "", passionScore, futureScore, worldScore } =
-    await req.json();
+  // Fix 1: Wrap req.json() in try/catch to avoid 500 on bad body
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", ...CORS },
+    });
+  }
+  const { universityName, facultyName, careerGoal = "", passionScore, futureScore, worldScore } = body;
 
   if (!universityName || !facultyName) {
     return new Response(
@@ -27,6 +36,18 @@ Deno.serve(async (req) => {
       { status: 400, headers: { "Content-Type": "application/json", ...CORS } },
     );
   }
+
+  // Fix 2: Validate and clamp score inputs before prompt interpolation
+  const clampScore = (v: unknown) => Math.min(100, Math.max(0, Number(v) || 0));
+  const ps = clampScore(passionScore);
+  const fs = clampScore(futureScore);
+  const ws = clampScore(worldScore);
+
+  // Fix 3: Sanitize user-controlled string inputs before prompt interpolation
+  const sanitize = (s: string) => String(s ?? "").replace(/[\r\n]/g, " ").slice(0, 200);
+  const safeUniversityName = sanitize(universityName);
+  const safeFacultyName = sanitize(facultyName);
+  const safeCareerGoal = sanitize(careerGoal);
 
   // 1. Check DB cache
   const { data: cached } = await supabase
@@ -43,40 +64,48 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 2. Research via Exa
-  const [exaSearch, exaPeople] = await Promise.all([
-    fetch("https://api.exa.ai/search", {
+  // Fix 4: Handle Exa API failures gracefully
+  const exaFetch = async (body: unknown) => {
+    const r = await fetch("https://api.exa.ai/search", {
       method: "POST",
       headers: { "x-api-key": EXA_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `${universityName} ${facultyName} Thailand admission tuition curriculum`,
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) return { results: [] };
+    return r.json();
+  };
+
+  let exaSearch: any = { results: [] };
+  let exaPeople: any = { results: [] };
+  try {
+    [exaSearch, exaPeople] = await Promise.all([
+      exaFetch({
+        query: `${safeUniversityName} ${safeFacultyName} Thailand admission tuition curriculum`,
         numResults: 8,
         useAutoprompt: true,
         contents: { text: { maxCharacters: 800 } },
       }),
-    }).then((r) => r.json()),
-    fetch("https://api.exa.ai/search", {
-      method: "POST",
-      headers: { "x-api-key": EXA_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `${facultyName} ${universityName} professor alumni Thailand`,
+      exaFetch({
+        query: `${safeFacultyName} ${safeUniversityName} professor alumni Thailand`,
         numResults: 5,
         type: "neural",
       }),
-    }).then((r) => r.json()),
-  ]);
+    ]);
+  } catch {
+    // Exa unavailable — proceed with empty research, AI will have less context
+  }
 
   const searchSnippets = (exaSearch.results ?? [])
     .map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${r.text ?? ""}`)
     .join("\n\n---\n\n")
     .slice(0, 6000);
 
-  // 3. AI synthesis via Claude Haiku
+  // 3. AI synthesis via Claude Haiku — Fix 3: use safe* variables; Fix 2: use clamped scores
   const aiPrompt = `You are helping a Thai high school student evaluate university options.
-University: ${universityName}
-Faculty: ${facultyName}
-Career Goal: ${careerGoal}
-Student scores — Passion: ${passionScore}/100, Future: ${futureScore}/100, Market: ${worldScore}/100
+University: ${safeUniversityName}
+Faculty: ${safeFacultyName}
+Career Goal: ${safeCareerGoal}
+Student scores — Passion: ${ps}/100, Future: ${fs}/100, Market: ${ws}/100
 
 Web research:
 ${searchSnippets}
@@ -95,24 +124,26 @@ Return ONLY a JSON object (no markdown fences) with:
   "news": [{ "title": "...", "url": "...", "snippet": "...", "publishedDate": "..." }]
 }`;
 
-  const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: aiPrompt }],
-    }),
-  });
-
-  const aiData = await aiRes.json();
+  // Fix 5: Handle Claude API failures — don't cache bad results
   let aiParsed: Record<string, any> = {};
   try {
-    aiParsed = JSON.parse(aiData.content?.[0]?.text ?? "{}");
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: aiPrompt }],
+      }),
+    });
+    if (aiRes.ok) {
+      const aiData = await aiRes.json();
+      aiParsed = JSON.parse(aiData.content?.[0]?.text ?? "{}");
+    }
   } catch { /* fallback — partial data */ }
 
   // 4. Build people list
@@ -142,18 +173,20 @@ Return ONLY a JSON object (no markdown fences) with:
     source: "ai",
   };
 
-  // 5. Save to DB cache (upsert — also updates seeded rows on miss)
-  await supabase.from("university_insights_cache").upsert(
-    {
-      university_name: universityName,
-      faculty_name: facultyName,
-      career_goal: careerGoal,
-      data: result,
-      source: "ai",
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    { onConflict: "university_name,faculty_name,career_goal" },
-  );
+  // 5. Save to DB cache only if AI produced a valid result (Fix 5: guard against caching bad results)
+  if (result.aiMatchScore !== null) {
+    await supabase.from("university_insights_cache").upsert(
+      {
+        university_name: universityName,
+        faculty_name: facultyName,
+        career_goal: careerGoal,
+        data: result,
+        source: "ai",
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      { onConflict: "university_name,faculty_name,career_goal" },
+    );
+  }
 
   return new Response(JSON.stringify(result), {
     headers: { "Content-Type": "application/json", "X-Cache": "MISS", ...CORS },
