@@ -1,8 +1,9 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
 import { AppText as Text } from "../AppText";
 import type { PathStep, StepType } from "../../lib/mockPathData";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 
 const STEP_THEMES: Record<
   StepType,
@@ -51,11 +52,99 @@ interface PathStepCardProps {
   step: PathStep;
   isLast: boolean;
   index: number;
+  pathCareerGoal?: string;
+  passionScore?: number | null;
+  futureScore?: number | null;
+  worldScore?: number | null;
 }
 
-export function PathStepCard({ step, isLast, index }: PathStepCardProps) {
+export function PathStepCard({
+  step,
+  isLast,
+  index,
+  pathCareerGoal,
+  passionScore,
+  futureScore,
+  worldScore,
+}: PathStepCardProps) {
   const theme = STEP_THEMES[step.type];
   const stepLabel = STEP_LABELS[step.type];
+
+  const isUniversityTappable =
+    step.type === "university" && !!step.universityMeta;
+
+  const handleUniversityPress = () => {
+    if (!step.universityMeta) return;
+    router.push({
+      pathname: `/university/${encodeURIComponent(step.universityMeta.universityName)}`,
+      params: {
+        facultyName: step.universityMeta.facultyName,
+        careerGoal: pathCareerGoal ?? "",
+        passionScore: String(passionScore ?? ""),
+        futureScore: String(futureScore ?? ""),
+        worldScore: String(worldScore ?? ""),
+      },
+    });
+  };
+
+  const cardContent = (
+    <LinearGradient
+      colors={[theme.bgStart, theme.bgEnd]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={[
+        styles.card,
+        {
+          borderColor: theme.border,
+        },
+      ]}
+    >
+      {/* Inner highlight edge */}
+      <View style={styles.innerHighlight} />
+
+      {/* Step type badge */}
+      <View style={styles.cardHeader}>
+        <View
+          style={[styles.typeBadge, { backgroundColor: theme.accentLight }]}
+        >
+          <Text style={[styles.typeBadgeText, { color: theme.accent }]}>
+            {stepLabel}
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.statusDot,
+            step.status === "completed" && styles.statusCompleted,
+            step.status === "in-progress" && styles.statusInProgress,
+            step.status === "upcoming" && styles.statusUpcoming,
+          ]}
+        />
+      </View>
+
+      <Text style={styles.cardTitle}>{step.title}</Text>
+      <Text style={styles.cardSubtitle}>{step.subtitle}</Text>
+      <View style={styles.detailRow}>
+        <Text style={styles.cardDetail}>{step.detail}</Text>
+      </View>
+      <View style={styles.durationRow}>
+        <View style={[styles.durationPill, { backgroundColor: "#f3f4f6" }]}>
+          <Text style={styles.duration}>⏱ {step.duration}</Text>
+        </View>
+        <Text style={styles.statusText}>
+          {step.status === "completed"
+            ? "✓ Done"
+            : step.status === "in-progress"
+              ? "● Now"
+              : `Step ${index + 1}`}
+        </Text>
+      </View>
+      {isUniversityTappable && (
+        <View style={styles.exploreHint}>
+          <Text style={styles.exploreHintText}>ดูรายละเอียด →</Text>
+        </View>
+      )}
+    </LinearGradient>
+  );
 
   return (
     <View style={styles.stepRow}>
@@ -76,60 +165,23 @@ export function PathStepCard({ step, isLast, index }: PathStepCardProps) {
         )}
       </View>
 
-      {/* Card content */}
-      <View style={[styles.cardOuter, { shadowColor: theme.shadow }]}>
-        <LinearGradient
-          colors={[theme.bgStart, theme.bgEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={[
-            styles.card,
-            {
-              borderColor: theme.border,
-            },
+      {/* Card content — Pressable for university steps, View otherwise */}
+      {isUniversityTappable ? (
+        <Pressable
+          style={({ pressed }) => [
+            styles.cardOuter,
+            { shadowColor: theme.shadow },
+            pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
           ]}
+          onPress={handleUniversityPress}
         >
-          {/* Inner highlight edge */}
-          <View style={styles.innerHighlight} />
-
-          {/* Step type badge */}
-          <View style={styles.cardHeader}>
-            <View
-              style={[styles.typeBadge, { backgroundColor: theme.accentLight }]}
-            >
-              <Text style={[styles.typeBadgeText, { color: theme.accent }]}>
-                {stepLabel}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.statusDot,
-                step.status === "completed" && styles.statusCompleted,
-                step.status === "in-progress" && styles.statusInProgress,
-                step.status === "upcoming" && styles.statusUpcoming,
-              ]}
-            />
-          </View>
-
-          <Text style={styles.cardTitle}>{step.title}</Text>
-          <Text style={styles.cardSubtitle}>{step.subtitle}</Text>
-          <View style={styles.detailRow}>
-            <Text style={styles.cardDetail}>{step.detail}</Text>
-          </View>
-          <View style={styles.durationRow}>
-            <View style={[styles.durationPill, { backgroundColor: "#f3f4f6" }]}>
-              <Text style={styles.duration}>⏱ {step.duration}</Text>
-            </View>
-            <Text style={styles.statusText}>
-              {step.status === "completed"
-                ? "✓ Done"
-                : step.status === "in-progress"
-                  ? "● Now"
-                  : `Step ${index + 1}`}
-            </Text>
-          </View>
-        </LinearGradient>
-      </View>
+          {cardContent}
+        </Pressable>
+      ) : (
+        <View style={[styles.cardOuter, { shadowColor: theme.shadow }]}>
+          {cardContent}
+        </View>
+      )}
     </View>
   );
 }
@@ -256,5 +308,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#9CA3AF",
+  },
+  exploreHint: {
+    marginTop: 8,
+    alignItems: "flex-end",
+  },
+  exploreHintText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#8B5CF6",
+    letterSpacing: 0.3,
   },
 });

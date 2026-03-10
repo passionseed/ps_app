@@ -12,6 +12,11 @@ export interface PathStep {
     duration: string; // "4 years", "3 months", "Full-time"
     icon: string;
     status: "completed" | "in-progress" | "upcoming";
+    // Optional: enables deep-dive navigation for university type steps
+    universityMeta?: {
+        universityName: string;
+        facultyName: string;
+    };
 }
 
 export interface CareerPath {
@@ -66,6 +71,10 @@ export const MOCK_PATH_DATA: PathData = {
                     duration: "3 ปี",
                     icon: "🎓",
                     status: "in-progress",
+                    universityMeta: {
+                        universityName: "มหาวิทยาลัยศิลปากร",
+                        facultyName: "คณะมัณฑนศิลป์",
+                    },
                 },
                 {
                     id: "step-a2",
@@ -117,6 +126,10 @@ export const MOCK_PATH_DATA: PathData = {
                     duration: "4 ปี",
                     icon: "🎓",
                     status: "upcoming",
+                    universityMeta: {
+                        universityName: "จุฬาลงกรณ์มหาวิทยาลัย",
+                        facultyName: "คณะพาณิชยศาสตร์และการบัญชี",
+                    },
                 },
                 {
                     id: "step-b2",
@@ -179,6 +192,10 @@ export const MOCK_PATH_DATA: PathData = {
                     duration: "3 ปี",
                     icon: "🎓",
                     status: "upcoming",
+                    universityMeta: {
+                        universityName: "มหาวิทยาลัยเกษตรศาสตร์",
+                        facultyName: "คณะวิทยาศาสตร์",
+                    },
                 },
                 {
                     id: "step-c2",

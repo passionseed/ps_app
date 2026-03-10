@@ -138,6 +138,14 @@ function RootNavigator() {
         name="reflection/[enrollmentId]"
         options={{ presentation: "modal" }}
       />
+      <Stack.Screen
+        name="university/[key]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="university/compare"
+        options={{ presentation: "card" }}
+      />
     </Stack>
   );
 }

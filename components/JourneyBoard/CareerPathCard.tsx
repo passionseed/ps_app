@@ -215,6 +215,10 @@ export function CareerPathCard({
               step={step}
               isLast={idx === sortedSteps.length - 1}
               index={idx}
+              pathCareerGoal={path.careerGoal}
+              passionScore={path.passionScore}
+              futureScore={path.futureScore}
+              worldScore={path.worldScore}
             />
           ))}
         </View>
