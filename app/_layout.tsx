@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import {
   BaiJamjuree_400Regular,
   BaiJamjuree_500Medium,
+  BaiJamjuree_700Bold,
 } from "@expo-google-fonts/bai-jamjuree";
 import { useFonts } from "expo-font";
 import { useEffect, useRef, useState } from "react";
@@ -137,7 +138,6 @@ function RootNavigator() {
         name="reflection/[enrollmentId]"
         options={{ presentation: "modal" }}
       />
-      <Stack.Screen name="interests" options={{ presentation: "modal" }} />
     </Stack>
   );
 }
@@ -146,6 +146,7 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     BaiJamjuree_400Regular,
     BaiJamjuree_500Medium,
+    BaiJamjuree_700Bold,
     Orbit_400Regular: require("../assets/Orbit_400Regular.ttf"),
   });
   const [isReady, setIsReady] = useState(false);

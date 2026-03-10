@@ -1,23 +1,42 @@
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
   Pressable,
   Dimensions,
+  Animated,
+  ScrollView,
 } from "react-native";
+import { AppText as Text } from "../../components/AppText";
+import React, { useRef, useState, useCallback } from "react";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { CareerPathCard } from "../../components/JourneyBoard/CareerPathCard";
 import { MOCK_PATH_DATA } from "../../lib/mockPathData";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+// Leave margin so previous/next cards peek out, but keep cards wider.
 const CARD_WIDTH = SCREEN_WIDTH - 48;
-const SNAP_INTERVAL = CARD_WIDTH + 16;
+const SNAP_INTERVAL = CARD_WIDTH + 8;
 
 export default function MyPathsScreen() {
-  const { paths, profileCareerGoal } = MOCK_PATH_DATA;
+  const [paths, setPaths] = useState(MOCK_PATH_DATA.paths);
+  // Optional, if you want profile goal to update too in the future
+  const [profileCareerGoal, setProfileCareerGoal] = useState(
+    MOCK_PATH_DATA.profileCareerGoal,
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      // Force refresh of mock data when screen comes into focus
+      setPaths([...MOCK_PATH_DATA.paths]);
+      setProfileCareerGoal(MOCK_PATH_DATA.profileCareerGoal);
+    }, []),
+  );
+
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
 
   // Simulate empty state
   const hasSimulations = paths.length > 0;
@@ -36,12 +55,10 @@ export default function MyPathsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Journeys</Text>
-          <Text style={styles.headerSubtitle}>
-            Plan your path to{" "}
-            <Text style={styles.goalHighlight}>{profileCareerGoal}</Text>
-          </Text>
+        <View
+          style={[styles.header, { paddingTop: Math.max(insets.top + 24, 60) }]}
+        >
+          <Text style={styles.headerTitle}>จำลองเส้นทางอาชีพ</Text>
         </View>
 
         {!hasSimulations ? (
@@ -50,10 +67,9 @@ export default function MyPathsScreen() {
             <View style={styles.emptyIconGroup}>
               <Text style={styles.emptyEmoji}>🧭</Text>
             </View>
-            <Text style={styles.emptyTitle}>What do you want to be?</Text>
+            <Text style={styles.emptyTitle}>คุณอยากเป็นอะไร?</Text>
             <Text style={styles.emptySubtext}>
-              Build up to 3 career simulations. Each one maps out a path from
-              where you are now to your dream career — with specific steps.
+              จำลองเส้นทางอาชีพและดูแผนผังทีละขั้นตอนเพื่อเดินตามความฝันของคุณ
             </Text>
             <Pressable
               style={({ pressed }) => [
@@ -68,40 +84,79 @@ export default function MyPathsScreen() {
                 end={{ x: 1, y: 1 }}
                 style={styles.buildPathGradient}
               >
-                <Text style={styles.buildPathBtnText}>Build a Path</Text>
+                <Text style={styles.buildPathBtnText}>สร้างเส้นทางใหม่</Text>
               </LinearGradient>
             </Pressable>
           </View>
         ) : (
           <View style={styles.carouselContainer}>
-            <ScrollView
+            <Animated.ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               snapToInterval={SNAP_INTERVAL}
               decelerationRate="fast"
               snapToAlignment="start"
+              scrollEventThrottle={16}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                { useNativeDriver: true },
+              )}
               contentContainerStyle={styles.carouselContent}
             >
-              {paths.map((path) => (
-                <CareerPathCard key={path.id} path={path} isActive={true} />
+              {paths.map((path, index) => (
+                <CareerPathCard
+                  key={path.id}
+                  path={path}
+                  isActive={true}
+                  index={index}
+                  scrollX={scrollX}
+                  isLastCard={index === paths.length - 1 && paths.length === 3}
+                />
               ))}
 
               {/* Add Path Card */}
               {paths.length < 3 && (
-                <Pressable
-                  style={[
-                    styles.addCardOuter,
-                    { width: CARD_WIDTH, marginRight: 16 },
-                  ]}
-                  onPress={handleBuildPath}
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        scale: scrollX.interpolate({
+                          inputRange: [
+                            (paths.length - 1) * SNAP_INTERVAL,
+                            paths.length * SNAP_INTERVAL,
+                            (paths.length + 1) * SNAP_INTERVAL,
+                          ],
+                          outputRange: [0.95, 1, 0.95],
+                          extrapolate: "clamp",
+                        }),
+                      },
+                    ],
+                    opacity: scrollX.interpolate({
+                      inputRange: [
+                        (paths.length - 1) * SNAP_INTERVAL,
+                        paths.length * SNAP_INTERVAL,
+                        (paths.length + 1) * SNAP_INTERVAL,
+                      ],
+                      outputRange: [0.5, 1, 0.5],
+                      extrapolate: "clamp",
+                    }),
+                  }}
                 >
-                  <View style={styles.addCardInner}>
-                    <Text style={styles.addCardIcon}>+</Text>
-                    <Text style={styles.addCardText}>Build Another Path</Text>
-                  </View>
-                </Pressable>
+                  <Pressable
+                    style={[
+                      styles.addCardOuter,
+                      { width: CARD_WIDTH, marginRight: 0 },
+                    ]}
+                    onPress={handleBuildPath}
+                  >
+                    <View style={styles.addCardInner}>
+                      <Text style={styles.addCardIcon}>+</Text>
+                      <Text style={styles.addCardText}>สร้างเส้นทางร่วม</Text>
+                    </View>
+                  </Pressable>
+                </Animated.View>
               )}
-            </ScrollView>
+            </Animated.ScrollView>
           </View>
         )}
 
@@ -114,7 +169,7 @@ export default function MyPathsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: "#F4F7FA", // fresh, airy tech blue-grey (not 'dead' flat grey)
   },
   scrollView: {
     flex: 1,
@@ -124,27 +179,14 @@ const styles = StyleSheet.create({
   },
   // Header
   header: {
-    paddingTop: 64,
+    paddingTop: 48, // very tight professional spacing
     paddingHorizontal: 24,
-    paddingBottom: 20,
+    paddingBottom: 8, // reduced padding drastically
   },
   headerTitle: {
-    fontSize: 30,
-    fontFamily: "Orbit_400Regular",
+    fontSize: 28, // slightly smaller to match tighter layout
     fontWeight: "700",
     color: "#111",
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 15,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
-    color: "#888",
-    lineHeight: 22,
-  },
-  goalHighlight: {
-    color: "#0040F0",
-    fontWeight: "600",
   },
   // Empty State
   emptyState: {
@@ -160,7 +202,6 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 22,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: "#111",
     marginBottom: 12,
@@ -168,7 +209,6 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 15,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "400",
     color: "#888",
     textAlign: "center",
@@ -190,7 +230,6 @@ const styles = StyleSheet.create({
   },
   buildPathBtnText: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: "#111",
   },
@@ -199,8 +238,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   carouselContent: {
-    paddingLeft: 24,
-    paddingRight: 8, // Ensures trailing space after the last card
+    paddingHorizontal: 24,
   },
   // Add Path Card
   addCardOuter: {
@@ -226,6 +264,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#6B7280",
-    fontFamily: "Orbit_400Regular",
   },
 });

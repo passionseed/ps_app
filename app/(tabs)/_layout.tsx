@@ -36,10 +36,21 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: "#FDFFF5" },
+        sceneStyle: { backgroundColor: "#F4F7FA" }, // Unified with the cool grey background
         tabBarActiveTintColor: "#111111",
-        tabBarInactiveTintColor: "#6b7280",
+        tabBarInactiveTintColor: "#6B7280",
         tabBarStyle: {
+          position: "absolute", // allows content to scroll underneath for the glass effect
+          backgroundColor: "rgba(255, 255, 255, 0.85)", // highly translucent glass
+          borderTopWidth: 1,
+          borderTopColor: "rgba(255, 255, 255, 0.6)", // crisp reflection edge
+          // Premium Wow Effect Shadow
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 16,
+          elevation: 10,
+          // Sizing
           height: Platform.OS === "ios" ? 88 : 64,
           paddingTop: 8,
           paddingBottom: Platform.OS === "ios" ? 24 : 8,

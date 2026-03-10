@@ -1,5 +1,12 @@
 import React from "react";
-import { Platform, StyleSheet, Text, TextProps, StyleProp, TextStyle } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TextProps,
+  StyleProp,
+  TextStyle,
+} from "react-native";
 
 interface AppTextProps extends TextProps {
   variant?: "regular" | "bold";
@@ -33,13 +40,12 @@ export const AppText: React.FC<AppTextProps> = ({
 
   let fontFamily =
     variant === "bold" ? "LibreFranklin_Bold" : "LibreFranklin_Regular";
-  const fontSize = typeof resolvedStyle.fontSize === "number"
-    ? resolvedStyle.fontSize
-    : 16;
+  const fontSize =
+    typeof resolvedStyle.fontSize === "number" ? resolvedStyle.fontSize : 16;
 
   if (hasThai) {
     fontFamily =
-      variant === "bold" ? "BaiJamjuree_500Medium" : "BaiJamjuree_400Regular";
+      variant === "bold" ? "BaiJamjuree_700Bold" : "BaiJamjuree_400Regular";
   }
 
   return (
