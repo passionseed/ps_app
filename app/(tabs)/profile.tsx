@@ -207,39 +207,25 @@ export default function ProfileScreen() {
               <Text style={styles.settingsBtnText}>⚙️</Text>
             </Pressable>
 
-            {/* Avatar */}
-            <View style={styles.avatarContainer}>
-              <Image
-                source={require("../../assets/passionseed-logo.svg")}
-                style={styles.avatar}
-                resizeMode="contain"
-              />
-            </View>
+            {/* Compact horizontal: Avatar + Info */}
+            <View style={styles.headerRow}>
+              <View style={styles.avatarContainer}>
+                <Image
+                  source={require("../../assets/passionseed-logo.svg")}
+                  style={styles.avatar}
+                  resizeMode="contain"
+                />
+              </View>
 
-            {/* Name */}
-            <Text style={styles.name}>{displayName}</Text>
-
-            {/* Player Title Badge */}
-            <View style={styles.playerTitleBadge}>
-              <Text style={styles.playerTitleText}>🎮 {playerTitle}</Text>
-            </View>
-
-            {/* Vision Chips — careers only */}
-            <View style={styles.visionBoard}>
-              {careers.length === 0 ? (
-                <>
-                  <VisionChip text="Game Developer" type="career" />
-                  <VisionChip text="Space Architecture" type="career" />
-                </>
-              ) : (
-                careers.map((career, idx) => (
-                  <VisionChip
-                    key={`career-${idx}`}
-                    text={formatCareerName(career.career_name)}
-                    type="career"
-                  />
-                ))
-              )}
+              <View style={styles.headerInfo}>
+                <Text style={styles.name}>{displayName}</Text>
+                <View style={styles.playerTitleBadge}>
+                  <Text style={styles.playerTitleText}>🎮 {playerTitle}</Text>
+                </View>
+                <Pressable style={styles.friendsRow} onPress={() => {}}>
+                  <Text style={styles.friendsText}>👥 12 friends</Text>
+                </Pressable>
+              </View>
             </View>
           </LinearGradient>
 
@@ -252,11 +238,13 @@ export default function ProfileScreen() {
             <>
               {/* Stats Row */}
               <View style={styles.statsRow}>
-                <StatBox value="0" label="Paths Explored" />
+                <StatBox value="7" label="Paths" />
                 <View style={styles.statDivider} />
-                <StatBox value="0" label="Tasks Done" />
+                <StatBox value="23" label="Tasks Done" />
                 <View style={styles.statDivider} />
-                <StatBox value="0d" label="Streak" />
+                <StatBox value="5d" label="Streak" />
+                <View style={styles.statDivider} />
+                <StatBox value="12" label="Friends" />
               </View>
 
               {/* ── Section 2: Ikigai Compass ── */}
@@ -518,14 +506,35 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    width: "100%",
+  },
+  headerInfo: {
+    flex: 1,
+    alignItems: "flex-start",
+    gap: 4,
+  },
+  friendsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  friendsText: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#6B7280",
+    fontWeight: "500",
+  },
   avatarContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
     shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
