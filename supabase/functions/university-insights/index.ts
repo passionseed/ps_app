@@ -6,7 +6,7 @@ const supabase = createClient(
 );
 
 const EXA_API_KEY = Deno.env.get("EXA_API_KEY")!;
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
     .join("\n\n---\n\n")
     .slice(0, 6000);
 
-  // 3. AI synthesis via Claude Haiku — Fix 3: use safe* variables; Fix 2: use clamped scores
+  // 3. AI synthesis via Gemini flash preview — Fix 3: use safe* variables; Fix 2: use clamped scores
   const aiPrompt = `You are helping a Thai high school student evaluate university options.
 University: ${safeUniversityName}
 Faculty: ${safeFacultyName}
@@ -124,25 +124,22 @@ Return ONLY a JSON object (no markdown fences) with:
   "news": [{ "title": "...", "url": "...", "snippet": "...", "publishedDate": "..." }]
 }`;
 
-  // Fix 5: Handle Claude API failures — don't cache bad results
+  // Fix 5: Handle Gemini API failures — don't cache bad results
   let aiParsed: Record<string, any> = {};
   try {
-    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
+    const aiRes = await fetch(geminiUrl, {
       method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        messages: [{ role: "user", content: aiPrompt }],
+        contents: [{ parts: [{ text: aiPrompt }] }],
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1024 },
       }),
     });
     if (aiRes.ok) {
       const aiData = await aiRes.json();
-      aiParsed = JSON.parse(aiData.content?.[0]?.text ?? "{}");
+      const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+      aiParsed = JSON.parse(rawText);
     }
   } catch { /* fallback — partial data */ }
 
