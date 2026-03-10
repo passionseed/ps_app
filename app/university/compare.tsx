@@ -5,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
 import { useLocalSearchParams, router } from "expo-router";
@@ -138,10 +139,16 @@ export default function CompareScreen() {
   }
 
   useEffect(() => {
-    if (selectedA) loadInsights(selectedA, setInsightsA);
+    if (!selectedA) return;
+    let cancelled = false;
+    loadInsights(selectedA, (s) => { if (!cancelled) setInsightsA(s); });
+    return () => { cancelled = true; };
   }, [selectedA]);
   useEffect(() => {
-    if (selectedB) loadInsights(selectedB, setInsightsB);
+    if (!selectedB) return;
+    let cancelled = false;
+    loadInsights(selectedB, (s) => { if (!cancelled) setInsightsB(s); });
+    return () => { cancelled = true; };
   }, [selectedB]);
 
   return (
@@ -296,33 +303,34 @@ function UniPicker({
           </Text>
         ) : null}
       </Pressable>
-      {open ? (
-        <View style={s.dropdown}>
-          {options.map((o, i) => (
-            <Pressable
-              key={i}
-              style={({ pressed }) => [s.dropdownOption, pressed && s.pressed]}
-              onPress={() => {
-                onSelect(o);
-                setOpen(false);
-              }}
-            >
-              <Text style={s.dropdownOptionText} numberOfLines={1}>
-                {o.universityName}
-              </Text>
-              <Text style={s.dropdownOptionSub} numberOfLines={1}>
-                {o.facultyName} · {o.pathLabel}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
+      {open && (
+        <Modal transparent animationType="none" onRequestClose={() => setOpen(false)}>
+          <Pressable style={s.modalOverlay} onPress={() => setOpen(false)}>
+            <View style={s.dropdownModal}>
+              {options.map((o, i) => (
+                <Pressable
+                  key={i}
+                  style={({ pressed }) => [s.dropdownItem, pressed && { opacity: 0.7 }]}
+                  onPress={() => { onSelect(o); setOpen(false); }}
+                >
+                  <Text style={s.dropdownItemText} numberOfLines={1}>
+                    {o.universityName}
+                  </Text>
+                  <Text style={s.dropdownItemSub} numberOfLines={1}>
+                    {o.facultyName} · {o.pathLabel}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
+      )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F7FA" },
+  root: { flex: 1, backgroundColor: "#FDFFF5" },
   hero: { paddingBottom: 20, paddingHorizontal: 24 },
   backBtn: { marginBottom: 14, alignSelf: "flex-start" },
   backBtnText: { fontSize: 14, color: "rgba(255,255,255,0.7)" },
@@ -359,30 +367,25 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   pickerFaculty: { fontSize: 11, color: "#8B5CF6" },
-  dropdown: {
-    position: "absolute",
-    top: "100%",
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    zIndex: 100,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    padding: 24,
   },
-  dropdownOption: {
+  dropdownModal: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    overflow: "hidden",
+    maxHeight: 320,
+  },
+  dropdownItem: {
     padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#f3f4f6",
   },
-  dropdownOptionText: { fontSize: 13, fontWeight: "600", color: "#111" },
-  dropdownOptionSub: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
+  dropdownItemText: { fontSize: 13, fontWeight: "600", color: "#111" },
+  dropdownItemSub: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
   tableWrap: {
     backgroundColor: "#fff",
     borderRadius: 20,
