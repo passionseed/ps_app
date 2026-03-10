@@ -35,7 +35,7 @@ export default function UniversityDetailScreen() {
     worldScore: string;
   }>();
 
-  const universityName = decodeURIComponent(key ?? "");
+  const universityName = key ?? "";
   const ps = passionScore ? Number(passionScore) : null;
   const fs = futureScore ? Number(futureScore) : null;
   const ws = worldScore ? Number(worldScore) : null;
@@ -243,7 +243,7 @@ export default function UniversityDetailScreen() {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={s.hScroll}
                   >
-                    {insights!.people.map((p, i) => (
+                    {insights?.people.map((p, i) => (
                       <Pressable
                         key={i}
                         style={({ pressed }) => [
@@ -278,7 +278,7 @@ export default function UniversityDetailScreen() {
                   <ActivityIndicator color="#8B5CF6" />
                 ) : (
                   <View style={s.newsList}>
-                    {insights!.news.map((n, i) => (
+                    {insights?.news.map((n, i) => (
                       <Pressable
                         key={i}
                         style={({ pressed }) => [
@@ -350,7 +350,7 @@ function StatBox({
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F4F7FA" },
+  root: { flex: 1, backgroundColor: "#FDFFF5" },
   hero: { paddingBottom: 24, paddingHorizontal: 24 },
   backBtn: { marginBottom: 16, alignSelf: "flex-start" },
   backBtnText: { fontSize: 14, color: "rgba(255,255,255,0.7)" },
