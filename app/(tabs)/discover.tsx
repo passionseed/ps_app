@@ -11,14 +11,14 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
+import { Image as ExpoImage } from "expo-image";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth";
 import { getProfile } from "../../lib/onboarding";
 import { getAvailableSeeds } from "../../lib/pathlab";
 import type { SeedWithEnrollment } from "../../types/seeds";
-import { AppText } from "../../components/AppText";
-import { FireStreakIcon } from "../../components/icons/FireStreakIcon";
+import { AppText as Text } from "../../components/AppText";
 
 const SAMPLE_SEEDS: Partial<SeedWithEnrollment>[] = [
   {
@@ -135,15 +135,24 @@ export default function DiscoverScreen() {
     setTimeout(() => setRefreshing(false), 800);
   }, []);
 
-  const appVersion = "dev"; // or keep logic from profile
+  // Force mock data instead of db data
+  const displaySeeds = SAMPLE_SEEDS as SeedWithEnrollment[];
+
+  // Create a specialized set for "Continue your path"
+  const enrolledPaths = displaySeeds.slice(0, 3);
+
+  // Split remaining seeds into sections The remaining sections
+  const youMustLike = displaySeeds.slice(3, 7);
+  const maybeULike = displaySeeds.slice(7, 11);
+  const notForYou = displaySeeds.slice(11, 12);
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#BFFF00" />
-        <AppText style={styles.loadingText}>
+        <Text style={styles.loadingText}>
           {isThai ? "กำลังโหลดเส้นทาง..." : "Loading paths..."}
-        </AppText>
+        </Text>
       </View>
     );
   }
@@ -152,6 +161,41 @@ export default function DiscoverScreen() {
     <View style={styles.container}>
       <StatusBar style="dark" />
 
+      {/* Header */}
+      <View
+        style={[styles.header, { paddingTop: Math.max(insets.top + 24, 60) }]}
+      >
+        <View style={styles.titleRow}>
+          <ExpoImage
+            source={require("../../assets/passionseed-logo.svg")}
+            style={styles.logo}
+            contentFit="contain"
+          />
+          <Text style={styles.headerTitle}>
+            {isThai ? "ค้นหาเส้นทางของคุณ" : "Discover Your Path"}
+          </Text>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={[
+              styles.searchInput,
+              isThai && {
+                fontFamily: "BaiJamjuree_400Regular",
+                paddingTop: 4,
+              },
+            ]}
+            placeholder={isThai ? "ค้นหาเส้นทาง..." : "Search paths..."}
+            placeholderTextColor="#6B7280"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      </View>
+
+      {/* Seeds Sections */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -160,26 +204,30 @@ export default function DiscoverScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Player Header Section */}
-        <View style={[styles.playerHeader, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={require("../../assets/passionseed-logo.svg")}
-              style={styles.avatar}
-              resizeMode="contain"
-            />
-          </View>
-          <AppText variant="bold" style={styles.playerName}>
-            {user?.user_metadata?.full_name ||
-              user?.user_metadata?.name ||
-              "Player 1"}
-          </AppText>
-          <View style={styles.titleBadge}>
-            <AppText style={styles.titleBadgeText}>Level 3 Explorer</AppText>
-          </View>
-        </View>
+        {/* Continue Your Path Section */}
+        {enrolledPaths.length > 0 && (
+          <ProgressSection
+            title={isThai ? "▶️ ทำต่อจากที่ค้างไว้" : "▶️ continue your path"}
+            seeds={enrolledPaths}
+          />
+        )}
+        {/* You Must Like */}
+        <SeedSection
+          title={isThai ? "🌟 คุณต้องชอบแน่ๆ" : "🌟 you must like"}
+          seeds={youMustLike}
+        />
 
-        {/* Following sections will go here... */}
+        {/* Maybe U Like */}
+        <SeedSection
+          title={isThai ? "💡 คุณอาจจะชอบ" : "💡 maybe u like"}
+          seeds={maybeULike}
+        />
+
+        {/* Not For You At All */}
+        <SeedSection
+          title={isThai ? "🙅‍♀️ ไม่เหมาะกับคุณเลย" : "🙅‍♀️ not for you at all"}
+          seeds={notForYou}
+        />
 
         {/* Bottom padding for tab bar */}
         <View style={{ height: 120 }} />
@@ -197,7 +245,7 @@ function SeedSection({
 }) {
   return (
     <View style={styles.section}>
-      <AppText style={styles.sectionTitle}>{title}</AppText>
+      <Text style={styles.sectionTitle}>{title}</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -210,9 +258,7 @@ function SeedSection({
             seed={seed}
             index={index}
             onPress={() => {
-              if (!seed.id.startsWith("sample-")) {
-                router.push(`/seed/${seed.id}`);
-              }
+              router.push(`/seed/${seed.id}`);
             }}
           />
         ))}
@@ -234,7 +280,7 @@ function ProgressSection({
 }) {
   return (
     <View style={styles.section}>
-      <AppText style={styles.sectionTitle}>{title}</AppText>
+      <Text style={styles.sectionTitle}>{title}</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -246,11 +292,10 @@ function ProgressSection({
             key={seed.id || `progress-${index}`}
             seed={seed}
             index={index}
-            progress={index === 0 ? 0.6 : index === 1 ? 0.25 : 0.8} // Mock progress
+            progress={index === 0 ? 1.0 : index === 1 ? 0.4 : 0.2}
+            doneToday={index === 0}
             onPress={() => {
-              if (!seed.id.startsWith("sample-")) {
-                router.push(`/seed/${seed.id}`);
-              }
+              router.push(`/seed/${seed.id}`);
             }}
           />
         ))}
@@ -263,11 +308,13 @@ function ProgressSeedCard({
   seed,
   progress,
   index,
+  doneToday,
   onPress,
 }: {
   seed: SeedWithEnrollment;
   progress: number;
   index: number;
+  doneToday?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -296,18 +343,9 @@ function ProgressSeedCard({
           <View
             style={[styles.compactImageFull, styles.compactImagePlaceholder]}
           >
-            <AppText style={styles.compactImageIcon}>🌱</AppText>
+            <Text style={styles.compactImageIcon}>🌱</Text>
           </View>
         )}
-
-        {/* Gamified Fire Streak */}
-        <View style={styles.streakIconContainer}>
-          <FireStreakIcon
-            width={48}
-            height={48}
-            count={index === 0 ? 12 : index === 1 ? 5 : 2}
-          />
-        </View>
 
         {/* Gradient Overlay at Bottom */}
         <LinearGradient
@@ -315,15 +353,29 @@ function ProgressSeedCard({
           locations={[0, 0.5, 1]}
           style={styles.compactOverlay}
         >
-          <AppText variant="bold" style={styles.compactTitle} numberOfLines={2}>
+          <Text variant="bold" style={styles.compactTitle} numberOfLines={2}>
             {seed.title}
-          </AppText>
+          </Text>
 
-          <View style={styles.progressBarContainer}>
-            <View
-              style={[styles.progressBarFill, { width: `${progress * 100}%` }]}
-            />
-          </View>
+          {doneToday ? (
+            <View style={styles.doneBadge}>
+              <Text style={styles.doneBadgeText}>✅ done today</Text>
+            </View>
+          ) : (
+            <View style={styles.progressRow}>
+              <Text style={styles.progressLabel}>
+                {Math.round(progress * 5)}/5
+              </Text>
+              <View style={styles.progressBarContainer}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${progress * 100}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
         </LinearGradient>
       </Pressable>
     </View>
@@ -365,7 +417,7 @@ function CompactSeedCard({
           <View
             style={[styles.compactImageFull, styles.compactImagePlaceholder]}
           >
-            <AppText style={styles.compactImageIcon}>🌱</AppText>
+            <Text style={styles.compactImageIcon}>🌱</Text>
           </View>
         )}
 
@@ -375,13 +427,13 @@ function CompactSeedCard({
           locations={[0, 0.5, 1]}
           style={styles.compactOverlay}
         >
-          <AppText variant="bold" style={styles.compactTitle} numberOfLines={2}>
+          <Text variant="bold" style={styles.compactTitle} numberOfLines={2}>
             {seed.title}
-          </AppText>
+          </Text>
           {seed.slogan && (
-            <AppText style={styles.compactSlogan} numberOfLines={1}>
+            <Text style={styles.compactSlogan} numberOfLines={1}>
               {seed.slogan}
-            </AppText>
+            </Text>
           )}
         </LinearGradient>
       </Pressable>
@@ -405,54 +457,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
   },
-  playerHeader: {
+  header: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+  },
+  titleRow: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingBottom: 24,
+    marginBottom: 16,
+    gap: 12,
   },
-  avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#fff",
-    justifyContent: "center",
+  logo: {
+    width: 32,
+    height: 32,
+    resizeMode: "contain",
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#111",
+  },
+  searchContainer: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
-    shadowColor: "#10B981", // glowing effect
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-  },
-  playerName: {
-    fontSize: 24,
-    color: "#111827",
-    marginBottom: 8,
-  },
-  titleBadge: {
-    backgroundColor: "rgba(16, 185, 129, 0.1)", // Light green mint
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderColor: "rgb(206, 206, 206)",
+    paddingHorizontal: 16,
+    height: 48,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  titleBadgeText: {
-    color: "#10B981",
-    fontSize: 13,
+  searchIcon: {
+    fontSize: 18,
+  },
+  searchInput: {
+    flex: 1,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    fontSize: 16,
+    color: "#111827",
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 24,
     gap: 32,
   },
@@ -474,7 +528,7 @@ const styles = StyleSheet.create({
     paddingRight: 24, // Keep right cut off clean
   },
   fullWidthScroll: {
-    marginHorizontal: -16, // Negate any parent padding if present to ensure bleed to edges
+    marginHorizontal: -5, // Negate any parent padding if present to ensure bleed to edges
   },
   compactTitle: {
     fontSize: 14,
@@ -504,7 +558,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgb(206, 206, 206)",
     overflow: "hidden",
-    height: 200,
+    height: 240,
     position: "relative",
   },
   compactCardPressed: {
@@ -542,27 +596,48 @@ const styles = StyleSheet.create({
     gap: 4,
     justifyContent: "flex-end",
   },
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  progressLabel: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.9)",
+    minWidth: 22,
+  },
   progressBarContainer: {
+    flex: 1,
     height: 4,
-    width: "100%",
     backgroundColor: "rgba(255,255,255,0.3)",
     borderRadius: 2,
     overflow: "hidden",
-    marginTop: 4,
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: "#10B981", // Success green to denote progress
+    backgroundColor: "#10B981",
     borderRadius: 2,
   },
   emptyCard: {
-    width: 140, // Match compactCardWrapper width
+    width: 140,
     backgroundColor: "transparent",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(206, 206, 206, 0.5)",
     borderStyle: "dashed",
-    height: 200,
+    height: 240,
     marginRight: 0,
+  },
+  doneBadge: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  doneBadgeText: {
+    fontSize: 10,
+    color: "#10B981",
   },
 });

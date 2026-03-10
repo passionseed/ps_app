@@ -1,603 +1,789 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   View,
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
+  Image,
+  Dimensions,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
-import Svg, { Path as SvgPath, Circle } from "react-native-svg";
-import { SvgXml } from "react-native-svg";
-import {
-  getSeedById,
-  getPathBySeedId,
-  getUserEnrollment,
-  enrollInPath,
-  getPathDays,
-  getSeedNpcAvatar,
-} from "../../lib/pathlab";
-import type { Seed, SeedNpcAvatar } from "../../types/seeds";
-import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import Svg, {
+  Path as SvgPath,
+  Circle,
+  Line,
+  Rect,
+  Text as SvgText,
+} from "react-native-svg";
 import { AppText } from "../../components/AppText";
 
-export default function SeedDetailScreen() {
+const { width: SW } = Dimensions.get("window");
+
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+
+const MOCK_SEEDS: Record<
+  string,
+  {
+    title: string;
+    titleTh: string;
+    npcName: string;
+    npcImage: any;
+    totalDays: number;
+    currentDay: number;
+    days: { title: string; titleTh: string; done: boolean }[];
+    dialogs: string[];
+    enrolled: number;
+    retentionByDay: number[]; // % retained after each day
+    leftStudents: { name: string; reason: string; day: number }[];
+  }
+> = {
+  "sample-6": {
+    title: "Mechanical Engineer",
+    titleTh: "วิศวกรเครื่องกล",
+    npcName: "Mek",
+    npcImage: require("../../assets/images/mech_eng_npc.png"),
+    totalDays: 5,
+    currentDay: 2,
+    days: [
+      {
+        title: "What Machines Do",
+        titleTh: "เครื่องจักรทำงานยังไง",
+        done: true,
+      },
+      { title: "Forces & Motion", titleTh: "แรงและการเคลื่อนที่", done: false },
+      {
+        title: "Design a Gear System",
+        titleTh: "ออกแบบระบบเฟือง",
+        done: false,
+      },
+      { title: "Build a Prototype", titleTh: "สร้างต้นแบบ", done: false },
+      {
+        title: "Present Your Engine",
+        titleTh: "นำเสนอเครื่องยนต์",
+        done: false,
+      },
+    ],
+    dialogs: [
+      "สวัสดี! ผมชื่อเม็ค 🔧 พร้อมเรียนรู้ว่าเครื่องจักรจริงๆ ทำงานยังไงมั้ย? เราจะออกแบบเฟือง สร้างโมเดล และคิดแบบวิศวกร!",
+      "เฟืองทำให้โลกหมุนได้จริงๆ นะ! 🌍 มาหาคำตอบกันเถอะ",
+      "วันนี้เราจะสำรวจแรง ดัน ดึง บิด — วิศวกรคิดเรื่องพวกนี้ทั้งหมด! 💪",
+    ],
+    enrolled: 127,
+    retentionByDay: [100, 92, 85, 78, 72],
+    leftStudents: [
+      { name: "Alex K.", reason: "ยากเกินไป", day: 2 },
+      { name: "Mina R.", reason: "ไม่สนใจแล้ว", day: 1 },
+      { name: "James L.", reason: "ไม่มีเวลา", day: 3 },
+      { name: "Siri P.", reason: "เปลี่ยนไป Software", day: 2 },
+      { name: "Tom W.", reason: "ทฤษฎีเยอะ", day: 1 },
+    ],
+  },
+  "sample-2": {
+    title: "UX Designer",
+    titleTh: "นักออกแบบประสบการณ์",
+    npcName: "Aria",
+    npcImage: require("../../assets/images/ux_designer_npc.png"),
+    totalDays: 5,
+    currentDay: 1,
+    days: [
+      { title: "Understand Users", titleTh: "เข้าใจผู้ใช้งาน", done: false },
+      { title: "Define the Problem", titleTh: "กำหนดปัญหา", done: false },
+      {
+        title: "Sketch & Wireframe",
+        titleTh: "ร่างและทำ Wireframe",
+        done: false,
+      },
+      { title: "Prototype & Test", titleTh: "ทำต้นแบบและทดสอบ", done: false },
+      { title: "Present Your Design", titleTh: "นำเสนอผลงาน", done: false },
+    ],
+    dialogs: [
+      "สวัสดี ฉันชื่อ Aria 🎨 UX ไม่ใช่แค่การทำให้สวย — มันคือการแก้ปัญหาที่แท้จริงของผู้คน มาเรียนรู้ด้วยกันนะ",
+      "การออกแบบที่ดีเริ่มจากการเข้าใจคน ไม่ใช่จากโปรแกรม หรือเครื่องมือ 💡",
+      "Wireframe คือภาษาของนักออกแบบ วาดมันออกมาก่อน อย่าเพิ่งเขียนโค้ด ✏️",
+    ],
+    enrolled: 218,
+    retentionByDay: [100, 95, 88, 83, 79],
+    leftStudents: [
+      { name: "Noon P.", reason: "คิดว่าต้องใช้ Photoshop", day: 1 },
+      { name: "Chris M.", reason: "ยากกว่าที่คิด", day: 2 },
+      { name: "Fern A.", reason: "ไปทำ Graphic Design แทน", day: 3 },
+      { name: "Dana K.", reason: "ไม่มีเวลา", day: 2 },
+    ],
+  },
+  "sample-1": {
+    title: "Software Engineer",
+    titleTh: "วิศวกรซอฟต์แวร์",
+    npcName: "Byte",
+    npcImage: require("../../assets/images/se_cover_1773089983030.png"),
+    totalDays: 5,
+    currentDay: 5,
+    days: [
+      { title: "Hello World", titleTh: "สวัสดีชาวโลก", done: true },
+      { title: "Data Structures", titleTh: "โครงสร้างข้อมูล", done: true },
+      { title: "Build an App", titleTh: "สร้างแอป", done: true },
+      { title: "Test & Debug", titleTh: "ทดสอบและแก้บัค", done: true },
+      { title: "Ship It!", titleTh: "ปล่อยผลงาน!", done: true },
+    ],
+    dialogs: [
+      "ยินดีด้วย! คุณผ่านครบ 5 วันแล้ว! 🎉 ตอนนี้คุณเป็นนักพัฒนาแล้ว!",
+      "โค้ดที่ดีคือโค้ดที่ใช้งานได้จริง — จำไว้นะ! 💻",
+    ],
+    enrolled: 342,
+    retentionByDay: [100, 88, 79, 71, 65],
+    leftStudents: [
+      { name: "Kim S.", reason: "ชอบดีไซน์มากกว่า", day: 2 },
+      { name: "Park J.", reason: "โค้ดเยอะเกิน", day: 3 },
+      { name: "Nong A.", reason: "เปลี่ยนไป Data Science", day: 4 },
+    ],
+  },
+};
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
+export default function MockSeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [seed, setSeed] = useState<Seed | null>(null);
-  const [path, setPath] = useState<Path | null>(null);
-  const [pathDays, setPathDays] = useState<PathDay[]>([]);
-  const [npcAvatar, setNpcAvatar] = useState<SeedNpcAvatar | null>(null);
-  const [enrollment, setEnrollment] = useState<PathEnrollment | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [enrolling, setEnrolling] = useState(false);
+  const insets = useSafeAreaInsets();
+  const [dialogIdx, setDialogIdx] = useState(0);
 
-  useEffect(() => {
-    async function load() {
-      if (!id) return;
-      try {
-        const seedData = await getSeedById(id);
-        setSeed(seedData);
+  const data = MOCK_SEEDS[id || ""];
 
-        if (seedData) {
-          const [pathData, npcData] = await Promise.all([
-            getPathBySeedId(seedData.id),
-            getSeedNpcAvatar(seedData.id),
-          ]);
-
-          setPath(pathData);
-          setNpcAvatar(npcData);
-
-          if (pathData) {
-            const enrollmentData = await getUserEnrollment(pathData.id);
-            setEnrollment(enrollmentData);
-
-            const daysData = await getPathDays(pathData.id);
-            setPathDays(daysData);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load seed:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [id]);
-
-  const handleStartPath = async () => {
-    if (!path) return;
-
-    setEnrolling(true);
-    try {
-      const newEnrollment = await enrollInPath({
-        pathId: path.id,
-      });
-      setEnrollment(newEnrollment);
-      router.push(`/path/${newEnrollment.id}`);
-    } catch (error) {
-      console.error("Failed to enroll:", error);
-    } finally {
-      setEnrolling(false);
-    }
-  };
-
-  const handleContinuePath = () => {
-    if (enrollment) {
-      router.push(`/path/${enrollment.id}`);
-    }
-  };
-
-  if (loading) {
+  // Fallback
+  if (!data) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#BFFF00" />
-      </View>
+      <LinearGradient
+        colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
+        style={s.container}
+      >
+        <StatusBar style="dark" />
+        <View style={[s.center, { paddingTop: insets.top + 16 }]}>
+          <Pressable
+            style={[s.backBtn, { top: insets.top + 8 }]}
+            onPress={() => router.back()}
+          >
+            <AppText style={s.backBtnIcon}>←</AppText>
+          </Pressable>
+          <AppText
+            variant="bold"
+            style={{ fontSize: 24, color: "#111", marginBottom: 8 }}
+          >
+            Coming Soon!
+          </AppText>
+          <AppText
+            style={{
+              fontSize: 14,
+              color: "#6B7280",
+              textAlign: "center",
+              marginBottom: 24,
+            }}
+          >
+            เส้นทางนี้กำลังพัฒนาอยู่ กลับมาดูใหม่นะ!
+          </AppText>
+          <Pressable style={s.ctaBtn} onPress={() => router.back()}>
+            <AppText variant="bold" style={s.ctaBtnText}>
+              กลับ
+            </AppText>
+          </Pressable>
+        </View>
+      </LinearGradient>
     );
   }
 
-  if (!seed) {
-    return (
-      <View style={styles.errorContainer}>
-        <AppText style={styles.errorText}>Path not found</AppText>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <AppText style={styles.backBtnText}>Go Back</AppText>
-        </Pressable>
-      </View>
-    );
-  }
-
-  const isEnrolled = !!enrollment;
-  const canContinue = enrollment?.status === "active" || enrollment?.status === "paused";
+  const nextDialog = () => setDialogIdx((p) => (p + 1) % data.dialogs.length);
+  const retained = data.retentionByDay[data.retentionByDay.length - 1];
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
+      style={s.container}
+    >
       <StatusBar style="dark" />
 
-      {/* Back button */}
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <AppText style={styles.backButtonText}>←</AppText>
+      <Pressable
+        style={[s.backBtn, { top: insets.top + 8 }]}
+        onPress={() => router.back()}
+      >
+        <AppText style={s.backBtnIcon}>←</AppText>
       </Pressable>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={[s.scrollContent, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        {/* Title */}
-        <AppText variant="bold" style={styles.title}>
-          {seed.title}
-        </AppText>
-
-        {/* NPC Character and Speech Bubble Side by Side */}
-        <View style={styles.npcContainer}>
-          {/* Speech Bubble on Left with Tail */}
-          <View style={styles.speechBubbleWrapper}>
-            <View style={styles.speechBubble}>
-              <AppText style={styles.description}>
-                {seed.description || "Explore this exciting career path!"}
+        {/* ── Top Header Blends to Safe Area ──────────────────── */}
+        <View
+          style={[s.heroRow, { paddingTop: Math.max(insets.top + 16, 60) }]}
+        >
+          {/* Bleeding Portrait on Left */}
+          <View style={s.heroPortraitWrapper}>
+            <Image
+              source={data.npcImage}
+              style={s.heroPortrait}
+              resizeMode="cover"
+            />
+            <LinearGradient
+              colors={["transparent", "rgba(0,0,0,0.6)"]}
+              style={s.heroGradient}
+            >
+              <AppText variant="bold" style={s.npcName}>
+                {data.npcName}
               </AppText>
-              <AppText style={styles.dayCount}>
-                {path?.total_days || 5}/6
-              </AppText>
-            </View>
-            {/* Speech Bubble Tail - Triangle pointing right to NPC */}
-            <View style={styles.speechTailOuter} />
-            <View style={styles.speechTailInner} />
+            </LinearGradient>
           </View>
 
-          {/* NPC Character on Right */}
-          <View style={styles.npcRightColumn}>
-            {npcAvatar?.svg_data ? (
-              <View style={styles.npcCharacter}>
-                <SvgXml xml={npcAvatar.svg_data} width={240} height={340} />
+          {/* Titles & Chat on Right */}
+          <View style={s.heroTitleCol}>
+            <AppText variant="bold" style={s.heroTitle}>
+              {data.title}
+            </AppText>
+            <AppText style={s.heroTitleTh}>{data.titleTh}</AppText>
+
+            {/* Speech Bubble */}
+            <Pressable onPress={nextDialog} style={s.dialogCard}>
+              <View style={s.dialogTail} />
+              <AppText style={s.dialogText}>{data.dialogs[dialogIdx]}</AppText>
+              <View style={s.dialogBottomRow}>
+                <AppText style={s.dialogHint}>แตะอ่านต่อ...</AppText>
+                <AppText style={s.dialogCount}>
+                  {dialogIdx + 1}/{data.dialogs.length}
+                </AppText>
               </View>
-            ) : (
-              <View style={styles.npcCharacter}>
-                <View style={styles.npcHead}>
-                  <View style={styles.npcEye} />
-                  <View style={styles.npcMouth} />
-                </View>
-                <View style={styles.npcBody}>
-                  <View style={styles.npcTie} />
-                </View>
-              </View>
-            )}
+            </Pressable>
           </View>
         </View>
 
-        {/* "Click [Name] for more detail" */}
-        <AppText style={styles.clickHint}>
-          click {npcAvatar?.name || "Sam"} for more detail
-        </AppText>
-
-        {/* Timeline Graph */}
-        <View style={styles.timelineContainer}>
-          <PathTimeline days={pathDays} currentDay={enrollment?.current_day || 0} />
-        </View>
-
-        {/* Progress Bar */}
-        {isEnrolled && enrollment.current_day > 0 && (
-          <View style={styles.progressBarContainer}>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${
-                      ((enrollment.current_day - 1) / (path?.total_days || 5)) * 100
-                    }%`,
-                  },
-                ]}
-              />
+        {/* ── Retention Stats (Moved Up & Compacted) ────────────────── */}
+        <View style={s.compactStatsCard}>
+          <View style={s.statsHeaderRow}>
+            <View>
+              <AppText variant="bold" style={s.compactStatsTitle}>
+                📊 ผู้รอดชีวิต
+              </AppText>
+              <AppText style={s.compactStatsSubtitle}>
+                จาก {data.enrolled} คน · รอด {retained}%
+              </AppText>
             </View>
           </View>
-        )}
+
+          <View style={s.retentionGraphCompact}>
+            <Svg width={SW - 80} height={100}>
+              {/* Grid lines */}
+              {[0, 50, 100].map((pct) => {
+                const y = 80 - (pct / 100) * 70;
+                return (
+                  <Line
+                    key={pct}
+                    x1={30}
+                    y1={y}
+                    x2={SW - 110}
+                    y2={y}
+                    stroke="#F3F4F6"
+                    strokeWidth={1}
+                  />
+                );
+              })}
+
+              {/* Y-axis labels */}
+              {[0, 50, 100].map((pct) => {
+                const y = 80 - (pct / 100) * 70;
+                return (
+                  <SvgText
+                    key={`y-${pct}`}
+                    x={24}
+                    y={y + 3}
+                    textAnchor="end"
+                    fontSize={8}
+                    fill="#9CA3AF"
+                  >
+                    {pct}%
+                  </SvgText>
+                );
+              })}
+
+              {/* Area fill & Line */}
+              {(() => {
+                const gw = SW - 140;
+                const points = data.retentionByDay.map((pct, i) => {
+                  const x = 30 + (gw / 4) * i;
+                  const y = 80 - (pct / 100) * 70;
+                  return { x, y };
+                });
+
+                const areaPath =
+                  `M ${points[0].x} ${points[0].y} ` +
+                  points
+                    .slice(1)
+                    .map((p) => `L ${p.x} ${p.y}`)
+                    .join(" ") +
+                  ` L ${points[points.length - 1].x} 80 L ${points[0].x} 80 Z`;
+
+                const linePath =
+                  `M ${points[0].x} ${points[0].y} ` +
+                  points
+                    .slice(1)
+                    .map((p) => `L ${p.x} ${p.y}`)
+                    .join(" ");
+
+                return (
+                  <>
+                    <SvgPath d={areaPath} fill="rgba(16, 185, 129, 0.12)" />
+                    <SvgPath
+                      d={linePath}
+                      stroke="#10B981"
+                      strokeWidth={2}
+                      fill="none"
+                    />
+                    {points.map((p, i) => (
+                      <Circle
+                        key={i}
+                        cx={p.x}
+                        cy={p.y}
+                        r={3}
+                        fill="#fff"
+                        stroke="#10B981"
+                        strokeWidth={2}
+                      />
+                    ))}
+                    {points.map((p, i) => (
+                      <SvgText
+                        key={`l-${i}`}
+                        x={p.x}
+                        y={p.y - 8}
+                        textAnchor="middle"
+                        fontSize={9}
+                        fontWeight="600"
+                        fill="#10B981"
+                      >
+                        {data.retentionByDay[i]}%
+                      </SvgText>
+                    ))}
+                  </>
+                );
+              })()}
+            </Svg>
+
+            {/* X-axis labels */}
+            <View style={s.xLabelsRowCompact}>
+              {data.days.map((d, i) => (
+                <AppText key={i} style={s.xLabelCompact}>
+                  ว.{i + 1}
+                </AppText>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* ── Vertical 5-Day Journey ─────────────────── */}
+        <View style={s.journeyCard}>
+          <AppText variant="bold" style={s.cardTitle}>
+            📅 เส้นทาง 5 วัน
+          </AppText>
+
+          {data.days.map((day, i) => {
+            const isActive = i === data.currentDay - 1;
+            const isDone = day.done;
+            return (
+              <View key={i}>
+                <View style={s.dayRow}>
+                  {/* Connector Line */}
+                  {i > 0 && (
+                    <View
+                      style={[
+                        s.connectorLine,
+                        isDone || data.days[i - 1].done
+                          ? s.connectorDone
+                          : s.connectorPending,
+                      ]}
+                    />
+                  )}
+
+                  {/* Circle */}
+                  <View
+                    style={[
+                      s.dayCircle,
+                      isDone && s.dayCircleDone,
+                      isActive && s.dayCircleActive,
+                    ]}
+                  >
+                    {isDone ? (
+                      <AppText style={s.dayCheckmark}>✓</AppText>
+                    ) : (
+                      <AppText
+                        style={[s.dayNum, isActive && { color: "#fff" }]}
+                      >
+                        {i + 1}
+                      </AppText>
+                    )}
+                  </View>
+
+                  {/* Label */}
+                  <View style={s.dayLabelCol}>
+                    <AppText
+                      variant={isActive ? "bold" : "regular"}
+                      style={[s.dayTitle, isDone && s.dayTitleDone]}
+                    >
+                      Day {i + 1}: {day.titleTh}
+                    </AppText>
+                    <AppText style={s.daySubtitle}>{day.title}</AppText>
+                  </View>
+
+                  {/* Status */}
+                  {isDone && (
+                    <View style={s.dayDoneBadge}>
+                      <AppText style={s.dayDoneText}>เสร็จ</AppText>
+                    </View>
+                  )}
+                  {isActive && (
+                    <View style={s.dayActiveBadge}>
+                      <AppText style={s.dayActiveText}>วันนี้</AppText>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* ── Who Left (Moved from Stats Card) ──────────────────────── */}
+        <View style={s.journeyCard}>
+          <AppText variant="bold" style={s.cardTitle}>
+            😵 ใครเลิกไปแล้วบ้าง?
+          </AppText>
+          <View style={s.leftSection}>
+            {data.leftStudents.map((st, i) => (
+              <View key={i} style={s.leftRow}>
+                <View style={s.leftDot}>
+                  <AppText style={s.leftDotText}>{st.name.charAt(0)}</AppText>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText style={s.leftName}>{st.name}</AppText>
+                  <AppText style={s.leftReason}>
+                    "{st.reason}" · เลิกเรียนวันที่ {st.day}
+                  </AppText>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* CTA Button */}
-      <View style={styles.ctaContainer}>
-        {!isEnrolled ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.ctaButton,
-              pressed && styles.ctaButtonPressed,
-              enrolling && styles.ctaButtonDisabled,
-            ]}
-            onPress={handleStartPath}
-            disabled={enrolling}
-          >
-            {enrolling ? (
-              <ActivityIndicator color="#111" />
-            ) : (
-              <AppText variant="bold" style={styles.ctaText}>
-                Start
-              </AppText>
-            )}
-          </Pressable>
-        ) : canContinue ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.ctaButton,
-              pressed && styles.ctaButtonPressed,
-            ]}
-            onPress={handleContinuePath}
-          >
-            <AppText variant="bold" style={styles.ctaText}>
-              Continue Day {enrollment.current_day}
-            </AppText>
-          </Pressable>
-        ) : (
-          <Pressable
-            style={({ pressed }) => [
-              styles.ctaButton,
-              styles.ctaButtonSecondary,
-              pressed && styles.ctaButtonPressed,
-            ]}
-            onPress={handleContinuePath}
-          >
-            <AppText variant="bold" style={[styles.ctaText, styles.ctaTextSecondary]}>
-              View Report
-            </AppText>
-          </Pressable>
-        )}
+      {/* CTA */}
+      <View style={[s.ctaBar, { paddingBottom: insets.bottom + 20 }]}>
+        <LinearGradient
+          colors={["rgba(238, 242, 255, 0)", "#EEF2FF", "#EEF2FF"]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <Pressable
+          style={({ pressed }) => [
+            s.ctaBtn,
+            pressed && { backgroundColor: "#9FE800" },
+          ]}
+          onPress={() => router.back()}
+        >
+          <AppText variant="bold" style={s.ctaBtnText}>
+            {data.currentDay >= data.totalDays
+              ? "🎉 ดูใบรับรอง"
+              : `เริ่มวัน ${data.currentDay}`}
+          </AppText>
+        </Pressable>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
-function PathTimeline({ days, currentDay }: { days: PathDay[]; currentDay: number }) {
-  if (days.length === 0) return null;
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-  // Calculate positions for the curved line - wider to prevent cramping
-  const spacing = 150; // Space between each day
-  const width = Math.max(600, days.length * spacing);
-  const height = 120;
-
-  const points = days.map((_, i) => {
-    const x = 80 + i * spacing;
-    const y = height - 40 - Math.sin((i / (days.length - 1)) * Math.PI) * 30;
-    return { x, y };
-  });
-
-  // Create curved path
-  let pathData = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    const cpx = (prev.x + curr.x) / 2;
-    pathData += ` Q ${cpx} ${prev.y}, ${curr.x} ${curr.y}`;
-  }
-
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.timelineScroll}
-      contentContainerStyle={styles.timelineScrollContent}
-    >
-      <View style={styles.timelineWrapper}>
-        <Svg width={width} height={height}>
-          {/* Curved line */}
-          <SvgPath
-            d={pathData}
-            stroke="#333"
-            strokeWidth={3}
-            fill="none"
-          />
-
-          {/* Day dots */}
-          {points.map((point, i) => (
-            <Circle
-              key={i}
-              cx={point.x}
-              cy={point.y}
-              r={8}
-              fill={i < currentDay ? "#BFFF00" : "#fff"}
-              stroke="#333"
-              strokeWidth={2}
-            />
-          ))}
-        </Svg>
-
-        {/* Day labels */}
-        <View style={styles.dayLabelsContainer}>
-          {days.map((day, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dayLabel,
-                { left: points[i].x - 60, top: points[i].y + 20 },
-              ]}
-            >
-              <AppText style={styles.dayLabelText} numberOfLines={3}>
-                {day.title}
-              </AppText>
-            </View>
-          ))}
-        </View>
-      </View>
-    </ScrollView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
+const s = StyleSheet.create({
+  container: { flex: 1 },
+  center: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: "#FDFFF5",
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 32,
   },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: "#FDFFF5",
+
+  backBtn: {
+    position: "absolute",
+    left: 20,
+    zIndex: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "rgb(206,206,206)",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  backBtnIcon: { fontSize: 20, color: "#111" },
+
+  scrollContent: { paddingHorizontal: 0, paddingBottom: 100 },
+
+  // ─── Hero Row ──────────────────────────────────────────
+  heroRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    marginBottom: 0,
     gap: 16,
   },
-  errorText: {
-    fontSize: 18,
-    color: "#666",
-  },
-  backBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  backBtnText: {
-    fontSize: 14,
-    color: "#BFFF00",
-  },
-  backButton: {
-    position: "absolute",
-    top: 50,
-    left: 24,
-    zIndex: 10,
-    width: 40,
-    height: 40,
+  heroPortraitWrapper: {
+    width: 140,
+    height: 200,
     borderRadius: 20,
-    backgroundColor: "#fff",
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "rgb(206,206,206)",
+    backgroundColor: "#F3F4F6",
+  },
+  heroPortrait: { width: "100%", height: "100%" },
+  heroGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
+    paddingTop: 40,
+  },
+  npcName: { fontSize: 16, color: "#fff" },
+
+  heroTitleCol: {
+    flex: 1,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  heroTitle: {
+    fontSize: 26,
+    color: "#111827",
+    lineHeight: 30,
+    marginBottom: 4,
+  },
+  heroTitleTh: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  listenBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    gap: 6,
+  },
+  listenBtnIcon: { fontSize: 14 },
+  listenBtnText: { fontSize: 12, color: "#4B5563", fontWeight: "600" },
+
+  // ─── Dialog ─────────────────────────────────────
+  dialogCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "rgb(206,206,206)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+    position: "relative",
+    flex: 1,
+  },
+  dialogTail: {
+    position: "absolute",
+    top: 24,
+    left: -8,
+    width: 16,
+    height: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: "rgb(206,206,206)",
+    transform: [{ rotate: "45deg" }],
+  },
+  dialogText: { fontSize: 13, color: "#374151", lineHeight: 20 },
+  dialogBottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  dialogHint: { fontSize: 10, color: "#9CA3AF" },
+  dialogCount: { fontSize: 10, color: "#9CA3AF" },
+
+  // ─── Journey Card ───────────────────────────────
+  journeyCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgb(206,206,206)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardTitle: { fontSize: 16, color: "#111827", marginBottom: 4 },
+  cardSubtitle: { fontSize: 12, color: "#6B7280", marginBottom: 16 },
+
+  // ─── Day Rows ───────────────────────────────────
+  dayRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    position: "relative",
+  },
+  connectorLine: {
+    position: "absolute",
+    left: 15,
+    top: -10,
+    width: 2,
+    height: 20,
+  },
+  connectorDone: { backgroundColor: "#10B981" },
+  connectorPending: { backgroundColor: "#E5E7EB" },
+
+  dayCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 12,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: "#111",
+  dayCircleDone: {
+    backgroundColor: "#10B981",
+    borderColor: "#10B981",
   },
-  scroll: {
-    flex: 1,
+  dayCircleActive: {
+    backgroundColor: "#3B82F6",
+    borderColor: "#3B82F6",
+    shadowColor: "rgba(59,130,246,0.4)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
   },
-  scrollContent: {
-    paddingTop: 100,
-    paddingHorizontal: 24,
-    paddingBottom: 120,
+  dayCheckmark: { fontSize: 14, color: "#fff" },
+  dayNum: { fontSize: 13, color: "#9CA3AF" },
+
+  dayLabelCol: { flex: 1 },
+  dayTitle: { fontSize: 14, color: "#111827", lineHeight: 18 },
+  dayTitleDone: { color: "#10B981" },
+  daySubtitle: { fontSize: 11, color: "#9CA3AF", marginTop: 1 },
+
+  dayDoneBadge: {
+    backgroundColor: "rgba(16,185,129,0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
-  title: {
-    fontSize: 28,
-    color: "#111",
-    marginBottom: 24,
-    textAlign: "center",
+  dayDoneText: { fontSize: 10, color: "#10B981" },
+  dayActiveBadge: {
+    backgroundColor: "rgba(59,130,246,0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
-  npcContainer: {
-    flexDirection: "row",
-    marginBottom: 16,
-    gap: 0,
-    alignItems: "flex-start",
-  },
-  speechBubbleWrapper: {
-    flex: 1,
-    position: "relative",
-    marginRight: -10,
-  },
-  speechBubble: {
+  dayActiveText: { fontSize: 10, color: "#3B82F6" },
+
+  // ─── Compact Stats Layer ─────────────────────────────────────
+  compactStatsCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: "#111",
     padding: 16,
-    minHeight: 220,
-    position: "relative",
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgb(206,206,206)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
   },
-  speechTailOuter: {
-    position: "absolute",
-    right: -14,
-    top: 80,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 20,
-    borderRightWidth: 0,
-    borderTopWidth: 15,
-    borderBottomWidth: 15,
-    borderLeftColor: "#111",
-    borderRightColor: "transparent",
-    borderTopColor: "transparent",
-    borderBottomColor: "transparent",
-    borderStyle: "solid",
-  },
-  speechTailInner: {
-    position: "absolute",
-    right: -11,
-    top: 82,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 18,
-    borderRightWidth: 0,
-    borderTopWidth: 13,
-    borderBottomWidth: 13,
-    borderLeftColor: "#fff",
-    borderRightColor: "transparent",
-    borderTopColor: "transparent",
-    borderBottomColor: "transparent",
-    borderStyle: "solid",
-  },
-  npcRightColumn: {
-    width: 240,
-    alignItems: "center",
-    marginLeft: 10,
-  },
-  description: {
-    fontSize: 14,
-    color: "#111",
-    lineHeight: 20,
+  statsHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
     marginBottom: 12,
   },
-  dayCount: {
-    position: "absolute",
-    bottom: 12,
-    right: 16,
-    fontSize: 12,
-    color: "#999",
+  compactStatsTitle: { fontSize: 14, color: "#111827" },
+  compactStatsSubtitle: { fontSize: 11, color: "#6B7280", marginTop: 2 },
+
+  retentionGraphCompact: { marginTop: 0, alignItems: "center" },
+  xLabelsRowCompact: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingLeft: 24,
+    paddingRight: 8,
+    marginTop: 0,
   },
-  npcCharacter: {
+  xLabelCompact: {
+    fontSize: 9,
+    color: "#9CA3AF",
+    textAlign: "center",
+    flex: 1,
+  },
+
+  // ─── Who Left ───────────────────────────────────
+  leftSection: {
+    marginTop: 8,
+  },
+  leftRow: {
+    flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 8,
+    gap: 12,
   },
-  npcHead: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#fff",
-    borderWidth: 3,
-    borderColor: "#111",
+  leftDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#FEE2E2",
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
   },
-  npcEye: {
+  leftDotText: { fontSize: 12, color: "#EF4444" },
+  leftName: { fontSize: 13, color: "#374151" },
+  leftReason: { fontSize: 11, color: "#9CA3AF", marginTop: 1 },
+
+  // ─── CTA ────────────────────────────────────────
+  ctaBar: {
     position: "absolute",
-    top: 20,
-    left: 15,
-    width: 20,
-    height: 8,
-    backgroundColor: "#111",
-    borderRadius: 4,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingTop: 40,
   },
-  npcMouth: {
-    position: "absolute",
-    bottom: 15,
-    width: 30,
-    height: 3,
-    backgroundColor: "#111",
-  },
-  npcBody: {
-    width: 50,
-    height: 80,
-    backgroundColor: "#fff",
-    borderWidth: 3,
-    borderColor: "#111",
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    position: "relative",
-  },
-  npcTie: {
-    position: "absolute",
-    top: 10,
-    left: 15,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 10,
-    borderRightWidth: 10,
-    borderTopWidth: 30,
-    borderStyle: "solid",
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderTopColor: "#ff4444",
-  },
-  clickHint: {
-    fontSize: 12,
-    color: "#999",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  timelineContainer: {
-    marginBottom: 24,
-    backgroundColor: "#fff",
+  ctaBtn: {
+    backgroundColor: "#BFFF00",
+    paddingVertical: 16,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 16,
-    overflow: "hidden",
-  },
-  timelineScroll: {
-    width: "100%",
-  },
-  timelineScrollContent: {
-    paddingRight: 40,
-  },
-  timelineWrapper: {
-    position: "relative",
-    height: 160,
-  },
-  dayLabelsContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  dayLabel: {
-    position: "absolute",
-    width: 120,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  dayLabelText: {
-    fontSize: 11,
-    color: "#666",
-    textAlign: "center",
-    lineHeight: 14,
-  },
-  progressBarContainer: {
-    marginBottom: 16,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: "#eee",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#BFFF00",
-    borderRadius: 4,
-  },
-  ctaContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 24,
-    paddingBottom: 40,
-    backgroundColor: "#FDFFF5",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  ctaButton: {
-    backgroundColor: "#BFFF00",
-    paddingVertical: 18,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  ctaButtonPressed: {
-    backgroundColor: "#9FE800",
-  },
-  ctaButtonDisabled: {
-    opacity: 0.6,
-  },
-  ctaButtonSecondary: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#111",
-  },
-  ctaText: {
-    fontSize: 18,
-    color: "#111",
-  },
-  ctaTextSecondary: {
-    color: "#111",
-  },
+  ctaBtnText: { fontSize: 17, color: "#111" },
 });

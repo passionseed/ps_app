@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { AppText as Text } from "../AppText";
 import Svg, { Circle } from "react-native-svg";
 
 interface DonutScoreProps {
@@ -94,13 +95,11 @@ const styles = StyleSheet.create({
   scoreValue: {
     fontSize: 18,
     fontWeight: "700",
-    fontFamily: "Orbit_400Regular",
   },
   label: {
     fontSize: 11,
     fontWeight: "500",
     color: "#888",
-    fontFamily: "Orbit_400Regular",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
