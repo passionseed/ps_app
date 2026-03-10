@@ -53,9 +53,9 @@ Deno.serve(async (req) => {
   const { data: cached } = await supabase
     .from("university_insights_cache")
     .select("data, expires_at")
-    .eq("university_name", universityName)
-    .eq("faculty_name", facultyName)
-    .eq("career_goal", careerGoal)
+    .eq("university_name", safeUniversityName)
+    .eq("faculty_name", safeFacultyName)
+    .eq("career_goal", safeCareerGoal)
     .single();
 
   if (cached && new Date(cached.expires_at) > new Date()) {
@@ -177,9 +177,9 @@ Return ONLY a JSON object (no markdown fences) with:
   if (result.aiMatchScore !== null) {
     await supabase.from("university_insights_cache").upsert(
       {
-        university_name: universityName,
-        faculty_name: facultyName,
-        career_goal: careerGoal,
+        university_name: safeUniversityName,
+        faculty_name: safeFacultyName,
+        career_goal: safeCareerGoal,
         data: result,
         source: "ai",
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
