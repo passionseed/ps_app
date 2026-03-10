@@ -211,9 +211,9 @@ export default function ProfileScreen() {
             <View style={styles.headerRow}>
               <View style={styles.avatarContainer}>
                 <Image
-                  source={require("../../assets/passionseed-logo.svg")}
+                  source={require("../../assets/images/user_avatar.png")}
                   style={styles.avatar}
-                  resizeMode="contain"
+                  resizeMode="cover"
                 />
               </View>
 
@@ -546,6 +546,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 44,
     height: 44,
+    borderRadius: 22,
   },
   name: {
     fontSize: 26,
