@@ -5,40 +5,116 @@ import {
   Dimensions,
   Animated,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { CareerPathCard } from "../../components/JourneyBoard/CareerPathCard";
-import { MOCK_PATH_DATA } from "../../lib/mockPathData";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getActiveJourneys } from "../../lib/journey";
+import type { StudentJourney } from "../../types/journey";
+import type { CareerPath, PathStep } from "../../lib/mockPathData";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // Leave margin so previous/next cards peek out, but keep cards wider.
 const CARD_WIDTH = SCREEN_WIDTH - 48;
 const SNAP_INTERVAL = CARD_WIDTH + 8;
 
+/** Convert a StudentJourney to the CareerPath shape expected by CareerPathCard. */
+function journeyToCareerPath(journey: StudentJourney): CareerPath {
+  const scores = journey.scores;
+  const passionScore = scores?.passion ?? null;
+  const futureScore = scores?.future ?? null;
+  const worldScore = scores?.world ?? null;
+  const journeyScore =
+    scores
+      ? Math.round((scores.passion + scores.future + scores.world) / 3)
+      : null;
+
+  const confidence: CareerPath["confidence"] =
+    journeyScore === null
+      ? "low"
+      : journeyScore >= 70
+        ? "high"
+        : journeyScore >= 50
+          ? "medium"
+          : "low";
+
+  const steps: PathStep[] = journey.steps.map((step, idx) => ({
+    id: `${journey.id}-step-${idx}`,
+    order: idx + 1,
+    type: step.type,
+    title: step.label,
+    subtitle: step.details.university_name ?? step.details.company_type ?? "",
+    detail: [step.details.faculty_name, step.details.salary_range, step.details.description]
+      .filter(Boolean)
+      .join(" · "),
+    duration: "",
+    icon:
+      step.type === "university"
+        ? "🎓"
+        : step.type === "internship"
+          ? "💼"
+          : "🚀",
+    status: "upcoming" as PathStep["status"],
+    universityMeta:
+      step.type === "university" &&
+      step.details.university_name &&
+      step.details.faculty_name
+        ? {
+            universityName: step.details.university_name,
+            facultyName: step.details.faculty_name,
+          }
+        : undefined,
+  }));
+
+  return {
+    id: journey.id,
+    label: journey.title,
+    careerGoal: journey.career_goal,
+    careerGoalIcon: "🎯",
+    passionScore,
+    futureScore,
+    worldScore,
+    journeyScore,
+    explanations: {
+      passion: "",
+      future: "",
+      world: "",
+    },
+    confidence,
+    steps,
+  };
+}
+
 export default function MyPathsScreen() {
-  const [paths, setPaths] = useState(MOCK_PATH_DATA.paths);
-  // Optional, if you want profile goal to update too in the future
-  const [profileCareerGoal, setProfileCareerGoal] = useState(
-    MOCK_PATH_DATA.profileCareerGoal,
-  );
+  const [journeys, setJourneys] = useState<StudentJourney[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getActiveJourneys()
+      .then(setJourneys)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      // Force refresh of mock data when screen comes into focus
-      setPaths([...MOCK_PATH_DATA.paths]);
-      setProfileCareerGoal(MOCK_PATH_DATA.profileCareerGoal);
+      setLoading(true);
+      getActiveJourneys()
+        .then(setJourneys)
+        .catch(console.error)
+        .finally(() => setLoading(false));
     }, []),
   );
 
   const scrollX = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
 
-  // Simulate empty state
+  const paths = journeys.map(journeyToCareerPath);
   const hasSimulations = paths.length > 0;
 
   const handleBuildPath = () => {
@@ -61,7 +137,11 @@ export default function MyPathsScreen() {
           <Text style={styles.headerTitle}>จำลองเส้นทางอาชีพ</Text>
         </View>
 
-        {!hasSimulations ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#BFFF00" />
+          </View>
+        ) : !hasSimulations ? (
           /* Empty State */
           <View style={styles.emptyState}>
             <View style={styles.emptyIconGroup}>
@@ -70,6 +150,16 @@ export default function MyPathsScreen() {
             <Text style={styles.emptyTitle}>คุณอยากเป็นอะไร?</Text>
             <Text style={styles.emptySubtext}>
               จำลองเส้นทางอาชีพและดูแผนผังทีละขั้นตอนเพื่อเดินตามความฝันของคุณ
+            </Text>
+            <Text
+              style={{
+                fontFamily: "Orbit_400Regular",
+                color: "#666",
+                textAlign: "center",
+                marginTop: 40,
+              }}
+            >
+              ยังไม่มีแผนการเดินทาง
             </Text>
             <Pressable
               style={({ pressed }) => [
@@ -188,6 +278,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
   },
+  // Loading
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 80,
+  },
   // Empty State
   emptyState: {
     alignItems: "center",
@@ -218,6 +313,7 @@ const styles = StyleSheet.create({
   buildPathBtn: {
     borderRadius: 14,
     overflow: "hidden",
+    marginTop: 20,
   },
   buildPathBtnPressed: {
     opacity: 0.9,
