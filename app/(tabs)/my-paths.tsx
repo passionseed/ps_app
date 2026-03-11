@@ -16,7 +16,7 @@ import { CareerPathCard } from "../../components/JourneyBoard/CareerPathCard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getActiveJourneys } from "../../lib/journey";
 import type { StudentJourney } from "../../types/journey";
-import type { CareerPath, PathStep } from "../../lib/mockPathData";
+import type { CareerPath, PathStep } from "../../types/journey";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // Leave margin so previous/next cards peek out, but keep cards wider.

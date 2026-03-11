@@ -10,12 +10,8 @@ import {
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
 import { useLocalSearchParams, router } from "expo-router";
-import {
-  MOCK_PATH_DATA,
-  CareerPath,
-  PathStep,
-  StepType,
-} from "../../lib/mockPathData";
+import { MOCK_PATH_DATA } from "../../lib/mockPathData";
+import type { CareerPath, PathStep, StepType } from "../../types/journey";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { PathStepCard } from "../../components/JourneyBoard/PathStepCard";

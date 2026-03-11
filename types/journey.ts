@@ -1,6 +1,47 @@
 // types/journey.ts
 
 export type JourneyStepType = "university" | "internship" | "job";
+
+// ---------------------------------------------------------------------------
+// UI-layer types for the JourneyBoard card components
+// These are the display-ready shapes produced by adapting StudentJourney data.
+// ---------------------------------------------------------------------------
+
+export type StepType = "university" | "internship" | "job";
+
+export interface PathStep {
+  id: string;
+  order: number;
+  type: StepType;
+  title: string;
+  subtitle: string;
+  detail: string;
+  duration: string;
+  icon: string;
+  status: "completed" | "in-progress" | "upcoming";
+  universityMeta?: {
+    universityName: string;
+    facultyName: string;
+  };
+}
+
+export interface CareerPath {
+  id: string;
+  label: string;
+  careerGoal: string;
+  careerGoalIcon: string;
+  passionScore: number | null;
+  futureScore: number | null;
+  worldScore: number | null;
+  journeyScore: number | null;
+  explanations: {
+    passion: string;
+    future: string;
+    world: string;
+  };
+  confidence: "low" | "medium" | "high";
+  steps: PathStep[];
+}
 export type JourneySource = "ai_generated" | "manual";
 
 export interface JourneyStep {
