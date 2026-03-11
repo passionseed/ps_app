@@ -128,3 +128,42 @@ export async function callOnboardingChat(params: {
   }
   return data as OnboardingChatResponse
 }
+
+// ── TCAS Profile ──────────────────────────────────────────────────────────────
+
+/**
+ * Save TCAS profile fields (GPAX, budget, location, interests).
+ */
+export async function saveTcasProfile(
+  userId: string,
+  data: {
+    gpax?: number | null;
+    budget_per_year?: number | null;
+    preferred_location?: string | null;
+    subject_interests?: string[];
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      ...data,
+      tcas_profile_completed: true,
+    })
+    .eq("id", userId);
+
+  if (error) throw error;
+}
+
+/**
+ * Get TCAS profile fields for a user.
+ */
+export async function getTcasProfile(userId: string) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("gpax, budget_per_year, preferred_location, subject_interests, tcas_profile_completed")
+    .eq("id", userId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
