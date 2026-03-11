@@ -53,6 +53,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.14",
+    "pdf-parse": "^1.1.1",
+    "playwright": "^1.50.0",
     "typescript": "~5.9.3"
   },
   "private": true,
