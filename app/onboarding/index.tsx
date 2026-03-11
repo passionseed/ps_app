@@ -7,9 +7,11 @@ import StepProfile from "./StepProfile";
 import StepChat from "./StepChat";
 import StepInterests from "./StepInterests";
 import StepCareers from "./StepCareers";
+import StepTcasProfile from "./StepTcasProfile";
 import StepSettings from "./StepSettings";
 
-const STEPS: OnboardingStep[] = ['profile', 'chat', 'interests', 'careers', 'settings'];
+const BASE_STEPS: OnboardingStep[] = ['profile', 'chat', 'interests', 'careers', 'settings'];
+const HIGH_SCHOOL_STEPS: OnboardingStep[] = ['profile', 'chat', 'interests', 'careers', 'tcas_profile', 'settings'];
 
 export default function OnboardingScreen() {
   const { user } = useAuth();
@@ -32,6 +34,8 @@ export default function OnboardingScreen() {
     });
   }, [user]);
 
+  const isHighSchool = collectedData.education_level === 'high_school';
+  const STEPS = isHighSchool ? HIGH_SCHOOL_STEPS : BASE_STEPS;
   const stepIndex = STEPS.indexOf(currentStep);
 
   if (loading) {
@@ -91,6 +95,14 @@ export default function OnboardingScreen() {
           userName={user?.user_metadata?.full_name?.split(' ')[0] ?? 'there'}
           educationLevel={collectedData.education_level ?? 'high_school'}
           interests={interests}
+          onComplete={() =>
+            setCurrentStep(isHighSchool ? 'tcas_profile' : 'settings')
+          }
+        />
+      )}
+      {currentStep === 'tcas_profile' && (
+        <StepTcasProfile
+          userId={user!.id}
           onComplete={() => setCurrentStep('settings')}
         />
       )}

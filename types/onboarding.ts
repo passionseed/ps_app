@@ -3,6 +3,7 @@ export type OnboardingStep =
   | "chat"
   | "interests"
   | "careers"
+  | "tcas_profile"
   | "settings";
 
 export type ChatMessage = {
