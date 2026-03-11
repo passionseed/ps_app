@@ -1,133 +1,113 @@
 import { supabase } from "./supabase";
+import type {
+  StudentJourney,
+  CreateJourneyInput,
+  UpdateJourneyInput,
+} from "../types/journey";
 
-export async function getJourneySimulations() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+/**
+ * Get all journeys for the current user.
+ */
+export async function getStudentJourneys(): Promise<StudentJourney[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("student_journeys")
+    .select("*")
+    .eq("student_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as StudentJourney[];
+}
+
+/**
+ * Get active journeys only.
+ */
+export async function getActiveJourneys(): Promise<StudentJourney[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("student_journeys")
+    .select("*")
+    .eq("student_id", user.id)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as StudentJourney[];
+}
+
+/**
+ * Get a single journey by ID.
+ */
+export async function getJourneyById(
+  journeyId: string
+): Promise<StudentJourney | null> {
+  const { data, error } = await supabase
+    .from("student_journeys")
+    .select("*")
+    .eq("id", journeyId)
+    .single();
+
+  if (error) return null;
+  return data as StudentJourney;
+}
+
+/**
+ * Create a new journey.
+ */
+export async function createJourney(
+  input: CreateJourneyInput
+): Promise<StudentJourney> {
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
   const { data, error } = await supabase
-    .from("journey_simulations")
-    .select(`
-      id,
-      label,
-      passion_score,
-      aptitude_score,
-      journey_score,
-      passion_confidence,
-      pivot_triggered,
-      pathlab_ids,
-      university_ids,
-      jobs (
-        id, title, viability_score, demand_trend
-      )
-    `)
-    .eq("student_id", user.id);
-
-  if (error) {
-    console.error("Error fetching simulations:", error);
-    throw error;
-  }
-  return data;
-}
-
-export async function getUniversities(ids: string[]) {
-  if (!ids || ids.length === 0) return [];
-  const { data, error } = await supabase
-    .from("universities")
-    .select("id, name, programs")
-    .in("id", ids);
+    .from("student_journeys")
+    .insert({
+      student_id: user.id,
+      title: input.title,
+      career_goal: input.career_goal,
+      source: input.source,
+      steps: input.steps,
+      scores: input.scores ?? null,
+    })
+    .select()
+    .single();
 
   if (error) throw error;
-  return data;
+  return data as StudentJourney;
 }
 
-export async function getPathLabs(ids: string[]) {
-  if (!ids || ids.length === 0) return [];
+/**
+ * Update an existing journey.
+ */
+export async function updateJourney(
+  journeyId: string,
+  input: UpdateJourneyInput
+): Promise<StudentJourney> {
   const { data, error } = await supabase
-    .from("paths")
-    .select(`
-      id,
-      seeds ( title )
-    `)
-    .in("id", ids);
+    .from("student_journeys")
+    .update(input)
+    .eq("id", journeyId)
+    .select()
+    .single();
 
   if (error) throw error;
-  return data;
+  return data as StudentJourney;
 }
 
-// Helper to assemble full payload for the UI
-export async function getFullJourneyBoardData() {
-  const sims = await getJourneySimulations();
+/**
+ * Delete a journey.
+ */
+export async function deleteJourney(journeyId: string): Promise<void> {
+  const { error } = await supabase
+    .from("student_journeys")
+    .delete()
+    .eq("id", journeyId);
 
-  const allUniIds = new Set<string>();
-  const allPathIds = new Set<string>();
-
-  sims.forEach((sim) => {
-    (sim.university_ids || []).forEach((id: string) => allUniIds.add(id));
-    (sim.pathlab_ids || []).forEach((id: string) => allPathIds.add(id));
-  });
-
-  const [unis, paths] = await Promise.all([
-    getUniversities(Array.from(allUniIds)),
-    getPathLabs(Array.from(allPathIds)),
-  ]);
-
-  const uniMap = new Map(unis.map((u) => [u.id, u]));
-  const pathMap = new Map(paths.map((p) => [p.id, p]));
-
-  return sims.map((sim) => {
-    // Supabase might return a single object or array depending on the foreign key setup
-    const jobData: any = Array.isArray(sim.jobs) && sim.jobs.length > 0 ? sim.jobs[0] : (!Array.isArray(sim.jobs) ? sim.jobs : null);
-
-    return {
-      id: sim.id,
-      label: sim.label || "My Journey",
-      passion_score: sim.passion_score,
-      aptitude_score: sim.aptitude_score,
-      journey_score: sim.journey_score,
-      passion_confidence: sim.passion_confidence || "low",
-      pivot_triggered: sim.pivot_triggered,
-      job: jobData
-        ? {
-            id: jobData.id,
-            title: jobData.title,
-            viabilityScore: jobData.viability_score,
-            trend: jobData.demand_trend,
-          }
-        : null,
-      universities: (sim.university_ids || [])
-        .map((id: string) => {
-          const u = uniMap.get(id);
-          return u
-            ? {
-                id: u.id,
-                name: u.name,
-                programs:
-                  Array.isArray(u.programs) && u.programs.length > 0
-                    ? [(u.programs[0] as any).name]
-                    : ["Degree Program"],
-                duration:
-                  Array.isArray(u.programs) && u.programs.length > 0
-                    ? `${(u.programs[0] as any).duration_yrs} yrs`
-                    : "3 yrs",
-              }
-            : null;
-        })
-        .filter(Boolean),
-      pathlabs: (sim.pathlab_ids || [])
-        .map((id: string) => {
-          const p = pathMap.get(id);
-          return p
-            ? {
-                id: p.id,
-                title: (p.seeds as any)?.title || "Unknown Path",
-                completed: false, // Defaulting for now
-                passionScore: sim.passion_score,
-              }
-            : null;
-        })
-        .filter(Boolean),
-    };
-  });
+  if (error) throw error;
 }
