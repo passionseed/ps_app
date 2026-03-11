@@ -64,7 +64,15 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Fix 4: Handle Exa API failures gracefully
+  // 2. NEW: Check university_static_data for ground-truth fields
+  const { data: staticData } = await supabase
+    .from("university_static_data")
+    .select("*")
+    .eq("university_name", safeUniversityName)
+    .eq("faculty_name", safeFacultyName)
+    .single();
+
+  // 3. Exa research (for news, people, missing fields)
   const exaFetch = async (body: unknown) => {
     const r = await fetch("https://api.exa.ai/search", {
       method: "POST",
@@ -157,17 +165,19 @@ Return ONLY a JSON object (no markdown fences) with:
   const result = {
     aiMatchScore: aiParsed.aiMatchScore ?? null,
     matchExplanation: aiParsed.matchExplanation ?? null,
-    acceptanceRate: aiParsed.acceptanceRate ?? null,
-    gpaxCutoff: aiParsed.gpaxCutoff ?? null,
-    tuitionPerYear: aiParsed.tuitionPerYear ?? null,
-    tuitionNote: aiParsed.tuitionNote ?? null,
-    duration: aiParsed.duration ?? null,
-    curriculumUrl: aiParsed.curriculumUrl ?? null,
+    acceptanceRate: staticData?.gpax_cutoff
+      ? `${staticData.gpax_cutoff} (Seat: ${staticData.acceptance_rate ?? 'N/A'})`
+      : (aiParsed.acceptanceRate ?? null),
+    gpaxCutoff: staticData?.gpax_cutoff ?? aiParsed.gpaxCutoff ?? null,
+    tuitionPerYear: staticData?.tuition_per_year ?? aiParsed.tuitionPerYear ?? null,
+    tuitionNote: staticData?.tuition_note ?? aiParsed.tuitionNote ?? null,
+    duration: staticData?.duration ?? aiParsed.duration ?? null,
+    curriculumUrl: staticData?.curriculum_url ?? aiParsed.curriculumUrl ?? null,
     ranking: aiParsed.ranking ?? null,
     people,
     news: (aiParsed.news ?? []).slice(0, 4),
     cachedAt: new Date().toISOString(),
-    source: "ai",
+    source: staticData ? "static+ai" : "ai",
   };
 
   // 5. Save to DB cache only if AI produced a valid result (Fix 5: guard against caching bad results)
