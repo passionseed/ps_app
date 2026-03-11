@@ -1,7 +1,7 @@
 import React from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { AppText as Text } from "../AppText";
-import type { PathStep, StepType } from "../../lib/mockPathData";
+import type { PathStep, StepType } from "../../types/journey";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 

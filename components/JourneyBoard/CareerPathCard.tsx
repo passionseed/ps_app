@@ -10,7 +10,7 @@ import { AppText as Text } from "../AppText";
 import { LinearGradient } from "expo-linear-gradient";
 import { DonutScore } from "./DonutScore";
 import { PathStepCard } from "./PathStepCard";
-import type { CareerPath } from "../../lib/mockPathData";
+import type { CareerPath } from "../../types/journey";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 

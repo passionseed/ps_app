@@ -1,3 +1,10 @@
+/**
+ * @deprecated Use types/journey.ts for types (CareerPath, PathStep, StepType)
+ * and lib/journey.ts for data access functions instead.
+ * The MOCK_PATH_DATA constant below is only retained for the prototype
+ * edit-path screen and should be removed once that screen reads from Supabase.
+ */
+
 // Mock data for Career Path Mapping — replace with Supabase calls later
 
 export type StepType = "university" | "internship" | "job";
