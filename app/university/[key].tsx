@@ -17,6 +17,8 @@ import {
   computeQuickMatch,
 } from "../../lib/universityInsights";
 import type { UniversityInsights } from "../../types/university";
+import { getAllUniversities, getEligibleRounds } from "../../lib/tcas";
+import type { EligibleRound } from "../../types/tcas";
 
 export default function UniversityDetailScreen() {
   const {
@@ -44,6 +46,7 @@ export default function UniversityDetailScreen() {
   const [insights, setInsights] = useState<UniversityInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [admissionRounds, setAdmissionRounds] = useState<EligibleRound[]>([]);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -68,6 +71,23 @@ export default function UniversityDetailScreen() {
           setLoading(false);
         }
       });
+
+    // Fetch admission rounds for this university
+    getAllUniversities().then((unis) => {
+      const uni = unis.find(
+        (u) =>
+          u.university_name === universityName ||
+          u.university_name_en === universityName
+      );
+      if (uni) {
+        getEligibleRounds(0, undefined, uni.university_id, 50)
+          .then((rounds) => {
+            if (!cancelled) setAdmissionRounds(rounds);
+          })
+          .catch(console.error);
+      }
+    });
+
     return () => {
       cancelled = true;
     };
@@ -302,12 +322,108 @@ export default function UniversityDetailScreen() {
                 )}
               </Section>
             ) : null}
+
+            {/* Admission Rounds */}
+            <AdmissionRoundsSection
+              rounds={admissionRounds}
+              onOpenLink={open}
+            />
           </>
         )}
 
         <View style={{ height: 60 }} />
       </ScrollView>
     </View>
+  );
+}
+
+const ROUND_LABELS: Record<number, string> = {
+  1: "รอบ 1 — Portfolio",
+  2: "รอบ 2 — Quota",
+  3: "รอบ 3 — Admission",
+  4: "รอบ 4 — Direct Admission",
+};
+
+function AdmissionRoundsSection({
+  rounds,
+  onOpenLink,
+}: {
+  rounds: EligibleRound[];
+  onOpenLink: (url: string) => void;
+}) {
+  // Group rounds by round_number
+  const grouped = rounds.reduce<Record<number, EligibleRound[]>>((acc, r) => {
+    const rn = r.round_number ?? 0;
+    if (!acc[rn]) acc[rn] = [];
+    acc[rn].push(r);
+    return acc;
+  }, {});
+
+  const roundNumbers = Object.keys(grouped)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  return (
+    <Section title="รอบการรับสมัคร">
+      {rounds.length === 0 ? (
+        <Text style={s.noRoundsText}>ไม่พบข้อมูลรอบรับสมัคร</Text>
+      ) : (
+        roundNumbers.map((rn) => (
+          <View key={rn} style={s.roundGroup}>
+            <Text style={s.roundGroupLabel}>
+              {ROUND_LABELS[rn] ?? `รอบ ${rn}`}
+            </Text>
+            {grouped[rn].map((r) => (
+              <Pressable
+                key={r.round_id}
+                style={({ pressed }) => [
+                  s.roundCard,
+                  pressed && s.pressed,
+                ]}
+                onPress={() => {
+                  if (r.link) onOpenLink(r.link);
+                }}
+              >
+                <Text style={s.roundProgramName} numberOfLines={2}>
+                  {r.program_name}
+                </Text>
+                <Text style={s.roundFaculty} numberOfLines={1}>
+                  {r.faculty_name}
+                </Text>
+                {r.project_name ? (
+                  <Text style={s.roundProject} numberOfLines={1}>
+                    โครงการ: {r.project_name}
+                  </Text>
+                ) : null}
+                <View style={s.roundMeta}>
+                  {r.receive_seats != null ? (
+                    <View style={s.roundMetaPill}>
+                      <Text style={s.roundMetaText}>
+                        {r.receive_seats} ที่นั่ง
+                      </Text>
+                    </View>
+                  ) : null}
+                  {r.min_gpax != null && r.min_gpax > 0 ? (
+                    <View style={s.roundMetaPill}>
+                      <Text style={s.roundMetaText}>
+                        GPAX ≥ {r.min_gpax.toFixed(2)}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {r.link ? (
+                    <View style={[s.roundMetaPill, s.roundLinkPill]}>
+                      <Text style={[s.roundMetaText, s.roundLinkText]}>
+                        รายละเอียด →
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ))
+      )}
+    </Section>
   );
 }
 
@@ -521,4 +637,45 @@ const s = StyleSheet.create({
   errorWrap: { alignItems: "center", paddingTop: 60, paddingHorizontal: 32 },
   errorText: { fontSize: 14, color: "#999", textAlign: "center" },
   pressed: { opacity: 0.85, transform: [{ scale: 0.985 }] },
+  noRoundsText: { fontSize: 13, color: "#9CA3AF", paddingVertical: 8 },
+  roundGroup: { marginBottom: 16 },
+  roundGroupLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#8B5CF6",
+    marginBottom: 8,
+    letterSpacing: 0.4,
+  },
+  roundCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#eee",
+    padding: 14,
+    marginBottom: 8,
+    gap: 4,
+  },
+  roundProgramName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111",
+    lineHeight: 20,
+  },
+  roundFaculty: { fontSize: 12, color: "#6B7280" },
+  roundProject: { fontSize: 12, color: "#8B5CF6" },
+  roundMeta: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 6,
+  },
+  roundMetaPill: {
+    backgroundColor: "rgba(139,92,246,0.08)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  roundMetaText: { fontSize: 11, fontWeight: "600", color: "#4B5563" },
+  roundLinkPill: { backgroundColor: "rgba(191,255,0,0.18)" },
+  roundLinkText: { color: "#4D7C0F" },
 });
