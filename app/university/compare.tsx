@@ -13,40 +13,19 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fetchUniversityInsights } from "../../lib/universityInsights";
-import { MOCK_PATH_DATA } from "../../lib/mockPathData";
+import { getAllUniversities, getUniversityPrograms } from "../../lib/tcas";
+import type { TcasUniversity, TcasProgram } from "../../types/tcas";
 import type { UniversityInsights } from "../../types/university";
 
 type UniOption = {
   label: string;
   universityName: string;
   facultyName: string;
-  pathLabel: string;
+  careerGoal: string;
   passionScore: number | null;
   futureScore: number | null;
   worldScore: number | null;
-  careerGoal: string;
 };
-
-function getAllUniversityOptions(): UniOption[] {
-  const options: UniOption[] = [];
-  for (const path of MOCK_PATH_DATA.paths) {
-    for (const step of path.steps) {
-      if (step.type === "university" && step.universityMeta) {
-        options.push({
-          label: `${step.universityMeta.universityName} · ${step.universityMeta.facultyName}`,
-          universityName: step.universityMeta.universityName,
-          facultyName: step.universityMeta.facultyName,
-          pathLabel: path.label,
-          passionScore: path.passionScore,
-          futureScore: path.futureScore,
-          worldScore: path.worldScore,
-          careerGoal: path.careerGoal,
-        });
-      }
-    }
-  }
-  return options;
-}
 
 type InsightsState = {
   data: UniversityInsights | null;
@@ -91,17 +70,8 @@ export default function CompareScreen() {
     careerGoal?: string;
   }>();
 
-  const allOptions = getAllUniversityOptions();
-
-  const preselectedA = keyA
-    ? (allOptions.find(
-        (o) =>
-          o.universityName === decodeURIComponent(keyA) &&
-          o.facultyName === (facultyA ?? ""),
-      ) ?? null)
-    : null;
-
-  const [selectedA, setSelectedA] = useState<UniOption | null>(preselectedA);
+  const [universities, setUniversities] = useState<TcasUniversity[]>([]);
+  const [selectedA, setSelectedA] = useState<UniOption | null>(null);
   const [selectedB, setSelectedB] = useState<UniOption | null>(null);
   const [insightsA, setInsightsA] = useState<InsightsState>({
     data: null,
@@ -113,6 +83,30 @@ export default function CompareScreen() {
     loading: false,
     error: null,
   });
+
+  // Fetch universities on mount
+  useEffect(() => {
+    getAllUniversities().then(setUniversities).catch(console.error);
+  }, []);
+
+  // Pre-select slot A if keyA param is provided
+  useEffect(() => {
+    if (!keyA || universities.length === 0) return;
+    const decodedName = decodeURIComponent(keyA);
+    const decodedFaculty = facultyA ? decodeURIComponent(facultyA) : "";
+    const uni = universities.find((u) => u.university_name === decodedName);
+    if (!uni) return;
+    const preOption: UniOption = {
+      label: `${decodedName} · ${decodedFaculty}`,
+      universityName: decodedName,
+      facultyName: decodedFaculty,
+      careerGoal: careerGoal ? decodeURIComponent(careerGoal) : "",
+      passionScore: null,
+      futureScore: null,
+      worldScore: null,
+    };
+    setSelectedA(preOption);
+  }, [keyA, facultyA, careerGoal, universities]);
 
   async function loadInsights(
     option: UniOption,
@@ -129,12 +123,9 @@ export default function CompareScreen() {
         worldScore: option.worldScore,
       });
       setter({ data, loading: false, error: null });
-    } catch (e: any) {
-      setter({
-        data: null,
-        loading: false,
-        error: e?.message ?? "โหลดไม่สำเร็จ",
-      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "โหลดไม่สำเร็จ";
+      setter({ data: null, loading: false, error: msg });
     }
   }
 
@@ -144,6 +135,7 @@ export default function CompareScreen() {
     loadInsights(selectedA, (s) => { if (!cancelled) setInsightsA(s); });
     return () => { cancelled = true; };
   }, [selectedA]);
+
   useEffect(() => {
     if (!selectedB) return;
     let cancelled = false;
@@ -175,13 +167,19 @@ export default function CompareScreen() {
           <UniPicker
             label="มหาวิทยาลัย A"
             selected={selectedA}
-            options={allOptions.filter((o) => o !== selectedB)}
+            universities={universities.filter(
+              (u) => u.university_id !== selectedB?.universityName,
+            )}
+            careerGoal={careerGoal ? decodeURIComponent(careerGoal) : ""}
             onSelect={setSelectedA}
           />
           <UniPicker
             label="มหาวิทยาลัย B"
             selected={selectedB}
-            options={allOptions.filter((o) => o !== selectedA)}
+            universities={universities.filter(
+              (u) => u.university_id !== selectedA?.universityName,
+            )}
+            careerGoal={careerGoal ? decodeURIComponent(careerGoal) : ""}
             onSelect={setSelectedB}
           />
         </View>
@@ -275,18 +273,59 @@ function ColHeader({ uni }: { uni: UniOption }) {
   );
 }
 
+type UniPickerProps = {
+  label: string;
+  selected: UniOption | null;
+  universities: TcasUniversity[];
+  careerGoal: string;
+  onSelect: (o: UniOption) => void;
+};
+
 function UniPicker({
   label,
   selected,
-  options,
+  universities,
+  careerGoal,
   onSelect,
-}: {
-  label: string;
-  selected: UniOption | null;
-  options: UniOption[];
-  onSelect: (o: UniOption) => void;
-}) {
+}: UniPickerProps) {
   const [open, setOpen] = useState(false);
+  const [pickedUni, setPickedUni] = useState<TcasUniversity | null>(null);
+  const [programs, setPrograms] = useState<TcasProgram[]>([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(false);
+
+  function handlePickUniversity(uni: TcasUniversity) {
+    setPickedUni(uni);
+    setPrograms([]);
+    setLoadingPrograms(true);
+    getUniversityPrograms(uni.university_id)
+      .then(setPrograms)
+      .catch(console.error)
+      .finally(() => setLoadingPrograms(false));
+  }
+
+  function handlePickProgram(program: TcasProgram) {
+    const facultyDisplay = program.faculty_name ?? "";
+    const option: UniOption = {
+      label: `${pickedUni!.university_name} · ${facultyDisplay} - ${program.program_name}`,
+      universityName: pickedUni!.university_name,
+      facultyName: `${facultyDisplay} - ${program.program_name}`,
+      careerGoal,
+      passionScore: null,
+      futureScore: null,
+      worldScore: null,
+    };
+    onSelect(option);
+    setOpen(false);
+    setPickedUni(null);
+    setPrograms([]);
+  }
+
+  function handleClose() {
+    setOpen(false);
+    setPickedUni(null);
+    setPrograms([]);
+  }
+
   return (
     <View style={s.picker}>
       <Text style={s.pickerLabel}>{label}</Text>
@@ -303,24 +342,81 @@ function UniPicker({
           </Text>
         ) : null}
       </Pressable>
+
       {open && (
-        <Modal transparent animationType="none" onRequestClose={() => setOpen(false)}>
-          <Pressable style={s.modalOverlay} onPress={() => setOpen(false)}>
+        <Modal transparent animationType="none" onRequestClose={handleClose}>
+          <Pressable style={s.modalOverlay} onPress={handleClose}>
             <View style={s.dropdownModal}>
-              {options.map((o, i) => (
-                <Pressable
-                  key={i}
-                  style={({ pressed }) => [s.dropdownItem, pressed && { opacity: 0.7 }]}
-                  onPress={() => { onSelect(o); setOpen(false); }}
-                >
-                  <Text style={s.dropdownItemText} numberOfLines={1}>
-                    {o.universityName}
-                  </Text>
-                  <Text style={s.dropdownItemSub} numberOfLines={1}>
-                    {o.facultyName} · {o.pathLabel}
-                  </Text>
-                </Pressable>
-              ))}
+              {/* University list */}
+              {!pickedUni && (
+                <ScrollView style={{ maxHeight: 320 }} nestedScrollEnabled>
+                  {universities.map((u) => (
+                    <Pressable
+                      key={u.university_id}
+                      style={({ pressed }) => [
+                        s.dropdownItem,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handlePickUniversity(u);
+                      }}
+                    >
+                      <Text style={s.dropdownItemText} numberOfLines={1}>
+                        {u.university_name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+
+              {/* Program list after university picked */}
+              {pickedUni && (
+                <>
+                  <Pressable
+                    style={s.dropdownBackBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setPickedUni(null);
+                      setPrograms([]);
+                    }}
+                  >
+                    <Text style={s.dropdownBackText}>
+                      ← {pickedUni.university_name}
+                    </Text>
+                  </Pressable>
+                  {loadingPrograms ? (
+                    <View style={s.dropdownLoading}>
+                      <ActivityIndicator size="small" color="#8B5CF6" />
+                    </View>
+                  ) : (
+                    <ScrollView style={{ maxHeight: 260 }} nestedScrollEnabled>
+                      {programs.map((p) => (
+                        <Pressable
+                          key={p.program_id}
+                          style={({ pressed }) => [
+                            s.dropdownItem,
+                            pressed && { opacity: 0.7 },
+                          ]}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handlePickProgram(p);
+                          }}
+                        >
+                          <Text style={s.dropdownItemText} numberOfLines={1}>
+                            {p.faculty_name} - {p.program_name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                      {programs.length === 0 && (
+                        <View style={s.dropdownLoading}>
+                          <Text style={s.dropdownItemSub}>ไม่พบหลักสูตร</Text>
+                        </View>
+                      )}
+                    </ScrollView>
+                  )}
+                </>
+              )}
             </View>
           </Pressable>
         </Modal>
@@ -377,7 +473,22 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 12,
     overflow: "hidden",
-    maxHeight: 320,
+    maxHeight: 360,
+  },
+  dropdownBackBtn: {
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+  },
+  dropdownBackText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#4C1D95",
+  },
+  dropdownLoading: {
+    padding: 24,
+    alignItems: "center",
   },
   dropdownItem: {
     padding: 14,
