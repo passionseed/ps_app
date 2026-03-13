@@ -87,6 +87,7 @@ export default function OnboardingScreen() {
             setInterests(cats);
             setCurrentStep('careers');
           }}
+          onGoBack={() => setCurrentStep('chat')}
         />
       )}
       {currentStep === 'careers' && (
