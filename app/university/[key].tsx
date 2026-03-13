@@ -19,6 +19,9 @@ import {
 import type { UniversityInsights } from "../../types/university";
 import { getAllUniversities, getEligibleRounds } from "../../lib/tcas";
 import type { EligibleRound } from "../../types/tcas";
+import { useAuth } from "../../lib/auth";
+import { getFitScores } from "../../lib/portfolioFit";
+import type { FitScoreResult } from "../../types/portfolio";
 
 export default function UniversityDetailScreen() {
   const {
@@ -43,10 +46,14 @@ export default function UniversityDetailScreen() {
   const ws = worldScore ? Number(worldScore) : null;
   const quickMatch = computeQuickMatch(ps, fs, ws);
 
+  const { user } = useAuth();
   const [insights, setInsights] = useState<UniversityInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [admissionRounds, setAdmissionRounds] = useState<EligibleRound[]>([]);
+  const [fitScoreMap, setFitScoreMap] = useState<Map<string, FitScoreResult>>(
+    new Map(),
+  );
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -92,6 +99,29 @@ export default function UniversityDetailScreen() {
       cancelled = true;
     };
   }, [universityName, facultyName]);
+
+  // Fetch fit scores for Round 1 admission rounds
+  useEffect(() => {
+    if (!user?.id || admissionRounds.length === 0) return;
+
+    const round1Ids = admissionRounds
+      .filter((r) => r.round_number === 1)
+      .map((r) => r.round_id);
+
+    if (round1Ids.length === 0) return;
+
+    getFitScores(user.id, round1Ids)
+      .then((results) => {
+        const map = new Map<string, FitScoreResult>();
+        for (const r of results) {
+          map.set(r.round_id, r);
+        }
+        setFitScoreMap(map);
+      })
+      .catch(() => {
+        // Silently fail — fit scores are additive, not critical
+      });
+  }, [user?.id, admissionRounds]);
 
   const open = (url: string) => Linking.openURL(url).catch(() => {});
 
@@ -327,6 +357,7 @@ export default function UniversityDetailScreen() {
             <AdmissionRoundsSection
               rounds={admissionRounds}
               onOpenLink={open}
+              fitScoreMap={fitScoreMap}
             />
           </>
         )}
@@ -347,9 +378,11 @@ const ROUND_LABELS: Record<number, string> = {
 function AdmissionRoundsSection({
   rounds,
   onOpenLink,
+  fitScoreMap,
 }: {
   rounds: EligibleRound[];
   onOpenLink: (url: string) => void;
+  fitScoreMap: Map<string, FitScoreResult>;
 }) {
   // Group rounds by round_number
   const grouped = rounds.reduce<Record<number, EligibleRound[]>>((acc, r) => {
@@ -373,7 +406,9 @@ function AdmissionRoundsSection({
             <Text style={s.roundGroupLabel}>
               {ROUND_LABELS[rn] ?? `รอบ ${rn}`}
             </Text>
-            {grouped[rn].map((r) => (
+            {grouped[rn].map((r) => {
+              const fitResult = fitScoreMap.get(r.round_id);
+              return (
               <Pressable
                 key={r.round_id}
                 style={({ pressed }) => [
@@ -384,12 +419,47 @@ function AdmissionRoundsSection({
                   if (r.link) onOpenLink(r.link);
                 }}
               >
-                <Text style={s.roundProgramName} numberOfLines={2}>
-                  {r.program_name}
-                </Text>
-                <Text style={s.roundFaculty} numberOfLines={1}>
-                  {r.faculty_name}
-                </Text>
+                <View style={s.roundCardHeader}>
+                  <View style={s.roundCardHeaderText}>
+                    <Text style={s.roundProgramName} numberOfLines={2}>
+                      {r.program_name}
+                    </Text>
+                    <Text style={s.roundFaculty} numberOfLines={1}>
+                      {r.faculty_name}
+                    </Text>
+                  </View>
+                  {fitResult != null && (
+                    <View
+                      style={[
+                        s.fitBadge,
+                        {
+                          backgroundColor:
+                            fitResult.fit_score >= 75
+                              ? "rgba(191,255,0,0.2)"
+                              : fitResult.fit_score >= 50
+                                ? "rgba(252,211,77,0.2)"
+                                : "rgba(248,113,113,0.2)",
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          s.fitBadgeText,
+                          {
+                            color:
+                              fitResult.fit_score >= 75
+                                ? "#4D7C0F"
+                                : fitResult.fit_score >= 50
+                                  ? "#92400E"
+                                  : "#991B1B",
+                          },
+                        ]}
+                      >
+                        {fitResult.fit_score}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 {r.project_name ? (
                   <Text style={s.roundProject} numberOfLines={1}>
                     โครงการ: {r.project_name}
@@ -419,7 +489,8 @@ function AdmissionRoundsSection({
                   ) : null}
                 </View>
               </Pressable>
-            ))}
+              );
+            })}
           </View>
         ))
       )}
@@ -654,6 +725,27 @@ const s = StyleSheet.create({
     padding: 14,
     marginBottom: 8,
     gap: 4,
+  },
+  roundCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  roundCardHeaderText: {
+    flex: 1,
+    gap: 2,
+  },
+  fitBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  fitBadgeText: {
+    fontSize: 13,
+    fontWeight: "800",
   },
   roundProgramName: {
     fontSize: 14,

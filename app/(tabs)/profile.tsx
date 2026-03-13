@@ -316,6 +316,47 @@ export default function ProfileScreen() {
                 </View>
               )}
 
+              {/* ── Portfolio & Fit ── */}
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>Portfolio & TCAS</Text>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionRow,
+                    pressed && styles.actionRowPressed,
+                  ]}
+                  onPress={() => router.push("/portfolio")}
+                >
+                  <Text style={styles.actionRowEmoji}>📁</Text>
+                  <View style={styles.actionRowContent}>
+                    <Text style={styles.actionRowTitle}>
+                      พอร์ตโฟลิโอของฉัน
+                    </Text>
+                    <Text style={styles.actionRowSubtitle}>
+                      จัดการผลงาน โปรเจกต์ และกิจกรรม
+                    </Text>
+                  </View>
+                  <Text style={styles.actionRowArrow}>›</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionRow,
+                    pressed && styles.actionRowPressed,
+                  ]}
+                  onPress={() => router.push("/fit")}
+                >
+                  <Text style={styles.actionRowEmoji}>🎯</Text>
+                  <View style={styles.actionRowContent}>
+                    <Text style={styles.actionRowTitle}>
+                      ความเหมาะสม TCAS1
+                    </Text>
+                    <Text style={styles.actionRowSubtitle}>
+                      ดูคะแนนความเหมาะสมกับโปรแกรมรอบ Portfolio
+                    </Text>
+                  </View>
+                  <Text style={styles.actionRowArrow}>›</Text>
+                </Pressable>
+              </View>
+
               {/* ── Section 4: Achievements & Activity Feed ── */}
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>
@@ -841,6 +882,47 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: "Orbit_400Regular",
     fontWeight: "500",
+  },
+
+  // Action rows (Portfolio & TCAS)
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  actionRowPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.985 }],
+  },
+  actionRowEmoji: {
+    fontSize: 24,
+  },
+  actionRowContent: {
+    flex: 1,
+    gap: 2,
+  },
+  actionRowTitle: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#111827",
+  },
+  actionRowSubtitle: {
+    fontSize: 11,
+    fontFamily: "Orbit_400Regular",
+    color: "#9CA3AF",
+  },
+  actionRowArrow: {
+    fontSize: 20,
+    color: "#9CA3AF",
+    marginLeft: 4,
   },
 
   // Education
