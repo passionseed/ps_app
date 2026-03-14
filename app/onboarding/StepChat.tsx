@@ -94,6 +94,24 @@ export default function StepChat({
     }
   };
 
+  const handleEditMessage = (index: number) => {
+    if (loading) return;
+    const message = bubbles[index];
+    setInput(message.text);
+
+    // Truncate bubbles to everything before the tapped message
+    const truncatedBubbles = bubbles.slice(0, index);
+    setBubbles(truncatedBubbles);
+
+    // Update chat history accordingly
+    const truncatedHistory: ChatMessage[] = truncatedBubbles.map((b) => ({
+      role: b.role,
+      parts: [{ text: b.text }] as [{ text: string }],
+    }));
+    onChatHistoryUpdate(truncatedHistory);
+    upsertOnboardingState(userId, { chat_history: truncatedHistory });
+  };
+
   const handleSend = () => {
     const text = input.trim();
     if (!text || loading) return;
@@ -125,24 +143,44 @@ export default function StepChat({
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
       >
-        {bubbles.map((b, i) => (
-          <View
-            key={i}
-            style={[
-              styles.bubble,
-              b.role === "user" ? styles.bubbleUser : styles.bubbleAI,
-            ]}
-          >
-            <Text
-              style={[
-                styles.bubbleText,
-                b.role === "user" ? styles.bubbleTextUser : styles.bubbleTextAI,
-              ]}
+        {bubbles.map((b, i) => {
+          const isUser = b.role === "user";
+          const lastUserIndex = bubbles.reduce(
+            (acc, cur, idx) => (cur.role === "user" ? idx : acc),
+            -1,
+          );
+          const isLastUserMessage = isUser && i === lastUserIndex;
+
+          if (isUser) {
+            return (
+              <View key={i}>
+                <Pressable
+                  onPress={() => handleEditMessage(i)}
+                  disabled={loading}
+                  style={[styles.bubble, styles.bubbleUser]}
+                >
+                  <Text style={[styles.bubbleText, styles.bubbleTextUser]}>
+                    {b.text}
+                  </Text>
+                </Pressable>
+                {isLastUserMessage && !loading && (
+                  <Text style={styles.editHint}>แตะเพื่อแก้ไข</Text>
+                )}
+              </View>
+            );
+          }
+
+          return (
+            <View
+              key={i}
+              style={[styles.bubble, styles.bubbleAI]}
             >
-              {b.text}
-            </Text>
-          </View>
-        ))}
+              <Text style={[styles.bubbleText, styles.bubbleTextAI]}>
+                {b.text}
+              </Text>
+            </View>
+          );
+        })}
         {loading && (
           <View style={[styles.bubble, styles.bubbleAI]}>
             <ActivityIndicator color="#BFFF00" size="small" />
@@ -240,4 +278,11 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.4 },
   sendBtnText: { fontSize: 20, color: "#0a0514", fontWeight: "700" },
+  editHint: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.25)",
+    textAlign: "right",
+    marginTop: 2,
+    marginRight: 4,
+  },
 });
