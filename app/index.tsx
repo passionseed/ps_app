@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -8,10 +8,12 @@ import {
   Platform,
   Alert,
   Linking,
+  Animated as RNAnimated,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { FontAwesome } from "@expo/vector-icons";
+import { router } from "expo-router";
 import {
   isAppleAccountSetupError,
   isAuthCancellationError,
@@ -19,12 +21,21 @@ import {
 } from "../lib/auth";
 import AnimatedBackground from "../components/AnimatedBackground";
 import { AppText } from "../components/AppText";
+import { Accent } from "../lib/theme";
 
 export default function LandingPage() {
-  const { signInWithGoogle, signInWithApple, loading: authLoading } = useAuth();
+  const { signInWithGoogle, signInWithApple, loading: authLoading, enterAsGuest } = useAuth();
   const [signingInProvider, setSigningInProvider] = useState<
     "google" | "apple" | null
   >(null);
+  const [isEntering, setIsEntering] = useState(false);
+
+  // Animation values
+  const cardScale = useState(new RNAnimated.Value(1))[0];
+  const cardOpacity = useState(new RNAnimated.Value(1))[0];
+  const logoY = useState(new RNAnimated.Value(0))[0];
+  const logoOpacity = useState(new RNAnimated.Value(1))[0];
+  const wipeProgress = useState(new RNAnimated.Value(0))[0];
 
   const handleSignIn = async (provider: "google" | "apple") => {
     if (signingInProvider !== null || authLoading) return;
@@ -64,20 +75,83 @@ export default function LandingPage() {
     }
   };
 
+  const handleEnterAsGuest = useCallback(() => {
+    if (isEntering) return;
+    setIsEntering(true);
+
+    // Trigger game-like transition animation
+    const duration = 800;
+
+    // Animate card shrinking
+    RNAnimated.parallel([
+      RNAnimated.timing(cardScale, {
+        toValue: 0.85,
+        duration,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(cardOpacity, {
+        toValue: 0,
+        duration: duration * 0.8,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(logoY, {
+        toValue: -200,
+        duration,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(logoOpacity, {
+        toValue: 0,
+        duration: duration * 0.6,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(wipeProgress, {
+        toValue: 1,
+        duration: duration * 1.2,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      enterAsGuest();
+      router.replace("/(tabs)/discover");
+    });
+  }, [isEntering, cardScale, cardOpacity, logoY, logoOpacity, wipeProgress, enterAsGuest]);
+
+  const cardAnimatedStyle = {
+    transform: [{ scale: cardScale }],
+    opacity: cardOpacity,
+  };
+
+  const logoAnimatedStyle = {
+    transform: [{ translateY: logoY }],
+    opacity: logoOpacity,
+  };
+
+  const wipeOpacity = wipeProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
   return (
     <View style={styles.page}>
       <AnimatedBackground />
       <StatusBar style="light" />
 
+      {/* Transition wipe overlay */}
+      <RNAnimated.View
+        style={[
+          styles.wipeOverlay,
+          { opacity: wipeOpacity },
+        ]}
+      />
+
       <View style={styles.container}>
-        <View style={styles.glassCard}>
+        <RNAnimated.View style={[styles.glassCard, cardAnimatedStyle]}>
           {/* Logo */}
-          <View style={styles.logoContainer}>
+          <RNAnimated.View style={[styles.logoContainer, logoAnimatedStyle]}>
             <Image
               source={require("../assets/passionseed-logo.png")}
               style={[styles.logoImage, { width: 120, height: 120 }]}
             />
-          </View>
+          </RNAnimated.View>
 
           {/* Tagline */}
           <View style={styles.taglineContainer}>
@@ -150,13 +224,28 @@ export default function LandingPage() {
             </Pressable>
           )}
 
+          {/* Browse as Guest Button */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.guestBtn,
+              pressed && styles.guestBtnPressed,
+              isEntering && styles.signInBtnDisabled,
+            ]}
+            onPress={handleEnterAsGuest}
+            disabled={isEntering}
+          >
+            <AppText style={styles.guestBtnText}>
+              เรียกดูก่อนเข้าสู่ระบบ
+            </AppText>
+          </Pressable>
+
           {/* Features */}
           <View style={styles.features}>
             <FeatureItem icon="🎯" text={`ภารกิจรายวัน\n30 นาที`} />
             <FeatureItem icon="📝" text={`สะท้อนความรู้สึก\nทุกวัน`} />
             <FeatureItem icon="🗺️" text={`แนวทางการ\nเรียนต่อ`} />
           </View>
-        </View>
+        </RNAnimated.View>
       </View>
     </View>
   );
@@ -205,7 +294,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   logoImage: {
-    shadowColor: "#BFFF00",
+    shadowColor: Accent.yellow,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
     shadowRadius: 15,
@@ -222,12 +311,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   highlightWrapper: {
-    backgroundColor: "#BFFF00",
+    backgroundColor: Accent.yellow,
     borderRadius: 14,
     paddingHorizontal: 20,
     paddingVertical: 8,
     transform: [{ rotate: "-1.5deg" }],
-    shadowColor: "#BFFF00",
+    shadowColor: Accent.yellow,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 20,
@@ -252,7 +341,7 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     marginBottom: 44,
-    shadowColor: "#BFFF00",
+    shadowColor: Accent.yellow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -299,6 +388,33 @@ const styles = StyleSheet.create({
   signInText: {
     fontSize: 18,
     color: "#0a0514",
+  },
+  guestBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 100,
+    width: "100%",
+    alignItems: "center",
+    marginTop: 12,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  guestBtnPressed: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  guestBtnText: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  wipeOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#0a0514",
+    zIndex: 100,
   },
   features: {
     flexDirection: "row",

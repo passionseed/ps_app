@@ -142,7 +142,7 @@ export default function MyPathsScreen() {
             <ActivityIndicator size="large" color="#BFFF00" />
           </View>
         ) : !hasSimulations ? (
-          /* Empty State */
+          /* Empty State with Placeholder Card */
           <View style={styles.emptyState}>
             <View style={styles.emptyIconGroup}>
               <Text style={styles.emptyEmoji}>🧭</Text>
@@ -151,31 +151,55 @@ export default function MyPathsScreen() {
             <Text style={styles.emptySubtext}>
               จำลองเส้นทางอาชีพและดูแผนผังทีละขั้นตอนเพื่อเดินตามความฝันของคุณ
             </Text>
-            <Text
-              style={{
-                fontFamily: "Orbit_400Regular",
-                color: "#666",
-                textAlign: "center",
-                marginTop: 40,
-              }}
-            >
-              ยังไม่มีแผนการเดินทาง
-            </Text>
+
+            {/* Placeholder Card Preview */}
             <Pressable
               style={({ pressed }) => [
-                styles.buildPathBtn,
-                pressed && styles.buildPathBtnPressed,
+                styles.placeholderCard,
+                pressed && styles.placeholderCardPressed,
               ]}
               onPress={handleBuildPath}
             >
-              <LinearGradient
-                colors={["#BFFF00", "#A3E600"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.buildPathGradient}
-              >
-                <Text style={styles.buildPathBtnText}>สร้างเส้นทางใหม่</Text>
-              </LinearGradient>
+              {/* Card Header */}
+              <View style={styles.placeholderHeader}>
+                <View style={styles.placeholderIconCircle}>
+                  <Text style={styles.placeholderIcon}>✨</Text>
+                </View>
+                <View style={styles.placeholderTitleSection}>
+                  <Text style={styles.placeholderTitle}>สร้างเส้นทางแรกของคุณ</Text>
+                  <Text style={styles.placeholderSubtitle}>เริ่มต้นการเดินทางสู่อาชีพในฝัน</Text>
+                </View>
+              </View>
+
+              {/* Preview Steps */}
+              <View style={styles.placeholderSteps}>
+                <View style={styles.placeholderStep}>
+                  <View style={[styles.stepDot, { backgroundColor: "#3B82F6" }]} />
+                  <View style={styles.stepLine} />
+                  <Text style={styles.stepText}>เลือกมหาวิทยาลัย</Text>
+                </View>
+                <View style={styles.placeholderStep}>
+                  <View style={[styles.stepDot, { backgroundColor: "#10B981" }]} />
+                  <View style={styles.stepLine} />
+                  <Text style={styles.stepText}>ฝึกงานและสะสมประสบการณ์</Text>
+                </View>
+                <View style={styles.placeholderStep}>
+                  <View style={[styles.stepDot, { backgroundColor: "#8B5CF6" }]} />
+                  <Text style={styles.stepText}>ทำงานตามความฝัน</Text>
+                </View>
+              </View>
+
+              {/* CTA Button inside card */}
+              <View style={styles.placeholderCta}>
+                <LinearGradient
+                  colors={["#BFFF00", "#A3E600"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.placeholderCtaGradient}
+                >
+                  <Text style={styles.placeholderCtaText}>เริ่มสร้างเส้นทาง →</Text>
+                </LinearGradient>
+              </View>
             </Pressable>
           </View>
         ) : (
@@ -286,8 +310,9 @@ const styles = StyleSheet.create({
   // Empty State
   emptyState: {
     alignItems: "center",
-    paddingVertical: 60,
-    paddingHorizontal: 36,
+    paddingTop: 40,
+    paddingHorizontal: 24,
+    paddingBottom: 60,
   },
   emptyIconGroup: {
     marginBottom: 20,
@@ -360,5 +385,92 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#6B7280",
+  },
+  // Placeholder Card
+  placeholderCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 24,
+    marginTop: 32,
+    marginHorizontal: 24,
+    width: CARD_WIDTH,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
+  },
+  placeholderCardPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
+  },
+  placeholderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+    gap: 16,
+  },
+  placeholderIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderIcon: {
+    fontSize: 28,
+  },
+  placeholderTitleSection: {
+    flex: 1,
+  },
+  placeholderTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 4,
+  },
+  placeholderSubtitle: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  placeholderSteps: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  placeholderStep: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  stepDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  stepLine: {
+    width: 24,
+    height: 2,
+    backgroundColor: "#E5E7EB",
+  },
+  stepText: {
+    fontSize: 14,
+    color: "#4B5563",
+    flex: 1,
+  },
+  placeholderCta: {
+    alignItems: "center",
+  },
+  placeholderCtaGradient: {
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 100,
+  },
+  placeholderCtaText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111",
   },
 });

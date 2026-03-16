@@ -6,6 +6,7 @@ import {
   Pressable,
   Image,
   Dimensions,
+  Alert,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
@@ -19,6 +20,18 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 import { AppText } from "../../components/AppText";
+import { useAuth } from "../../lib/auth";
+import {
+  PageBg,
+  Text as ThemeText,
+  Border,
+  Shadow,
+  Radius,
+  Gradient,
+  Accent,
+  Space,
+  Type,
+} from "../../lib/theme";
 
 const { width: SW } = Dimensions.get("window");
 
@@ -147,6 +160,7 @@ export default function MockSeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const [dialogIdx, setDialogIdx] = useState(0);
+  const { isGuest, session } = useAuth();
 
   const data = MOCK_SEEDS[id || ""];
 
@@ -484,7 +498,20 @@ export default function MockSeedDetailScreen() {
             s.ctaBtn,
             pressed && { backgroundColor: "#9FE800" },
           ]}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (isGuest || !session) {
+              Alert.alert(
+                "เข้าสู่ระบบก่อน",
+                "คุณต้องเข้าสู่ระบบก่อนเพื่อเริ่มเส้นทางนี้",
+                [
+                  { text: "ยกเลิก", style: "cancel" },
+                  { text: "เข้าสู่ระบบ", onPress: () => router.replace("/") },
+                ]
+              );
+              return;
+            }
+            router.back();
+          }}
         >
           <AppText variant="bold" style={s.ctaBtnText}>
             {data.currentDay >= data.totalDays
