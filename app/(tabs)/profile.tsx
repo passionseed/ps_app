@@ -20,6 +20,17 @@ import type {
   InterestCategory,
   CareerGoal,
 } from "../../types/onboarding";
+import {
+  PageBg,
+  Text as ThemeText,
+  Border,
+  Shadow,
+  Radius,
+  Gradient,
+  Accent,
+  Space,
+  Type,
+} from "../../lib/theme";
 
 // ------- Mock Data -------
 const MOCK_IKIGAI = {
@@ -116,28 +127,31 @@ const MOCK_ACHIEVEMENTS = [
 ];
 
 const SKILL_LEVEL_COLORS: Record<string, string> = {
-  Beginner: "#10B981",
-  Intermediate: "#8B5CF6",
-  Advanced: "#F59E0B",
-  Master: "#EF4444",
+  Beginner: Accent.green,
+  Intermediate: Accent.purple,
+  Advanced: Accent.orange,
+  Master: Accent.red,
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Design: "#8B5CF6",
-  Code: "#3B82F6",
-  "Soft Skills": "#10B981",
+  Design: Accent.purple,
+  Code: Accent.blue,
+  "Soft Skills": Accent.green,
 };
 
 // ------- Component -------
 export default function ProfileScreen() {
-  const { user } = useAuth();
+  const { user, isGuest, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [interests, setInterests] = useState<InterestCategory[]>([]);
   const [careers, setCareers] = useState<CareerGoal[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
 
     const loadData = async () => {
       setLoading(true);
@@ -161,6 +175,10 @@ export default function ProfileScreen() {
     router.replace("/");
   };
 
+  const handleCreateProfile = () => {
+    router.replace("/");
+  };
+
   const displayName =
     user?.user_metadata?.full_name || user?.user_metadata?.name || "Explorer";
   const appVersion = Constants.expoConfig?.version ?? "dev";
@@ -180,6 +198,81 @@ export default function ProfileScreen() {
     acc[skill.category].push(skill);
     return acc;
   }, {});
+
+  // Guest state: show create profile CTA
+  if (!authLoading && (isGuest || !user)) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="dark" />
+        <View style={styles.guestContainer}>
+          {/* Decorative circles */}
+          <View style={[styles.decorCircle, styles.decorCircle1]} />
+          <View style={[styles.decorCircle, styles.decorCircle2]} />
+          <View style={[styles.decorCircle, styles.decorCircle3]} />
+
+          {/* Content */}
+          <View style={styles.guestContent}>
+            {/* Icon/Illustration */}
+            <View style={styles.guestIconContainer}>
+              <Text style={styles.guestIcon}>🌱</Text>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.guestTitle}>Start Your Journey</Text>
+
+            {/* Benefits list */}
+            <View style={styles.guestBenefits}>
+              <View style={styles.guestBenefitItem}>
+                <Text style={styles.guestBenefitEmoji}>🎯</Text>
+                <Text style={styles.guestBenefitText}>
+                  Save your progress across all career paths
+                </Text>
+              </View>
+              <View style={styles.guestBenefitItem}>
+                <Text style={styles.guestBenefitEmoji}>📊</Text>
+                <Text style={styles.guestBenefitText}>
+                  Track your Ikigai scores and skill development
+                </Text>
+              </View>
+              <View style={styles.guestBenefitItem}>
+                <Text style={styles.guestBenefitEmoji}>🏆</Text>
+                <Text style={styles.guestBenefitText}>
+                  Earn achievements and unlock new opportunities
+                </Text>
+              </View>
+              <View style={styles.guestBenefitItem}>
+                <Text style={styles.guestBenefitEmoji}>📁</Text>
+                <Text style={styles.guestBenefitText}>
+                  Build your portfolio for TCAS university applications
+                </Text>
+              </View>
+            </View>
+
+            {/* CTA Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.guestCtaBtn,
+                pressed && styles.guestCtaBtnPressed,
+              ]}
+              onPress={handleCreateProfile}
+            >
+              <Text style={styles.guestCtaBtnText}>Create Profile</Text>
+            </Pressable>
+
+            {/* Secondary text */}
+            <Text style={styles.guestSecondaryText}>
+              Already have an account? Sign in to continue
+            </Text>
+          </View>
+
+          {/* Version footer */}
+          <View style={styles.guestVersionContainer}>
+            <Text style={styles.versionText}>Version {appVersion}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -515,7 +608,137 @@ function SkillBadge({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4F7FA",
+    backgroundColor: PageBg.default,
+  },
+
+  // Guest State Styles - Career Simulator Design System
+  guestContainer: {
+    flex: 1,
+    backgroundColor: PageBg.default,
+    position: "relative",
+    overflow: "hidden",
+  },
+  decorCircle: {
+    position: "absolute",
+    borderRadius: 999,
+    opacity: 0.15,
+  },
+  decorCircle1: {
+    width: 280,
+    height: 280,
+    backgroundColor: "#8B5CF6", // Purple accent
+    top: -80,
+    right: -60,
+  },
+  decorCircle2: {
+    width: 200,
+    height: 200,
+    backgroundColor: "#3B82F6", // Blue accent
+    bottom: 120,
+    left: -60,
+  },
+  decorCircle3: {
+    width: 120,
+    height: 120,
+    backgroundColor: "#10B981", // Green accent
+    top: "40%",
+    right: -30,
+    opacity: 0.1,
+  },
+  guestContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingTop: 60,
+  },
+  guestIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    shadowColor: "rgba(139, 92, 246, 0.3)", // Purple glow
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: "rgba(139, 92, 246, 0.15)",
+  },
+  guestIcon: {
+    fontSize: 48,
+  },
+  guestTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 32,
+    textAlign: "center",
+  },
+  guestBenefits: {
+    width: "100%",
+    gap: 12,
+    marginBottom: 40,
+  },
+  guestBenefitItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgb(206, 206, 206)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  guestBenefitEmoji: {
+    fontSize: 24,
+  },
+  guestBenefitText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#374151",
+    lineHeight: 20,
+  },
+  guestCtaBtn: {
+    width: "100%",
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#8B5CF6", // Purple accent (Career Simulator)
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "rgba(139, 92, 246, 0.4)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  guestCtaBtnPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  guestCtaBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  guestSecondaryText: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  guestVersionContainer: {
+    paddingBottom: 40,
+    alignItems: "center",
   },
   scroll: {
     flex: 1,

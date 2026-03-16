@@ -93,19 +93,25 @@ function AppLaunchScreen() {
 }
 
 function RootNavigator() {
-  const { session, loading } = useAuth();
+  const { session, loading, isGuest } = useAuth();
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
 
   useEffect(() => {
     if (loading) return;
 
-    if (!session) {
+    if (!session && !isGuest) {
       setProfile(null);
       router.replace("/");
       return;
     }
 
-    getProfile(session.user.id).then((p) => {
+    if (isGuest) {
+      setProfile(null);
+      router.replace("/(tabs)/discover");
+      return;
+    }
+
+    getProfile(session!.user.id).then((p) => {
       setProfile(p);
       if (!p || !p.is_onboarded) {
         router.replace("/onboarding");
@@ -113,7 +119,7 @@ function RootNavigator() {
         router.replace("/(tabs)/discover");
       }
     });
-  }, [session, loading]);
+  }, [session, loading, isGuest]);
 
   return (
     <Stack
