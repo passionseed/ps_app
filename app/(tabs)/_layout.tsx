@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
-import { GlassView } from "expo-glass-effect";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useAnimatedStyle,
@@ -13,6 +12,13 @@ import Animated, {
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import {
+  PageBg,
+  Text as ThemeText,
+  Shadow,
+  Radius,
+  Gradient,
+} from "../../lib/theme";
 
 type TabRoute = "discover" | "my-paths" | "profile";
 
@@ -30,25 +36,25 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
     label: "Discover",
     icon: "🔍",
     activeIcon: "🔎",
-    halo: "rgba(59, 130, 246, 0.15)", // Premium Blue
-    accent: "#3B82F6",
-    glow: "rgba(59, 130, 246, 0.35)",
+    halo: "rgba(59, 130, 246, 0.12)",
+    accent: ThemeText.secondary, // blue-ish via accent mapping
+    glow: "rgba(59, 130, 246, 0.25)",
   },
   "my-paths": {
     label: "My Paths",
     icon: "📚",
     activeIcon: "📖",
-    halo: "rgba(16, 185, 129, 0.15)", // Premium Green
+    halo: "rgba(16, 185, 129, 0.12)",
     accent: "#10B981",
-    glow: "rgba(16, 185, 129, 0.35)",
+    glow: "rgba(16, 185, 129, 0.25)",
   },
   profile: {
     label: "Profile",
     icon: "👤",
     activeIcon: "🧠",
-    halo: "rgba(139, 92, 246, 0.15)", // Premium Purple
+    halo: "rgba(139, 92, 246, 0.12)",
     accent: "#8B5CF6",
-    glow: "rgba(139, 92, 246, 0.35)",
+    glow: "rgba(139, 92, 246, 0.25)",
   },
 };
 
@@ -60,8 +66,9 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
   useEffect(() => {
     animatedIndex.value = withSpring(state.index, {
-      damping: 20,
-      stiffness: 150,
+      damping: 25,
+      stiffness: 120,
+      mass: 0.8,
     });
   }, [state.index]);
 
@@ -102,9 +109,13 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 const theme =
                   TAB_THEMES[route.name as TabRoute] || TAB_THEMES["my-paths"];
                 const activeOpacityStyle = useAnimatedStyle(() => {
-                  return {
-                    opacity: Math.max(0, 1 - Math.abs(animatedIndex.value - i)),
-                  };
+                  const opacity = interpolate(
+                    animatedIndex.value,
+                    [i - 1, i, i + 1],
+                    [0, 1, 0],
+                    "clamp",
+                  );
+                  return { opacity };
                 });
 
                 return (
@@ -112,20 +123,16 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                     key={`pill-${route.key}`}
                     style={[StyleSheet.absoluteFill, activeOpacityStyle]}
                   >
-                    <GlassView
-                      glassEffectStyle="regular"
-                      colorScheme="light"
-                      tintColor={theme.halo}
+                    <View
                       style={[
                         styles.activePill,
                         {
-                          shadowColor: theme.accent,
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.5,
-                          shadowRadius: 8,
+                          backgroundColor: theme.halo,
                           borderColor: theme.glow,
-                          borderWidth: 1,
-                          overflow: "hidden",
+                          shadowColor: theme.accent,
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 0.2,
+                          shadowRadius: 8,
                         },
                       ]}
                     />
@@ -135,29 +142,15 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             </Animated.View>
 
             {state.routes.map((route, index) => {
-              const { options } = descriptors[route.key];
               const isFocused = state.index === index;
               const routeName = route.name as TabRoute;
               const theme = TAB_THEMES[routeName] || TAB_THEMES["my-paths"];
 
               const onPress = () => {
-                const event = navigation.emit({
-                  type: "tabPress",
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-
-                if (!isFocused && !event.defaultPrevented) {
+                if (!isFocused) {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   navigation.navigate(route.name, route.params);
                 }
-              };
-
-              const onLongPress = () => {
-                navigation.emit({
-                  type: "tabLongPress",
-                  target: route.key,
-                });
               };
 
               return (
@@ -168,7 +161,6 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                   animatedIndex={animatedIndex}
                   theme={theme}
                   onPress={onPress}
-                  onLongPress={onLongPress}
                 />
               );
             })}
@@ -185,20 +177,18 @@ function TabBarButton({
   animatedIndex,
   theme,
   onPress,
-  onLongPress,
 }: {
   isFocused: boolean;
   index: number;
   animatedIndex: SharedValue<number>;
   theme: TabTheme;
   onPress: () => void;
-  onLongPress: () => void;
 }) {
   const animatedIconStyle = useAnimatedStyle(() => {
     const scale = interpolate(
       animatedIndex.value,
       [index - 1, index, index + 1],
-      [1, 1.15, 1],
+      [1, 1.05, 1],
       "clamp",
     );
     return {
@@ -209,43 +199,24 @@ function TabBarButton({
   const animatedTextStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       animatedIndex.value,
-      [index - 1, index, index + 1],
-      [0, 1, 0],
+      [index - 0.8, index, index + 0.8],
+      [0.5, 1, 0.5],
       "clamp",
     );
-    const height = interpolate(
-      animatedIndex.value,
-      [index - 1, index, index + 1],
-      [0, 14, 0],
-      "clamp",
-    );
-    const marginTop = interpolate(
-      animatedIndex.value,
-      [index - 1, index, index + 1],
-      [0, 4, 0],
-      "clamp",
-    );
-    const translateY = interpolate(
-      animatedIndex.value,
-      [index - 1, index, index + 1],
-      [8, 0, 8],
-      "clamp",
-    );
-
     return {
       opacity,
-      height,
-      marginTop,
-      transform: [{ translateY }],
+    };
+  });
+
+  const colorStyle = useAnimatedStyle(() => {
+    const isActive = Math.abs(animatedIndex.value - index) < 0.5;
+    return {
+      color: isActive ? theme.accent : ThemeText.tertiary,
     };
   });
 
   return (
-    <AnimatedPressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      style={styles.tabButton}
-    >
+    <Pressable onPress={onPress} style={styles.tabButton}>
       <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
         <Animated.Text style={styles.iconText}>
           {isFocused ? theme.activeIcon : theme.icon}
@@ -253,12 +224,12 @@ function TabBarButton({
       </Animated.View>
 
       <Animated.Text
-        style={[styles.labelText, animatedTextStyle]}
+        style={[styles.labelText, animatedTextStyle, colorStyle]}
         numberOfLines={1}
       >
         {theme.label}
       </Animated.Text>
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 
@@ -268,7 +239,7 @@ export default function TabsLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: "#F3F4F6" }, // matching Page Background from guidelines
+        sceneStyle: { backgroundColor: PageBg.default },
       }}
     >
       <Tabs.Screen name="discover" />
@@ -283,18 +254,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 24,
     right: 24,
-    borderRadius: 40,
-    // Premium Wow Effect Shadow from guidelines
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 }, // increased slightly for floating effect
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 8,
+    borderRadius: Radius.full,
+    ...Shadow.floating,
   },
   tabBarGradient: {
-    borderRadius: 40,
+    borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.4)",
+    borderColor: "rgba(255, 255, 255, 0.5)",
     overflow: "hidden",
   },
   tabBarInner: {
@@ -321,11 +287,12 @@ const styles = StyleSheet.create({
   },
   activePill: {
     position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: "15%",
-    right: "15%",
-    borderRadius: 24,
+    top: "12%",
+    bottom: "12%",
+    left: "12%",
+    right: "12%",
+    borderRadius: Radius.lg,
+    borderWidth: 1,
   },
   iconContainer: {
     justifyContent: "center",
@@ -337,7 +304,7 @@ const styles = StyleSheet.create({
   labelText: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#4B5563",
+    color: ThemeText.tertiary,
     textAlign: "center",
     overflow: "hidden",
   },

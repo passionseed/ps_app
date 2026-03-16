@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
-import { Image as ExpoImage } from "expo-image";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth";
@@ -19,6 +18,17 @@ import { getProfile } from "../../lib/onboarding";
 import { getAvailableSeeds } from "../../lib/pathlab";
 import type { SeedWithEnrollment } from "../../types/seeds";
 import { AppText as Text } from "../../components/AppText";
+import {
+  PageBg,
+  Text as ThemeText,
+  Border,
+  Shadow,
+  Radius,
+  Gradient,
+  Accent,
+  Space,
+  Type,
+} from "../../lib/theme";
 
 const SAMPLE_SEEDS: Partial<SeedWithEnrollment>[] = [
   {
@@ -140,14 +150,28 @@ export default function DiscoverScreen() {
 
   const loadSeeds = useCallback(async () => {
     try {
+      console.log("[Discover] Loading seeds...");
       const data = await getAvailableSeeds();
-      setSeeds(data);
+      console.log("[Discover] Seeds loaded:", data?.length || 0);
+      setSeeds(data || []);
     } catch (error) {
-      console.error("Failed to load seeds:", error);
+      console.error("[Discover] Failed to load seeds:", error);
+      setSeeds([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  }, []);
+
+  // Force loading to false after timeout as failsafe
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.log("[Discover] Loading timeout - forcing ready state");
+        setLoading(false);
+      }
+    }, 3000);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -156,11 +180,11 @@ export default function DiscoverScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    loadSeeds();
+  }, [loadSeeds]);
 
-  // Force mock data instead of db data
-  const displaySeeds = SAMPLE_SEEDS as SeedWithEnrollment[];
+  // Use database seeds if available, otherwise fallback to sample data
+  const displaySeeds = seeds.length > 0 ? seeds : SAMPLE_SEEDS as SeedWithEnrollment[];
 
   // Create a specialized set for "Continue your path"
   const enrolledPaths = displaySeeds.slice(0, 3);
@@ -173,7 +197,7 @@ export default function DiscoverScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#BFFF00" />
+        <ActivityIndicator size="large" color={Accent.yellow} />
         <Text style={styles.loadingText}>
           {isThai ? "กำลังโหลดเส้นทาง..." : "Loading paths..."}
         </Text>
@@ -190,10 +214,10 @@ export default function DiscoverScreen() {
         style={[styles.header, { paddingTop: Math.max(insets.top + 24, 60) }]}
       >
         <View style={styles.titleRow}>
-          <ExpoImage
-            source={require("../../assets/passionseed-logo.svg")}
-            style={styles.logo}
-            contentFit="contain"
+          <Image
+            source={require("../../assets/passionseed-logo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
           />
           <Text style={styles.headerTitle}>
             {isThai ? "ค้นหาเส้นทางของคุณ" : "Discover Your Path"}
@@ -468,54 +492,49 @@ function CompactSeedCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: PageBg.default,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: PageBg.default,
     justifyContent: "center",
     alignItems: "center",
-    gap: 16,
+    gap: Space.lg,
   },
   loadingText: {
-    fontSize: 14,
-    color: "#6B7280",
+    fontSize: Type.body.fontSize,
+    color: ThemeText.tertiary,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
+    paddingHorizontal: Space["2xl"],
+    paddingBottom: Space.lg,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
-    gap: 12,
+    marginBottom: Space.lg,
+    gap: Space.md,
   },
-  logo: {
-    width: 32,
-    height: 32,
-    resizeMode: "contain",
+  logoImage: {
+    width: 36,
+    height: 36,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#111",
+    fontSize: Type.header.fontSize,
+    fontWeight: Type.header.fontWeight,
+    color: ThemeText.primary,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
+    borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: "rgb(206, 206, 206)",
-    paddingHorizontal: 16,
+    borderColor: Border.default,
+    paddingHorizontal: Space.lg,
     height: 48,
-    gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    gap: Space.sm,
+    ...Shadow.neutral,
   },
   searchIcon: {
     fontSize: 18,
@@ -523,42 +542,42 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: "Orbit_400Regular",
-    fontSize: 16,
-    color: "#111827",
+    fontSize: Type.body.fontSize,
+    color: ThemeText.primary,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 8,
-    paddingBottom: 24,
-    gap: 32,
+    paddingTop: Space.sm,
+    paddingBottom: Space.xl,
+    gap: Space["3xl"],
   },
   section: {
-    gap: 12,
+    gap: Space.md,
   },
   sectionTitle: {
-    fontSize: 16,
-    color: "#4B5563",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-    paddingHorizontal: 24, // Consistent general offset
+    fontSize: Type.label.fontSize,
+    color: ThemeText.tertiary,
+    textTransform: Type.label.textTransform,
+    letterSpacing: Type.label.letterSpacing,
+    marginBottom: Space.xs,
+    paddingHorizontal: Space["2xl"],
   },
   sectionGrid: {
     flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 0, // Removed to allow programmatic left-margin via indexing
-    paddingRight: 24, // Keep right cut off clean
+    gap: Space.md,
+    paddingHorizontal: 0,
+    paddingRight: Space["2xl"],
   },
   fullWidthScroll: {
-    marginHorizontal: -5, // Negate any parent padding if present to ensure bleed to edges
+    marginHorizontal: -5,
   },
   compactTitle: {
     fontSize: 14,
     color: "#FFFFFF",
     lineHeight: 18,
-    marginBottom: 4,
+    marginBottom: Space.xs,
   },
   compactSlogan: {
     fontSize: 11,
@@ -567,26 +586,23 @@ const styles = StyleSheet.create({
   },
   compactCardWrapper: {
     width: 140,
-    marginRight: 0, // Gap gives the space now
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    marginRight: 0,
+    borderRadius: Radius.lg,
+    ...Shadow.neutral,
   },
   compactCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: "rgb(206, 206, 206)",
+    borderColor: Border.default,
     overflow: "hidden",
     height: 240,
     position: "relative",
   },
   compactCardPressed: {
-    opacity: 0.8,
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
   },
   compactImageFull: {
     width: "100%",
@@ -594,12 +610,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: 0,
-    backgroundColor: "#F9F5FF",
+    backgroundColor: Gradient.masterCard[1],
   },
   compactImagePlaceholder: {
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F9F5FF",
+    backgroundColor: Gradient.masterCard[1],
   },
   compactImageIcon: {
     fontSize: 48,
@@ -615,16 +631,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 12,
+    padding: Space.md,
     paddingTop: 40,
-    gap: 4,
+    gap: Space.xs,
     justifyContent: "flex-end",
   },
   progressRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 4,
+    gap: Space.sm,
+    marginTop: Space.xs,
   },
   progressLabel: {
     fontSize: 10,
@@ -640,13 +656,13 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: "#10B981",
+    backgroundColor: Accent.green,
     borderRadius: 2,
   },
   emptyCard: {
     width: 140,
     backgroundColor: "transparent",
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: "rgba(206, 206, 206, 0.5)",
     borderStyle: "dashed",
@@ -656,12 +672,12 @@ const styles = StyleSheet.create({
   doneBadge: {
     backgroundColor: "rgba(16, 185, 129, 0.2)",
     paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    paddingHorizontal: Space.sm,
+    borderRadius: Radius.md,
     alignSelf: "flex-start",
   },
   doneBadgeText: {
     fontSize: 10,
-    color: "#10B981",
+    color: Accent.green,
   },
 });

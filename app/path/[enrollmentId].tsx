@@ -18,6 +18,14 @@ import {
 } from "../../lib/pathlab";
 import type { PathDay, PathEnrollment } from "../../types/pathlab";
 import type { MapNode, StudentNodeProgress } from "../../types/map";
+import {
+  PageBg,
+  Text as ThemeText,
+  Border,
+  Shadow,
+  Radius,
+  Accent,
+} from "../../lib/theme";
 
 type EnrollmentWithPath = PathEnrollment & {
   path: {
@@ -38,12 +46,21 @@ export default function DailyPathScreen() {
   const [progress, setProgress] = useState<Record<string, StudentNodeProgress>>({});
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState<string | null>(null);
+
   const loadData = useCallback(async () => {
-    if (!enrollmentId) return;
+    if (!enrollmentId) {
+      setError("No enrollment ID provided");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
 
     try {
       // Get enrollment with path info
-      const { data: enrollmentData } = await supabase
+      const { data: enrollmentData, error: enrollError } = await supabase
         .from("path_enrollments")
         .select(`
           *,
@@ -56,11 +73,42 @@ export default function DailyPathScreen() {
         .eq("id", enrollmentId)
         .single();
 
-      if (!enrollmentData) return;
+      if (enrollError) {
+        console.error("❌ Error loading enrollment:", enrollError);
+        setError(`Failed to load enrollment: ${enrollError.message}`);
+        return;
+      }
+
+      if (!enrollmentData) {
+        console.error("❌ No enrollment found for ID:", enrollmentId);
+        setError("Enrollment not found");
+        return;
+      }
+
+      console.log("✅ Enrollment loaded:", {
+        id: enrollmentData.id,
+        path_id: enrollmentData.path_id,
+        current_day: enrollmentData.current_day,
+        status: enrollmentData.status,
+      });
+
       setEnrollment(enrollmentData as EnrollmentWithPath);
 
+      // Validate required fields for path day lookup
+      if (!enrollmentData.path_id) {
+        console.error("❌ Enrollment missing path_id:", enrollmentData);
+        setError("Enrollment is missing path information");
+        return;
+      }
+
+      if (!enrollmentData.current_day || enrollmentData.current_day < 1) {
+        console.error("❌ Enrollment has invalid current_day:", enrollmentData.current_day);
+        setError("Invalid day number in enrollment");
+        return;
+      }
+
       // Get today's path day
-      console.log("Fetching path day for:", {
+      console.log("📅 Fetching path day for:", {
         path_id: enrollmentData.path_id,
         current_day: enrollmentData.current_day,
       });
@@ -70,37 +118,44 @@ export default function DailyPathScreen() {
         enrollmentData.current_day
       );
 
-      console.log("Path day data received:", JSON.stringify(dayData, null, 2));
+      console.log("📦 Path day data received:", JSON.stringify(dayData, null, 2));
 
       if (!dayData) {
         console.error("❌ NO PATH DAY FOUND for path_id:", enrollmentData.path_id, "day:", enrollmentData.current_day);
-      } else if (!dayData.node_ids || dayData.node_ids.length === 0) {
+        setError(`No path day found for day ${enrollmentData.current_day}`);
+        setPathDay(null);
+        return;
+      }
+
+      if (!dayData.node_ids || dayData.node_ids.length === 0) {
         console.error("⚠️ PATH DAY EXISTS but node_ids is empty or null:", dayData);
       }
 
       setPathDay(dayData);
 
-      if (dayData && dayData.node_ids && dayData.node_ids.length > 0) {
-        console.log("Fetching nodes for IDs:", dayData.node_ids);
+      if (dayData.node_ids && dayData.node_ids.length > 0) {
+        console.log("📚 Fetching nodes for IDs:", dayData.node_ids);
 
         // Get nodes for today
         const nodesData = await getNodesByIds(dayData.node_ids);
-        console.log("Nodes received:", nodesData.length, "nodes");
+        console.log("✅ Nodes received:", nodesData.length, "nodes");
         setNodes(nodesData);
 
         // Get progress for nodes
         const progressData = await getNodeProgress(dayData.node_ids);
-        console.log("Progress data received:", progressData.length, "progress records");
+        console.log("✅ Progress data received:", progressData.length, "progress records");
         const progressMap: Record<string, StudentNodeProgress> = {};
         progressData.forEach((p) => {
           progressMap[p.node_id] = p;
         });
         setProgress(progressMap);
       } else {
-        console.log("No nodes found for this day. DayData:", dayData);
+        console.log("ℹ️ No nodes found for this day. DayData:", dayData);
+        setNodes([]);
       }
     } catch (error) {
-      console.error("Failed to load path data:", error);
+      console.error("❌ Failed to load path data:", error);
+      setError(error instanceof Error ? error.message : "Failed to load path data");
     } finally {
       setLoading(false);
     }
@@ -147,9 +202,11 @@ export default function DailyPathScreen() {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorIcon}>🎉</Text>
-        <Text style={styles.errorTitle}>Path Completed!</Text>
+        <Text style={styles.errorTitle}>
+          {error ? "Unable to Load Path" : "Path Completed!"}
+        </Text>
         <Text style={styles.errorText}>
-          You've finished exploring this path
+          {error || "You've finished exploring this path"}
         </Text>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Text style={styles.backBtnText}>Go Back</Text>
@@ -336,17 +393,17 @@ function TaskCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: PageBg.default,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: PageBg.default,
     justifyContent: "center",
     alignItems: "center",
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: PageBg.default,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
@@ -359,26 +416,26 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#111",
+    color: ThemeText.primary,
     marginBottom: 8,
   },
   errorText: {
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
-    color: "#666",
+    color: ThemeText.tertiary,
     marginBottom: 24,
   },
   backBtn: {
     paddingVertical: 12,
     paddingHorizontal: 24,
-    backgroundColor: "#BFFF00",
-    borderRadius: 8,
+    backgroundColor: Accent.yellow,
+    borderRadius: Radius.md,
   },
   backBtnText: {
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#111",
+    color: ThemeText.primary,
   },
   header: {
     flexDirection: "row",
@@ -391,7 +448,7 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
-    color: "#666",
+    color: ThemeText.tertiary,
   },
   headerCenter: {
     flex: 1,
@@ -402,25 +459,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#BFFF00",
-    backgroundColor: "#111",
+    color: Accent.yellow,
+    backgroundColor: ThemeText.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: Radius.sm,
     overflow: "hidden",
   },
   seedTitle: {
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
     fontWeight: "400",
-    color: "#666",
+    color: ThemeText.tertiary,
     marginTop: 4,
   },
   progressText: {
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#111",
+    color: ThemeText.primary,
   },
   progressBar: {
     height: 4,
@@ -431,14 +488,14 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#BFFF00",
+    backgroundColor: Accent.yellow,
     borderRadius: 2,
   },
   contextCard: {
     margin: 20,
     padding: 16,
     backgroundColor: "#e8f5e0",
-    borderRadius: 12,
+    borderRadius: Radius.md,
   },
   contextText: {
     fontSize: 14,
@@ -458,7 +515,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#666",
+    color: ThemeText.tertiary,
     textTransform: "uppercase",
     letterSpacing: 1,
     marginBottom: 16,
@@ -466,11 +523,12 @@ const styles = StyleSheet.create({
   taskCard: {
     flexDirection: "row",
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: Radius.md,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#eee",
+    ...Shadow.neutral,
   },
   taskCardCompleted: {
     backgroundColor: "#f8f8f8",
@@ -482,8 +540,8 @@ const styles = StyleSheet.create({
   taskIndex: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: "#BFFF00",
+    borderRadius: Radius.full,
+    backgroundColor: Accent.yellow,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -492,11 +550,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#111",
+    color: ThemeText.primary,
   },
   taskCheckmark: {
     fontSize: 16,
-    color: "#111",
+    color: ThemeText.primary,
   },
   taskContent: {
     flex: 1,
@@ -514,25 +572,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Orbit_400Regular",
     fontWeight: "500",
-    color: "#999",
+    color: ThemeText.muted,
     textTransform: "uppercase",
   },
   taskTitle: {
     fontSize: 16,
     fontFamily: "Orbit_400Regular",
     fontWeight: "500",
-    color: "#111",
+    color: ThemeText.primary,
     marginBottom: 4,
   },
   taskTitleCompleted: {
-    color: "#999",
+    color: ThemeText.muted,
     textDecorationLine: "line-through",
   },
   taskDescription: {
     fontSize: 13,
     fontFamily: "Orbit_400Regular",
     fontWeight: "300",
-    color: "#666",
+    color: ThemeText.secondary,
     lineHeight: 18,
   },
   emptyTasks: {
@@ -542,7 +600,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
-    color: "#999",
+    color: ThemeText.muted,
   },
   ctaContainer: {
     position: "absolute",
@@ -550,23 +608,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 20,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: PageBg.default,
     borderTopWidth: 1,
     borderTopColor: "#eee",
   },
   ctaButton: {
-    backgroundColor: "#BFFF00",
+    backgroundColor: Accent.yellow,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     alignItems: "center",
+    ...Shadow.card,
   },
   ctaButtonPressed: {
-    backgroundColor: "#9FE800",
+    backgroundColor: Accent.yellowDark,
   },
   ctaText: {
     fontSize: 16,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#111",
+    color: ThemeText.primary,
   },
 });
