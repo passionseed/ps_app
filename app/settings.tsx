@@ -14,6 +14,8 @@ import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { getProfile } from "../lib/onboarding";
 import type { Profile, MobileSettings } from "../types/onboarding";
+import { GlassCard } from "../components/Glass";
+import { PageBg, Text as ThemeText, Accent, Radius, Shadow } from "../lib/theme";
 
 export default function SettingsScreen() {
   const { user } = useAuth();
@@ -97,7 +99,7 @@ export default function SettingsScreen() {
         {saving && (
           <ActivityIndicator
             size="small"
-            color="#BFFF00"
+            color={Accent.yellow}
             style={styles.savingIndicator}
           />
         )}
@@ -110,14 +112,14 @@ export default function SettingsScreen() {
       >
         {loading ? (
           <View style={styles.loadingSection}>
-            <ActivityIndicator color="#BFFF00" />
+            <ActivityIndicator color={Accent.yellow} />
           </View>
         ) : (
           <>
             {/* Language */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Language</Text>
-              <View style={styles.optionsCard}>
+              <GlassCard variant="neutral" size="small" noPadding>
                 <Pressable
                   style={[
                     styles.optionRow,
@@ -145,13 +147,13 @@ export default function SettingsScreen() {
                     <Text style={styles.checkmark}>✓</Text>
                   )}
                 </Pressable>
-              </View>
+              </GlassCard>
             </View>
 
             {/* Notifications */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Notifications</Text>
-              <View style={styles.optionsCard}>
+              <GlassCard variant="neutral" size="small" noPadding>
                 <View style={styles.optionRow}>
                   <Text style={styles.optionText}>Push Notifications</Text>
                   <Switch
@@ -159,8 +161,8 @@ export default function SettingsScreen() {
                     onValueChange={(value) =>
                       updateSetting("push_enabled", value)
                     }
-                    trackColor={{ false: "#ddd", true: "#BFFF00" }}
-                    thumbColor={settings.push_enabled ? "#111" : "#fff"}
+                    trackColor={{ false: "#E5E7EB", true: Accent.yellowLight }}
+                    thumbColor={settings.push_enabled ? Accent.yellow : "#fff"}
                   />
                 </View>
                 <View style={styles.optionDivider} />
@@ -170,13 +172,13 @@ export default function SettingsScreen() {
                     {settings.reminder_time}
                   </Text>
                 </Pressable>
-              </View>
+              </GlassCard>
             </View>
 
             {/* Appearance */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Appearance</Text>
-              <View style={styles.optionsCard}>
+              <GlassCard variant="neutral" size="small" noPadding>
                 <Pressable
                   style={[
                     styles.optionRow,
@@ -202,13 +204,13 @@ export default function SettingsScreen() {
                     <Text style={styles.checkmark}>✓</Text>
                   )}
                 </Pressable>
-              </View>
+              </GlassCard>
             </View>
 
             {/* About */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>About</Text>
-              <View style={styles.optionsCard}>
+              <GlassCard variant="neutral" size="small" noPadding>
                 <View style={styles.optionRow}>
                   <Text style={styles.optionText}>Version</Text>
                   <Text style={styles.optionValue}>1.0.0</Text>
@@ -223,7 +225,7 @@ export default function SettingsScreen() {
                   <Text style={styles.optionText}>Terms of Service</Text>
                   <Text style={styles.chevron}>›</Text>
                 </Pressable>
-              </View>
+              </GlassCard>
             </View>
           </>
         )}
@@ -235,7 +237,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: PageBg.default,
   },
   header: {
     paddingTop: 60,
@@ -243,8 +245,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    backgroundColor: PageBg.default,
   },
   backBtn: {
     paddingRight: 16,
@@ -253,13 +254,14 @@ const styles = StyleSheet.create({
   backBtnText: {
     fontSize: 16,
     fontFamily: "Orbit_400Regular",
-    color: "#666",
+    color: ThemeText.tertiary,
+    fontWeight: "600",
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
+    fontWeight: "700",
+    color: ThemeText.primary,
     flex: 1,
   },
   savingIndicator: {
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
-    gap: 24,
+    gap: 32,
   },
   loadingSection: {
     paddingVertical: 40,
@@ -280,53 +282,48 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#666",
+    fontWeight: "700",
+    color: ThemeText.tertiary,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 1,
     paddingLeft: 4,
-  },
-  optionsCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
-    overflow: "hidden",
   },
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   optionRowSelected: {
-    backgroundColor: "#f0f8e8",
+    backgroundColor: "rgba(191, 255, 0, 0.08)",
   },
   optionText: {
     fontSize: 15,
     fontFamily: "Orbit_400Regular",
-    color: "#111",
+    color: ThemeText.primary,
+    fontWeight: "500",
   },
   optionValue: {
     fontSize: 15,
     fontFamily: "Orbit_400Regular",
-    color: "#666",
+    color: ThemeText.tertiary,
   },
   checkmark: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#BFFF00",
+    fontSize: 18,
+    fontWeight: "700",
+    color: Accent.yellow,
   },
   chevron: {
-    fontSize: 18,
-    color: "#999",
+    fontSize: 20,
+    color: ThemeText.muted,
+    fontWeight: "300",
   },
   optionDivider: {
     height: 1,
-    backgroundColor: "#f5f5f5",
-    marginHorizontal: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    marginHorizontal: 20,
   },
 });

@@ -25,6 +25,7 @@ export const Accent = {
   green: "#10B981", // Destination/job, success
   yellow: "#BFFF00", // Primary CTA, brand
   yellowDark: "#9FE800", // CTA pressed
+  yellowLight: "rgba(191, 255, 0, 0.2)", // Yellow tint for switches/backgrounds
   orange: "#F97316", // Passion metric
   red: "#EF4444", // Error/low confidence
   amber: "#F59E0B", // Warning/in-progress
