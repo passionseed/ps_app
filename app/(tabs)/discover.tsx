@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { BlurView, BlurTargetView } from "expo-blur";
+import { GlassView, isGlassEffectAPIAvailable } from "expo-glass-effect";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -153,10 +154,23 @@ export default function DiscoverScreen() {
   const [isThai, setIsThai] = useState(false);
   const insets = useSafeAreaInsets();
 
+  // Check if native glass effect is available (iOS 26+)
+  const [glassAvailable, setGlassAvailable] = useState(false);
+
   // Animated values for scroll-based animations
   const scrollY = useRef(new Animated.Value(0)).current;
   const searchInputRef = useRef<TextInput>(null);
+  const compactSearchInputRef = useRef<TextInput>(null);
   const blurTargetRef = useRef<View>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Inline search mode - shows search field in sticky header
+  const [inlineSearchMode, setInlineSearchMode] = useState(false);
+
+  useEffect(() => {
+    // Check glass effect API availability at runtime
+    setGlassAvailable(isGlassEffectAPIAvailable());
+  }, []);
 
   useEffect(() => {
     if (user?.id) {
@@ -268,6 +282,29 @@ export default function DiscoverScreen() {
     extrapolate: "clamp",
   });
 
+  // Handler for compact search tap - Apple HIG style inline search
+  const handleCompactSearchTap = useCallback(() => {
+    setInlineSearchMode(true);
+    // Focus the inline search input after a brief delay for animation
+    setTimeout(() => {
+      compactSearchInputRef.current?.focus();
+    }, 100);
+  }, []);
+
+  // Handler for closing inline search
+  const handleInlineSearchClose = useCallback(() => {
+    setInlineSearchMode(false);
+    compactSearchInputRef.current?.blur();
+  }, []);
+
+  // Handler for search submission - scroll to top smoothly
+  const handleSearchSubmit = useCallback(() => {
+    // Smooth scroll to top
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    // Exit inline search mode
+    setInlineSearchMode(false);
+  }, []);
+
   // Use database seeds if available, otherwise fallback to sample data
   const displaySeeds = seeds.length > 0 ? seeds : SAMPLE_SEEDS as SeedWithEnrollment[];
 
@@ -294,78 +331,22 @@ export default function DiscoverScreen() {
     <View style={styles.container}>
       <StatusBar style="dark" />
 
-      {/* Sticky Navigation Header with Blur */}
-      <Animated.View
-        style={[
-          styles.stickyHeader,
-          {
-            paddingTop: insets.top + 8,
-            opacity: headerBgOpacity,
-          },
-        ]}
-        pointerEvents="none"
-      >
-        <BlurView
-          intensity={80}
-          tint="light"
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.stickyHeaderContent}>
-          {/* Small Title in Navigation Bar */}
-          <Animated.View
-            style={[
-              styles.smallTitleContainer,
-              {
-                opacity: smallTitleOpacity,
-                transform: [{ translateY: smallTitleTranslateY }],
-              },
-            ]}
-          >
-            <Image
-              source={require("../../assets/passionseed-logo.png")}
-              style={styles.smallLogoImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.smallHeaderTitle}>
-              {isThai ? "ค้นหาเส้นทาง" : "Discover"}
-            </Text>
-          </Animated.View>
-
-          {/* Compact Search Icon */}
-          <Animated.View
-            style={[
-              styles.compactSearchContainer,
-              { opacity: compactSearchOpacity },
-            ]}
-          >
-            <Pressable
-              style={styles.compactSearchButton}
-              onPress={() => {
-                // Scroll to top and focus search
-                scrollY.setValue(0);
-                setTimeout(() => searchInputRef.current?.focus(), 300);
-              }}
-            >
-              <Text style={styles.compactSearchIcon}>🔍</Text>
-            </Pressable>
-          </Animated.View>
-        </View>
-      </Animated.View>
-
-      {/* Main ScrollView with Animated Event */}
-      <Animated.ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+      {/* BlurTargetView wraps scrollable content for Android blur support */}
+      <BlurTargetView ref={blurTargetRef} style={styles.blurTargetContainer}>
+        {/* Main ScrollView with Animated Event */}
+        <Animated.ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
         {/* Expandable Header Section */}
         <View style={[styles.header, { paddingTop: Math.max(insets.top + 24, 60) }]}>
           {/* Large Title with Animation */}
@@ -446,6 +427,111 @@ export default function DiscoverScreen() {
         {/* Bottom padding for tab bar */}
         <View style={{ height: 120 }} />
       </Animated.ScrollView>
+      </BlurTargetView>
+
+      {/* Sticky Navigation Header with Blur - rendered AFTER BlurTargetView for proper blur */}
+      <Animated.View
+        style={[
+          styles.stickyHeader,
+          {
+            paddingTop: insets.top + 8,
+            opacity: headerBgOpacity,
+          },
+        ]}
+        pointerEvents="box-none"
+      >
+        {/* Native Liquid Glass on iOS 26+, BlurView fallback on older iOS/Android */}
+        {glassAvailable ? (
+          <GlassView
+            style={StyleSheet.absoluteFill}
+            glassEffectStyle="clear"
+          />
+        ) : Platform.OS === "ios" ? (
+          <BlurView
+            intensity={80}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
+        ) : (
+          <BlurView
+            blurTarget={blurTargetRef}
+            intensity={80}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+            blurMethod="dimezisBlurViewSdk31Plus"
+          />
+        )}
+        <View style={styles.stickyHeaderContent} pointerEvents="box-none">
+          {/* Inline Search Mode - Apple HIG style */}
+          {inlineSearchMode ? (
+            <Animated.View style={styles.inlineSearchContainer}>
+              <TextInput
+                ref={compactSearchInputRef}
+                style={[
+                  styles.inlineSearchInput,
+                  isThai && {
+                    fontFamily: "BaiJamjuree_400Regular",
+                    paddingTop: 4,
+                  },
+                ]}
+                placeholder={isThai ? "ค้นหาเส้นทาง..." : "Search paths..."}
+                placeholderTextColor="#6B7280"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={handleSearchSubmit}
+                returnKeyType="search"
+                autoFocus
+              />
+              <Pressable
+                style={styles.inlineSearchCancelButton}
+                onPress={handleInlineSearchClose}
+              >
+                <Text style={styles.inlineSearchCancelText}>
+                  {isThai ? "ยกเลิก" : "Cancel"}
+                </Text>
+              </Pressable>
+            </Animated.View>
+          ) : (
+            <>
+              {/* Small Title in Navigation Bar */}
+              <Animated.View
+                style={[
+                  styles.smallTitleContainer,
+                  {
+                    opacity: smallTitleOpacity,
+                    transform: [{ translateY: smallTitleTranslateY }],
+                  },
+                ]}
+              >
+                <Image
+                  source={require("../../assets/passionseed-logo.png")}
+                  style={styles.smallLogoImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.smallHeaderTitle}>
+                  {isThai ? "ค้นหาเส้นทาง" : "Discover"}
+                </Text>
+              </Animated.View>
+
+              {/* Compact Search Icon */}
+              <Animated.View
+                style={[
+                  styles.compactSearchContainer,
+                  { opacity: compactSearchOpacity },
+                ]}
+                pointerEvents="box-none"
+              >
+                <Pressable
+                  style={styles.compactSearchButton}
+                  onPress={handleCompactSearchTap}
+                >
+                  <Text style={styles.compactSearchIcon}>🔍</Text>
+                </Pressable>
+              </Animated.View>
+            </>
+          )}
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -660,6 +746,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: PageBg.default,
   },
+  blurTargetContainer: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     backgroundColor: PageBg.default,
@@ -725,6 +814,33 @@ const styles = StyleSheet.create({
   },
   compactSearchIcon: {
     fontSize: 16,
+  },
+
+  // Inline Search (Apple HIG style)
+  inlineSearchContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  inlineSearchInput: {
+    flex: 1,
+    height: 36,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    borderRadius: 10,
+    paddingHorizontal: Space.lg,
+    fontFamily: "Orbit_400Regular",
+    fontSize: 17,
+    color: ThemeText.primary,
+  },
+  inlineSearchCancelButton: {
+    paddingHorizontal: Space.sm,
+    paddingVertical: Space.xs,
+  },
+  inlineSearchCancelText: {
+    fontSize: 17,
+    color: Accent.blue || "#007AFF",
+    fontWeight: "400",
   },
 
   // ScrollView
