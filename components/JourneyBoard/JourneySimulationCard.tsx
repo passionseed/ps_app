@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { ScoreWidget } from "./ScoreWidget";
 import { PivotCard } from "./PivotCard";
+import { StepThemes, Radius } from "../../lib/theme";
 
 // Temporary mock interfaces
 interface PathLabData {
@@ -140,15 +141,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   card: {
-    borderRadius: 12,
+    borderRadius: Radius.lg,
     padding: 16,
     borderWidth: 1,
     borderColor: "#eee",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   cardHeader: {
     fontSize: 12,
@@ -171,16 +167,31 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
   },
   jobCard: {
-    backgroundColor: "#EBF5FF", // Light blue
-    borderColor: "#BFDBFE",
+    backgroundColor: StepThemes.job.bgEnd,
+    borderColor: StepThemes.job.border,
     zIndex: 3,
+    shadowColor: StepThemes.job.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 3,
   },
   uniCard: {
-    backgroundColor: "#F3E8FF", // Lighter blue/purple
-    borderColor: "#E9D5FF",
+    backgroundColor: StepThemes.university.bgEnd,
+    borderColor: StepThemes.university.border,
+    shadowColor: StepThemes.university.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 3,
   },
   pathCard: {
-    backgroundColor: "#FDFFF5", // Brand color pale
-    borderColor: "#BFFF00",
+    backgroundColor: StepThemes.internship.bgEnd,
+    borderColor: StepThemes.internship.border,
+    shadowColor: StepThemes.internship.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 3,
   },
 });
