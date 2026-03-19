@@ -128,7 +128,7 @@ function RootNavigator() {
         animation: "fade",
         animationDuration: 400,
         contentStyle: {
-          backgroundColor: "#FDFFF5",
+          backgroundColor: "#F3F4F6",
         },
       }}
     >
@@ -138,6 +138,10 @@ function RootNavigator() {
       <Stack.Screen name="seed/[id]" options={{ presentation: "card" }} />
       <Stack.Screen
         name="path/[enrollmentId]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="activity/[activityId]"
         options={{ presentation: "card" }}
       />
       <Stack.Screen
@@ -152,6 +156,10 @@ function RootNavigator() {
         name="university/compare"
         options={{ presentation: "card" }}
       />
+      <Stack.Screen name="settings" options={{ presentation: "card" }} />
+      <Stack.Screen name="portfolio" options={{ presentation: "card" }} />
+      <Stack.Screen name="fit" options={{ presentation: "card" }} />
+      <Stack.Screen name="career/[name]" options={{ presentation: "card" }} />
     </Stack>
   );
 }
