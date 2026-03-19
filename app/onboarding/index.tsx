@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, StyleSheet, ActivityIndicator } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../../lib/auth";
 import { getOnboardingState } from "../../lib/onboarding";
 import type { OnboardingStep, ChatMessage, CollectedData, InterestCategory } from "../../types/onboarding";
@@ -9,6 +10,7 @@ import StepInterests from "./StepInterests";
 import StepCareers from "./StepCareers";
 import StepTcasProfile from "./StepTcasProfile";
 import StepSettings from "./StepSettings";
+import { PageBg, Accent } from "../../lib/theme";
 
 const BASE_STEPS: OnboardingStep[] = ['profile', 'chat', 'interests', 'careers', 'settings'];
 const HIGH_SCHOOL_STEPS: OnboardingStep[] = ['profile', 'chat', 'interests', 'careers', 'tcas_profile', 'settings'];
@@ -41,13 +43,16 @@ export default function OnboardingScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#BFFF00" size="large" />
+        <StatusBar style="dark" />
+        <ActivityIndicator color={Accent.yellow} size="large" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
+
       {/* Progress dots */}
       <View style={styles.progress}>
         {STEPS.map((s, i) => (
@@ -115,8 +120,16 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0514' },
-  loading: { flex: 1, backgroundColor: '#0a0514', justifyContent: 'center', alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: PageBg.default,
+  },
+  loading: {
+    flex: 1,
+    backgroundColor: PageBg.default,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   progress: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -124,7 +137,17 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
   },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dotActive: { backgroundColor: '#BFFF00' },
-  dotInactive: { backgroundColor: 'rgba(255,255,255,0.2)' },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    transition: 'all 0.3s ease',
+  },
+  dotActive: {
+    backgroundColor: Accent.yellow,
+    width: 24,
+  },
+  dotInactive: {
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
 });

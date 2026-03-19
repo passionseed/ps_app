@@ -9,11 +9,23 @@ import type {
   PathReflectionDecision,
 } from "../types/pathlab";
 import type { MapNode, StudentNodeProgress } from "../types/map";
+import type {
+  PathActivity,
+  PathActivityWithContent,
+  PathContent,
+  PathAssessment,
+  PathAssessmentWithQuestions,
+  PathQuizQuestion,
+  PathActivityProgress,
+  PathAssessmentSubmission,
+} from "../types/pathlab-content";
 
 // ============ Seeds ============
 
 export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
   const { data: { user } } = await supabase.auth.getUser();
+
+  console.log("[getAvailableSeeds] Starting query...");
 
   // Get seeds
   const { data: seedsData, error: seedsError } = await supabase
@@ -22,12 +34,19 @@ export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
     .eq("seed_type", "pathlab")
     .order("created_at", { ascending: false });
 
+  console.log("[getAvailableSeeds] Query result:", {
+    count: seedsData?.length || 0,
+    error: seedsError,
+    sampleSeed: seedsData?.[0],
+  });
+
   if (seedsError) {
     console.error("Error loading seeds:", seedsError);
     throw new Error(seedsError.message);
   }
 
   if (!seedsData || seedsData.length === 0) {
+    console.log("[getAvailableSeeds] No PathLab seeds found in database");
     return [];
   }
 
@@ -181,7 +200,7 @@ export async function enrollInPath(params: {
   return data;
 }
 
-// ============ Path Days & Nodes ============
+// ============ Path Days & Activities ============
 
 export async function getPathDay(pathId: string, dayNumber: number): Promise<PathDay | null> {
   const { data, error } = await supabase
@@ -206,6 +225,152 @@ export async function getPathDays(pathId: string): Promise<PathDay[]> {
   return data || [];
 }
 
+// NEW: Get activities for a specific day
+export async function getPathDayActivities(
+  pathDayId: string,
+  enrollmentId?: string
+): Promise<PathActivityWithContent[]> {
+  // Get activities
+  const { data: activities, error: activitiesError } = await supabase
+    .from("path_activities")
+    .select("*")
+    .eq("path_day_id", pathDayId)
+    .eq("is_draft", false)
+    .order("display_order", { ascending: true });
+
+  if (activitiesError) throw new Error(activitiesError.message);
+  if (!activities || activities.length === 0) return [];
+
+  const activityIds = activities.map(a => a.id);
+
+  // Get content for these activities
+  const { data: content } = await supabase
+    .from("path_content")
+    .select("*")
+    .in("activity_id", activityIds)
+    .order("display_order", { ascending: true });
+
+  // Get assessments for these activities
+  const { data: assessments } = await supabase
+    .from("path_assessments")
+    .select("*")
+    .in("activity_id", activityIds);
+
+  // Get quiz questions if there are any quiz assessments
+  let quizQuestions: PathQuizQuestion[] = [];
+  if (assessments && assessments.length > 0) {
+    const assessmentIds = assessments.map(a => a.id);
+    const { data: questions } = await supabase
+      .from("path_quiz_questions")
+      .select("*")
+      .in("assessment_id", assessmentIds);
+    quizQuestions = questions || [];
+  }
+
+  // Get progress if enrollment ID provided
+  let progress: PathActivityProgress[] = [];
+  if (enrollmentId) {
+    const { data: progressData } = await supabase
+      .from("path_activity_progress")
+      .select("*")
+      .eq("enrollment_id", enrollmentId)
+      .in("activity_id", activityIds);
+    progress = progressData || [];
+  }
+
+  // Combine everything - new schema: path_content and path_assessment
+  return activities.map(activity => {
+    const activityContent = (content || []).filter(c => c.activity_id === activity.id);
+    const activityAssessments = (assessments || []).filter(a => a.activity_id === activity.id);
+
+    // Build path_assessment (single assessment or null)
+    let pathAssessment = null;
+    if (activityAssessments.length > 0) {
+      pathAssessment = {
+        ...activityAssessments[0],
+        quiz_questions: quizQuestions.filter(q => q.assessment_id === activityAssessments[0].id),
+      };
+    }
+
+    return {
+      ...activity,
+      path_content: activityContent,
+      path_assessment: pathAssessment,
+      progress: progress.find(p => p.activity_id === activity.id),
+    };
+  });
+}
+
+// NEW: Update activity progress
+export async function updateActivityProgress(params: {
+  enrollmentId: string;
+  activityId: string;
+  status: "in_progress" | "completed" | "skipped";
+  timeSpentSeconds?: number;
+}): Promise<PathActivityProgress> {
+  const now = new Date().toISOString();
+
+  const updateData: any = {
+    enrollment_id: params.enrollmentId,
+    activity_id: params.activityId,
+    status: params.status,
+    updated_at: now,
+  };
+
+  if (params.status === "in_progress" && !updateData.started_at) {
+    updateData.started_at = now;
+  }
+
+  if (params.status === "completed") {
+    updateData.completed_at = now;
+  }
+
+  if (params.timeSpentSeconds !== undefined) {
+    updateData.time_spent_seconds = params.timeSpentSeconds;
+  }
+
+  const { data, error } = await supabase
+    .from("path_activity_progress")
+    .upsert(updateData, {
+      onConflict: "enrollment_id,activity_id",
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// NEW: Submit assessment
+export async function submitAssessment(params: {
+  progressId: string;
+  assessmentId: string;
+  textAnswer?: string;
+  fileUrls?: string[];
+  imageUrl?: string;
+  quizAnswers?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}): Promise<PathAssessmentSubmission> {
+  const { data, error } = await supabase
+    .from("path_assessment_submissions")
+    .insert({
+      progress_id: params.progressId,
+      assessment_id: params.assessmentId,
+      text_answer: params.textAnswer || null,
+      file_urls: params.fileUrls || null,
+      image_url: params.imageUrl || null,
+      quiz_answers: params.quizAnswers || null,
+      metadata: params.metadata || null,
+      submitted_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// LEGACY: Keep for backwards compatibility during transition
 export async function getNodesByIds(nodeIds: string[]): Promise<MapNode[]> {
   if (nodeIds.length === 0) return [];
 
@@ -233,6 +398,7 @@ export async function getNodesByIds(nodeIds: string[]): Promise<MapNode[]> {
   }));
 }
 
+// LEGACY: Keep for backwards compatibility during transition
 export async function getNodeProgress(nodeIds: string[]): Promise<StudentNodeProgress[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || nodeIds.length === 0) return [];
@@ -247,6 +413,7 @@ export async function getNodeProgress(nodeIds: string[]): Promise<StudentNodePro
   return data || [];
 }
 
+// LEGACY: Keep for backwards compatibility during transition
 export async function updateNodeProgress(params: {
   nodeId: string;
   status: string;
