@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "npx @shopify/react-native-skia postinstall"
+    "postinstall": "npx @shopify/react-native-skia postinstall",
+    "generate:pathlab": "npx tsx scripts/generate-pathlab/index.ts"
   },
   "dependencies": {
     "@expo-google-fonts/bai-jamjuree": "^0.4.1",
