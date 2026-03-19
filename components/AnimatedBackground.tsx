@@ -11,7 +11,11 @@ import Svg, {
 import { useEffect, useRef } from "react";
 
 const { width, height } = Dimensions.get("window");
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// Create animated Circle that filters out React Native-specific props like 'collapsable'
+const AnimatedCircle = Animated.createAnimatedComponent(
+  ({ collapsable, ...props }: any) => <Circle {...props} />
+);
 
 export default function AnimatedBackground() {
   const twinkles = Array.from({ length: 70 }).map(() => ({
