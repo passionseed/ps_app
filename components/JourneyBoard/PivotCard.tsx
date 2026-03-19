@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import { Text as ThemeText, Border, Radius, Shadow } from "../../lib/theme";
 
 interface PivotCardProps {
   currentJobTitle: string;
@@ -50,12 +51,13 @@ export function PivotCard({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
+    backgroundColor: "#fff",
+    borderRadius: Radius.lg,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: Border.default,
+    ...Shadow.card,
   },
   header: {
     flexDirection: "row",
@@ -69,12 +71,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1F2937",
+    color: ThemeText.primary,
     fontFamily: "Orbit_400Regular",
   },
   description: {
     fontSize: 14,
-    color: "#4B5563",
+    color: ThemeText.secondary,
     lineHeight: 20,
     marginBottom: 16,
     fontFamily: "Orbit_400Regular",
@@ -86,10 +88,10 @@ const styles = StyleSheet.create({
   alternativeButton: {
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#D1D5DB",
+    borderColor: Border.default,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     alignItems: "center",
   },
   alternativeButtonPressed: {
@@ -98,7 +100,7 @@ const styles = StyleSheet.create({
   alternativeText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
+    color: ThemeText.primary,
     fontFamily: "Orbit_400Regular",
   },
   dismissButton: {
@@ -107,7 +109,7 @@ const styles = StyleSheet.create({
   },
   dismissText: {
     fontSize: 12,
-    color: "#6B7280",
+    color: ThemeText.tertiary,
     fontFamily: "Orbit_400Regular",
     textDecorationLine: "underline",
   },

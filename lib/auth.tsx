@@ -82,21 +82,28 @@ type AuthContext = {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  isGuest: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  enterAsGuest: () => void;
+  exitGuestMode: () => void;
 };
 
 const AuthContext = createContext<AuthContext>({
   session: null,
   user: null,
   loading: true,
+  isGuest: false,
   signInWithGoogle: async () => {},
   signInWithApple: async () => {},
+  enterAsGuest: () => {},
+  exitGuestMode: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -112,6 +119,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const enterAsGuest = () => {
+    setIsGuest(true);
+  };
+
+  const exitGuestMode = () => {
+    setIsGuest(false);
+  };
 
   const signInWithOAuth = async (
     provider: "google" | "apple",
@@ -207,8 +222,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         user: session?.user ?? null,
         loading,
+        isGuest,
         signInWithGoogle,
         signInWithApple,
+        enterAsGuest,
+        exitGuestMode,
       }}
     >
       {children}

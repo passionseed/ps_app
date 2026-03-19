@@ -21,6 +21,7 @@ import type {
   StudentPortfolioItem,
   PortfolioItemType,
 } from "../../types/portfolio";
+import { Radius, Border, Shadow } from "../../lib/theme";
 
 const TYPE_LABELS: Record<
   PortfolioItemType,
@@ -168,7 +169,7 @@ export default function PortfolioScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#FDFFF5" },
+  root: { flex: 1, backgroundColor: "#F3F4F6" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -211,11 +212,12 @@ const s = StyleSheet.create({
   emptyBtnText: { fontSize: 15, fontWeight: "700", color: "#111" },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
+    borderColor: Border.default,
     padding: 16,
     gap: 8,
+    ...Shadow.neutral,
   },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   cardEmoji: { fontSize: 28 },
