@@ -17,6 +17,7 @@ import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import { getFitScores, getDiscoveredPrograms } from "../../lib/portfolioFit";
 import type { FitScoreResult } from "../../types/portfolio";
+import { Text as ThemeText, Border, Radius, Shadow } from "../../lib/theme";
 
 function ScoreRing({ score, size = 52 }: { score: number; size?: number }) {
   const color =
@@ -258,7 +259,7 @@ export default function FitBrowserScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#FDFFF5" },
+  root: { flex: 1, backgroundColor: "#F3F4F6" },
   hero: { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 12 },
   back: { marginBottom: 12 },
   backText: { fontSize: 14, color: "rgba(255,255,255,0.7)" },
@@ -286,32 +287,33 @@ const s = StyleSheet.create({
   list: { padding: 16 },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
+    borderColor: Border.default,
     padding: 14,
     flexDirection: "row",
     gap: 14,
     alignItems: "center",
+    ...Shadow.neutral,
   },
   cardLeft: { alignItems: "center", justifyContent: "center" },
   cardRight: { flex: 1, gap: 3 },
   cardProgram: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#111",
+    color: ThemeText.primary,
     lineHeight: 20,
   },
-  cardFaculty: { fontSize: 12, color: "#6B7280" },
-  cardUni: { fontSize: 12, color: "#9CA3AF" },
+  cardFaculty: { fontSize: 12, color: ThemeText.tertiary },
+  cardUni: { fontSize: 12, color: ThemeText.muted },
   cardMeta: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 4 },
   metaPill: {
     backgroundColor: "rgba(139,92,246,0.08)",
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
-  metaPillText: { fontSize: 11, color: "#4B5563", fontWeight: "600" },
+  metaPillText: { fontSize: 11, color: ThemeText.secondary, fontWeight: "600" },
   deadlinePill: { backgroundColor: "rgba(251,191,36,0.15)" },
   deadlineText: { color: "#92400E" },
   ineligibleRing: {
@@ -343,10 +345,10 @@ const s = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#111",
+    color: ThemeText.primary,
     letterSpacing: 1.2,
   },
-  gemsSubtitle: { fontSize: 12, color: "#6B7280", marginBottom: 4 },
+  gemsSubtitle: { fontSize: 12, color: ThemeText.tertiary, marginBottom: 4 },
   divider: {
     height: 1,
     backgroundColor: "rgba(0,0,0,0.06)",
@@ -358,10 +360,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 32,
     gap: 10,
   },
-  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#374151" },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: ThemeText.secondary },
   emptySubtitle: {
     fontSize: 14,
-    color: "#9CA3AF",
+    color: ThemeText.muted,
     textAlign: "center",
     lineHeight: 22,
   },

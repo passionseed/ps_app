@@ -47,6 +47,9 @@ importers:
       expo-auth-session:
         specifier: ^55.0.7
         version: 55.0.7(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      expo-blur:
+        specifier: ^55.0.10
+        version: 55.0.10(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       expo-constants:
         specifier: ~55.0.7
         version: 55.0.7(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(typescript@5.9.3)
@@ -98,6 +101,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
+      opencode-cmux:
+        specifier: ^0.1.3
+        version: 0.1.3(@opencode-ai/plugin@1.2.27)
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -138,6 +144,9 @@ importers:
       '@types/react':
         specifier: ~19.2.14
         version: 19.2.14
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.4
@@ -925,6 +934,12 @@ packages:
 
   '@napi-rs/wasm-runtime@1.1.1':
     resolution: {integrity: sha512-p64ah1M1ld8xjWv3qbvFwHiFVWrq1yFvV4f7w+mzaqiR4IlSgkqhcRdHwsGgomwzBH51sRY4NEowLxnaBjcW/A==}
+
+  '@opencode-ai/plugin@1.2.27':
+    resolution: {integrity: sha512-h+8Bw9v9nghMg7T+SUCTzxlIhOrsTqXW7U0HVLGQST5DjbN7uyCUM51roZWZ8LRjGxzbzFhvPnY1bj8i+ioZyw==}
+
+  '@opencode-ai/sdk@1.2.27':
+    resolution: {integrity: sha512-Wk0o/I+Fo+wE3zgvlJDs8Fb67KlKqX0PrV8dK5adSDkANq6r4Z25zXJg2iOir+a8ntg3rAcpel1OY4FV/TwRUA==}
 
   '@oxc-project/runtime@0.115.0':
     resolution: {integrity: sha512-Rg8Wlt5dCbXhQnsXPrkOjL1DTSvXLgb2R/KYfnf1/K+R0k6UMLEmbQXPM+kwrWqSmWA2t0B1EtHy2/3zikQpvQ==}
@@ -1946,6 +1961,10 @@ packages:
   domutils@3.2.2:
     resolution: {integrity: sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==}
 
+  dotenv@17.3.1:
+    resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
+    engines: {node: '>=12'}
+
   ecdsa-sig-formatter@1.0.11:
     resolution: {integrity: sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==}
 
@@ -2048,6 +2067,13 @@ packages:
   expo-auth-session@55.0.7:
     resolution: {integrity: sha512-SWFudyF7K6924cSgPFrtK637aXj6HSs+DO6cP0q5xfwlcLaekkcoOHIrhpy8qaUIpxf7w01Dsk5fwu5RLse4eg==}
     peerDependencies:
+      react: '*'
+      react-native: '*'
+
+  expo-blur@55.0.10:
+    resolution: {integrity: sha512-W6iMVArvCKYqhhZW55/V2yA3t9WcZU718Jg7vyIX+XtpDMYirEu3vqesnodfFvwTS+K1JHNLN+PAjQPy38+Rlg==}
+    peerDependencies:
+      expo: '*'
       react: '*'
       react-native: '*'
 
@@ -3071,6 +3097,11 @@ packages:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
 
+  opencode-cmux@0.1.3:
+    resolution: {integrity: sha512-BRgoIspiEIl/r5q8UdKE38L5WV8SyGc3rv4NLWtTKeXLUOticzYi7JkrNXp3IMvbF7uGi+jr9Oth0N0cLjg5AA==}
+    peerDependencies:
+      '@opencode-ai/plugin': '>=1.0.0'
+
   ora@3.4.0:
     resolution: {integrity: sha512-eNwHudNbO1folBP3JsZ19v9azXWtQZjICdr3Q0TDPIaeBQ3mXLrh54wM+er0+hSp+dWKf+Z8KM58CYzEyIYxYg==}
     engines: {node: '>=6'}
@@ -3933,6 +3964,9 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zod@4.1.8:
+    resolution: {integrity: sha512-5R1P+WwQqmmMIEACyzSvo4JXHY5WiAFHRMg+zBZKgKS+Q1viRa0C1hmUKtHltoIFKtIdki3pRxkmpP74jnNYHQ==}
 
 snapshots:
 
@@ -5044,6 +5078,13 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
+  '@opencode-ai/plugin@1.2.27':
+    dependencies:
+      '@opencode-ai/sdk': 1.2.27
+      zod: 4.1.8
+
+  '@opencode-ai/sdk@1.2.27': {}
+
   '@oxc-project/runtime@0.115.0': {}
 
   '@oxc-project/types@0.115.0': {}
@@ -6131,6 +6172,8 @@ snapshots:
       domelementtype: 2.3.0
       domhandler: 5.0.3
 
+  dotenv@17.3.1: {}
+
   ecdsa-sig-formatter@1.0.11:
     dependencies:
       safe-buffer: 5.2.1
@@ -6218,6 +6261,12 @@ snapshots:
       - expo
       - supports-color
       - typescript
+
+  expo-blur@55.0.10(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0):
+    dependencies:
+      expo: 55.0.5(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.4)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      react: 19.2.0
+      react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0)
 
   expo-constants@55.0.7(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(typescript@5.9.3):
     dependencies:
@@ -7482,6 +7531,10 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
+  opencode-cmux@0.1.3(@opencode-ai/plugin@1.2.27):
+    dependencies:
+      '@opencode-ai/plugin': 1.2.27
+
   ora@3.4.0:
     dependencies:
       chalk: 2.4.2
@@ -8265,3 +8318,5 @@ snapshots:
       yargs-parser: 21.1.1
 
   zod@3.25.76: {}
+
+  zod@4.1.8: {}

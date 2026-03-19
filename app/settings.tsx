@@ -15,7 +15,7 @@ import { supabase } from "../lib/supabase";
 import { getProfile } from "../lib/onboarding";
 import type { Profile, MobileSettings } from "../types/onboarding";
 import { GlassCard } from "../components/Glass";
-import { PageBg, Text as ThemeText, Accent, Radius, Shadow } from "../lib/theme";
+import { PageBg, Text as ThemeText, Accent, Radius, Shadow, glassCard } from "../lib/theme";
 
 export default function SettingsScreen() {
   const { user } = useAuth();

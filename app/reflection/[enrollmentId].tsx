@@ -14,6 +14,7 @@ import { supabase } from "../../lib/supabase";
 import { submitDailyReflection } from "../../lib/pathlab";
 import { VoiceAIReflection } from "../../components/Reflection";
 import type { PathReflectionDecision } from "../../types/pathlab";
+import { Radius, Border, Shadow, Text as ThemeText } from "../../lib/theme";
 
 type EnrollmentData = {
   id: string;
@@ -374,17 +375,17 @@ export default function ReflectionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: "#F3F4F6",
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
     gap: 16,
@@ -497,14 +498,15 @@ const styles = StyleSheet.create({
   textInput: {
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
+    borderColor: Border.default,
+    borderRadius: Radius.lg,
     padding: 16,
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
-    color: "#111",
+    color: ThemeText.primary,
     minHeight: 100,
     textAlignVertical: "top",
+    ...Shadow.neutral,
   },
   decisionSection: {
     gap: 12,

@@ -12,13 +12,7 @@ import Animated, {
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import {
-  PageBg,
-  Text as ThemeText,
-  Shadow,
-  Radius,
-  Gradient,
-} from "../../lib/theme";
+import { PageBg } from "../../lib/theme";
 
 type TabRoute = "discover" | "my-paths" | "profile";
 
@@ -37,7 +31,7 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
     icon: "🔍",
     activeIcon: "🔎",
     halo: "rgba(59, 130, 246, 0.12)",
-    accent: ThemeText.secondary, // blue-ish via accent mapping
+    accent: "#3B82F6", // Experience blue
     glow: "rgba(59, 130, 246, 0.25)",
   },
   "my-paths": {
@@ -45,7 +39,7 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
     icon: "📚",
     activeIcon: "📖",
     halo: "rgba(16, 185, 129, 0.12)",
-    accent: "#10B981",
+    accent: "#10B981", // Destination green
     glow: "rgba(16, 185, 129, 0.25)",
   },
   profile: {
@@ -53,14 +47,12 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
     icon: "👤",
     activeIcon: "🧠",
     halo: "rgba(139, 92, 246, 0.12)",
-    accent: "#8B5CF6",
+    accent: "#8B5CF6", // Education purple
     glow: "rgba(139, 92, 246, 0.25)",
   },
 };
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const animatedIndex = useSharedValue(state.index);
 
@@ -89,9 +81,9 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     >
       <LinearGradient
         colors={[
-          "rgba(255, 255, 255, 0.95)",
-          "rgba(249, 245, 255, 0.95)",
-          "rgba(238, 242, 255, 0.95)",
+          "#FFFFFF",
+          "#F9F5FF",
+          "#EEF2FF",
         ]}
         locations={[0, 0.5, 1]}
         style={styles.tabBarGradient}
@@ -211,7 +203,7 @@ function TabBarButton({
   const colorStyle = useAnimatedStyle(() => {
     const isActive = Math.abs(animatedIndex.value - index) < 0.5;
     return {
-      color: isActive ? theme.accent : ThemeText.tertiary,
+      color: isActive ? theme.accent : "#4B5563", // Secondary text for inactive
     };
   });
 
@@ -249,18 +241,30 @@ export default function TabsLayout() {
   );
 }
 
+// Design System Colors
+const PREMIUM_SHADOW = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 4,
+  elevation: 2,
+};
+
+const TAB_BAR_RADIUS = 32;
+const PILL_RADIUS = 16;
+
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: "absolute",
     left: 24,
     right: 24,
-    borderRadius: Radius.full,
-    ...Shadow.floating,
+    borderRadius: TAB_BAR_RADIUS,
+    ...PREMIUM_SHADOW,
   },
   tabBarGradient: {
-    borderRadius: Radius.full,
+    borderRadius: TAB_BAR_RADIUS,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.5)",
+    borderColor: "rgb(206, 206, 206)",
     overflow: "hidden",
   },
   tabBarInner: {
@@ -287,11 +291,11 @@ const styles = StyleSheet.create({
   },
   activePill: {
     position: "absolute",
-    top: "12%",
-    bottom: "12%",
-    left: "12%",
-    right: "12%",
-    borderRadius: Radius.lg,
+    top: 0,
+    bottom: 0,
+    left: 2,
+    right: 2,
+    borderRadius: PILL_RADIUS,
     borderWidth: 1,
   },
   iconContainer: {
@@ -304,7 +308,7 @@ const styles = StyleSheet.create({
   labelText: {
     fontSize: 11,
     fontWeight: "600",
-    color: ThemeText.tertiary,
+    color: "#6B7280", // Tertiary text
     textAlign: "center",
     overflow: "hidden",
   },

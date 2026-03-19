@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { Text as ThemeText, Border, Radius, Shadow } from "../../lib/theme";
 
 interface ScoreWidgetProps {
   passion: number | null;
@@ -52,21 +53,23 @@ function ScoreItem({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: Radius.lg,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: Border.default,
+    ...Shadow.card,
   },
   title: {
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 12,
     fontFamily: "Orbit_400Regular",
+    color: ThemeText.primary,
   },
   emptyText: {
     fontSize: 14,
-    color: "#666",
+    color: ThemeText.secondary,
     fontStyle: "italic",
   },
   scoresRow: {
@@ -83,16 +86,16 @@ const styles = StyleSheet.create({
   scoreValue: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#111",
+    color: ThemeText.primary,
   },
   scoreLabel: {
     fontSize: 12,
-    color: "#666",
+    color: ThemeText.secondary,
     textTransform: "uppercase",
   },
   confidenceText: {
     fontSize: 12,
-    color: "#999",
+    color: ThemeText.tertiary,
     marginTop: 12,
     textAlign: "right",
   },

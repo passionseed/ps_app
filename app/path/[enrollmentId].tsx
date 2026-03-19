@@ -26,6 +26,7 @@ import {
   Shadow,
   Radius,
   Accent,
+  StepThemes,
 } from "../../lib/theme";
 
 type EnrollmentWithPath = PathEnrollment & {
@@ -666,8 +667,11 @@ const styles = StyleSheet.create({
   contextCard: {
     margin: 20,
     padding: 16,
-    backgroundColor: "#e8f5e0",
-    borderRadius: Radius.md,
+    backgroundColor: StepThemes.job.accentLight,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: StepThemes.job.border,
+    ...Shadow.neutral,
   },
   contextText: {
     fontSize: 14,
@@ -695,11 +699,11 @@ const styles = StyleSheet.create({
   taskCard: {
     flexDirection: "row",
     backgroundColor: "#fff",
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: Border.default,
     ...Shadow.neutral,
   },
   taskCardCompleted: {

@@ -258,7 +258,7 @@ function EmptyNote({ text }: { text: string }) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#FDFFF5" },
+  root: { flex: 1, backgroundColor: "#F3F4F6" },
 
   // Hero
   hero: {
@@ -318,11 +318,16 @@ const s = StyleSheet.create({
   personCard: {
     width: 148,
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: "rgb(206, 206, 206)",
     padding: 16,
     gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   avatar: {
     width: 44,
@@ -342,13 +347,13 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#111",
+    color: "#111827",
     lineHeight: 18,
   },
   personRole: {
     fontSize: 11,
     fontFamily: "Orbit_400Regular",
-    color: "#888",
+    color: "#6B7280",
     lineHeight: 16,
     flexGrow: 1,
   },
@@ -366,33 +371,43 @@ const s = StyleSheet.create({
     flex: 1,
     minWidth: "44%",
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: "rgb(206, 206, 206)",
     padding: 16,
     gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   companyName: {
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#111",
+    color: "#111827",
   },
   companyDomain: {
     fontSize: 11,
     fontFamily: "Orbit_400Regular",
-    color: "#999",
+    color: "#6B7280",
   },
 
   // News — vertical list
   newsList: { gap: 12 },
   newsCard: {
     backgroundColor: "#fff",
-    borderRadius: 14,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: "rgb(206, 206, 206)",
     padding: 16,
     gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   newsTopRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   sourceBadge: {
@@ -405,25 +420,25 @@ const s = StyleSheet.create({
     fontSize: 9,
     fontFamily: "Orbit_400Regular",
     fontWeight: "700",
-    color: "#111",
+    color: "#111827",
     letterSpacing: 0.5,
   },
   newsAgo: {
     fontSize: 11,
     fontFamily: "Orbit_400Regular",
-    color: "#bbb",
+    color: "#6B7280",
   },
   newsTitle: {
     fontSize: 15,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#111",
+    color: "#111827",
     lineHeight: 22,
   },
   newsSnippet: {
     fontSize: 13,
     fontFamily: "Orbit_400Regular",
-    color: "#777",
+    color: "#4B5563",
     lineHeight: 19,
   },
   readLink: {
