@@ -156,6 +156,7 @@ export default function DiscoverScreen() {
   // Animated values for scroll-based animations
   const scrollY = useRef(new Animated.Value(0)).current;
   const searchInputRef = useRef<TextInput>(null);
+  const blurTargetRef = useRef<View>(null);
 
   useEffect(() => {
     if (user?.id) {
