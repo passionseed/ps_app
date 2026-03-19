@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -8,8 +8,11 @@ import {
   RefreshControl,
   Image,
   TextInput,
+  Animated,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,6 +32,18 @@ import {
   Space,
   Type,
 } from "../../lib/theme";
+
+// Animation constants - Apple HIG values
+const ANIMATION_CONFIG = {
+  // Large title: 34pt bold → Small title: 17pt (in nav bar)
+  largeTitleHeight: 96,
+  smallTitleHeight: 44,
+  searchBarHeight: 48,
+  // Animation triggers when scroll passes this threshold
+  collapseThreshold: 50,
+  // Header collapse completion point
+  headerCollapsedAt: 80,
+};
 
 const SAMPLE_SEEDS: Partial<SeedWithEnrollment>[] = [
   {
@@ -138,6 +153,10 @@ export default function DiscoverScreen() {
   const [isThai, setIsThai] = useState(false);
   const insets = useSafeAreaInsets();
 
+  // Animated values for scroll-based animations
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const searchInputRef = useRef<TextInput>(null);
+
   useEffect(() => {
     if (user?.id) {
       getProfile(user.id).then((p) => {
@@ -183,6 +202,71 @@ export default function DiscoverScreen() {
     loadSeeds();
   }, [loadSeeds]);
 
+  // Interpolations for large title → small title animation
+  const titleScale = scrollY.interpolate({
+    inputRange: [0, ANIMATION_CONFIG.collapseThreshold],
+    outputRange: [1, 0.85],
+    extrapolate: "clamp",
+  });
+
+  const titleOpacity = scrollY.interpolate({
+    inputRange: [0, ANIMATION_CONFIG.collapseThreshold],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const titleTranslateY = scrollY.interpolate({
+    inputRange: [0, ANIMATION_CONFIG.collapseThreshold],
+    outputRange: [0, -20],
+    extrapolate: "clamp",
+  });
+
+  // Small title (in navigation bar) animations
+  const smallTitleOpacity = scrollY.interpolate({
+    inputRange: [ANIMATION_CONFIG.collapseThreshold * 0.5, ANIMATION_CONFIG.collapseThreshold],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+
+  const smallTitleTranslateY = scrollY.interpolate({
+    inputRange: [ANIMATION_CONFIG.collapseThreshold * 0.5, ANIMATION_CONFIG.collapseThreshold],
+    outputRange: [-10, 0],
+    extrapolate: "clamp",
+  });
+
+  // Search bar animations
+  const searchBarTranslateY = scrollY.interpolate({
+    inputRange: [0, ANIMATION_CONFIG.collapseThreshold],
+    outputRange: [0, -20],
+    extrapolate: "clamp",
+  });
+
+  const searchBarOpacity = scrollY.interpolate({
+    inputRange: [0, ANIMATION_CONFIG.collapseThreshold * 0.8],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const searchBarScale = scrollY.interpolate({
+    inputRange: [0, ANIMATION_CONFIG.collapseThreshold],
+    outputRange: [1, 0.95],
+    extrapolate: "clamp",
+  });
+
+  // Compact search icon (shows when scrolled)
+  const compactSearchOpacity = scrollY.interpolate({
+    inputRange: [ANIMATION_CONFIG.collapseThreshold * 0.6, ANIMATION_CONFIG.collapseThreshold],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+
+  // Header background blur opacity
+  const headerBgOpacity = scrollY.interpolate({
+    inputRange: [0, ANIMATION_CONFIG.collapseThreshold],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+
   // Use database seeds if available, otherwise fallback to sample data
   const displaySeeds = seeds.length > 0 ? seeds : SAMPLE_SEEDS as SeedWithEnrollment[];
 
@@ -209,49 +293,130 @@ export default function DiscoverScreen() {
     <View style={styles.container}>
       <StatusBar style="dark" />
 
-      {/* Header */}
-      <View
-        style={[styles.header, { paddingTop: Math.max(insets.top + 24, 60) }]}
+      {/* Sticky Navigation Header with Blur */}
+      <Animated.View
+        style={[
+          styles.stickyHeader,
+          {
+            paddingTop: insets.top + 8,
+            opacity: headerBgOpacity,
+          },
+        ]}
+        pointerEvents="none"
       >
-        <View style={styles.titleRow}>
-          <Image
-            source={require("../../assets/passionseed-logo.png")}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
-          <Text style={styles.headerTitle}>
-            {isThai ? "ค้นหาเส้นทางของคุณ" : "Discover Your Path"}
-          </Text>
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
+        <BlurView
+          intensity={80}
+          tint="light"
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.stickyHeaderContent}>
+          {/* Small Title in Navigation Bar */}
+          <Animated.View
             style={[
-              styles.searchInput,
-              isThai && {
-                fontFamily: "BaiJamjuree_400Regular",
-                paddingTop: 4,
+              styles.smallTitleContainer,
+              {
+                opacity: smallTitleOpacity,
+                transform: [{ translateY: smallTitleTranslateY }],
               },
             ]}
-            placeholder={isThai ? "ค้นหาเส้นทาง..." : "Search paths..."}
-            placeholderTextColor="#6B7280"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-      </View>
+          >
+            <Image
+              source={require("../../assets/passionseed-logo.png")}
+              style={styles.smallLogoImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.smallHeaderTitle}>
+              {isThai ? "ค้นหาเส้นทาง" : "Discover"}
+            </Text>
+          </Animated.View>
 
-      {/* Seeds Sections */}
-      <ScrollView
+          {/* Compact Search Icon */}
+          <Animated.View
+            style={[
+              styles.compactSearchContainer,
+              { opacity: compactSearchOpacity },
+            ]}
+          >
+            <Pressable
+              style={styles.compactSearchButton}
+              onPress={() => {
+                // Scroll to top and focus search
+                scrollY.setValue(0);
+                setTimeout(() => searchInputRef.current?.focus(), 300);
+              }}
+            >
+              <Text style={styles.compactSearchIcon}>🔍</Text>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </Animated.View>
+
+      {/* Main ScrollView with Animated Event */}
+      <Animated.ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Expandable Header Section */}
+        <View style={[styles.header, { paddingTop: Math.max(insets.top + 24, 60) }]}>
+          {/* Large Title with Animation */}
+          <Animated.View
+            style={{
+              transform: [
+                { scale: titleScale },
+                { translateY: titleTranslateY },
+              ],
+              opacity: titleOpacity,
+            }}
+          >
+            <View style={styles.titleRow}>
+              <Image
+                source={require("../../assets/passionseed-logo.png")}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.headerTitle}>
+                {isThai ? "ค้นหาเส้นทางของคุณ" : "Discover Your Path"}
+              </Text>
+            </View>
+          </Animated.View>
+
+          {/* Search Bar with Animation */}
+          <Animated.View
+            style={{
+              transform: [{ translateY: searchBarTranslateY }, { scale: searchBarScale }],
+              opacity: searchBarOpacity,
+            }}
+          >
+            <View style={styles.searchContainer}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                ref={searchInputRef}
+                style={[
+                  styles.searchInput,
+                  isThai && {
+                    fontFamily: "BaiJamjuree_400Regular",
+                    paddingTop: 4,
+                  },
+                ]}
+                placeholder={isThai ? "ค้นหาเส้นทาง..." : "Search paths..."}
+                placeholderTextColor="#6B7280"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Seeds Sections */}
         {/* Continue Your Path Section */}
         {enrolledPaths.length > 0 && (
           <ProgressSection
@@ -279,7 +444,7 @@ export default function DiscoverScreen() {
 
         {/* Bottom padding for tab bar */}
         <View style={{ height: 120 }} />
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -505,6 +670,72 @@ const styles = StyleSheet.create({
     fontSize: Type.body.fontSize,
     color: ThemeText.tertiary,
   },
+
+  // Sticky Navigation Header
+  stickyHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    backgroundColor: Platform.OS === "ios" ? "transparent" : "rgba(243, 244, 246, 0.95)",
+    borderBottomWidth: Platform.OS === "ios" ? 0 : 1,
+    borderBottomColor: Border.light,
+  },
+  stickyHeaderContent: {
+    height: ANIMATION_CONFIG.smallTitleHeight,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Space["2xl"],
+  },
+  smallTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  smallLogoImage: {
+    width: 24,
+    height: 24,
+  },
+  smallHeaderTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: ThemeText.primary,
+  },
+  compactSearchContainer: {
+    position: "absolute",
+    right: Space["2xl"],
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  compactSearchButton: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Border.default,
+    ...Shadow.neutral,
+  },
+  compactSearchIcon: {
+    fontSize: 16,
+  },
+
+  // ScrollView
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: Space.xl,
+    gap: Space["3xl"],
+  },
+
+  // Expandable Header
   header: {
     paddingHorizontal: Space["2xl"],
     paddingBottom: Space.lg,
@@ -520,9 +751,10 @@ const styles = StyleSheet.create({
     height: 36,
   },
   headerTitle: {
-    fontSize: Type.header.fontSize,
-    fontWeight: Type.header.fontWeight,
+    fontSize: 34,
+    fontWeight: "700",
     color: ThemeText.primary,
+    letterSpacing: -0.5,
   },
   searchContainer: {
     flexDirection: "row",
@@ -532,7 +764,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Border.default,
     paddingHorizontal: Space.lg,
-    height: 48,
+    height: ANIMATION_CONFIG.searchBarHeight,
     gap: Space.sm,
     ...Shadow.neutral,
   },
@@ -545,14 +777,8 @@ const styles = StyleSheet.create({
     fontSize: Type.body.fontSize,
     color: ThemeText.primary,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: Space.sm,
-    paddingBottom: Space.xl,
-    gap: Space["3xl"],
-  },
+
+  // Sections
   section: {
     gap: Space.md,
   },
@@ -573,6 +799,8 @@ const styles = StyleSheet.create({
   fullWidthScroll: {
     marginHorizontal: -5,
   },
+
+  // Cards
   compactTitle: {
     fontSize: 14,
     color: "#FFFFFF",
@@ -619,12 +847,6 @@ const styles = StyleSheet.create({
   },
   compactImageIcon: {
     fontSize: 48,
-  },
-  streakIconContainer: {
-    position: "absolute",
-    top: -8,
-    right: -8,
-    zIndex: 10,
   },
   compactOverlay: {
     position: "absolute",

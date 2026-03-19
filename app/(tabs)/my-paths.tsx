@@ -17,6 +17,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getActiveJourneys } from "../../lib/journey";
 import type { StudentJourney } from "../../types/journey";
 import type { CareerPath, PathStep } from "../../types/journey";
+import {
+  Gradient,
+  Radius,
+  Border,
+  Shadow,
+  Space,
+} from "../../lib/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // Leave margin so previous/next cards peek out, but keep cards wider.
@@ -153,54 +160,61 @@ export default function MyPathsScreen() {
             </Text>
 
             {/* Placeholder Card Preview */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.placeholderCard,
-                pressed && styles.placeholderCardPressed,
-              ]}
-              onPress={handleBuildPath}
+            <LinearGradient
+              colors={Gradient.masterCard}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.placeholderCardGradient}
             >
-              {/* Card Header */}
-              <View style={styles.placeholderHeader}>
-                <View style={styles.placeholderIconCircle}>
-                  <Text style={styles.placeholderIcon}>✨</Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.placeholderCard,
+                  pressed && styles.placeholderCardPressed,
+                ]}
+                onPress={handleBuildPath}
+              >
+                {/* Card Header */}
+                <View style={styles.placeholderHeader}>
+                  <View style={styles.placeholderIconCircle}>
+                    <Text style={styles.placeholderIcon}>✨</Text>
+                  </View>
+                  <View style={styles.placeholderTitleSection}>
+                    <Text style={styles.placeholderTitle}>สร้างเส้นทางแรกของคุณ</Text>
+                    <Text style={styles.placeholderSubtitle}>เริ่มต้นการเดินทางสู่อาชีพในฝัน</Text>
+                  </View>
                 </View>
-                <View style={styles.placeholderTitleSection}>
-                  <Text style={styles.placeholderTitle}>สร้างเส้นทางแรกของคุณ</Text>
-                  <Text style={styles.placeholderSubtitle}>เริ่มต้นการเดินทางสู่อาชีพในฝัน</Text>
-                </View>
-              </View>
 
-              {/* Preview Steps */}
-              <View style={styles.placeholderSteps}>
-                <View style={styles.placeholderStep}>
-                  <View style={[styles.stepDot, { backgroundColor: "#3B82F6" }]} />
-                  <View style={styles.stepLine} />
-                  <Text style={styles.stepText}>เลือกมหาวิทยาลัย</Text>
+                {/* Preview Steps */}
+                <View style={styles.placeholderSteps}>
+                  <View style={styles.placeholderStep}>
+                    <View style={[styles.stepDot, { backgroundColor: "#3B82F6" }]} />
+                    <View style={styles.stepLine} />
+                    <Text style={styles.stepText}>เลือกมหาวิทยาลัย</Text>
+                  </View>
+                  <View style={styles.placeholderStep}>
+                    <View style={[styles.stepDot, { backgroundColor: "#10B981" }]} />
+                    <View style={styles.stepLine} />
+                    <Text style={styles.stepText}>ฝึกงานและสะสมประสบการณ์</Text>
+                  </View>
+                  <View style={styles.placeholderStep}>
+                    <View style={[styles.stepDot, { backgroundColor: "#8B5CF6" }]} />
+                    <Text style={styles.stepText}>ทำงานตามความฝัน</Text>
+                  </View>
                 </View>
-                <View style={styles.placeholderStep}>
-                  <View style={[styles.stepDot, { backgroundColor: "#10B981" }]} />
-                  <View style={styles.stepLine} />
-                  <Text style={styles.stepText}>ฝึกงานและสะสมประสบการณ์</Text>
-                </View>
-                <View style={styles.placeholderStep}>
-                  <View style={[styles.stepDot, { backgroundColor: "#8B5CF6" }]} />
-                  <Text style={styles.stepText}>ทำงานตามความฝัน</Text>
-                </View>
-              </View>
 
-              {/* CTA Button inside card */}
-              <View style={styles.placeholderCta}>
-                <LinearGradient
-                  colors={["#BFFF00", "#A3E600"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.placeholderCtaGradient}
-                >
-                  <Text style={styles.placeholderCtaText}>เริ่มสร้างเส้นทาง →</Text>
-                </LinearGradient>
-              </View>
-            </Pressable>
+                {/* CTA Button inside card */}
+                <View style={styles.placeholderCta}>
+                  <LinearGradient
+                    colors={Gradient.primaryCta}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.placeholderCtaGradient}
+                  >
+                    <Text style={styles.placeholderCtaText}>เริ่มสร้างเส้นทาง →</Text>
+                  </LinearGradient>
+                </View>
+              </Pressable>
+            </LinearGradient>
           </View>
         ) : (
           <View style={styles.carouselContainer}>
@@ -283,7 +297,7 @@ export default function MyPathsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4F7FA", // fresh, airy tech blue-grey (not 'dead' flat grey)
+    backgroundColor: "#F3F4F6",
   },
   scrollView: {
     flex: 1,
@@ -364,9 +378,9 @@ const styles = StyleSheet.create({
   // Add Path Card
   addCardOuter: {
     backgroundColor: "transparent",
-    borderRadius: 24,
+    borderRadius: Radius["2xl"],
     borderWidth: 2,
-    borderColor: "rgba(0,0,0,0.08)",
+    borderColor: Border.light,
     borderStyle: "dashed",
     justifyContent: "center",
     alignItems: "center",
@@ -374,7 +388,7 @@ const styles = StyleSheet.create({
   },
   addCardInner: {
     alignItems: "center",
-    gap: 12,
+    gap: Space.md,
   },
   addCardIcon: {
     fontSize: 48,
@@ -387,20 +401,18 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
   // Placeholder Card
-  placeholderCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 24,
-    marginTop: 32,
-    marginHorizontal: 24,
+  placeholderCardGradient: {
+    borderRadius: Radius["2xl"],
+    marginTop: Space["3xl"],
+    marginHorizontal: Space["2xl"],
     width: CARD_WIDTH,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.05)",
+    ...Shadow.neutral,
+  },
+  placeholderCard: {
+    backgroundColor: "transparent",
+    borderRadius: Radius["2xl"],
+    padding: Space["2xl"],
+    width: "100%",
   },
   placeholderCardPressed: {
     transform: [{ scale: 0.98 }],

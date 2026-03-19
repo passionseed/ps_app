@@ -14,6 +14,7 @@ import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { getProfile } from "../lib/onboarding";
 import type { Profile, MobileSettings } from "../types/onboarding";
+import { glassCard, Radius, Border, Shadow, Space } from "../lib/theme";
 
 export default function SettingsScreen() {
   const { user } = useAuth();
@@ -235,7 +236,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: "#F3F4F6",
   },
   header: {
     paddingTop: 60,
@@ -289,10 +290,7 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   optionsCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
+    ...glassCard({ radius: Radius.lg, padding: 0 }),
     overflow: "hidden",
   },
   optionRow: {
