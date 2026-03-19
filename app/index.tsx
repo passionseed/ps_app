@@ -1,27 +1,29 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   View,
   StyleSheet,
-  Pressable,
-  ActivityIndicator,
   Image,
   Platform,
   Alert,
   Linking,
   Animated as RNAnimated,
+  Dimensions,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   isAppleAccountSetupError,
   isAuthCancellationError,
   useAuth,
 } from "../lib/auth";
-import AnimatedBackground from "../components/AnimatedBackground";
 import { AppText } from "../components/AppText";
-import { Accent } from "../lib/theme";
+import { GlassButton, GlassCard } from "../components/Glass";
+import { PageBg, Text as ThemeText, Accent, Shadow, Radius } from "../lib/theme";
+
+const { width, height } = Dimensions.get("window");
 
 export default function LandingPage() {
   const { signInWithGoogle, signInWithApple, loading: authLoading, enterAsGuest } = useAuth();
@@ -31,11 +33,44 @@ export default function LandingPage() {
   const [isEntering, setIsEntering] = useState(false);
 
   // Animation values
-  const cardScale = useState(new RNAnimated.Value(1))[0];
-  const cardOpacity = useState(new RNAnimated.Value(1))[0];
-  const logoY = useState(new RNAnimated.Value(0))[0];
-  const logoOpacity = useState(new RNAnimated.Value(1))[0];
-  const wipeProgress = useState(new RNAnimated.Value(0))[0];
+  const cardY = useState(new RNAnimated.Value(50))[0];
+  const cardOpacity = useState(new RNAnimated.Value(0))[0];
+  const backgroundY = useState(new RNAnimated.Value(0))[0];
+
+  // Entrance animation
+  useEffect(() => {
+    RNAnimated.parallel([
+      RNAnimated.timing(cardY, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(cardOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Subtle floating background animation
+    const loop = RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(backgroundY, {
+          toValue: -10,
+          duration: 4000,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(backgroundY, {
+          toValue: 0,
+          duration: 4000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+
+    return () => loop.stop();
+  }, []);
 
   const handleSignIn = async (provider: "google" | "apple") => {
     if (signingInProvider !== null || authLoading) return;
@@ -79,185 +114,141 @@ export default function LandingPage() {
     if (isEntering) return;
     setIsEntering(true);
 
-    // Trigger game-like transition animation
-    const duration = 800;
-
-    // Animate card shrinking
-    RNAnimated.parallel([
-      RNAnimated.timing(cardScale, {
-        toValue: 0.85,
-        duration,
-        useNativeDriver: true,
-      }),
-      RNAnimated.timing(cardOpacity, {
-        toValue: 0,
-        duration: duration * 0.8,
-        useNativeDriver: true,
-      }),
-      RNAnimated.timing(logoY, {
-        toValue: -200,
-        duration,
-        useNativeDriver: true,
-      }),
-      RNAnimated.timing(logoOpacity, {
-        toValue: 0,
-        duration: duration * 0.6,
-        useNativeDriver: true,
-      }),
-      RNAnimated.timing(wipeProgress, {
-        toValue: 1,
-        duration: duration * 1.2,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
+    // Simple fade transition
+    RNAnimated.timing(cardOpacity, {
+      toValue: 0,
+      duration: 400,
+      useNativeDriver: true,
+    }).start(() => {
       enterAsGuest();
       router.replace("/(tabs)/discover");
     });
-  }, [isEntering, cardScale, cardOpacity, logoY, logoOpacity, wipeProgress, enterAsGuest]);
+  }, [isEntering, cardOpacity, enterAsGuest]);
 
   const cardAnimatedStyle = {
-    transform: [{ scale: cardScale }],
+    transform: [{ translateY: cardY }],
     opacity: cardOpacity,
   };
 
-  const logoAnimatedStyle = {
-    transform: [{ translateY: logoY }],
-    opacity: logoOpacity,
+  const backgroundAnimatedStyle = {
+    transform: [{ translateY: backgroundY }],
   };
-
-  const wipeOpacity = wipeProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
 
   return (
     <View style={styles.page}>
-      <AnimatedBackground />
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
-      {/* Transition wipe overlay */}
-      <RNAnimated.View
-        style={[
-          styles.wipeOverlay,
-          { opacity: wipeOpacity },
-        ]}
-      />
+      {/* Animated background with soft gradients */}
+      <RNAnimated.View style={[styles.backgroundContainer, backgroundAnimatedStyle]}>
+        <LinearGradient
+          colors={["#F3F4F6", "#E5E7EB", "#F3F4F6"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* Floating accent orbs */}
+        <View style={[styles.orb, styles.orb1]} />
+        <View style={[styles.orb, styles.orb2]} />
+        <View style={[styles.orb, styles.orb3]} />
+      </RNAnimated.View>
 
       <View style={styles.container}>
-        <RNAnimated.View style={[styles.glassCard, cardAnimatedStyle]}>
+        <RNAnimated.View style={[styles.contentWrapper, cardAnimatedStyle]}>
           {/* Logo */}
-          <RNAnimated.View style={[styles.logoContainer, logoAnimatedStyle]}>
-            <Image
-              source={require("../assets/passionseed-logo.png")}
-              style={[styles.logoImage, { width: 120, height: 120 }]}
-            />
-          </RNAnimated.View>
-
-          {/* Tagline */}
-          <View style={styles.taglineContainer}>
-            <AppText variant="bold" style={styles.tagline}>
-              ค้นหาเส้นทางที่ใช่
-            </AppText>
-            <View style={styles.highlightWrapper}>
-              <AppText variant="bold" style={styles.taglineHighlight}>
-                ก่อนตัดสินใจจริง
-              </AppText>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoGlow}>
+              <Image
+                source={require("../assets/passionseed-logo.png")}
+                style={styles.logoImage}
+              />
             </View>
           </View>
 
-          {/* Description */}
-          <AppText style={styles.description}>
-            ทดลองอาชีพในฝัน เพียง 30 นาทีต่อวัน{"\n"}
-            เพื่อค้นพบตัวตนที่แท้จริงของคุณ
-          </AppText>
-
-          {/* Sign In Button */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.signInBtn,
-              pressed && styles.signInBtnPressed,
-              (signingInProvider !== null || authLoading) && styles.signInBtnDisabled,
-            ]}
-            onPress={() => handleSignIn("google")}
-            disabled={signingInProvider !== null || authLoading}
-          >
-            {signingInProvider === "google" || authLoading ? (
-              <ActivityIndicator color="#111" />
-            ) : (
-              <View style={styles.btnContent}>
-                <FontAwesome name="google" size={22} color="#4285F4" style={styles.googleIcon} />
-                <AppText variant="bold" style={styles.signInText}>
-                  เข้าสู่ระบบด้วย Google
+          {/* Main Card */}
+          <GlassCard variant="master" size="large" style={styles.mainCard}>
+            {/* Tagline */}
+            <View style={styles.taglineContainer}>
+              <AppText variant="bold" style={styles.tagline}>
+                ค้นหาเส้นทางที่ใช่
+              </AppText>
+              <View style={styles.highlightWrapper}>
+                <AppText variant="bold" style={styles.taglineHighlight}>
+                  ก่อนตัดสินใจจริง
                 </AppText>
               </View>
-            )}
-          </Pressable>
+            </View>
 
-          {Platform.OS === "ios" ? (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={100}
-              style={[
-                styles.appleButton,
-                (signingInProvider !== null || authLoading) && styles.signInBtnDisabled,
-              ]}
-              onPress={() => handleSignIn("apple")}
-            />
-          ) : (
-            <Pressable
-              style={({ pressed }) => [
-                styles.appleBtnFallback,
-                pressed && styles.appleBtnFallbackPressed,
-                (signingInProvider !== null || authLoading) && styles.signInBtnDisabled,
-              ]}
-              onPress={() => handleSignIn("apple")}
-              disabled={signingInProvider !== null || authLoading}
-            >
-              {signingInProvider === "apple" || authLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <AppText variant="bold" style={styles.appleBtnText}>
-                  Sign in with Apple
-                </AppText>
-              )}
-            </Pressable>
-          )}
-
-          {/* Browse as Guest Button */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.guestBtn,
-              pressed && styles.guestBtnPressed,
-              isEntering && styles.signInBtnDisabled,
-            ]}
-            onPress={handleEnterAsGuest}
-            disabled={isEntering}
-          >
-            <AppText style={styles.guestBtnText}>
-              เรียกดูก่อนเข้าสู่ระบบ
+            {/* Description */}
+            <AppText style={styles.description}>
+              ทดลองอาชีพในฝัน เพียง 30 นาทีต่อวัน{"\n"}
+              เพื่อค้นพบตัวตนที่แท้จริงของคุณ
             </AppText>
-          </Pressable>
 
-          {/* Features */}
-          <View style={styles.features}>
-            <FeatureItem icon="🎯" text={`ภารกิจรายวัน\n30 นาที`} />
-            <FeatureItem icon="📝" text={`สะท้อนความรู้สึก\nทุกวัน`} />
-            <FeatureItem icon="🗺️" text={`แนวทางการ\nเรียนต่อ`} />
-          </View>
+            {/* Sign In Buttons */}
+            <View style={styles.buttonsContainer}>
+              <GlassButton
+                onPress={() => handleSignIn("google")}
+                variant="primary"
+                size="large"
+                fullWidth
+                loading={signingInProvider === "google" || authLoading}
+                disabled={signingInProvider !== null || authLoading}
+                icon={<FontAwesome name="google" size={20} color="#111" />}
+              >
+                เข้าสู่ระบบด้วย Google
+              </GlassButton>
+
+              {Platform.OS === "ios" && (
+                <GlassButton
+                  onPress={() => handleSignIn("apple")}
+                  variant="secondary"
+                  size="large"
+                  fullWidth
+                  loading={signingInProvider === "apple"}
+                  disabled={signingInProvider !== null || authLoading}
+                  icon={<FontAwesome name="apple" size={22} color="#111" />}
+                >
+                  Sign in with Apple
+                </GlassButton>
+              )}
+
+              <GlassButton
+                onPress={handleEnterAsGuest}
+                variant="ghost"
+                size="medium"
+                fullWidth
+                disabled={isEntering}
+              >
+                เรียกดูก่อนเข้าสู่ระบบ
+              </GlassButton>
+            </View>
+
+            {/* Features */}
+            <View style={styles.features}>
+              <FeatureItem icon="🎯" text="ภารกิจรายวัน" subtext="30 นาที" />
+              <FeatureItem icon="📝" text="สะท้อนความรู้สึก" subtext="ทุกวัน" />
+              <FeatureItem icon="🗺️" text="แนวทางการ" subtext="เรียนต่อ" />
+            </View>
+          </GlassCard>
+
+          {/* Footer */}
+          <AppText style={styles.footer}>
+            ออกแบบสำหรับนักเรียนและผู้ที่กำลังค้นหาเส้นทางอาชีพ
+          </AppText>
         </RNAnimated.View>
       </View>
     </View>
   );
 }
 
-function FeatureItem({ icon, text }: { icon: string; text: string }) {
+function FeatureItem({ icon, text, subtext }: { icon: string; text: string; subtext: string }) {
   return (
     <View style={styles.featureItem}>
       <View style={styles.featureIconContainer}>
         <AppText style={styles.featureIcon}>{icon}</AppText>
       </View>
       <AppText style={styles.featureText}>{text}</AppText>
+      <AppText style={styles.featureSubtext}>{subtext}</AppText>
     </View>
   );
 }
@@ -265,185 +256,152 @@ function FeatureItem({ icon, text }: { icon: string; text: string }) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#0a0514",
+    backgroundColor: PageBg.default,
+  },
+  backgroundContainer: {
+    position: "absolute",
+    top: -100,
+    left: -50,
+    right: -50,
+    bottom: -100,
+  },
+  orb: {
+    position: "absolute",
+    borderRadius: 999,
+    opacity: 0.15,
+  },
+  orb1: {
+    width: 300,
+    height: 300,
+    backgroundColor: "#8B5CF6",
+    top: "10%",
+    left: "-20%",
+  },
+  orb2: {
+    width: 250,
+    height: 250,
+    backgroundColor: "#3B82F6",
+    top: "50%",
+    right: "-15%",
+  },
+  orb3: {
+    width: 200,
+    height: 200,
+    backgroundColor: "#10B981",
+    bottom: "15%",
+    left: "30%",
   },
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
+    padding: 20,
+    paddingTop: 60,
   },
-  glassCard: {
+  contentWrapper: {
     width: "100%",
-    maxWidth: 440,
-    backgroundColor: "rgba(20, 10, 40, 0.5)",
-    borderRadius: 40,
-    padding: 32,
-    borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.7,
-    shadowRadius: 30,
+    maxWidth: 420,
     alignItems: "center",
-    backdropFilter: "blur(24px)",
-  } as any,
+  },
   logoContainer: {
+    marginBottom: 32,
     alignItems: "center",
-    marginBottom: 24,
-    width: "100%",
+  },
+  logoGlow: {
+    ...Shadow.floating,
+    shadowColor: Accent.yellow,
+    shadowOpacity: 0.3,
+    borderRadius: 999,
   },
   logoImage: {
-    shadowColor: Accent.yellow,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 15,
-  } as any,
+    width: 100,
+    height: 100,
+    borderRadius: 999,
+  },
+  mainCard: {
+    width: "100%",
+  },
   taglineContainer: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 16,
   },
   tagline: {
-    fontSize: 32,
-    color: "#fff",
-    marginBottom: 10,
+    fontSize: 28,
+    color: ThemeText.primary,
+    marginBottom: 12,
     textAlign: "center",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   highlightWrapper: {
     backgroundColor: Accent.yellow,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     paddingHorizontal: 20,
     paddingVertical: 8,
-    transform: [{ rotate: "-1.5deg" }],
-    shadowColor: Accent.yellow,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
+    transform: [{ rotate: "-1deg" }],
+    ...Shadow.ctaGlow,
   },
   taglineHighlight: {
-    fontSize: 24,
-    color: "#0a0514",
+    fontSize: 20,
+    color: "#111827",
     textAlign: "center",
+    fontWeight: "700",
   },
   description: {
-    fontSize: 17,
-    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 15,
+    color: ThemeText.secondary,
     textAlign: "center",
-    lineHeight: 28,
-    marginBottom: 44,
+    lineHeight: 24,
+    marginBottom: 32,
   },
-  signInBtn: {
-    backgroundColor: "#fff",
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 100,
+  buttonsContainer: {
     width: "100%",
-    alignItems: "center",
-    marginBottom: 44,
-    shadowColor: Accent.yellow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  appleButton: {
-    width: "100%",
-    height: 56,
-    marginBottom: 44,
-  },
-  appleBtnFallback: {
-    backgroundColor: "#111",
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 100,
-    width: "100%",
-    alignItems: "center",
-    marginBottom: 44,
-  },
-  appleBtnFallbackPressed: {
-    backgroundColor: "#1f1f1f",
-    transform: [{ scale: 0.98 }],
-  },
-  appleBtnText: {
-    fontSize: 18,
-    color: "#fff",
-  },
-  signInBtnPressed: {
-    backgroundColor: "#f5f5f5",
-    transform: [{ scale: 0.96 }],
-  },
-  signInBtnDisabled: {
-    opacity: 0.5,
-  },
-  btnContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 14,
-  },
-  googleIcon: {
-    marginTop: 1,
-  },
-  signInText: {
-    fontSize: 18,
-    color: "#0a0514",
-  },
-  guestBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 100,
-    width: "100%",
-    alignItems: "center",
-    marginTop: 12,
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  guestBtnPressed: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  guestBtnText: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
-  },
-  wipeOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "#0a0514",
-    zIndex: 100,
+    gap: 12,
+    marginBottom: 32,
   },
   features: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
-    gap: 4,
+    gap: 8,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 0, 0, 0.05)",
   },
   featureItem: {
     alignItems: "center",
     flex: 1,
   },
   featureIconContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 24,
-    width: 56,
-    height: 56,
+    backgroundColor: "rgba(191, 255, 0, 0.1)",
+    borderRadius: Radius.lg,
+    width: 52,
+    height: 52,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "rgba(191, 255, 0, 0.2)",
   },
   featureIcon: {
-    fontSize: 26,
+    fontSize: 24,
   },
   featureText: {
-    fontSize: 11,
-    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    color: ThemeText.primary,
     textAlign: "center",
-    lineHeight: 15,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  featureSubtext: {
+    fontSize: 10,
+    color: ThemeText.tertiary,
+    textAlign: "center",
+  },
+  footer: {
+    fontSize: 11,
+    color: ThemeText.muted,
+    textAlign: "center",
+    marginTop: 24,
+    lineHeight: 16,
   },
 });
