@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "postinstall": "npx @shopify/react-native-skia postinstall",
-    "generate:pathlab": "npx tsx scripts/generate-pathlab/index.ts"
+    "generate:pathlab": "npx tsx scripts/generate-pathlab/index.ts",
+    "generate:pathlab:batch": "npx ts-node scripts/generate-pathlab/batch.ts"
   },
   "dependencies": {
     "@expo-google-fonts/bai-jamjuree": "^0.4.1",
