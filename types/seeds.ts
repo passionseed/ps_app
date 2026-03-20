@@ -35,6 +35,7 @@ export interface SeedWithEnrollment extends Seed {
     id: string;
     current_day: number;
     status: string;
+    isDoneToday?: boolean;
   } | null;
 }
 

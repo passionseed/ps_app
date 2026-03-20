@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,9 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Dimensions,
-  FlatList,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { router, useLocalSearchParams, useFocusEffect, useNavigation } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import {
   getPathDay,
@@ -40,28 +38,13 @@ type EnrollmentWithPath = PathEnrollment & {
   };
 };
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 export default function DailyPathScreen() {
   const { enrollmentId } = useLocalSearchParams<{ enrollmentId: string }>();
   const [enrollment, setEnrollment] = useState<EnrollmentWithPath | null>(null);
   const [pathDay, setPathDay] = useState<PathDay | null>(null);
   const [activities, setActivities] = useState<PathActivityWithContent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
-
-  const flatListRef = useRef<FlatList>(null);
-  const hasNavigatedRef = useRef<Set<string>>(new Set());
-
-  const onViewableItemsChangedRef = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setCurrentPageIndex(viewableItems[0].index || 0);
-    }
-  });
-  const viewabilityConfigRef = useRef({
-    itemVisiblePercentThreshold: 50,
-  });
 
   const loadData = useCallback(async () => {
     if (!enrollmentId) {
@@ -150,24 +133,23 @@ export default function DailyPathScreen() {
       console.log("✅ Activities received:", activitiesData.length, "activities");
 
       if (activitiesData.length === 0) {
-        console.warn("⚠️ No activities found for this day. Path day has activity_count:", dayData.activity_count);
+        console.warn("⚠️ No activities found for this day");
       }
 
       setActivities(activitiesData);
 
-      // Scroll to first incomplete activity
-      setTimeout(() => {
-        const firstIncompleteIndex = activitiesData.findIndex(
-          (a) => a.progress?.status !== "completed"
-        );
-        if (firstIncompleteIndex >= 0 && flatListRef.current) {
-          flatListRef.current.scrollToIndex({
-            index: firstIncompleteIndex,
-            animated: false,
-          });
-          setCurrentPageIndex(firstIncompleteIndex);
-        }
-      }, 100);
+      // Automatically navigate to first incomplete activity
+      const firstIncomplete = activitiesData.find(
+        (a) => a.progress?.status !== "completed"
+      );
+
+      if (firstIncomplete) {
+        console.log("🎯 Auto-navigating to first incomplete activity:", firstIncomplete.id);
+        router.replace(`/activity/${firstIncomplete.id}?enrollmentId=${enrollmentId}`);
+        return;
+      }
+
+      // If all activities are complete, stay on this screen to show reflection button
     } catch (error) {
       console.error("❌ Failed to load path data:", error);
       setError(error instanceof Error ? error.message : "Failed to load path data");
@@ -178,8 +160,6 @@ export default function DailyPathScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Clear navigation tracking when screen comes into focus
-      hasNavigatedRef.current.clear();
       loadData();
     }, [loadData])
   );
@@ -269,46 +249,49 @@ export default function DailyPathScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      {/* Page Indicator Dots */}
-      <View style={styles.dotsContainer}>
-        {activities.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.dot,
-              index === currentPageIndex && styles.dotActive,
-            ]}
-          />
-        ))}
-      </View>
-
-      {/* Horizontal Paging Activities */}
-      <FlatList
-        ref={flatListRef}
-        data={activities}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.id}
-        onViewableItemsChanged={onViewableItemsChangedRef.current}
-        viewabilityConfig={viewabilityConfigRef.current}
-        renderItem={({ item: activity, index }) => (
-          <View style={{ width: SCREEN_WIDTH }}>
-            <ActivityPage
-              activity={activity}
-              index={index}
-              enrollmentId={enrollmentId!}
-              pathDay={pathDay}
-              isLast={index === activities.length - 1}
-              allCompleted={allActivitiesCompleted}
-              onFinishDay={handleFinishDay}
-              hasNavigatedRef={hasNavigatedRef}
-              currentPageIndex={currentPageIndex}
-              totalPages={activities.length}
-            />
+      {/* Vertical ScrollView with all activities */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Context Text (show at top) */}
+        {pathDay?.context_text && (
+          <View style={styles.contextCard}>
+            <Text style={styles.contextText}>{pathDay.context_text}</Text>
           </View>
         )}
-      />
+
+        {/* Section Title */}
+        <Text style={styles.sectionTitle}>Today's Activities</Text>
+
+        {/* All Activities as Cards */}
+        {activities.map((activity, index) => (
+          <ActivityCard
+            key={activity.id}
+            activity={activity}
+            index={index + 1}
+            completed={activity.progress?.status === "completed"}
+            onComplete={() => handleActivityComplete(activity.id)}
+            enrollmentId={enrollmentId!}
+          />
+        ))}
+
+        {/* Finish Day Button */}
+        {allActivitiesCompleted && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.ctaButton,
+              pressed && styles.ctaButtonPressed,
+            ]}
+            onPress={handleFinishDay}
+          >
+            <Text style={styles.ctaText}>Complete Day & Reflect</Text>
+          </Pressable>
+        )}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </View>
   );
 }
@@ -431,138 +414,6 @@ function ActivityCard({
   );
 }
 
-function ActivityPage({
-  activity,
-  index,
-  enrollmentId,
-  pathDay,
-  isLast,
-  allCompleted,
-  onFinishDay,
-  hasNavigatedRef,
-  currentPageIndex,
-  totalPages,
-}: {
-  activity: PathActivityWithContent;
-  index: number;
-  enrollmentId: string;
-  pathDay: PathDay | null;
-  isLast: boolean;
-  allCompleted: boolean;
-  onFinishDay: () => void;
-  hasNavigatedRef: React.MutableRefObject<Set<string>>;
-  currentPageIndex: number;
-  totalPages: number;
-}) {
-  const completed = activity.progress?.status === "completed";
-
-  const activityType = activity.path_content?.[0]?.content_type ||
-                      activity.path_assessment?.assessment_type ||
-                      'unknown';
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "npc_chat": return "💬";
-      case "ai_chat": return "🤖";
-      case "video":
-      case "short_video": return "🎬";
-      case "text": return "📖";
-      case "daily_prompt": return "💡";
-      case "quiz": return "❓";
-      case "daily_reflection": return "💭";
-      case "text_answer": return "✍️";
-      case "checklist": return "✓";
-      default: return "📋";
-    }
-  };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case "npc_chat": return "Conversation";
-      case "ai_chat": return "AI Chat";
-      case "video":
-      case "short_video": return "Video";
-      case "text": return "Reading";
-      case "daily_prompt": return "Prompt";
-      case "quiz": return "Quiz";
-      case "daily_reflection": return "Reflection";
-      case "text_answer": return "Writing";
-      case "checklist": return "Checklist";
-      default: return "Activity";
-    }
-  };
-
-  return (
-    <ScrollView
-      style={styles.activityPageScroll}
-      contentContainerStyle={styles.activityPageContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Context (show on first page only) */}
-      {index === 0 && pathDay?.context_text && (
-        <View style={styles.contextCard}>
-          <Text style={styles.contextText}>{pathDay.context_text}</Text>
-        </View>
-      )}
-
-      {/* Activity Card */}
-      <View style={styles.activityPageCard}>
-        <View style={styles.activityPageHeader}>
-          <View style={styles.activityTypeRow}>
-            <Text style={styles.activityPageIcon}>{getTypeIcon(activityType)}</Text>
-            <Text style={styles.activityPageType}>{getTypeLabel(activityType)}</Text>
-          </View>
-          {activity.estimated_minutes && (
-            <Text style={styles.activityPageDuration}>{activity.estimated_minutes} min</Text>
-          )}
-        </View>
-
-        <Text style={styles.activityPageTitle}>{activity.title}</Text>
-
-        {activity.instructions && (
-          <Text style={styles.activityPageInstructions}>{activity.instructions}</Text>
-        )}
-
-        {completed ? (
-          <View style={styles.completedBadge}>
-            <Text style={styles.completedBadgeIcon}>✓</Text>
-            <Text style={styles.completedBadgeText}>Completed</Text>
-          </View>
-        ) : (
-          <Pressable
-            style={({ pressed }) => [
-              styles.startButton,
-              pressed && styles.startButtonPressed,
-            ]}
-            onPress={() => {
-              router.push(
-                `/activity/${activity.id}?enrollmentId=${enrollmentId}&pageIndex=${index}&totalPages=${totalPages}`
-              );
-            }}
-          >
-            <Text style={styles.startButtonText}>Start Activity</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {/* Finish Day Button (show on last page when all completed) */}
-      {isLast && allCompleted && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.finishDayButton,
-            pressed && styles.finishDayButtonPressed,
-          ]}
-          onPress={onFinishDay}
-        >
-          <Text style={styles.finishDayButtonText}>Complete Day & Reflect</Text>
-        </Pressable>
-      )}
-
-      <View style={{ height: 40 }} />
-    </ScrollView>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -645,24 +496,6 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     color: ThemeText.tertiary,
     marginTop: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: ThemeText.primary,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: "#eee",
-    marginHorizontal: 20,
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: Accent.yellow,
-    borderRadius: 2,
   },
   contextCard: {
     margin: 20,
@@ -775,160 +608,18 @@ const styles = StyleSheet.create({
     color: ThemeText.secondary,
     lineHeight: 18,
   },
-  emptyTasks: {
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    color: ThemeText.muted,
-  },
-  ctaContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: PageBg.default,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
   ctaButton: {
     backgroundColor: Accent.yellow,
     paddingVertical: 16,
     borderRadius: Radius.md,
     alignItems: "center",
+    marginTop: 24,
     ...Shadow.card,
   },
   ctaButtonPressed: {
     backgroundColor: Accent.yellowDark,
   },
   ctaText: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: ThemeText.primary,
-  },
-  // Page Indicator Dots
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 16,
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#d1d5db",
-  },
-  dotActive: {
-    backgroundColor: "#BFFF00",
-    width: 24,
-  },
-  // Activity Page Styles
-  activityPageScroll: {
-    flex: 1,
-  },
-  activityPageContent: {
-    padding: 20,
-  },
-  activityPageCard: {
-    backgroundColor: "#fff",
-    borderRadius: Radius.lg,
-    padding: 24,
-    ...Shadow.card,
-  },
-  activityPageHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  activityTypeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  activityPageIcon: {
-    fontSize: 24,
-  },
-  activityPageType: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: ThemeText.tertiary,
-    textTransform: "uppercase",
-  },
-  activityPageDuration: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    color: ThemeText.muted,
-  },
-  activityPageTitle: {
-    fontSize: 24,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "700",
-    color: ThemeText.primary,
-    marginBottom: 16,
-    lineHeight: 32,
-  },
-  activityPageInstructions: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    color: ThemeText.secondary,
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  startButton: {
-    backgroundColor: Accent.yellow,
-    paddingVertical: 16,
-    borderRadius: Radius.md,
-    alignItems: "center",
-    ...Shadow.card,
-  },
-  startButtonPressed: {
-    backgroundColor: Accent.yellowDark,
-  },
-  startButtonText: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: ThemeText.primary,
-  },
-  completedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#d1fae5",
-    paddingVertical: 14,
-    borderRadius: Radius.md,
-  },
-  completedBadgeIcon: {
-    fontSize: 20,
-    color: "#10b981",
-  },
-  completedBadgeText: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#065f46",
-  },
-  finishDayButton: {
-    backgroundColor: "#BFFF00",
-    paddingVertical: 18,
-    borderRadius: Radius.md,
-    alignItems: "center",
-    marginTop: 24,
-    ...Shadow.card,
-  },
-  finishDayButtonPressed: {
-    backgroundColor: "#9FE800",
-  },
-  finishDayButtonText: {
     fontSize: 18,
     fontFamily: "Orbit_400Regular",
     fontWeight: "700",

@@ -9,7 +9,10 @@ import {
   Alert,
   TextInput,
   Linking,
+  useWindowDimensions,
+  Animated,
 } from "react-native";
+import { WebView } from "react-native-webview";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { SvgXml } from "react-native-svg";
@@ -97,6 +100,7 @@ export default function ActivityDetailScreen() {
   const [aiInput, setAiInput] = useState("");
   const [aiSending, setAiSending] = useState(false);
   const [aiObjectiveMet, setAiObjectiveMet] = useState(false);
+  const [aiMaxMessages, setAiMaxMessages] = useState(0);
 
   // NPC Dialogue state
   const [npcCurrentNode, setNpcCurrentNode] = useState<NPCNode | null>(null);
@@ -106,6 +110,13 @@ export default function ActivityDetailScreen() {
   const [npcProgressId, setNpcProgressId] = useState<string | null>(null);
   const [npcError, setNpcError] = useState<string | null>(null);
   const [npcSeedAvatar, setNpcSeedAvatar] = useState<{ id: string; name: string; svg_data: string } | null>(null);
+
+  // Typing animation state
+  const [displayedText, setDisplayedText] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+
+  // NPC bounce animation
+  const bounceAnim = useRef(new Animated.Value(0)).current;
 
   // Timer state
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -267,6 +278,11 @@ export default function ActivityDetailScreen() {
     }
 
     const metadata = aiContent.metadata as AIChatMetadata;
+
+    // Set max messages for progress tracking
+    if (metadata.max_messages) {
+      setAiMaxMessages(metadata.max_messages);
+    }
 
     // Load NPC avatar for AI chat
     try {
@@ -430,13 +446,8 @@ export default function ActivityDetailScreen() {
           if (npcProgress.current_node) {
             console.log("[NPC] Resuming from current node:", npcProgress.current_node.id);
             setNpcCurrentNode(npcProgress.current_node);
-            await loadNPCChoices(npcProgress.current_node.id);
-
-            // Start timer if resuming on a question node
-            const timeoutSeconds = npcProgress.current_node.metadata?.timeout_seconds || 30;
-            if (npcProgress.current_node.node_type === "question") {
-              startChoiceTimer(timeoutSeconds);
-            }
+            // Choices will be loaded after typing animation completes
+            // Timer will start after typing completes
             return;
           }
         }
@@ -504,13 +515,8 @@ export default function ActivityDetailScreen() {
         console.log("[NPC] About to load choices for node ID:", rootNode.id);
 
         setNpcCurrentNode(rootNode);
-        await loadNPCChoices(rootNode.id);
-
-        // Start timer if metadata specifies timeout
-        const timeoutSeconds = rootNode.metadata?.timeout_seconds || 30; // Default 30 seconds
-        if (rootNode.node_type === "question") {
-          startChoiceTimer(timeoutSeconds);
-        }
+        // Choices will be loaded after typing animation completes
+        // Timer will start after typing completes
 
         // Create progress record if we have activity progress
         if (activity.progress?.id) {
@@ -571,8 +577,76 @@ export default function ActivityDetailScreen() {
     if (choices && choices.length > 0) {
       console.log("[NPC] First choice:", JSON.stringify(choices[0], null, 2));
     }
-    setNpcChoices(choices || []);
+
+    // Don't show choices immediately - wait for typing animation to complete
+    return choices || [];
   };
+
+  // Typing animation effect - triggered when npcCurrentNode changes
+  useEffect(() => {
+    if (!npcCurrentNode?.text_content) return;
+
+    const fullText = npcCurrentNode.text_content;
+    setDisplayedText("");
+    setIsTyping(true);
+    setNpcChoices([]); // Hide choices during typing
+
+    // Start bounce animation
+    const bounceAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, {
+          toValue: -8,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    bounceAnimation.start();
+
+    let currentIndex = 0;
+    const typingSpeed = 50; // milliseconds per character (reduced from 30 for slower typing)
+
+    const typingInterval = setInterval(() => {
+      if (currentIndex < fullText.length) {
+        setDisplayedText(fullText.substring(0, currentIndex + 1));
+        currentIndex++;
+      } else {
+        // Typing complete
+        clearInterval(typingInterval);
+        bounceAnimation.stop();
+
+        // Reset bounce position
+        Animated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+
+        setIsTyping(false);
+
+        // Now load and show the choices
+        loadNPCChoices(npcCurrentNode.id).then((choices) => {
+          setNpcChoices(choices);
+
+          // Start timer AFTER typing is complete and choices are shown
+          const timeoutSeconds = npcCurrentNode.metadata?.timeout_seconds || 30;
+          if (npcCurrentNode.node_type === "question" && choices.length > 0) {
+            startChoiceTimer(timeoutSeconds);
+          }
+        });
+      }
+    }, typingSpeed);
+
+    return () => {
+      clearInterval(typingInterval);
+      bounceAnimation.stop();
+    };
+  }, [npcCurrentNode]);
 
   // Start timer for choices with smooth animation
   const startChoiceTimer = useCallback((seconds: number) => {
@@ -737,6 +811,22 @@ export default function ActivityDetailScreen() {
 
       setAiMessages((prev) => [...prev, assistantMessage]);
 
+      // Check if we've reached the max messages goal (100%)
+      const newMessageCount = aiMessages.length + 2; // +1 for user, +1 for assistant
+      if (aiMaxMessages > 0 && newMessageCount >= aiMaxMessages) {
+        console.log("[AI] Reached max messages - marking as complete");
+        setAiObjectiveMet(true);
+
+        // Mark activity as completed
+        setTimeout(async () => {
+          await updateActivityProgress({
+            enrollmentId,
+            activityId,
+            status: "completed",
+          });
+        }, 1000);
+      }
+
       // Check if objective is met
       if (metadata.objective) {
         // Check if the conversation has met the objective
@@ -896,15 +986,8 @@ export default function ActivityDetailScreen() {
 
           setNpcCompleted(true);
           setNpcChoices([]);
-        } else {
-          await loadNPCChoices(nextNode.id);
-
-          // Start timer for next question
-          const timeoutSeconds = nextNode.metadata?.timeout_seconds || 30;
-          if (nextNode.node_type === "question") {
-            startChoiceTimer(timeoutSeconds);
-          }
         }
+        // For non-end nodes, typing animation effect will handle loading choices
       }
     } catch (error) {
       console.error("Error handling NPC choice:", error);
@@ -942,7 +1025,8 @@ export default function ActivityDetailScreen() {
         status: "completed",
       });
 
-      router.back();
+      // Navigate to the next activity or back to path screen
+      router.replace(`/path/${enrollmentId}`);
     } catch (error) {
       console.error("Error completing activity:", error);
       Alert.alert("Error", "Failed to complete activity. Please try again.");
@@ -976,7 +1060,7 @@ export default function ActivityDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style={isNpcChat ? "light" : "dark"} />
+      <StatusBar style="dark" />
 
       {/* Header - Hidden for NPC chat full screen */}
       {!isNpcChat && (
@@ -1074,7 +1158,12 @@ export default function ActivityDetailScreen() {
             ) : npcCurrentNode ? (
               <>
                 {/* Full-body NPC Character */}
-                <View style={styles.npcFullBodyContainer}>
+                <Animated.View
+                  style={[
+                    styles.npcFullBodyContainer,
+                    { transform: [{ translateY: bounceAnim }] }
+                  ]}
+                >
                   {npcSeedAvatar?.svg_data ? (
                     <View style={styles.npcFullBodyAvatar}>
                       <SvgXml
@@ -1099,14 +1188,15 @@ export default function ActivityDetailScreen() {
                       </Text>
                     </View>
                   )}
-                </View>
+                </Animated.View>
 
                 {/* Speech Bubble with tail */}
                 <View style={styles.speechBubbleContainer}>
                   <View style={styles.speechBubbleTail} />
                   <View style={styles.speechBubble}>
                     <Text style={styles.speechBubbleText}>
-                      {npcCurrentNode.text_content}
+                      {displayedText}
+                      {isTyping && <Text style={styles.typingCursor}>|</Text>}
                     </Text>
                   </View>
                 </View>
@@ -1236,6 +1326,23 @@ export default function ActivityDetailScreen() {
                   <Text style={styles.messengerHeaderStatus}>Online</Text>
                 </View>
               </View>
+
+              {/* AI Chat Progress Bar */}
+              {aiMaxMessages > 0 && (
+                <View style={styles.aiProgressContainer}>
+                  <View style={styles.aiProgressBar}>
+                    <View
+                      style={[
+                        styles.aiProgressFill,
+                        { width: `${Math.min((aiMessages.length / aiMaxMessages) * 100, 100)}%` }
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.aiProgressText}>
+                    {Math.min(Math.round((aiMessages.length / aiMaxMessages) * 100), 100)}%
+                  </Text>
+                </View>
+              )}
 
               {/* Messages - ScrollView */}
               <ScrollView
@@ -1389,8 +1496,8 @@ function extractYouTubeId(url: string): string | null {
 
   // Handle different YouTube URL formats
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\s]+)/,
-    /youtube\.com\/embed\/([^&\s]+)/,
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\s?]+)/,
+    /youtube\.com\/embed\/([^&\s?]+)/,
   ];
 
   for (const pattern of patterns) {
@@ -1404,6 +1511,10 @@ function extractYouTubeId(url: string): string | null {
 }
 
 function ContentItem({ content }: { content: PathContent }) {
+  const { width: windowWidth } = useWindowDimensions();
+  // containerWidth = windowWidth - scrollPadding(40) - cardPadding(32)
+  const containerWidth = windowWidth - 72;
+
   const renderContent = () => {
     switch (content.content_type) {
       case "text":
@@ -1421,27 +1532,34 @@ function ContentItem({ content }: { content: PathContent }) {
       case "video":
       case "short_video":
         const videoId = extractYouTubeId(content.content_url || "");
-        const isShort = content.content_type === "short_video" || content.content_url?.includes("/shorts/");
+        const isYouTube = !!videoId;
+
+        // Treat as short if URL contains /shorts/ or type is short_video
+        const isShort = content.content_url?.includes("/shorts/") || content.content_type === "short_video";
+
+        // Calculate player dimensions for YouTube
+        let playerWidth = containerWidth;
+        let playerHeight = containerWidth * (9 / 16);
+
+        if (isShort) {
+          playerWidth = containerWidth * 0.6;
+          playerHeight = playerWidth * (16 / 9);
+        }
 
         return (
           <View style={styles.contentCard}>
             {content.content_title && (
               <Text style={styles.contentTitle}>{content.content_title}</Text>
             )}
-            {videoId ? (
+            {isYouTube ? (
               <View style={isShort ? styles.videoContainerShort : styles.videoContainer}>
                 <YoutubePlayer
-                  height={isShort ? 650 : 220}
+                  height={playerHeight}
                   videoId={videoId}
                   play={false}
-                  webViewStyle={isShort ? { opacity: 0.99 } : undefined}
+                  webViewStyle={{ opacity: 0.99 }}
                   webViewProps={{
                     androidLayerType: "hardware",
-                    injectedJavaScript: isShort ? `
-                      const style = document.createElement('style');
-                      style.textContent = 'iframe { object-fit: contain !important; }';
-                      document.head.appendChild(style);
-                    ` : undefined,
                   }}
                 />
                 <Pressable
@@ -1452,11 +1570,35 @@ function ContentItem({ content }: { content: PathContent }) {
                 </Pressable>
               </View>
             ) : content.content_url ? (
-              <Pressable
-                onPress={() => Linking.openURL(content.content_url || "")}
-              >
-                <Text style={styles.contentUrl}>{content.content_url}</Text>
-              </Pressable>
+              <View style={isShort ? styles.videoContainerShort : styles.videoContainer}>
+                <WebView
+                  source={{
+                    html: `
+                      <!DOCTYPE html>
+                      <html>
+                        <head>
+                          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+                          <style>
+                            body { margin: 0; padding: 0; background: #000; display: flex; align-items: center; justify-content: center; height: 100vh; }
+                            video { width: 100%; height: 100%; object-fit: ${isShort ? 'contain' : 'cover'}; }
+                          </style>
+                        </head>
+                        <body>
+                          <video controls playsinline preload="metadata">
+                            <source src="${content.content_url}" type="video/mp4">
+                            Your browser does not support the video tag.
+                          </video>
+                        </body>
+                      </html>
+                    `
+                  }}
+                  style={styles.uploadedVideo}
+                  allowsInlineMediaPlayback
+                  mediaPlaybackRequiresUserAction={false}
+                  javaScriptEnabled
+                  domStorageEnabled
+                />
+              </View>
             ) : null}
             {content.content_body && (
               <Text style={styles.contentBody}>{content.content_body}</Text>
@@ -1683,6 +1825,41 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     color: "#10b981",
   },
+
+  // AI Chat Progress
+  aiProgressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: Border.light,
+  },
+  aiProgressBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: "rgba(191, 255, 0, 0.2)",
+    borderRadius: 4,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(191, 255, 0, 0.4)",
+  },
+  aiProgressFill: {
+    height: "100%",
+    backgroundColor: Accent.yellow,
+    borderRadius: 4,
+  },
+  aiProgressText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "700",
+    color: ThemeText.primary,
+    minWidth: 40,
+    textAlign: "right",
+  },
+
   messengerMessages: {
     padding: 16,
     gap: 12,
@@ -1821,7 +1998,7 @@ const styles = StyleSheet.create({
   // NPC Dialogue styles - Cinematic Full Screen
   npcFullscreenWrapper: {
     flex: 1,
-    backgroundColor: "#0a0a0f",
+    backgroundColor: "#FDFFF5",
   },
   backButtonOverlay: {
     position: "absolute",
@@ -1831,20 +2008,20 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(0, 0, 0, 0.2)",
   },
   backButtonOverlayText: {
     fontSize: 24,
-    color: "#fff",
+    color: "#111",
     fontWeight: "600",
   },
   npcFullscreenContainer: {
     flex: 1,
-    backgroundColor: "#0a0a0f",
+    backgroundColor: "#FDFFF5",
     position: "relative",
   },
   npcLoadingCard: {
@@ -1857,7 +2034,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#fff",
+    color: "#111",
     letterSpacing: 1,
   },
   npcErrorCard: {
@@ -1916,12 +2093,12 @@ const styles = StyleSheet.create({
   npcAvatarPlaceholderLarge: {
     width: 280,
     height: 420,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(0, 0, 0, 0.02)",
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "rgba(191, 255, 0, 0.2)",
+    borderColor: "rgba(191, 255, 0, 0.3)",
   },
   npcAvatarEmojiLarge: {
     fontSize: 120,
@@ -1929,14 +2106,15 @@ const styles = StyleSheet.create({
   npcNameTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "#fff",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
     marginTop: 12,
     gap: 8,
-    borderWidth: 1,
-    borderColor: "rgba(191, 255, 0, 0.4)",
+    borderWidth: 2,
+    borderColor: "rgba(191, 255, 0, 0.8)",
+    ...Shadow.card,
   },
   npcOnlineIndicator: {
     width: 8,
@@ -1948,7 +2126,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#fff",
+    color: "#111",
     letterSpacing: 0.5,
   },
 
@@ -1972,24 +2150,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 12,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderBottomColor: "#1a1a24",
+    borderBottomColor: "#fff",
   },
   speechBubble: {
-    backgroundColor: "#1a1a24",
+    backgroundColor: "#fff",
     borderRadius: 24,
     padding: 24,
     borderWidth: 2,
-    borderColor: "rgba(191, 255, 0, 0.5)",
+    borderColor: "rgba(191, 255, 0, 0.8)",
     ...Shadow.card,
   },
   speechBubbleText: {
     fontSize: 17,
     fontFamily: "Orbit_400Regular",
     fontWeight: "500",
-    color: "#fff",
+    color: "#111",
     lineHeight: 26,
     textAlign: "center",
     letterSpacing: 0.3,
+  },
+  typingCursor: {
+    color: "#BFFF00",
+    fontWeight: "700",
   },
 
   // Timer Bar - Below speech bubble, inverted (grey eats green)
@@ -2075,21 +2257,22 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   choiceOptionButton: {
-    backgroundColor: "rgba(26, 26, 36, 0.95)",
+    backgroundColor: "#fff",
     borderRadius: 16,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: "rgba(191, 255, 0, 0.4)",
+    borderColor: "rgba(191, 255, 0, 0.8)",
     overflow: "hidden",
+    ...Shadow.card,
   },
   choiceOptionButtonPressed: {
-    backgroundColor: "rgba(191, 255, 0, 0.2)",
+    backgroundColor: "rgba(191, 255, 0, 0.3)",
     borderColor: Accent.yellow,
     transform: [{ scale: 0.98 }],
   },
   choiceOptionButtonUrgent: {
     borderColor: "#ff3333",
-    backgroundColor: "rgba(255, 50, 50, 0.1)",
+    backgroundColor: "rgba(255, 50, 50, 0.05)",
   },
   choiceOptionContent: {
     flexDirection: "row",
@@ -2102,7 +2285,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(191, 255, 0, 0.2)",
+    backgroundColor: Accent.yellow,
     borderWidth: 2,
     borderColor: Accent.yellow,
     justifyContent: "center",
@@ -2110,7 +2293,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Orbit_400Regular",
     fontWeight: "700",
-    color: Accent.yellow,
+    color: "#111",
     textAlign: "center",
     lineHeight: 32,
   },
@@ -2119,7 +2302,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Orbit_400Regular",
     fontWeight: "500",
-    color: "#fff",
+    color: "#111",
     lineHeight: 24,
   },
 
@@ -2142,7 +2325,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "Orbit_400Regular",
     fontWeight: "500",
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "#111",
     textAlign: "center",
     lineHeight: 28,
   },
@@ -2175,7 +2358,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
-    color: "#fff",
+    color: "#111",
   },
 
   objectiveMetCard: {
@@ -2206,6 +2389,7 @@ const styles = StyleSheet.create({
   },
   videoContainer: {
     width: "100%",
+    aspectRatio: 16 / 9,
     borderRadius: Radius.md,
     overflow: "hidden",
     backgroundColor: "#000",
@@ -2213,8 +2397,9 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   videoContainerShort: {
-    width: "100%",
-    height: 650,
+    width: "60%",
+    aspectRatio: 9 / 16,
+    alignSelf: "center",
     borderRadius: Radius.md,
     overflow: "hidden",
     backgroundColor: "#000",
@@ -2250,6 +2435,10 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#fff",
+  },
+  uploadedVideo: {
+    width: "100%",
+    height: "100%",
   },
   contentType: {
     fontSize: 11,
@@ -2411,7 +2600,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
   },
   npcDotActive: {
     backgroundColor: "#BFFF00",

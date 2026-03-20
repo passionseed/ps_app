@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth";
 import { getProfile } from "../../lib/onboarding";
 import { getAvailableSeeds } from "../../lib/pathlab";
+import { supabase } from "../../lib/supabase";
 import type { SeedWithEnrollment } from "../../types/seeds";
 import { AppText as Text } from "../../components/AppText";
 import {
@@ -187,7 +188,45 @@ export default function DiscoverScreen() {
       console.log("[Discover] Loading seeds...");
       const data = await getAvailableSeeds();
       console.log("[Discover] Seeds loaded:", data?.length || 0);
-      setSeeds(data || []);
+
+      // For enrolled seeds, check if today's activities are all completed
+      if (user?.id && data) {
+        const enrichedSeeds = await Promise.all(
+          data.map(async (seed) => {
+            if (!seed.enrollment) return seed;
+
+            try {
+              // Check if there's a reflection for current_day - 1 (today's completed day)
+              const { data: reflections } = await supabase
+                .from("path_reflections")
+                .select("created_at")
+                .eq("enrollment_id", seed.enrollment.id)
+                .eq("day_number", seed.enrollment.current_day - 1)
+                .maybeSingle();
+
+              // Check if the reflection was created today
+              const today = new Date().toDateString();
+              const isDoneToday = reflections?.created_at
+                ? new Date(reflections.created_at).toDateString() === today
+                : false;
+
+              return {
+                ...seed,
+                enrollment: {
+                  ...seed.enrollment,
+                  isDoneToday,
+                },
+              };
+            } catch (err) {
+              console.error("[Discover] Error checking day completion:", err);
+              return seed;
+            }
+          })
+        );
+        setSeeds(enrichedSeeds);
+      } else {
+        setSeeds(data || []);
+      }
     } catch (error) {
       console.error("[Discover] Failed to load seeds:", error);
       setSeeds([]);
@@ -195,7 +234,7 @@ export default function DiscoverScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.id]);
 
   // Force loading to false after timeout as failsafe
   useEffect(() => {
@@ -308,13 +347,14 @@ export default function DiscoverScreen() {
   // Use database seeds if available, otherwise fallback to sample data
   const displaySeeds = seeds.length > 0 ? seeds : SAMPLE_SEEDS as SeedWithEnrollment[];
 
-  // Create a specialized set for "Continue your path"
-  const enrolledPaths = displaySeeds.slice(0, 3);
+  // Create a specialized set for "Continue your path" - only enrolled paths
+  const enrolledPaths = displaySeeds.filter(s => s.enrollment && s.enrollment.status === 'active');
 
-  // Split remaining seeds into sections The remaining sections
-  const youMustLike = displaySeeds.slice(3, 8);
-  const maybeULike = displaySeeds.slice(8, 13);
-  const notForYou = displaySeeds.slice(13, 16);
+  // Split remaining seeds into sections
+  const unenrolledSeeds = displaySeeds.filter(s => !s.enrollment || s.enrollment.status !== 'active');
+  const youMustLike = unenrolledSeeds.slice(0, 5);
+  const maybeULike = unenrolledSeeds.slice(5, 10);
+  const notForYou = unenrolledSeeds.slice(10, 13);
 
   if (loading) {
     return (
@@ -592,8 +632,12 @@ function ProgressSection({
             key={seed.id || `progress-${index}`}
             seed={seed}
             index={index}
-            progress={index === 0 ? 1.0 : index === 1 ? 0.4 : 0.2}
-            doneToday={index === 0}
+            progress={
+              seed.enrollment
+                ? (seed.enrollment.current_day - 1) / (seed.path?.total_days || 5)
+                : 0
+            }
+            doneToday={seed.enrollment?.isDoneToday || false}
             onPress={() => {
               router.push(`/seed/${seed.id}`);
             }}
@@ -617,6 +661,8 @@ function ProgressSeedCard({
   doneToday?: boolean;
   onPress: () => void;
 }) {
+  const totalDays = seed.path?.total_days || 5;
+  const daysCompleted = seed.enrollment ? seed.enrollment.current_day - 1 : 0;
   return (
     <View
       style={[styles.compactCardWrapper, index === 0 && { marginLeft: 24 }]}
@@ -664,7 +710,7 @@ function ProgressSeedCard({
           ) : (
             <View style={styles.progressRow}>
               <Text style={styles.progressLabel}>
-                {Math.round(progress * 5)}/5
+                {daysCompleted}/{totalDays}
               </Text>
               <View style={styles.progressBarContainer}>
                 <View
