@@ -24,6 +24,9 @@ import { agent2_designEvidence } from './agents/agent2-evidence';
 import { agent3_research } from './agents/agent3-research';
 import { agent4_designLearning } from './agents/agent4-learning';
 import { agent5_review } from './agents/agent5-review';
+import { validatorAgent } from './agents/validator';
+import { repairPathLab } from './repair';
+import { ValidationIssue } from './types';
 
 interface OrchestratorOptions {
   dryRun?: boolean;
@@ -162,7 +165,76 @@ export async function orchestrator(
     } else {
       console.log(`   ✓ Approved: ${state.review.feedback}`);
     }
-    
+
+    // ─── Validation Loop ──────────────────────────────────────────────────
+    if (options.enableValidation) {
+      let attemptNumber = 1;
+      const maxAttempts = options.maxRetries || 3;
+      const issuesHistory: ValidationIssue[][] = [];
+
+      while (attemptNumber <= maxAttempts) {
+        // Run validator
+        const { validation } = await validatorAgent({
+          expertProfile: state.expertProfile!,
+          learning: state.learning
+        });
+
+        if (validation.passed) {
+          console.log(`\n✅ Validation passed on attempt ${attemptNumber}`);
+          break;
+        }
+
+        issuesHistory.push(validation.issues);
+
+        if (attemptNumber >= maxAttempts) {
+          console.log(`\n❌ Validation failed after ${maxAttempts} attempts`);
+          state.error = `Validation failed: ${validation.summary}`;
+          state.status = 'failed';
+
+          // Update expert_pathlabs with error
+          if (!options.dryRun && state.seedId) {
+            await supabase
+              .from('expert_pathlabs')
+              .update({
+                generation_status: 'failed',
+                generation_error: state.error
+              })
+              .eq('seed_id', state.seedId);
+          }
+
+          return {
+            success: false,
+            error: state.error,
+            seedId: state.seedId || undefined,
+            pathId: state.pathId || undefined,
+            daysCreated: 0,
+            activitiesCreated: 0,
+            contentCreated: 0,
+            duration: Math.round((Date.now() - state.startedAt.getTime()) / 1000)
+          };
+        }
+
+        // Repair
+        console.log(`\n🔧 Attempting repair (attempt ${attemptNumber}/${maxAttempts})...`);
+        const repairResult = await repairPathLab({
+          expertProfile: state.expertProfile!,
+          issues: validation.issues,
+          currentObjectives: state.objectives,
+          currentEvidence: state.evidence,
+          currentResearch: state.research,
+          currentLearning: state.learning,
+          attemptNumber
+        });
+
+        state.objectives = repairResult.objectives;
+        state.evidence = repairResult.evidence;
+        state.research = repairResult.research;
+        state.learning = repairResult.learning;
+
+        attemptNumber++;
+      }
+    }
+
     // ─── Write to Database ───────────────────────────────────────────────
     if (dryRun) {
       console.log('\n⚠️  DRY RUN - Skipping database writes');
