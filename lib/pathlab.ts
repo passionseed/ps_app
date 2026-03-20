@@ -110,6 +110,34 @@ export async function getSeedById(seedId: string): Promise<Seed | null> {
   } as Seed;
 }
 
+export interface ExpertInfo {
+  name: string;
+  title: string;
+  company: string;
+}
+
+export async function getExpertForSeed(seedId: string): Promise<ExpertInfo | null> {
+  // Get expert_pathlab entry for this seed
+  const { data: pathlabData, error: pathlabError } = await supabase
+    .from("expert_pathlabs")
+    .select("expert_profile_id")
+    .eq("seed_id", seedId)
+    .maybeSingle();
+
+  if (pathlabError || !pathlabData) return null;
+
+  // Get expert profile
+  const { data: expertData, error: expertError } = await supabase
+    .from("expert_profiles")
+    .select("name, title, company")
+    .eq("id", pathlabData.expert_profile_id)
+    .maybeSingle();
+
+  if (expertError || !expertData) return null;
+
+  return expertData;
+}
+
 export async function getSeedNpcAvatar(seedId: string): Promise<SeedNpcAvatar | null> {
   const { data, error } = await supabase
     .from("seed_npc_avatars")
@@ -214,7 +242,7 @@ export async function getPathDay(pathId: string, dayNumber: number): Promise<Pat
   return data;
 }
 
-export async function getPathDays(pathId: string): Promise<PathDay[]> {
+export async function getPathDays(pathId: string): Promise<Pick<PathDay, "day_number" | "title">[]> {
   const { data, error } = await supabase
     .from("path_days")
     .select("day_number, title")
@@ -222,7 +250,7 @@ export async function getPathDays(pathId: string): Promise<PathDay[]> {
     .order("day_number", { ascending: true });
 
   if (error) throw new Error(error.message);
-  return data || [];
+  return (data || []) as Pick<PathDay, "day_number" | "title">[];
 }
 
 // NEW: Get activities for a specific day
