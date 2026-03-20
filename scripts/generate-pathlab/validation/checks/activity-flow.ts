@@ -8,8 +8,6 @@ export async function checkActivityFlow(input: ValidationInput): Promise<Validat
   const issues: ValidationIssue[] = [];
   const { learning } = input;
 
-  const expectedOrder = ['learning', 'reflection', 'milestone', 'checkpoint'];
-
   for (const day of learning) {
     const activities = day.activities || [];
 
