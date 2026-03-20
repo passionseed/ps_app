@@ -3,15 +3,26 @@
 -- Uses AI tools (Cursor, v0.dev), NPC Product Manager, and ikigai framework.
 
 -- ============================================================================
+-- 0. LEARNING MAP (Required for seeds)
+-- ============================================================================
+
+-- Create default learning map if it doesn't exist
+INSERT INTO public.learning_maps (id, title, description, created_at)
+VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  'Expert PathLabs',
+  'Learning paths generated from expert interviews',
+  NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================================
 -- 1. SEED RECORD
 -- ============================================================================
 
--- Note: map_id is required. Using a default learning map ID.
--- If this doesn't exist, create it first or use an existing map_id.
 INSERT INTO public.seeds (id, map_id, title, description, seed_type, created_at)
 VALUES (
   'web-developer-pathlab-001',
-  '00000000-0000-0000-0000-000000000001', -- Default learning map (create if needed)
+  '00000000-0000-0000-0000-000000000001',
   'Web Developer: Ship Your First Project',
   'A 5-day immersive experience to discover if web development is your career fit. Build with AI tools, ship a real project, and decide your future.',
   'pathlab',
