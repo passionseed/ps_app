@@ -24,8 +24,8 @@ type EnrollmentData = {
     total_days: number;
     seed: {
       title: string;
-    }[];
-  }[];
+    };
+  };
 };
 
 export default function ReflectionScreen() {
@@ -45,7 +45,7 @@ export default function ReflectionScreen() {
     async function load() {
       if (!enrollmentId) return;
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("path_enrollments")
         .select(
           `
@@ -61,6 +61,9 @@ export default function ReflectionScreen() {
         .eq("id", enrollmentId)
         .single();
 
+      console.log('[Reflection] Enrollment data:', JSON.stringify(data, null, 2));
+      console.log('[Reflection] Error:', error);
+
       setEnrollment(data as EnrollmentData);
       setLoading(false);
     }
@@ -70,9 +73,19 @@ export default function ReflectionScreen() {
   const handleSubmit = async (decision: PathReflectionDecision) => {
     if (!enrollment) return;
 
+    console.log('[Reflection] Starting submission with:', {
+      enrollmentId: enrollment.id,
+      dayNumber: enrollment.current_day,
+      energyLevel,
+      confusionLevel,
+      interestLevel,
+      openResponse,
+      decision,
+    });
+
     setSubmitting(true);
     try {
-      await submitDailyReflection({
+      const result = await submitDailyReflection({
         enrollmentId: enrollment.id,
         dayNumber: enrollment.current_day,
         energyLevel,
@@ -81,6 +94,9 @@ export default function ReflectionScreen() {
         openResponse: openResponse || undefined,
         decision,
       });
+
+      console.log('[Reflection] Submission result:', result);
+      console.log('[Reflection] Submission successful!');
 
       // Mock triggering Score Engine after reflection
       try {
@@ -96,6 +112,8 @@ export default function ReflectionScreen() {
         console.error("Score Engine error", err);
       }
 
+      console.log('[Reflection] Navigating based on decision:', decision);
+
       // Navigate based on decision
       if (decision === "continue_now") {
         router.replace(`/path/${enrollment.id}`);
@@ -105,7 +123,7 @@ export default function ReflectionScreen() {
         router.replace("/(tabs)/my-paths");
       }
     } catch (error) {
-      console.error("Failed to submit reflection:", error);
+      console.error("[Reflection] Failed to submit reflection:", error);
     } finally {
       setSubmitting(false);
     }
@@ -119,7 +137,13 @@ export default function ReflectionScreen() {
     );
   }
 
-  if (!enrollment || !enrollment.path || enrollment.path.length === 0) {
+  if (!enrollment || !enrollment.path || !enrollment.path.seed) {
+    console.log('[Reflection] Validation failed:', {
+      hasEnrollment: !!enrollment,
+      hasPath: !!enrollment?.path,
+      hasSeed: !!enrollment?.path?.seed,
+      fullData: JSON.stringify(enrollment, null, 2)
+    });
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Something went wrong</Text>
@@ -130,7 +154,8 @@ export default function ReflectionScreen() {
     );
   }
 
-  const isLastDay = enrollment.current_day >= (enrollment.path[0]?.total_days ?? Infinity);
+  const isLastDay = enrollment.current_day >= (enrollment.path.total_days ?? Infinity);
+  const seedTitle = enrollment.path.seed.title || "Unknown Path";
 
   return (
     <View style={styles.container}>
@@ -156,7 +181,7 @@ export default function ReflectionScreen() {
             Day {enrollment.current_day} Complete! 🎉
           </Text>
           <Text style={styles.seedName}>
-            {enrollment.path[0].seed[0].title}
+            {seedTitle}
           </Text>
         </View>
 

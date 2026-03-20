@@ -149,6 +149,7 @@ export interface AIChatMetadata {
 
 export interface NPCChatMetadata {
   conversation_id?: string;
+  summary?: string;
   allow_restart?: boolean;
   show_history?: boolean;
 }

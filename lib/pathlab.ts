@@ -505,46 +505,68 @@ export async function submitDailyReflection(params: {
   decision: PathReflectionDecision;
   timeSpentMinutes?: number;
 }): Promise<PathReflection> {
+  console.log('[submitDailyReflection] Inserting reflection:', params);
+
+  const reflectionData = {
+    enrollment_id: params.enrollmentId,
+    day_number: params.dayNumber,
+    energy_level: params.energyLevel,
+    confusion_level: params.confusionLevel,
+    interest_level: params.interestLevel,
+    open_response: params.openResponse || null,
+    decision: params.decision,
+    time_spent_minutes: params.timeSpentMinutes || null,
+  };
+
+  console.log('[submitDailyReflection] Reflection data to insert:', reflectionData);
+
   const { data, error } = await supabase
     .from("path_reflections")
-    .insert({
-      enrollment_id: params.enrollmentId,
-      day_number: params.dayNumber,
-      energy_level: params.energyLevel,
-      confusion_level: params.confusionLevel,
-      interest_level: params.interestLevel,
-      open_response: params.openResponse || null,
-      decision: params.decision,
-      time_spent_minutes: params.timeSpentMinutes || null,
-    })
+    .insert(reflectionData)
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  console.log('[submitDailyReflection] Insert result:', { data, error });
 
-  // Update enrollment based on decision
-  if (params.decision === "continue_tomorrow" || params.decision === "continue_now") {
-    await supabase
-      .from("path_enrollments")
-      .update({ current_day: params.dayNumber + 1 })
-      .eq("id", params.enrollmentId);
-  } else if (params.decision === "pause") {
-    await supabase
-      .from("path_enrollments")
-      .update({ status: "paused" })
-      .eq("id", params.enrollmentId);
-  } else if (params.decision === "quit") {
-    await supabase
-      .from("path_enrollments")
-      .update({ status: "quit" })
-      .eq("id", params.enrollmentId);
-  } else if (params.decision === "final_reflection") {
-    await supabase
-      .from("path_enrollments")
-      .update({ status: "explored", completed_at: new Date().toISOString() })
-      .eq("id", params.enrollmentId);
+  if (error) {
+    console.error('[submitDailyReflection] Insert error:', error);
+    throw new Error(error.message);
   }
 
+  // Update enrollment based on decision
+  console.log('[submitDailyReflection] Updating enrollment based on decision:', params.decision);
+
+  if (params.decision === "continue_tomorrow" || params.decision === "continue_now") {
+    const { data: updateData, error: updateError } = await supabase
+      .from("path_enrollments")
+      .update({ current_day: params.dayNumber + 1 })
+      .eq("id", params.enrollmentId)
+      .select();
+    console.log('[submitDailyReflection] Enrollment update (continue):', { updateData, updateError });
+  } else if (params.decision === "pause") {
+    const { data: updateData, error: updateError } = await supabase
+      .from("path_enrollments")
+      .update({ status: "paused" })
+      .eq("id", params.enrollmentId)
+      .select();
+    console.log('[submitDailyReflection] Enrollment update (pause):', { updateData, updateError });
+  } else if (params.decision === "quit") {
+    const { data: updateData, error: updateError } = await supabase
+      .from("path_enrollments")
+      .update({ status: "quit" })
+      .eq("id", params.enrollmentId)
+      .select();
+    console.log('[submitDailyReflection] Enrollment update (quit):', { updateData, updateError });
+  } else if (params.decision === "final_reflection") {
+    const { data: updateData, error: updateError } = await supabase
+      .from("path_enrollments")
+      .update({ status: "explored", completed_at: new Date().toISOString() })
+      .eq("id", params.enrollmentId)
+      .select();
+    console.log('[submitDailyReflection] Enrollment update (final):', { updateData, updateError });
+  }
+
+  console.log('[submitDailyReflection] Complete! Returning data:', data);
   return data;
 }
 

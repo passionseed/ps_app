@@ -23,6 +23,12 @@ import { SvgXml } from "react-native-svg";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { supabase } from "../../lib/supabase";
 import { updateActivityProgress } from "../../lib/pathlab";
+import {
+  initializeSounds,
+  playNPCSpeakSound,
+  playActivityCompleteSound,
+  cleanupSounds,
+} from "../../lib/sounds";
 import type {
   PathActivity,
   PathContent,
@@ -91,15 +97,27 @@ export default function ActivityDetailScreen() {
     totalPages?: string;
   }>();
 
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
   const [activity, setActivity] = useState<ActivityWithContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
+
+  // Debug screen dimensions on mount and when they change
+  useEffect(() => {
+    console.log('[SCREEN DEBUG] Screen dimensions:', { width: screenWidth, height: screenHeight });
+  }, [screenWidth, screenHeight]);
 
   // Auto-detected pagination
   const [autoCurrentPage, setAutoCurrentPage] = useState(0);
   const [autoTotalPages, setAutoTotalPages] = useState(0);
   const [dayActivitiesCount, setDayActivitiesCount] = useState(0);
   const [dayActivitiesList, setDayActivitiesList] = useState<{ id: string; display_order: number }[]>([]);
+
+  // Track scroll position for swipe detection
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [isAtTop, setIsAtTop] = useState(true);
+  const [isAtBottom, setIsAtBottom] = useState(false);
 
   // Use auto-detected pagination if URL params not provided
   const currentPage = pageIndex !== undefined ? parseInt(pageIndex) : autoCurrentPage;
@@ -121,6 +139,7 @@ export default function ActivityDetailScreen() {
   const [npcProgressId, setNpcProgressId] = useState<string | null>(null);
   const [npcError, setNpcError] = useState<string | null>(null);
   const [npcSeedAvatar, setNpcSeedAvatar] = useState<{ id: string; name: string; svg_data: string } | null>(null);
+  const [npcSummary, setNpcSummary] = useState<string | null>(null);
 
   // Typing animation state
   const [displayedText, setDisplayedText] = useState("");
@@ -140,6 +159,11 @@ export default function ActivityDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       loadActivity();
+      initializeSounds();
+
+      return () => {
+        cleanupSounds();
+      };
     }, [activityId])
   );
 
@@ -260,6 +284,14 @@ export default function ActivityDetailScreen() {
         has_progress: !!fullActivity.progress,
         full_activity: JSON.stringify(fullActivity, null, 2),
       });
+
+      // Debug image content/assessment specifically
+      if (activityType === 'image' || fullActivity.path_assessment?.assessment_type === 'image_upload') {
+        console.log('[IMAGE ACTIVITY] Image activity detected!');
+        console.log('[IMAGE ACTIVITY] Screen width:', screenWidth);
+        console.log('[IMAGE ACTIVITY] Activity type:', activityType);
+        console.log('[IMAGE ACTIVITY] Assessment type:', fullActivity.path_assessment?.assessment_type);
+      }
 
       setActivity(fullActivity);
 
@@ -437,8 +469,8 @@ export default function ActivityDetailScreen() {
       console.log("[NPC] Initializing NPC dialogue...");
       console.log("[NPC] Activity content:", activity.path_content);
 
-      const npcContent = activity.path_content[0];
-      if (!npcContent || npcContent.content_type !== "npc_chat") {
+      const npcContent = activity.path_content.find(c => c.content_type === "npc_chat");
+      if (!npcContent) {
         const errorMsg = "No NPC content found in activity";
         console.error("[NPC]", errorMsg);
         console.error("[NPC] Content types available:", activity.path_content.map(c => c.content_type));
@@ -458,6 +490,12 @@ export default function ActivityDetailScreen() {
       }
 
       setNpcConversationId(metadata.conversation_id);
+
+      // Load summary from metadata
+      if (metadata.summary) {
+        console.log("[NPC] Summary loaded from metadata:", metadata.summary);
+        setNpcSummary(metadata.summary);
+      }
 
       // Check if there's existing progress
       if (activity.progress?.id) {
@@ -517,10 +555,32 @@ export default function ActivityDetailScreen() {
         .eq("id", metadata.conversation_id)
         .single();
 
-      console.log("[NPC] Conversation data:", conversation, "Error:", convError);
+      console.log("[NPC] Conversation data:", JSON.stringify(conversation, null, 2));
+      console.log("[NPC] Conversation error:", convError);
+
+      if (convError) {
+        const errorMsg = `Failed to load conversation: ${convError.message}`;
+        console.error("[NPC]", errorMsg, "- Details:", convError);
+        setNpcError(errorMsg);
+        return;
+      }
+
+      if (!conversation) {
+        const errorMsg = `No conversation found with ID: ${metadata.conversation_id}`;
+        console.error("[NPC]", errorMsg);
+        setNpcError(errorMsg);
+        return;
+      }
+
+      if (!conversation.root_node_id) {
+        const errorMsg = `Conversation ${metadata.conversation_id} has no root_node_id. Data: ${JSON.stringify(conversation)}`;
+        console.error("[NPC]", errorMsg);
+        setNpcError(errorMsg);
+        return;
+      }
 
       // Fetch the NPC avatar for this seed
-      if (conversation?.seed_id) {
+      if (conversation.seed_id) {
         const { data: avatarData } = await supabase
           .from("seed_npc_avatars")
           .select("id, name, svg_data")
@@ -533,20 +593,6 @@ export default function ActivityDetailScreen() {
         } else {
           console.log("[NPC] No NPC avatar found for this seed");
         }
-      }
-
-      if (convError) {
-        const errorMsg = `Failed to load conversation: ${convError.message}`;
-        console.error("[NPC]", errorMsg);
-        setNpcError(errorMsg);
-        return;
-      }
-
-      if (!conversation?.root_node_id) {
-        const errorMsg = "Conversation has no root node";
-        console.error("[NPC]", errorMsg);
-        setNpcError(errorMsg);
-        return;
       }
 
       console.log("[NPC] Fetching root node:", conversation.root_node_id);
@@ -646,6 +692,9 @@ export default function ActivityDetailScreen() {
     setDisplayedText("");
     setIsTyping(true);
     setNpcChoices([]); // Hide choices during typing
+
+    // Play NPC speak sound when starting to type
+    playNPCSpeakSound();
 
     // Start bounce animation
     const bounceAnimation = Animated.loop(
@@ -1084,8 +1133,9 @@ export default function ActivityDetailScreen() {
       return npcCompleted;
     }
 
-    // Short videos and text: no button, swipe to complete
-    if (activityType === "short_video" || activityType === "video" || activityType === "text") {
+    // Short videos, videos, text, and image without assessment: no button, swipe to complete
+    const hasAssessment = !!activity.path_assessment;
+    if ((activityType === "short_video" || activityType === "video" || activityType === "text" || activityType === "image") && !hasAssessment) {
       return false;
     }
 
@@ -1098,6 +1148,9 @@ export default function ActivityDetailScreen() {
 
     setCompleting(true);
     try {
+      // Play completion sound
+      playActivityCompleteSound();
+
       await updateActivityProgress({
         enrollmentId,
         activityId,
@@ -1118,9 +1171,10 @@ export default function ActivityDetailScreen() {
     if (!enrollmentId || !activityId) return;
 
     const activityType = getActivityType(activity!);
+    const hasAssessment = !!activity!.path_assessment;
 
     // For content types that allow swipe, auto-complete the activity
-    if (activityType === "short_video" || activityType === "video" || activityType === "text" || npcCompleted) {
+    if ((activityType === "short_video" || activityType === "video" || activityType === "text" || activityType === "image") && !hasAssessment) {
       try {
         await updateActivityProgress({
           enrollmentId,
@@ -1142,27 +1196,92 @@ export default function ActivityDetailScreen() {
     }
   };
 
-  // Pan responder for swipe down gesture
+  const handleSwipeToPrevious = () => {
+    if (!enrollmentId) return;
+
+    const prevIndex = currentPage - 1;
+    if (prevIndex >= 0 && dayActivitiesList.length > 0) {
+      const prevActivity = dayActivitiesList[prevIndex];
+      router.replace(`/activity/${prevActivity.id}?enrollmentId=${enrollmentId}&pageIndex=${prevIndex}&totalPages=${dayActivitiesList.length}`);
+    }
+  };
+
+  // Pan responder for swipe gestures (up = previous, down = next)
   const canSwipe = () => {
     if (!activity) return false;
     const activityType = getActivityType(activity);
-    return npcCompleted || activityType === "short_video" || activityType === "video" || activityType === "text";
+    const hasAssessment = !!activity.path_assessment;
+
+    // Allow swipe for: completed NPC chat, or content without assessment
+    return npcCompleted ||
+           ((activityType === "short_video" || activityType === "video" || activityType === "text" || activityType === "image") && !hasAssessment);
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => canSwipe(),
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return canSwipe() && Math.abs(gestureState.dy) > 10;
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (canSwipe() && gestureState.dy > 100) {
-          // Swiped down
+  const canSwipeUp = () => {
+    // Can always swipe up to previous if there is a previous activity
+    return currentPage > 0 && dayActivitiesList.length > 0;
+  };
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onStartShouldSetPanResponderCapture: () => false,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      const isVerticalSwipe = Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 2;
+      const isSignificant = Math.abs(gestureState.dy) > 30;
+      return isVerticalSwipe && isSignificant && (canSwipe() || canSwipeUp());
+    },
+    onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+      const isVerticalSwipe = Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 2;
+      const isSignificant = Math.abs(gestureState.dy) > 30;
+
+      const activityType = getActivityType(activity!);
+      const isNpcChat = activityType === "npc_chat";
+
+      // For NPC chat, allow swipe anytime (no scroll involved)
+      if (isNpcChat) {
+        if (gestureState.dy > 30 && canSwipeUp()) {
+          return true;
+        }
+        if (gestureState.dy < -30 && npcCompleted) {
+          return true;
+        }
+        return false;
+      }
+
+      // For regular content, only swipe at scroll edges
+      // Swipe DOWN (positive dy) = go to previous (only if at top of scroll)
+      if (gestureState.dy > 30 && canSwipeUp() && isAtTop) {
+        return true;
+      }
+
+      // Swipe UP (negative dy) = go to next (only if at bottom of scroll)
+      if (gestureState.dy < -30 && canSwipe() && isAtBottom) {
+        return true;
+      }
+
+      return false;
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      const activityType = getActivityType(activity!);
+      const isNpcChat = activityType === "npc_chat";
+
+      if (isNpcChat) {
+        // NPC: swipe anytime
+        if (gestureState.dy > 100 && canSwipeUp()) {
+          handleSwipeToPrevious();
+        } else if (gestureState.dy < -100 && npcCompleted) {
           handleSwipeToNext();
         }
-      },
-    })
-  ).current;
+      } else {
+        // Regular content: only at scroll edges
+        if (gestureState.dy > 100 && canSwipeUp() && isAtTop) {
+          handleSwipeToPrevious();
+        } else if (gestureState.dy < -100 && canSwipe() && isAtBottom) {
+          handleSwipeToNext();
+        }
+      }
+    },
+  });
 
   if (loading) {
     return (
@@ -1204,15 +1323,15 @@ export default function ActivityDetailScreen() {
             <View style={{ width: 60 }} />
           </View>
 
-          {/* Page Indicator Dots (only show if pagination info provided) */}
+          {/* Page Indicator Dots - Vertical on right side */}
           {showPagination && (
-            <View style={styles.dotsContainer}>
+            <View style={styles.dotsContainerVertical}>
               {Array.from({ length: total }).map((_, index) => (
                 <View
                   key={index}
                   style={[
-                    styles.dot,
-                    index === currentPage && styles.dotActive,
+                    styles.dotVertical,
+                    index === currentPage && styles.dotVerticalActive,
                   ]}
                 />
               ))}
@@ -1234,15 +1353,15 @@ export default function ActivityDetailScreen() {
 
           {/* NPC Dialogue - Full Screen Cinematic */}
           <View style={styles.npcFullscreenContainer}>
-            {/* Progress dots */}
+            {/* Progress dots - Vertical on right side */}
             {showPagination && (
-              <View style={styles.npcProgressDots}>
+              <View style={styles.npcProgressDotsVertical}>
                 {Array.from({ length: total }).map((_, i) => (
                   <View
                     key={i}
                     style={[
-                      styles.npcDot,
-                      i === currentPage ? styles.npcDotActive : styles.npcDotInactive,
+                      styles.npcDotVertical,
+                      i === currentPage && styles.npcDotVerticalActive,
                     ]}
                   />
                 ))}
@@ -1283,6 +1402,27 @@ export default function ActivityDetailScreen() {
                 >
                   <Text style={styles.restartButtonText}>Restart Conversation</Text>
                 </Pressable>
+              </View>
+            ) : npcCompleted ? (
+              // Show summary overlay when conversation is completed
+              <View style={styles.npcSummaryOverlay} {...panResponder.panHandlers}>
+                <View style={styles.npcSummaryBox}>
+                  <Text style={styles.npcSummaryTitle}>Conversation Summary</Text>
+                  <Text style={styles.npcSummaryText}>
+                    {npcSummary || activity.instructions || "You have completed this conversation."}
+                  </Text>
+                </View>
+                {currentPage < dayActivitiesList.length - 1 ? (
+                  <>
+                    <Text style={styles.swipeHint}>↓</Text>
+                    <Text style={styles.swipeText}>Swipe down for next activity</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.swipeHint}>↓</Text>
+                    <Text style={styles.swipeText}>Swipe down to finish day</Text>
+                  </>
+                )}
               </View>
             ) : npcCurrentNode ? (
               <>
@@ -1375,54 +1515,31 @@ export default function ActivityDetailScreen() {
                     ))}
                   </View>
                 )}
-
-                {npcCompleted && (
-                  <View style={styles.completionOverlay} {...panResponder.panHandlers}>
-                    <Text style={styles.completionIcon}>✓</Text>
-                    <Text style={styles.completionText}>
-                      Conversation Complete
-                    </Text>
-                    {currentPage < dayActivitiesList.length - 1 ? (
-                      <>
-                        <Text style={styles.swipeHint}>↓</Text>
-                        <Text style={styles.swipeText}>Swipe down for next activity</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Text style={styles.swipeHint}>↓</Text>
-                        <Text style={styles.swipeText}>Swipe down to finish day</Text>
-                      </>
-                    )}
-                  </View>
-                )}
               </>
-            ) : npcCompleted ? (
-              <View style={styles.completionOverlay} {...panResponder.panHandlers}>
-                <Text style={styles.completionIcon}>✓</Text>
-                <Text style={styles.completionText}>
-                  Conversation Complete
-                </Text>
-                {currentPage < dayActivitiesList.length - 1 ? (
-                  <>
-                    <Text style={styles.swipeHint}>↓</Text>
-                    <Text style={styles.swipeText}>Swipe down for next activity</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.swipeHint}>↓</Text>
-                    <Text style={styles.swipeText}>Swipe down to finish day</Text>
-                  </>
-                )}
-              </View>
             ) : null}
           </View>
         </View>
       ) : (
         <ScrollView
+          ref={scrollViewRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           {...panResponder.panHandlers}
+          onScroll={(event) => {
+            const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+            const scrollY = contentOffset.y;
+            const scrollViewHeight = layoutMeasurement.height;
+            const contentHeight = contentSize.height;
+
+            // Check if at top (with 5px threshold)
+            setIsAtTop(scrollY <= 5);
+
+            // Check if at bottom (with 5px threshold)
+            const isBottom = scrollY + scrollViewHeight >= contentHeight - 5;
+            setIsAtBottom(isBottom);
+          }}
+          scrollEventThrottle={16}
         >
           {/* Instructions */}
           {activity.instructions && (
@@ -1570,6 +1687,18 @@ export default function ActivityDetailScreen() {
           <AssessmentItem assessment={activity.path_assessment} />
         )}
 
+          {/* Swipe hint for swipeable content */}
+          {canSwipe() && (
+            <View style={styles.swipeHintContainer}>
+              <Text style={styles.swipeHintArrow}>↓</Text>
+              <Text style={styles.swipeHintText}>
+                {currentPage < dayActivitiesList.length - 1
+                  ? "Swipe down for next activity"
+                  : "Swipe down to finish day"}
+              </Text>
+            </View>
+          )}
+
           <View style={{ height: 120 }} />
         </ScrollView>
       )}
@@ -1649,6 +1778,25 @@ function ContentItem({ content }: { content: PathContent }) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   // containerWidth = windowWidth - scrollPadding(40) - cardPadding(32)
   const containerWidth = windowWidth - 72;
+  const [imageHeight, setImageHeight] = useState<number>(500);
+
+  // Calculate image height for full-width display
+  useEffect(() => {
+    if (content.content_type === 'image' && content.content_url) {
+      Image.getSize(
+        content.content_url,
+        (width, height) => {
+          const aspectRatio = height / width;
+          const calculatedHeight = windowWidth * aspectRatio;
+          console.log('[Image] Dimensions:', { width, height, aspectRatio, calculatedHeight, windowWidth });
+          setImageHeight(calculatedHeight);
+        },
+        (error) => {
+          console.error('[Image] Failed to get size:', error);
+        }
+      );
+    }
+  }, [content.content_url, content.content_type, windowWidth]);
 
   const renderContent = () => {
     switch (content.content_type) {
@@ -1743,27 +1891,38 @@ function ContentItem({ content }: { content: PathContent }) {
         );
 
       case "image":
-        console.log('[Image] Rendering image:', { url: content.content_url, title: content.content_title });
+        console.log('[Image] Rendering image:', { url: content.content_url, title: content.content_title, screenWidth: windowWidth });
         return (
-          <View style={styles.contentCard}>
-            {content.content_title && (
-              <Text style={styles.contentTitle}>{content.content_title}</Text>
+          <>
+            {/* Title and description in card */}
+            {(content.content_title || content.content_body) && (
+              <View style={styles.contentCard}>
+                {content.content_title && (
+                  <Text style={styles.contentTitle}>{content.content_title}</Text>
+                )}
+                {content.content_body && (
+                  <Text style={styles.contentBody}>{content.content_body}</Text>
+                )}
+              </View>
             )}
+
+            {/* Full-width image outside card */}
             {content.content_url ? (
-              <Image
-                source={{ uri: content.content_url }}
-                style={styles.contentImage}
-                resizeMode="contain"
-                onError={(error) => console.error('[Image] Failed to load:', error.nativeEvent.error)}
-                onLoad={() => console.log('[Image] Loaded successfully')}
-              />
+              <View style={[styles.fullWidthContentImageContainer, { width: windowWidth, height: imageHeight }]}>
+                <Image
+                  source={{ uri: content.content_url }}
+                  style={[styles.fullWidthContentImage, { width: windowWidth, height: imageHeight }]}
+                  resizeMode="contain"
+                  onError={(error) => console.error('[Image] Failed to load:', error.nativeEvent.error)}
+                  onLoad={() => console.log('[Image] Loaded successfully')}
+                />
+              </View>
             ) : (
-              <Text style={styles.contentBody}>No image URL provided</Text>
+              <View style={styles.contentCard}>
+                <Text style={styles.contentBody}>No image URL provided</Text>
+              </View>
             )}
-            {content.content_body && (
-              <Text style={styles.contentBody}>{content.content_body}</Text>
-            )}
-          </View>
+          </>
         );
 
       case "resource_link":
@@ -1805,6 +1964,30 @@ function AssessmentItem({
   const [textAnswer, setTextAnswer] = useState("");
   const [selectedFile, setSelectedFile] = useState<{ name: string; uri: string } | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageHeight, setImageHeight] = useState<number>(300);
+  const { width: screenWidth } = useWindowDimensions();
+
+  // Calculate image dimensions when image is selected
+  useEffect(() => {
+    if (selectedImage) {
+      console.log('[IMAGE DEBUG] Screen width:', screenWidth);
+      Image.getSize(
+        selectedImage,
+        (width, height) => {
+          // Calculate height to maintain aspect ratio with full screen width
+          const aspectRatio = height / width;
+          const calculatedHeight = screenWidth * aspectRatio;
+          console.log('[IMAGE DEBUG] Original image dimensions:', { width, height });
+          console.log('[IMAGE DEBUG] Aspect ratio:', aspectRatio);
+          console.log('[IMAGE DEBUG] Calculated height:', calculatedHeight);
+          setImageHeight(calculatedHeight);
+        },
+        (error) => {
+          console.error('[IMAGE DEBUG] Error getting image size:', error);
+        }
+      );
+    }
+  }, [selectedImage, screenWidth]);
 
   const handlePickFile = async () => {
     try {
@@ -1824,25 +2007,29 @@ function AssessmentItem({
   };
 
   const handleTakePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to take photos');
-      return;
-    }
-
     try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('[Camera] Permission status:', status);
+
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Camera permission is required to take photos');
+        return;
+      }
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
       });
 
+      console.log('[Camera] Result:', result);
+
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setSelectedImage(result.assets[0].uri);
       }
-    } catch (error) {
-      console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo');
+    } catch (error: any) {
+      console.error('[Camera] Error taking photo:', error);
+      Alert.alert('Error', error?.message || 'Failed to take photo');
     }
   };
 
@@ -1870,88 +2057,110 @@ function AssessmentItem({
   };
 
   return (
-    <View style={styles.assessmentCard}>
-      <Text style={styles.assessmentType}>
-        {assessment.assessment_type.replace(/_/g, " ").toUpperCase()}
-      </Text>
+    <>
+      <View style={styles.assessmentCard}>
+        <Text style={styles.assessmentType}>
+          {assessment.assessment_type.replace(/_/g, " ").toUpperCase()}
+        </Text>
 
-      {assessment.quiz_questions && assessment.quiz_questions.length > 0 && (
-        <View style={styles.quizContainer}>
-          {assessment.quiz_questions.map((question, index) => (
-            <View key={question.id} style={styles.questionCard}>
-              <Text style={styles.questionText}>
-                {index + 1}. {question.question_text}
-              </Text>
-              {question.options &&
-                Array.isArray(question.options) &&
-                question.options.map((opt: any, optIndex: number) => (
-                  <View key={optIndex} style={styles.optionRow}>
-                    <View style={styles.optionCircle} />
-                    <Text style={styles.optionText}>
-                      {typeof opt === "string" ? opt : opt.text || opt.option}
-                    </Text>
-                  </View>
-                ))}
-            </View>
-          ))}
-        </View>
-      )}
+        {assessment.quiz_questions && assessment.quiz_questions.length > 0 && (
+          <View style={styles.quizContainer}>
+            {assessment.quiz_questions.map((question, index) => (
+              <View key={question.id} style={styles.questionCard}>
+                <Text style={styles.questionText}>
+                  {index + 1}. {question.question_text}
+                </Text>
+                {question.options &&
+                  Array.isArray(question.options) &&
+                  question.options.map((opt: any, optIndex: number) => (
+                    <View key={optIndex} style={styles.optionRow}>
+                      <View style={styles.optionCircle} />
+                      <Text style={styles.optionText}>
+                        {typeof opt === "string" ? opt : opt.text || opt.option}
+                      </Text>
+                    </View>
+                  ))}
+              </View>
+            ))}
+          </View>
+        )}
 
-      {assessment.assessment_type === "text_answer" && (
-        <View style={styles.textAnswerContainer}>
-          <TextInput
-            style={styles.textAnswerInput}
-            placeholder="Write your response..."
-            placeholderTextColor="rgba(0, 0, 0, 0.3)"
-            value={textAnswer}
-            onChangeText={setTextAnswer}
-            multiline
-            textAlignVertical="top"
-          />
-          <Text style={styles.characterCount}>{textAnswer.length} characters</Text>
-        </View>
-      )}
+        {assessment.assessment_type === "text_answer" && (
+          <View style={styles.textAnswerContainer}>
+            <TextInput
+              style={styles.textAnswerInput}
+              placeholder="Write your response..."
+              placeholderTextColor="rgba(0, 0, 0, 0.3)"
+              value={textAnswer}
+              onChangeText={setTextAnswer}
+              multiline
+              textAlignVertical="top"
+            />
+            <Text style={styles.characterCount}>{textAnswer.length} characters</Text>
+          </View>
+        )}
 
-      {assessment.assessment_type === "file_upload" && (
-        <View style={styles.uploadContainer}>
-          <Pressable style={styles.uploadButton} onPress={handlePickFile}>
-            <Text style={styles.uploadButtonIcon}>📎</Text>
-            <Text style={styles.uploadButtonText}>Choose File</Text>
-          </Pressable>
-          {selectedFile && (
-            <View style={styles.selectedFileCard}>
-              <Text style={styles.selectedFileName}>📄 {selectedFile.name}</Text>
-              <Pressable onPress={() => setSelectedFile(null)}>
-                <Text style={styles.removeFileText}>✕</Text>
+        {assessment.assessment_type === "file_upload" && (
+          <View style={styles.uploadContainer}>
+            <Pressable style={styles.uploadButton} onPress={handlePickFile}>
+              <Text style={styles.uploadButtonIcon}>📎</Text>
+              <Text style={styles.uploadButtonText}>Choose File</Text>
+            </Pressable>
+            {selectedFile && (
+              <View style={styles.selectedFileCard}>
+                <Text style={styles.selectedFileName}>📄 {selectedFile.name}</Text>
+                <Pressable onPress={() => setSelectedFile(null)}>
+                  <Text style={styles.removeFileText}>✕</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        )}
+
+        {assessment.assessment_type === "image_upload" && (
+          <View style={styles.uploadContainer}>
+            <View style={styles.imageUploadButtons}>
+              <Pressable style={styles.cameraButton} onPress={handleTakePhoto}>
+                <Text style={styles.uploadButtonIcon}>📷</Text>
+                <Text style={styles.uploadButtonText}>Take Photo</Text>
+              </Pressable>
+              <Pressable style={styles.uploadButton} onPress={handlePickImage}>
+                <Text style={styles.uploadButtonIcon}>🖼️</Text>
+                <Text style={styles.uploadButtonText}>Choose Photo</Text>
               </Pressable>
             </View>
-          )}
-        </View>
-      )}
+          </View>
+        )}
+      </View>
 
-      {assessment.assessment_type === "image_upload" && (
-        <View style={styles.uploadContainer}>
-          <View style={styles.imageUploadButtons}>
-            <Pressable style={styles.cameraButton} onPress={handleTakePhoto}>
-              <Text style={styles.uploadButtonIcon}>📷</Text>
-              <Text style={styles.uploadButtonText}>Take Photo</Text>
-            </Pressable>
-            <Pressable style={styles.uploadButton} onPress={handlePickImage}>
-              <Text style={styles.uploadButtonIcon}>🖼️</Text>
-              <Text style={styles.uploadButtonText}>Choose Photo</Text>
+      {/* Full-width image display OUTSIDE of assessmentCard */}
+      {assessment.assessment_type === "image_upload" && selectedImage && (() => {
+        console.log('[IMAGE DEBUG] Rendering image with:', {
+          screenWidth,
+          imageHeight,
+          containerWidth: screenWidth,
+          imageWidth: screenWidth
+        });
+        return (
+          <View style={[styles.fullWidthImageContainer, { width: screenWidth }]}>
+            <ScrollView
+              style={styles.imageScrollContainer}
+              contentContainerStyle={styles.imageScrollContent}
+              showsVerticalScrollIndicator={true}
+            >
+              <Image
+                source={{ uri: selectedImage }}
+                style={[styles.selectedImage, { height: imageHeight, width: screenWidth }]}
+                resizeMode="contain"
+              />
+            </ScrollView>
+            <Pressable style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
+              <Text style={styles.removeFileText}>✕</Text>
             </Pressable>
           </View>
-          {selectedImage && (
-            <View style={styles.selectedImageCard}>
-              <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
-              <Pressable style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
-                <Text style={styles.removeFileText}>✕</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-      )}
-    </View>
+        );
+      })()}
+    </>
   );
 }
 
@@ -2019,6 +2228,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingHorizontal: 0,
+    overflow: "visible", // Allow children to break out
   },
   instructionsCard: {
     backgroundColor: "#e8f5e0",
@@ -2275,7 +2485,7 @@ const styles = StyleSheet.create({
   // NPC Dialogue styles - Cinematic Full Screen
   npcFullscreenWrapper: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: "#f3f4f6",
   },
   backButtonOverlay: {
     position: "absolute",
@@ -2298,34 +2508,28 @@ const styles = StyleSheet.create({
   },
   npcFullscreenContainer: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: "#f3f4f6",
     position: "relative",
   },
-  npcProgressDots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 32,
-    paddingTop: 60,
-    paddingBottom: 16,
+  npcProgressDotsVertical: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    right: 16,
+    top: '50%',
+    transform: [{ translateY: -50 }],
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12,
     zIndex: 10,
-    backgroundColor: 'rgba(255, 0, 0, 0.3)',
   },
-  npcDot: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 4,
-    borderColor: '#000',
+  npcDotVertical: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
-  npcDotActive: {
+  npcDotVerticalActive: {
     backgroundColor: Accent.yellow,
-  },
-  npcDotInactive: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    height: 24,
   },
   npcLoadingCard: {
     flex: 1,
@@ -2660,6 +2864,38 @@ const styles = StyleSheet.create({
     color: "#111",
     marginBottom: 16,
   },
+  npcSummaryOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    gap: 24,
+  },
+  npcSummaryBox: {
+    backgroundColor: "#fff",
+    borderRadius: Radius.lg,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: Accent.yellow,
+    maxWidth: 400,
+    ...Shadow.card,
+  },
+  npcSummaryTitle: {
+    fontSize: 20,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "700",
+    color: ThemeText.primary,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  npcSummaryText: {
+    fontSize: 16,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "400",
+    color: ThemeText.secondary,
+    lineHeight: 24,
+    textAlign: "center",
+  },
   swipeHint: {
     fontSize: 48,
     color: Accent.yellow,
@@ -2667,6 +2903,22 @@ const styles = StyleSheet.create({
   },
   swipeText: {
     fontSize: 16,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "500",
+    color: ThemeText.secondary,
+    marginTop: 8,
+  },
+  swipeHintContainer: {
+    alignItems: "center",
+    paddingVertical: 32,
+    marginTop: 24,
+  },
+  swipeHintArrow: {
+    fontSize: 32,
+    color: Accent.yellow,
+  },
+  swipeHintText: {
+    fontSize: 14,
     fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: ThemeText.secondary,
@@ -2784,6 +3036,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     marginVertical: 12,
     backgroundColor: "#f5f5f5",
+  },
+  fullWidthContentImageContainer: {
+    backgroundColor: "#000",
+    marginVertical: 12,
+  },
+  fullWidthContentImage: {
+    backgroundColor: "#000",
   },
   contentUrl: {
     fontSize: 12,
@@ -2931,16 +3190,28 @@ const styles = StyleSheet.create({
     color: ThemeText.muted,
     paddingHorizontal: 8,
   },
+  fullWidthImageContainer: {
+    marginTop: 12,
+    position: "relative",
+    maxHeight: 500,
+    backgroundColor: "#000",
+    alignSelf: "center",
+  },
   selectedImageCard: {
     marginTop: 12,
     borderRadius: Radius.md,
     overflow: "hidden",
     position: "relative",
+    maxHeight: 500, // Maximum height before scrolling
+  },
+  imageScrollContainer: {
+    maxHeight: 500,
+  },
+  imageScrollContent: {
+    flexGrow: 1,
   },
   selectedImage: {
     width: "100%",
-    height: 300,
-    borderRadius: Radius.md,
   },
   removeImageButton: {
     position: "absolute",
@@ -2982,24 +3253,26 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: ThemeText.primary,
   },
-  // Page Indicator Dots
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
+  // Page Indicator Dots - Vertical
+  dotsContainerVertical: {
+    position: "absolute",
+    right: 16,
+    top: "50%",
+    transform: [{ translateY: -50 }],
+    flexDirection: "column",
     alignItems: "center",
-    paddingVertical: 12,
-    gap: 8,
-    backgroundColor: PageBg.default,
+    gap: 12,
+    zIndex: 10,
   },
-  dot: {
+  dotVertical: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#d1d5db",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
-  dotActive: {
+  dotVerticalActive: {
     backgroundColor: "#BFFF00",
-    width: 24,
+    height: 24,
   },
   // NPC Dots (for fullscreen NPC chat)
   npcDotsContainer: {
