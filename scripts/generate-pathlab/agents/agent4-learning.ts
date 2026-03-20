@@ -207,7 +207,7 @@ function createReflectionActivity(
 
   if (prompts.length > 0) {
     content.push({
-      contentType: 'reflection_card',
+      contentType: 'daily_prompt',
       contentTitle: 'Reflection Time',
       contentBody: prompts.join('\n\n'),
     });
