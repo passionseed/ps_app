@@ -27,6 +27,8 @@ import { agent5_review } from './agents/agent5-review';
 
 interface OrchestratorOptions {
   dryRun?: boolean;
+  maxRetries?: number;
+  enableValidation?: boolean;
 }
 
 interface OrchestratorResult {
