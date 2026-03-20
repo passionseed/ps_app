@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Pressable,
-  Text,
   StyleSheet,
   ViewStyle,
   TextStyle,
@@ -9,7 +8,8 @@ import {
   Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Accent, Shadow, Radius, Text as ThemeText } from "../../lib/theme";
+import { Shadow, Radius, Text as ThemeText } from "../../lib/theme";
+import { AppText } from "../AppText";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "small" | "medium" | "large";
@@ -113,9 +113,9 @@ export function GlassButton({
           ) : (
             <>
               {icon && <Animated.View style={styles.icon}>{icon}</Animated.View>}
-              <Text style={[sizeStyles.text, variantStyles.text, styles.primaryText]}>
+              <AppText variant="bold" style={[sizeStyles.text, variantStyles.text, styles.primaryText]}>
                 {children}
-              </Text>
+              </AppText>
             </>
           )}
         </Pressable>
@@ -150,9 +150,9 @@ export function GlassButton({
         ) : (
           <>
             {icon && <Animated.View style={styles.icon}>{icon}</Animated.View>}
-            <Text style={[sizeStyles.text, variantStyles.text]}>
+            <AppText variant="bold" style={[sizeStyles.text, variantStyles.text]}>
               {children}
-            </Text>
+            </AppText>
           </>
         )}
       </Pressable>
@@ -228,7 +228,6 @@ function getSizeStyles(size: ButtonSize) {
         } as ViewStyle,
         text: {
           fontSize: 14,
-          fontFamily: "Orbit_400Regular",
         } as TextStyle,
       };
 
@@ -241,7 +240,6 @@ function getSizeStyles(size: ButtonSize) {
         } as ViewStyle,
         text: {
           fontSize: 16,
-          fontFamily: "Orbit_400Regular",
         } as TextStyle,
       };
 
@@ -254,7 +252,6 @@ function getSizeStyles(size: ButtonSize) {
         } as ViewStyle,
         text: {
           fontSize: 18,
-          fontFamily: "Orbit_400Regular",
         } as TextStyle,
       };
   }

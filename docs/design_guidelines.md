@@ -1,61 +1,95 @@
 # Career Simulator — Design Guidelines
 
-This document serves as the canonical reference for the visual design tokens, layout mathematics, and "Premium Glass & Glow" effects established in the `Career Simulator` redesign. It can be used as a blueprint when building matching screens across the application.
+This document serves as the canonical reference for the visual design tokens, layout mathematics, and "Premium Glass & Glow" effects established in the `Career Simulator` redesign.
 
-## 1. Global Themes & Backgrounds
+## 1. Global Themes & Colors
 
-- **Page Background ([my-paths.tsx](file:///Users/bunyasit/dev/ps_app/app/%28tabs%29/my-paths.tsx))**: `#F3F4F6`
-  - *Rationale*: A structured, cool grey that significantly contrasts against brilliant white cards, simulating physical depth.
+The design uses a clean, multi-layered aesthetic with high contrast and semantic accenting.
 
-- **Primary Text Colors**:
-  - Headers / Titles: `#111827` (Deep Obsidian Slate)
-  - Subtitles / Secondary: `#4B5563` (Cool Mid-Grey)
-  - Details / Tertiary Text: `#6B7280`
+### Backgrounds
+- **Primary Page Background**: `#F3F4F6` (Cool Grey)
+  - *Rationale*: Simulates physical depth by contrasting against brilliant white cards.
+- **Glass Surface**: `#FFFFFF` (Pure White) with variable opacity.
 
-## 2. The "Wow Effect" Master Card ([CareerPathCard.tsx](file:///Users/bunyasit/dev/ps_app/components/JourneyBoard/CareerPathCard.tsx))
+### Semantic Accent Colors
+| Category | Color (HEX) | Use Case |
+| :--- | :--- | :--- |
+| **Brand / Primary CTA** | `#BFFF00` | Primary buttons, active switches, brand moments. |
+| **Education** | `#8B5CF6` | University steps, academic achievements. |
+| **Experience** | `#3B82F6` | Internship steps, work history. |
+| **Destination** | `#10B981` | Job steps, success states, completion. |
+| **Passion/Energy** | `#F97316` | Metrics, motivation indicators. |
+| **Alert/Error** | `#EF4444` | High risk, low confidence, errors. |
+| **Warning** | `#F59E0B` | In-progress, neutral warnings. |
 
-A seamless, expansive glassmorphic container that flows across the screen horizontally.
+### Text Hierarchy
+- **Primary**: `#111827` (Deep Obsidian Slate) - Headers, titles, primary labels.
+- **Secondary**: `#4B5563` (Cool Mid-Grey) - Subtitles, body text.
+- **Tertiary**: `#6B7280` (Slate Grey) - Details, captions.
+- **Muted**: `#9CA3AF` (Light Grey) - Disabled states, hints.
 
-- **Background Gradient**: `LinearGradient(180deg, #FFFFFF 0%, #F9F5FF 50%, #EEF2FF 100%)`
-  - *Effect*: A pristine white surface that subtly dissolves into atmospheric purple and blue tints towards the bottom, removing the need for harsh separator blocks.
-- **Corner Radius**: `32px` (Ultra-soft, organic structural radius)
-- **Border**: `1px solid rgb(206, 206, 206)`
-- **Premium Shadow Physics**: 
-  - Emulates an optical inset/outset drop: `shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2`
-- **Internal Padding**: `24px`
+## 2. Typography
 
-## 3. "Glass & Glow" Roadmap Components ([PathStepCard.tsx](file:///Users/bunyasit/dev/ps_app/components/JourneyBoard/PathStepCard.tsx))
+We use a dual-font system to ensure premium clarity for both English and Thai scripts.
 
-Timeline components representing distinct phases. These steer away from generic styling by applying dedicated, soft-glow lighting.
+- **English Font**: `Libre Franklin` (Variable)
+- **Thai Font**: `Bai Jamjuree` (Variable)
 
-### Base Component Structure
-- **Container**: `borderRadius: 20px` with `18px` internal padding.
-- **Gaps**: `gap: 16px` structural spacing for high legibility.
-- **Highlights**: `1px` absolute top highlight `rgba(255,255,255,0.7)` mimicking crisp glass reflection.
+### Semantic Presets
+| Preset | Size | Weight | Color | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| **Header** | 28pt | 700 (Bold) | `Text.primary` | Main screen titles. |
+| **Title** | 22pt | 800 (Extra) | `Text.primary` | Card titles, section headers. |
+| **Subtitle** | 18pt | 700 (Bold) | `Text.primary` | Secondary headings. |
+| **Body** | 16pt | 400 (Regular) | `Text.secondary` | General content. |
+| **Label** | 12pt | 700 (Bold) | `Text.tertiary` | Uppercase, 0.8 tracking. |
+| **Caption** | 11pt | 600 (Semi) | `Text.tertiary` | Metadata, small details. |
 
-### Component Color Tokens
-Each step type uses an ultra-light gradient background paired with a deep accent color, and importantly, an *accent-tinted* shadow glow:
+## 3. The "Premium Glass" Recipe
 
-**A. Education (`university`)**
-- Shadow Glow: `rgba(139, 92, 246, 0.25)`
-- Gradient (`Start` to `End`): `#FFFFFF` ➔ `#FDFCFF`
-- Accent / Borders: `#8B5CF6` / `rgba(139, 92, 246, 0.15)`
+Glassmorphism in Career Simulator is achieved through a specific layering of gradients, highlights, and shadows.
 
-**B. Experience (`internship`)**
-- Shadow Glow: `rgba(59, 130, 246, 0.25)`
-- Gradient (`Start` to `End`): `#FFFFFF` ➔ `#FCFDFF`
-- Accent / Borders: `#3B82F6` / `rgba(59, 130, 246, 0.15)`
+### A. The Master Gradient
+Used for high-priority containers like `CareerPathCard`.
+- **Colors**: `LinearGradient(180deg, #FFFFFF 0%, #F9F5FF 50%, #EEF2FF 100%)`
+- **Effect**: Subtle shift from white to atmospheric purple and blue.
 
-**C. Destination (`job`)**
-- Shadow Glow: `rgba(16, 185, 129, 0.25)`
-- Gradient (`Start` to `End`): `#FFFFFF` ➔ `#FCFEFD`
-- Accent / Borders: `#10B981` / `rgba(16, 185, 129, 0.15)`
+### B. Glass Physics
+- **Border**: `1px` solid `rgb(206, 206, 206)` or semantic accent at `0.15` opacity.
+- **Top Highlight**: `1px` absolute line at `top: 0` using `rgba(255, 255, 255, 0.7)`.
+- **Corner Radius**:
+  - Master Cards: `32px` (`Radius."2xl"`)
+  - Standard Cards: `24px` (`Radius.xl`)
+  - Components: `20px` (`Radius.lg`)
 
-## 4. Spacing & Pacing Mathematics
+### C. Shadow Systems
+- **Neutral Card**: `shadowOpacity: 0.06, shadowRadius: 4, elevation: 2`
+- **Deep Card**: `shadowOpacity: 0.08, shadowRadius: 12, elevation: 4`
+- **Semantic Glow**: Use `rgba(Accent, 0.25)` for step-specific lighting.
+- **CTA Glow**: `shadowColor: "#BFFF00", shadowOpacity: 0.3, shadowRadius: 16, elevation: 10`
 
-- **Screen Header Top Padding**: `48px` (Allows the cards to dominate the viewport immediately).
-- **Master Carousel Gaps**: `16px` between swipeable full-width cards.
-- **Roadmap Vertical Breathing Room**: `marginBottom: 16px` between individual roadmap steps.
+## 4. Interactive Components
+
+### Buttons (`GlassButton.tsx`)
+- **Primary**: High-saturation Lime gradient (`#BFFF00` ➔ `#9FE800`) with a matching glow.
+- **Ghost**: `50%` white background with `30%` white border.
+- **Micro-interactions**:
+  - `PressIn`: Scale to `0.96`, spring tension `300`.
+  - `PressOut`: Scale back to `1.0`.
+
+### States
+- **Disabled**: `opacity: 0.4`.
+- **Loading**: Replaces text with a tinted `ActivityIndicator`.
+
+## 5. Layout & Spacing
+
+We adhere to an **8pt Grid System** for all layout decisions.
+
+- **Screen Header Top Padding**: `48px` (`Space."5xl"`)
+- **Standard Padding**: `24px` (`Space."2xl"`)
+- **Inter-component Gap**: `16px` (`Space.lg`)
+- **Small Element Spacing**: `8px` (`Space.sm`)
 
 ---
-*Use these extracted styles when mapping out further features (like specific job views, analytics dashboards, or education planners) to guarantee a cohesive, polished "YC Startup" aesthetic.*
+
+*Use these guidelines as a blueprint for all new features. When in doubt, refer to [lib/theme.ts](file:///Users/bunyasit/dev/ps_app/lib/theme.ts) for the exact code implementation of these tokens.*

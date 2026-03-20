@@ -130,7 +130,7 @@ export default function ReflectionScreen() {
     );
   }
 
-  const isLastDay = enrollment.current_day >= enrollment.path[0].total_days;
+  const isLastDay = enrollment.current_day >= (enrollment.path[0]?.total_days ?? Infinity);
 
   return (
     <View style={styles.container}>
