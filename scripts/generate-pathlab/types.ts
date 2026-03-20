@@ -208,3 +208,18 @@ export interface ValidationResult {
   issues: ValidationIssue[];
   summary: string;
 }
+
+// Batch processing types
+
+export interface BatchResult {
+  totalProcessed: number;
+  completed: number;
+  failed: number;
+  failedExperts: FailedExpert[];
+  totalTimeMs: number;
+}
+
+export interface FailedExpert {
+  expertId: string;
+  error: string;
+}
