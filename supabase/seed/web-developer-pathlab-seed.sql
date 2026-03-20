@@ -21,7 +21,7 @@ VALUES (
 
 INSERT INTO public.seeds (id, map_id, title, description, seed_type, created_at)
 VALUES (
-  'web-developer-pathlab-001',
+  'f989a28a-1c4f-42b6-929f-fe00bc77f533',
   '00000000-0000-0000-0000-000000000001',
   'Web Developer: Ship Your First Project',
   'A 5-day immersive experience to discover if web development is your career fit. Build with AI tools, ship a real project, and decide your future.',
@@ -35,10 +35,10 @@ VALUES (
 
 INSERT INTO public.paths (id, seed_id, total_days, created_by, created_at)
 VALUES (
-  'web-dev-path-001',
-  'web-developer-pathlab-001',
+  '5b663d2e-d7ae-4936-aff2-dc1b61abf6a4',
+  'f989a28a-1c4f-42b6-929f-fe00bc77f533',
   5,
-  '00000000-0000-0000-0000-000000000000', -- System/Admin
+  '11111111-1111-1111-1111-111111111111', -- Test user (Alice)
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -49,11 +49,11 @@ VALUES (
 INSERT INTO public.seed_npc_avatars (id, seed_id, name, svg_data, description)
 VALUES (
   gen_random_uuid(),
-  'web-developer-pathlab-001',
+  'f989a28a-1c4f-42b6-929f-fe00bc77f533',
   'Alex',
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="35" r="25" fill="#4A5568"/><rect x="25" y="65" width="50" height="30" rx="5" fill="#4A5568"/><circle cx="42" cy="32" r="3" fill="#FFF"/><circle cx="58" cy="32" r="3" fill="#FFF"/><path d="M40 42 Q50 50 60 42" stroke="#FFF" stroke-width="2" fill="none"/></svg>',
   'Senior Product Manager. Encouraging but realistic, asks good questions, celebrates wins. Greeting: "Hey! I''m Alex, your Product Manager for this project. Excited to have you on the team."'
-) ON CONFLICT (seed_id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- ============================================================================
 -- DAY 1: Setup & Discover
@@ -69,16 +69,12 @@ INSERT INTO public.path_days (
   created_at
 )
 VALUES (
-  'web-dev-day-1',
-  'web-dev-path-001',
+  'bd26ec8b-aa6c-4e62-b104-78f220eeeb05',
+  '5b663d2e-d7ae-4936-aff2-dc1b61abf6a4',
   1,
   'Day 1: Setup & Discover',
   'Welcome to your first day as a web developer. Not a student learning about web development - an actual developer with real tools. Today you''ll set up your environment, explore what''s possible, and create your first prototype. By the end of the day, you''ll have something visual to show for it.',
-  ARRAY[
-    'What part of today felt most exciting?',
-    'What felt confusing or overwhelming?',
-    'On a scale of 1-10, how curious are you to continue?'
-  ],
+  '["What part of today felt most exciting?", "What felt confusing or overwhelming?", "On a scale of 1-10, how curious are you to continue?"]'::jsonb,
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -99,8 +95,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day1-act1',
-  'web-dev-day-1',
+  '9f434488-e3e8-44dd-8a24-205e8c95568c',
+  'bd26ec8b-aa6c-4e62-b104-78f220eeeb05',
   'Meet Your PM',
   'Your Product Manager Alex will introduce the project and set expectations for the week.',
   1,
@@ -124,8 +120,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day1-act2',
-  'web-dev-day-1',
+  'aa59af7c-9889-4ab5-908f-f7946fcb382e',
+  'bd26ec8b-aa6c-4e62-b104-78f220eeeb05',
   'Tool Setup',
   'Set up your development environment with the essential tools: Cursor (AI code editor), GitHub account, and Git.',
   2,
@@ -149,8 +145,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day1-act3',
-  'web-dev-day-1',
+  '0ff13359-bf8a-4460-8c16-cabfddf00ba8',
+  'bd26ec8b-aa6c-4e62-b104-78f220eeeb05',
   'Explore the Ecosystem',
   'Browse curated resource lists to understand the web development landscape. Don''t try to learn everything - just explore and bookmark what interests you.',
   3,
@@ -174,8 +170,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day1-act4',
-  'web-dev-day-1',
+  '9527f25f-9c20-4f99-bc57-00a0432b2017',
+  'bd26ec8b-aa6c-4e62-b104-78f220eeeb05',
   'First Prototype',
   'Use v0.dev to create your first UI prototype without writing code. Pick a simple idea and describe it to see AI-generated UI.',
   4,
@@ -199,8 +195,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day1-act5',
-  'web-dev-day-1',
+  'ba8b5df0-3d0b-43bc-81ff-e3d40a4d50ab',
+  'bd26ec8b-aa6c-4e62-b104-78f220eeeb05',
   'Day 1 Reflection',
   'Take a moment to reflect on your first day as a developer.',
   5,
@@ -226,7 +222,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act1',
+  '9f434488-e3e8-44dd-8a24-205e8c95568c',
   'npc_chat',
   'PM Alex Introduction',
   '{
@@ -253,7 +249,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act2',
+  'aa59af7c-9889-4ab5-908f-f7946fcb382e',
   'text',
   'Development Tools Setup',
   '{
@@ -276,7 +272,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act2',
+  'aa59af7c-9889-4ab5-908f-f7946fcb382e',
   'resource_link',
   'Download Cursor (AI Code Editor)',
   'https://cursor.com',
@@ -297,7 +293,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act2',
+  'aa59af7c-9889-4ab5-908f-f7946fcb382e',
   'resource_link',
   'Create GitHub Account',
   'https://github.com/signup',
@@ -318,7 +314,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act3',
+  '0ff13359-bf8a-4460-8c16-cabfddf00ba8',
   'resource_link',
   'Awesome Web Development',
   'https://github.com/sindresorhus/awesome',
@@ -339,7 +335,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act3',
+  '0ff13359-bf8a-4460-8c16-cabfddf00ba8',
   'resource_link',
   'Awesome Resources for Developers',
   'https://github.com/DopplerHQ/awesome-interview-questions',
@@ -359,7 +355,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act3',
+  '0ff13359-bf8a-4460-8c16-cabfddf00ba8',
   'text',
   'The Developer Ecosystem',
   '{
@@ -381,7 +377,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act4',
+  '9527f25f-9c20-4f99-bc57-00a0432b2017',
   'text',
   'Create Your First Prototype',
   '{
@@ -404,7 +400,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act4',
+  '9527f25f-9c20-4f99-bc57-00a0432b2017',
   'resource_link',
   'v0.dev - AI UI Generator',
   'https://v0.dev',
@@ -425,7 +421,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act4',
+  '9527f25f-9c20-4f99-bc57-00a0432b2017',
   'ai_chat',
   'Generate a UI for my project idea',
   '{
@@ -449,7 +445,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day1-act5',
+  'ba8b5df0-3d0b-43bc-81ff-e3d40a4d50ab',
   'reflection_card',
   'Day 1 Reflection',
   '{
@@ -478,21 +474,15 @@ INSERT INTO public.path_days (
   title,
   context_text,
   reflection_prompts,
-  created_at,
-  updated_at
+  created_at
 )
 VALUES (
-  'web-dev-day-2',
-  'web-dev-path-001',
+  'b279ce12-c7e7-4687-9e84-fb76a4404799',
+  '5b663d2e-d7ae-4936-aff2-dc1b61abf6a4',
   2,
   'Day 2: Design & Plan',
   'Yesterday you got a taste of what''s possible. Today we slow down and do what experienced developers do: refine the idea, make design decisions, and plan the build. This is where projects succeed or fail - in the planning.',
-  ARRAY[
-    'Did you enjoy the design/planning phase more or less than building?',
-    'What was harder than expected about defining your project?',
-    'How confident do you feel about your plan?'
-  ],
-  NOW(),
+  '["Did you enjoy the design/planning phase more or less than building?", "What was harder than expected about defining your project?", "How confident do you feel about your plan?"]'::jsonb,
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -513,8 +503,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day2-act1',
-  'web-dev-day-2',
+  '51ee205c-bb52-4a87-a0c1-3af6c4a21ba0',
+  'b279ce12-c7e7-4687-9e84-fb76a4404799',
   'Requirements Review',
   'PM Alex reviews your prototype and asks clarifying questions about your project.',
   1,
@@ -538,8 +528,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day2-act2',
-  'web-dev-day-2',
+  '171c13dc-92a4-4e6b-a6e4-0b4b8e7fec6c',
+  'b279ce12-c7e7-4687-9e84-fb76a4404799',
   'Project Brief',
   'Write a clear project brief that defines what you''re building, who it''s for, and what success looks like.',
   2,
@@ -563,8 +553,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day2-act3',
-  'web-dev-day-2',
+  'ec816465-3dd8-4a3f-81fc-b2da6b6d6795',
+  'b279ce12-c7e7-4687-9e84-fb76a4404799',
   'Design Iteration',
   'Go back to v0.dev and iterate on your prototype based on your project brief.',
   3,
@@ -588,8 +578,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day2-act4',
-  'web-dev-day-2',
+  '3912585e-d352-4748-a189-0331d1e0100d',
+  'b279ce12-c7e7-4687-9e84-fb76a4404799',
   'Plan the Build',
   'Break your project down into small, actionable tasks for the next two days.',
   4,
@@ -613,8 +603,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day2-act5',
-  'web-dev-day-2',
+  '04656382-dae6-4aaf-8618-bd1fdfb818b4',
+  'b279ce12-c7e7-4687-9e84-fb76a4404799',
   'Day 2 Reflection',
   'Reflect on today''s design and planning work.',
   5,
@@ -640,7 +630,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day2-act1',
+  '51ee205c-bb52-4a87-a0c1-3af6c4a21ba0',
   'npc_chat',
   'Requirements Review with Alex',
   '{
@@ -668,7 +658,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day2-act2',
+  '171c13dc-92a4-4e6b-a6e4-0b4b8e7fec6c',
   'daily_prompt',
   'Write Your Project Brief',
   '{
@@ -696,7 +686,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day2-act3',
+  'ec816465-3dd8-4a3f-81fc-b2da6b6d6795',
   'ai_chat',
   'Refine Your Design',
   '{
@@ -727,7 +717,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day2-act4',
+  '3912585e-d352-4748-a189-0331d1e0100d',
   'text',
   'Break Down Your Build',
   '{
@@ -750,7 +740,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day2-act5',
+  '04656382-dae6-4aaf-8618-bd1fdfb818b4',
   'reflection_card',
   'Reflect on Day 2',
   '{
@@ -797,22 +787,15 @@ INSERT INTO public.path_days (
   title,
   context_text,
   reflection_prompts,
-  created_at,
-  updated_at
+  created_at
 )
 VALUES (
-  'web-dev-day-3',
-  'web-dev-path-001',
+  '78624920-dfda-4dca-87e5-00ca65a73c31',
+  '5b663d2e-d7ae-4936-aff2-dc1b61abf6a4',
   3,
   'Day 3: Build Core',
   'Today is build day. You have your plan, you have your tools, and you have AI as your coding partner. The goal: implement the core features. Don''t worry about perfection - worry about making it work. You can always polish tomorrow.',
-  ARRAY[
-    'What was the most satisfying moment today?',
-    'What was the most frustrating?',
-    'Did you enjoy the problem-solving aspect?',
-    'How did it feel to use AI as a coding partner?'
-  ],
-  NOW(),
+  '["What was the most satisfying moment today?", "What was the most frustrating?", "Did you enjoy the problem-solving aspect?", "How did it feel to use AI as a coding partner?"]'::jsonb,
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -833,8 +816,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day3-act1',
-  'web-dev-day-3',
+  '439b6bea-0914-4e09-aa0d-e8ff3c15227d',
+  '78624920-dfda-4dca-87e5-00ca65a73c31',
   'Sprint Check-in',
   'PM Alex checks progress, helps unblock, offers encouragement.',
   1,
@@ -858,8 +841,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day3-act2',
-  'web-dev-day-3',
+  '56b90c68-5aca-4486-9d1d-551d04c4bd07',
+  '78624920-dfda-4dca-87e5-00ca65a73c31',
   'Core Implementation',
   'Build main features with Cursor + Copilot, commit regularly.',
   2,
@@ -883,8 +866,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day3-act3',
-  'web-dev-day-3',
+  '0cbf039b-7151-4ffa-a617-065e9ffb6048',
+  '78624920-dfda-4dca-87e5-00ca65a73c31',
   'Debug with AI',
   'When stuck, use AI to understand and fix issues.',
   3,
@@ -908,8 +891,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day3-act4',
-  'web-dev-day-3',
+  '7482ee42-b78f-4a51-8a62-12025160c515',
+  '78624920-dfda-4dca-87e5-00ca65a73c31',
   'Commit & Push',
   'Push to GitHub after each feature, learn commit hygiene.',
   4,
@@ -933,8 +916,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day3-act5',
-  'web-dev-day-3',
+  'ae487a94-619d-4a3e-94b8-1a3238de3be9',
+  '78624920-dfda-4dca-87e5-00ca65a73c31',
   'Day 3 Reflection',
   'What was satisfying? What was frustrating?',
   5,
@@ -960,7 +943,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day3-act1',
+  '439b6bea-0914-4e09-aa0d-e8ff3c15227d',
   'npc_chat',
   'Sprint Check-in with Alex',
   '{
@@ -987,7 +970,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day3-act2',
+  '56b90c68-5aca-4486-9d1d-551d04c4bd07',
   'text',
   'Time to Build',
   '{
@@ -1010,7 +993,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day3-act2',
+  '56b90c68-5aca-4486-9d1d-551d04c4bd07',
   'resource_link',
   'Cursor Documentation',
   'https://docs.cursor.com/',
@@ -1031,7 +1014,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day3-act3',
+  '0cbf039b-7151-4ffa-a617-065e9ffb6048',
   'ai_chat',
   'Debug with AI',
   '{
@@ -1061,12 +1044,12 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day3-act4',
+  '7482ee42-b78f-4a51-8a62-12025160c515',
   'text',
   'GitHub Workflow',
   '{
     "title": "GitHub Workflow",
-    "body": "Real developers commit early and often. It''s like saving your game progress - you never know when you''ll need to go back.\n\n**Commit workflow:**\n1. Make a small working change\n2. Stage your changes: `git add .`\n3. Commit with a clear message: `git commit -m "feat: add login button"`\n4. Push to GitHub: `git push`\n\n**Good commit messages:**\n- `feat: add user authentication`\n- `fix: correct button alignment`\n- `refactor: simplify form validation`\n\n**Your task:** Make at least 3 commits today and push them all to GitHub. Check your repo online to confirm they''re there!"
+    "body": "Real developers commit early and often. It''s like saving your game progress - you never know when you''ll need to go back.\\n\\n**Commit workflow:**\\n1. Make a small working change\\n2. Stage your changes: git add .\\n3. Commit with a clear message: git commit -m feat: add login button\\n4. Push to GitHub: git push\\n\\n**Good commit messages:**\\n- feat: add user authentication\\n- fix: correct button alignment\\n- refactor: simplify form validation\\n\\n**Your task:** Make at least 3 commits today and push them all to GitHub. Check your repo online to confirm they''re there!"
   }'::jsonb,
   1,
   NOW()
@@ -1084,7 +1067,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day3-act5',
+  'ae487a94-619d-4a3e-94b8-1a3238de3be9',
   'reflection_card',
   'Reflect on Your Build Day',
   '{
@@ -1114,21 +1097,15 @@ INSERT INTO public.path_days (
   title,
   context_text,
   reflection_prompts,
-  created_at,
-  updated_at
+  created_at
 )
 VALUES (
-  'web-dev-day-4',
-  'web-dev-path-001',
+  '30f56264-fb0f-4cca-a056-f6b3bd38e648',
+  '5b663d2e-d7ae-4936-aff2-dc1b61abf6a4',
   4,
   'Day 4: Polish & Ship',
   'You have working code. Now it''s time to make it feel real. Today you''ll polish the UI, fix bugs, and deploy your project live on the internet. By end of day, anyone with a link will be able to see what you built.',
-  ARRAY[
-    'How does it feel to have something live on the internet?',
-    'What part of the process did you enjoy most?',
-    'What part would you want to avoid in the future?'
-  ],
-  NOW(),
+  '["How does it feel to have something live on the internet?", "What part of the process did you enjoy most?", "What part would you want to avoid in the future?"]'::jsonb,
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1149,8 +1126,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day4-act1',
-  'web-dev-day-4',
+  '3dc1dbbe-8229-43ce-9fcd-3e6a17e1935a',
+  '30f56264-fb0f-4cca-a056-f6b3bd38e648',
   'Final Review',
   'PM Alex reviews your progress before shipping.',
   1,
@@ -1174,8 +1151,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day4-act2',
-  'web-dev-day-4',
+  '2ced1a14-18df-4fff-aaea-8d9f91d0e7fd',
+  '30f56264-fb0f-4cca-a056-f6b3bd38e648',
   'Polish & Fix',
   'Use AI to improve your UI, fix bugs, and add final touches before shipping.',
   2,
@@ -1199,8 +1176,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day4-act3',
-  'web-dev-day-4',
+  '55d68103-9953-48bb-b31c-a4f90bdd5b5d',
+  '30f56264-fb0f-4cca-a056-f6b3bd38e648',
   'Deploy Live',
   'Deploy your project to Vercel, Netlify, or GitHub Pages.',
   3,
@@ -1224,8 +1201,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day4-act4',
-  'web-dev-day-4',
+  'c6adc0f0-68dd-4af7-a14d-00cb6d6c24e4',
+  '30f56264-fb0f-4cca-a056-f6b3bd38e648',
   'Project Report',
   'Document what you built, how you built it, and what you learned.',
   4,
@@ -1249,8 +1226,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day4-act5',
-  'web-dev-day-4',
+  '284c3243-bbf9-411f-8712-d1293948f321',
+  '30f56264-fb0f-4cca-a056-f6b3bd38e648',
   'Day 4 Reflection',
   'You shipped something real today. Reflect on the experience.',
   5,
@@ -1276,7 +1253,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day4-act1',
+  '3dc1dbbe-8229-43ce-9fcd-3e6a17e1935a',
   'npc_chat',
   'Final Review with Alex',
   '{
@@ -1318,7 +1295,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day4-act2',
+  '2ced1a14-18df-4fff-aaea-8d9f91d0e7fd',
   'ai_chat',
   'Polish Your Project',
   '{
@@ -1352,7 +1329,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day4-act3',
+  '55d68103-9953-48bb-b31c-a4f90bdd5b5d',
   'text',
   'Deploy Your Project Live',
   '{
@@ -1375,7 +1352,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day4-act3',
+  '55d68103-9953-48bb-b31c-a4f90bdd5b5d',
   'resource_link',
   'Vercel Deployment Guide',
   'https://vercel.com/docs/concepts/deployments/overview',
@@ -1396,7 +1373,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day4-act3',
+  '55d68103-9953-48bb-b31c-a4f90bdd5b5d',
   'resource_link',
   'Netlify Deployment Guide',
   'https://docs.netlify.com/site-deploys/overview/',
@@ -1417,7 +1394,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day4-act3',
+  '55d68103-9953-48bb-b31c-a4f90bdd5b5d',
   'resource_link',
   'GitHub Pages Deployment',
   'https://pages.github.com/',
@@ -1438,7 +1415,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day4-act4',
+  'c6adc0f0-68dd-4af7-a14d-00cb6d6c24e4',
   'daily_prompt',
   'Project Report',
   '{
@@ -1464,7 +1441,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day4-act5',
+  '284c3243-bbf9-411f-8712-d1293948f321',
   'reflection_card',
   'Day 4 Reflection',
   '{
@@ -1509,21 +1486,15 @@ INSERT INTO public.path_days (
   title,
   context_text,
   reflection_prompts,
-  created_at,
-  updated_at
+  created_at
 )
 VALUES (
-  'web-dev-day-5',
-  'web-dev-path-001',
+  '3b9f90dd-5422-47c7-9d65-0d7a59b3d8fb',
+  '5b663d2e-d7ae-4936-aff2-dc1b61abf6a4',
   5,
   'Day 5: Reflect & Decide',
   'You built something real. You shipped it. You used the same tools professional developers use every day. Now it''s time to answer the most important question: Is web development a career fit for you?',
-  ARRAY[
-    'What aspects of web development would you want to do more of?',
-    'What aspects would you want to avoid?',
-    'What surprised you most about the development process?'
-  ],
-  NOW(),
+  '["What aspects of web development would you want to do more of?", "What aspects would you want to avoid?", "What surprised you most about the development process?"]'::jsonb,
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1544,8 +1515,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day5-act1',
-  'web-dev-day-5',
+  '56504356-073f-4ee4-bd04-4193221751b5',
+  '3b9f90dd-5422-47c7-9d65-0d7a59b3d8fb',
   'Sprint Retrospective',
   'PM Alex leads career conversation, discusses the journey.',
   1,
@@ -1569,8 +1540,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day5-act2',
-  'web-dev-day-5',
+  '56923b50-38ec-43bb-8c12-c3e78f263563',
+  '3b9f90dd-5422-47c7-9d65-0d7a59b3d8fb',
   'Ikigai Mapping',
   'Map your experience to the 4 quadrants of ikigai.',
   2,
@@ -1594,8 +1565,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day5-act3',
-  'web-dev-day-5',
+  '080ee31e-8bba-4745-8375-5dbdbb9cd9b8',
+  '3b9f90dd-5422-47c7-9d65-0d7a59b3d8fb',
   'Career Fit Analysis',
   'AI analyzes reflections and gives personalized feedback.',
   3,
@@ -1619,8 +1590,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day5-act4',
-  'web-dev-day-5',
+  'fdb3845c-4c7b-4045-9b41-bcb22d29c7cc',
+  '3b9f90dd-5422-47c7-9d65-0d7a59b3d8fb',
   'Explore Next Steps',
   'Bootcamps, self-taught paths, CS degrees - what''s next?',
   4,
@@ -1644,8 +1615,8 @@ INSERT INTO public.path_activities (
   updated_at
 )
 VALUES (
-  'web-dev-day5-act5',
-  'web-dev-day-5',
+  'e36c8fe8-8c2c-429f-9afb-2d72189a1afc',
+  '3b9f90dd-5422-47c7-9d65-0d7a59b3d8fb',
   'Final Decision',
   'Your decision and next steps.',
   5,
@@ -1671,7 +1642,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act1',
+  '56504356-073f-4ee4-bd04-4193221751b5',
   'npc_chat',
   'Sprint Retrospective with Alex',
   '{
@@ -1698,7 +1669,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act2',
+  '56923b50-38ec-43bb-8c12-c3e78f263563',
   'reflection_card',
   'Your Web Dev Ikigai',
   '{
@@ -1720,7 +1691,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act2',
+  '56923b50-38ec-43bb-8c12-c3e78f263563',
   'text',
   'Ikigai Framework',
   '{
@@ -1743,7 +1714,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act3',
+  '080ee31e-8bba-4745-8375-5dbdbb9cd9b8',
   'ai_chat',
   'Career Fit Analysis',
   '{
@@ -1768,7 +1739,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act4',
+  'fdb3845c-4c7b-4045-9b41-bcb22d29c7cc',
   'text',
   'Next Steps Options',
   '{
@@ -1791,7 +1762,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act4',
+  'fdb3845c-4c7b-4045-9b41-bcb22d29c7cc',
   'resource_link',
   'freeCodeCamp - Free self-paced coding curriculum',
   'https://www.freecodecamp.org/',
@@ -1812,7 +1783,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act4',
+  'fdb3845c-4c7b-4045-9b41-bcb22d29c7cc',
   'resource_link',
   'The Odin Project - Full-stack curriculum with projects',
   'https://www.theodinproject.com/',
@@ -1833,7 +1804,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act4',
+  'fdb3845c-4c7b-4045-9b41-bcb22d29c7cc',
   'resource_link',
   'Course Report - Compare coding bootcamps',
   'https://www.coursereport.com/',
@@ -1854,7 +1825,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act4',
+  'fdb3845c-4c7b-4045-9b41-bcb22d29c7cc',
   'resource_link',
   'roadmap.sh - Developer career roadmaps',
   'https://roadmap.sh/',
@@ -1874,7 +1845,7 @@ INSERT INTO public.path_content (
 )
 VALUES (
   gen_random_uuid(),
-  'web-dev-day5-act5',
+  'e36c8fe8-8c2c-429f-9afb-2d72189a1afc',
   'daily_prompt',
   'Final Decision',
   '## My Decision\n\n**After this week, I believe web development is:**\n[ ] Definitely for me - I want to pursue this\n[ ] Maybe for me - I want to explore more\n[ ] Probably not for me - I want to explore other paths\n[ ] Definitely not for me - I''m glad I tried but this isn''t it\n\n**My reasoning:**\n[Why did you choose this answer?]\n\n**My next steps:**\n[What will you do in the next 30 days?]\n\n**Resources I''ll explore:**\n[Links, courses, communities, etc.]',

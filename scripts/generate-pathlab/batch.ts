@@ -11,6 +11,7 @@
  *   pnpm run generate:pathlab:batch --max-retries=5
  */
 
+import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 import { orchestrator } from './orchestrator';
 import { BatchResult } from './types';
