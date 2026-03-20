@@ -194,7 +194,7 @@ export default function StepChat({
           value={input}
           onChangeText={setInput}
           placeholder="Type your answer..."
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor="rgba(0,0,0,0.4)"
           multiline
           returnKeyType="send"
           onSubmitEditing={handleSend}
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     fontSize: 18,
-    color: "rgba(255,255,255,0.7)",
+    color: "#374151",
   },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, gap: 16, paddingBottom: 32 },
@@ -231,9 +231,9 @@ const styles = StyleSheet.create({
   },
   bubbleAI: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(0,0,0,0.1)",
     borderBottomLeftRadius: 4,
   },
   bubbleUser: {
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   bubbleText: { fontFamily: "Orbit_400Regular", fontSize: 16, lineHeight: 24 },
-  bubbleTextAI: { color: "#fff" },
+  bubbleTextAI: { color: "#111827" },
   bubbleTextUser: { color: "#0a0514", fontWeight: "600" },
   inputRow: {
     flexDirection: "row",
@@ -254,15 +254,15 @@ const styles = StyleSheet.create({
     gap: 12,
     borderRadius: 32,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(0,0,0,0.15)",
+    backgroundColor: "#FFFFFF",
   },
   input: {
     flex: 1,
     paddingHorizontal: 12,
     paddingTop: Platform.OS === "ios" ? 12 : 8,
     paddingBottom: Platform.OS === "ios" ? 12 : 8,
-    color: "#fff",
+    color: "#111827",
     fontFamily: "Orbit_400Regular",
     fontSize: 16,
     minHeight: 44,
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   sendBtnText: { fontSize: 20, color: "#0a0514", fontWeight: "700" },
   editHint: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.25)",
+    color: "rgba(0,0,0,0.4)",
     textAlign: "right",
     marginTop: 2,
     marginRight: 4,

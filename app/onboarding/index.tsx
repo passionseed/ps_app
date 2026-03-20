@@ -145,7 +145,6 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     backgroundColor: Accent.yellow,
-    width: 24,
   },
   dotInactive: {
     backgroundColor: 'rgba(0, 0, 0, 0.1)',

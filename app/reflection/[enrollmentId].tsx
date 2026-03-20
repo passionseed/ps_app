@@ -119,7 +119,7 @@ export default function ReflectionScreen() {
     );
   }
 
-  if (!enrollment) {
+  if (!enrollment || !enrollment.path || enrollment.path.length === 0) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Something went wrong</Text>
