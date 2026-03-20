@@ -48,10 +48,10 @@ export async function agent4_designLearning(
     // Activity 2: Expert Insight - Direct from interview
     activities.push(createExpertInsightActivity(dayNumber, expert, activities.length + 1));
 
-    // Activity 3: Self-reflection
-    activities.push(createReflectionActivity(dayNumber, dayEvidence, activities.length + 1));
+    // Note: Reflection prompts are stored at day level (path_days.reflection_prompts)
+    // No separate reflection activity needed
 
-    // Activity 4: Checkpoint (optional) - Quiz or assessment
+    // Activity 3: Checkpoint (optional) - Quiz or assessment
     const checkpointActivity = createCheckpointActivity(dayNumber, dayEvidence, activities.length + 1);
     if (checkpointActivity) {
       activities.push(checkpointActivity);

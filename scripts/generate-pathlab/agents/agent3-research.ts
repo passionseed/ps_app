@@ -101,16 +101,30 @@ function generateFallbackContent(expert: ExpertProfile, dayNumber: number): Rese
       }
       break;
     case 2:
-      // Skills - use skills data
+      // Skills - use skills data with context
       if (interviewData.skills) {
-        const allSkills = [
-          ...interviewData.skills.soft,
-          ...interviewData.skills.technical,
-        ];
+        const softSkills = interviewData.skills.soft || [];
+        const technicalSkills = interviewData.skills.technical || [];
+        const hardToDevelop = interviewData.skills.hardToDevelop || [];
+        
+        let skillsSummary = '';
+        
+        if (softSkills.length > 0) {
+          skillsSummary += `**Soft Skills That Matter:**\n${softSkills.slice(0, 4).map(s => `• ${s}`).join('\n')}\n\n`;
+        }
+        
+        if (technicalSkills.length > 0) {
+          skillsSummary += `**Technical Skills to Develop:**\n${technicalSkills.slice(0, 3).map(s => `• ${s}`).join('\n')}\n\n`;
+        }
+        
+        if (hardToDevelop.length > 0) {
+          skillsSummary += `**Skills That Take Time to Master:**\n${hardToDevelop.slice(0, 2).map(s => `• ${s}`).join('\n')}`;
+        }
+        
         groundedContent.push({
           type: 'article',
           title: `Essential Skills in ${expert.field_category}`,
-          summary: `Key skills include: ${allSkills.join(', ')}`,
+          summary: skillsSummary.trim() || `Key skills for success in ${expert.field_category}.`,
         });
       }
       break;
