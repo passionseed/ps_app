@@ -15,6 +15,8 @@ import {
   Image,
 } from "react-native";
 import { WebView } from "react-native-webview";
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { SvgXml } from "react-native-svg";
@@ -1800,6 +1802,73 @@ function AssessmentItem({
 }: {
   assessment: PathAssessment & { quiz_questions?: PathQuizQuestion[] };
 }) {
+  const [textAnswer, setTextAnswer] = useState("");
+  const [selectedFile, setSelectedFile] = useState<{ name: string; uri: string } | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const handlePickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        setSelectedFile({ name: file.name, uri: file.uri });
+      }
+    } catch (error) {
+      console.error('Error picking file:', error);
+      Alert.alert('Error', 'Failed to pick file');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera permission is required to take photos');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo');
+    }
+  };
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Photo library permission is required');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
   return (
     <View style={styles.assessmentCard}>
       <Text style={styles.assessmentType}>
@@ -1829,8 +1898,57 @@ function AssessmentItem({
       )}
 
       {assessment.assessment_type === "text_answer" && (
-        <View style={styles.textAnswerPlaceholder}>
-          <Text style={styles.placeholderText}>Write your response...</Text>
+        <View style={styles.textAnswerContainer}>
+          <TextInput
+            style={styles.textAnswerInput}
+            placeholder="Write your response..."
+            placeholderTextColor="rgba(0, 0, 0, 0.3)"
+            value={textAnswer}
+            onChangeText={setTextAnswer}
+            multiline
+            textAlignVertical="top"
+          />
+          <Text style={styles.characterCount}>{textAnswer.length} characters</Text>
+        </View>
+      )}
+
+      {assessment.assessment_type === "file_upload" && (
+        <View style={styles.uploadContainer}>
+          <Pressable style={styles.uploadButton} onPress={handlePickFile}>
+            <Text style={styles.uploadButtonIcon}>📎</Text>
+            <Text style={styles.uploadButtonText}>Choose File</Text>
+          </Pressable>
+          {selectedFile && (
+            <View style={styles.selectedFileCard}>
+              <Text style={styles.selectedFileName}>📄 {selectedFile.name}</Text>
+              <Pressable onPress={() => setSelectedFile(null)}>
+                <Text style={styles.removeFileText}>✕</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      )}
+
+      {assessment.assessment_type === "image_upload" && (
+        <View style={styles.uploadContainer}>
+          <View style={styles.imageUploadButtons}>
+            <Pressable style={styles.cameraButton} onPress={handleTakePhoto}>
+              <Text style={styles.uploadButtonIcon}>📷</Text>
+              <Text style={styles.uploadButtonText}>Take Photo</Text>
+            </Pressable>
+            <Pressable style={styles.uploadButton} onPress={handlePickImage}>
+              <Text style={styles.uploadButtonIcon}>🖼️</Text>
+              <Text style={styles.uploadButtonText}>Choose Photo</Text>
+            </Pressable>
+          </View>
+          {selectedImage && (
+            <View style={styles.selectedImageCard}>
+              <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+              <Pressable style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
+                <Text style={styles.removeFileText}>✕</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -2730,16 +2848,110 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     color: ThemeText.secondary,
   },
-  textAnswerPlaceholder: {
+  textAnswerContainer: {
+    marginTop: 12,
+  },
+  textAnswerInput: {
     backgroundColor: "#fff",
     padding: 16,
-    borderRadius: Radius.sm,
-    minHeight: 100,
-  },
-  placeholderText: {
+    borderRadius: Radius.md,
+    minHeight: 120,
     fontSize: 14,
     fontFamily: "Orbit_400Regular",
+    color: ThemeText.primary,
+    borderWidth: 1,
+    borderColor: Border.default,
+  },
+  characterCount: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
     color: ThemeText.muted,
+    textAlign: "right",
+    marginTop: 8,
+  },
+  uploadContainer: {
+    marginTop: 12,
+  },
+  uploadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#fff",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: Radius.md,
+    borderWidth: 2,
+    borderColor: Accent.yellow,
+    borderStyle: "dashed",
+  },
+  cameraButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Accent.yellow,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: Radius.md,
+    flex: 1,
+  },
+  uploadButtonIcon: {
+    fontSize: 20,
+  },
+  uploadButtonText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: ThemeText.primary,
+  },
+  imageUploadButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  selectedFileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: Radius.md,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: Border.default,
+  },
+  selectedFileName: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    color: ThemeText.primary,
+    flex: 1,
+  },
+  removeFileText: {
+    fontSize: 18,
+    color: ThemeText.muted,
+    paddingHorizontal: 8,
+  },
+  selectedImageCard: {
+    marginTop: 12,
+    borderRadius: Radius.md,
+    overflow: "hidden",
+    position: "relative",
+  },
+  selectedImage: {
+    width: "100%",
+    height: 300,
+    borderRadius: Radius.md,
+  },
+  removeImageButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
   ctaContainer: {
     position: "absolute",
