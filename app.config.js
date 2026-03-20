@@ -23,6 +23,7 @@ module.exports = {
       },
     },
     android: {
+      package: "com.passionseed.app",
       adaptiveIcon: {
         foregroundImage: "./assets/passionseed-logo-1024.png",
         monochromeImage: "./assets/passionseed-logo-monochrome.png",
