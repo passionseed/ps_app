@@ -2,6 +2,7 @@
   "name": "passion-seed",
   "version": "1.0.0",
   "main": "expo-router/entry",
+  "packageManager": "pnpm@10.30.2",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -11,7 +12,7 @@
     "test:watch": "vitest",
     "postinstall": "npx @shopify/react-native-skia postinstall",
     "generate:pathlab": "npx tsx scripts/generate-pathlab/index.ts",
-    "generate:pathlab:batch": "npx ts-node scripts/generate-pathlab/batch.ts"
+    "generate:pathlab:batch": "npx tsx scripts/generate-pathlab/batch.ts"
   },
   "dependencies": {
     "@expo-google-fonts/bai-jamjuree": "^0.4.1",
