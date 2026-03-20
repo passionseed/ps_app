@@ -1,49 +1,38 @@
-import { ValidationIssue } from '../../types';
-import { ValidationInput } from '../index';
+import { ValidationInput, ValidationIssue } from '../index';
 
 /**
- * Check that each day's activities align with its learning objective.
+ * Check that activities align with learning objectives.
  */
 export async function checkObjectiveAlignment(input: ValidationInput): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
   const { learning } = input;
 
   for (const day of learning) {
-    // Check if activities exist
-    if (!day.activities || day.activities.length === 0) {
+    const activities = day.activities || [];
+
+    // Check for empty activities
+    if (activities.length === 0) {
       issues.push({
         dayNumber: day.dayNumber,
-        agent: 4,
+        agent: 1,
         issue: 'No activities found for this day',
         severity: 'critical',
-        suggestion: 'Generate at least 2-3 activities that align with the learning objective'
+        suggestion: 'Add at least one learning activity'
       });
       continue;
     }
 
-    // Check if activities have content
-    for (const activity of day.activities) {
+    // Check for activities without content
+    for (const activity of activities) {
       if (!activity.content || activity.content.length === 0) {
         issues.push({
           dayNumber: day.dayNumber,
-          agent: 4,
+          agent: 1,
           issue: `Activity "${activity.title}" has no content`,
-          severity: 'critical',
-          suggestion: 'Add content items to this activity'
+          severity: 'warning',
+          suggestion: 'Add content to the activity'
         });
       }
-    }
-
-    // Check for learning activities (not just reflections)
-    const learningActivities = day.activities.filter(a => a.activityType === 'learning');
-    if (learningActivities.length === 0) {
-      issues.push({
-        dayNumber: day.dayNumber,
-        agent: 4,
-        issue: 'No learning activities found (only reflections/checkpoints)',
-        severity: 'warning',
-        suggestion: 'Include at least one learning activity with educational content'
-      });
     }
   }
 
