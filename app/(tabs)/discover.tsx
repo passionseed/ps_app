@@ -179,39 +179,33 @@ export default function DiscoverScreen() {
 
       // For enrolled seeds, check if today's activities are all completed
       if (user?.id && data) {
-        const enrichedSeeds = await Promise.all(
-          data.map(async (seed) => {
+        const enrolledSeeds = data.filter(s => s.enrollment);
+
+        if (enrolledSeeds.length > 0) {
+          // Batch query: fetch all relevant reflections in one round trip
+          const { data: reflections } = await supabase
+            .from("path_reflections")
+            .select("enrollment_id, day_number, created_at")
+            .in("enrollment_id", enrolledSeeds.map(s => s.enrollment!.id));
+
+          const today = new Date().toDateString();
+          const reflectionMap = new Map(
+            (reflections || []).map(r => [r.enrollment_id, r])
+          );
+
+          const enrichedSeeds = data.map(seed => {
             if (!seed.enrollment) return seed;
+            const ref = reflectionMap.get(seed.enrollment.id);
+            const isDoneToday = ref?.created_at
+              ? new Date(ref.created_at).toDateString() === today
+              : false;
+            return { ...seed, enrollment: { ...seed.enrollment, isDoneToday } };
+          });
 
-            try {
-              // Check if there's a reflection for current_day - 1 (today's completed day)
-              const { data: reflections } = await supabase
-                .from("path_reflections")
-                .select("created_at")
-                .eq("enrollment_id", seed.enrollment.id)
-                .eq("day_number", seed.enrollment.current_day - 1)
-                .maybeSingle();
-
-              // Check if the reflection was created today
-              const today = new Date().toDateString();
-              const isDoneToday = reflections?.created_at
-                ? new Date(reflections.created_at).toDateString() === today
-                : false;
-
-              return {
-                ...seed,
-                enrollment: {
-                  ...seed.enrollment,
-                  isDoneToday,
-                },
-              };
-            } catch (err) {
-              console.error("[Discover] Error checking day completion:", err);
-              return seed;
-            }
-          })
-        );
-        setSeeds(enrichedSeeds);
+          setSeeds(enrichedSeeds);
+        } else {
+          setSeeds(data);
+        }
       } else {
         setSeeds(data || []);
       }

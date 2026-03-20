@@ -86,7 +86,6 @@ VALUES (
 -- DAY 1: PATH_ACTIVITIES
 -- ============================================================================
 
--- Activity 1: Meet Your PM
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -112,7 +111,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 2: Tool Setup
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -138,7 +136,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 3: Explore the Ecosystem
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -164,7 +161,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 4: First Prototype
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -190,7 +186,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 5: Day 1 Reflection
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -220,7 +215,6 @@ VALUES (
 -- DAY 1: PATH_CONTENT
 -- ============================================================================
 
--- Activity 1 Content: Meet Your PM (npc_chat)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -248,7 +242,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 2 Content: Tool Setup (text)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -271,7 +264,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 2 Content: Tool Setup (resource_link for Cursor)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -293,7 +285,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 2 Content: Tool Setup (resource_link for GitHub)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -315,7 +306,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 3 Content: Explore the Ecosystem (resource_link - awesome-web-development)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -337,7 +327,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 3 Content: Explore the Ecosystem (resource_link - awesome-resources)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -359,7 +348,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 3 Content: Explore the Ecosystem (text)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -382,7 +370,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 4 Content: First Prototype (text intro)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -405,7 +392,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 4 Content: First Prototype (resource_link for v0.dev)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -427,7 +413,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 4 Content: First Prototype (ai_chat prompt)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -452,7 +437,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 5 Content: Day 1 Reflection (reflection_card)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -516,7 +500,6 @@ VALUES (
 -- DAY 2: PATH_ACTIVITIES
 -- ============================================================================
 
--- Activity 1: Requirements Review
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -542,7 +525,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 2: Project Brief
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -568,7 +550,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 3: Design Iteration
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -594,7 +575,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 4: Plan the Build
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -620,7 +600,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 5: Day 2 Reflection
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -650,7 +629,6 @@ VALUES (
 -- DAY 2: PATH_CONTENT
 -- ============================================================================
 
--- Activity 1 Content: Requirements Review (npc_chat)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -678,7 +656,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 2 Content: Project Brief (daily_prompt)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -707,7 +684,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 3 Content: Design Iteration (ai_chat)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -740,7 +716,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 4 Content: Plan the Build (text)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -763,7 +738,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 5 Content: Day 2 Reflection (reflection_card)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -846,7 +820,6 @@ VALUES (
 -- DAY 3: PATH_ACTIVITIES
 -- ============================================================================
 
--- Activity 1: Sprint Check-in
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -872,7 +845,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 2: Core Implementation
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -898,7 +870,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 3: Debug with AI
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -924,7 +895,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 4: Commit & Push
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -950,7 +920,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 5: Day 3 Reflection
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -980,7 +949,6 @@ VALUES (
 -- DAY 3: PATH_CONTENT
 -- ============================================================================
 
--- Activity 1 Content: Sprint Check-in (npc_chat)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1008,7 +976,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 2 Content: Core Implementation (text)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1031,7 +998,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 2 Content: Resource Link (Cursor docs)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1053,7 +1019,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 3 Content: Debug with AI (ai_chat)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1085,7 +1050,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 4 Content: Commit & Push (text)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1108,7 +1072,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 5 Content: Day 3 Reflection (reflection_card)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1173,7 +1136,6 @@ VALUES (
 -- DAY 4: PATH_ACTIVITIES
 -- ============================================================================
 
--- Activity 1: Final Review
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1199,7 +1161,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 2: Polish & Fix
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1225,7 +1186,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 3: Deploy Live
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1251,7 +1211,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 4: Project Report
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1277,7 +1236,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 5: Day 4 Reflection
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1307,7 +1265,6 @@ VALUES (
 -- DAY 4: PATH_CONTENT
 -- ============================================================================
 
--- Activity 1 Content: Final Review (npc_chat)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1349,7 +1306,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 2 Content: Polish & Fix (ai_chat)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1385,7 +1341,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 3 Content: Deploy Live (text)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1408,7 +1363,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 3 Content: Resource Links
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1472,7 +1426,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 4 Content: Project Report (daily_prompt)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1493,15 +1446,12 @@ VALUES (
     "description": "Document what you built, how you built it, and what you learned. This becomes part of your portfolio."
   }'::jsonb,
   '{
-    "template": "## Project Report\n\n**Project Name:** [Name]\n\n**Live URL:** [Your deployed URL]\n\n**What I Built:**\n[2-3 sentences describing your project]\n\n**How I Built It:**\n[What tools did you use? What AI helped with?]\n\n**What I Learned:**\n[Technical lessons + personal insights]\n\n**What I''d Do Differently:**\n[If you had more time or could start over]\n\n**Screenshots:**\n[Add screenshots of your project]",
-    "min_words": 50,
-    "required": true
+    "template": "## Project Report\n\n**Project Name:** [Name]\n\n**Live URL:** [Your deployed URL]\n\n**What I Built:**\n[2-3 sentences describing your project]\n\n**How I Built It:**\n[What tools did you use? What AI helped with?]\n\n**What I Learned:**\n[Technical lessons + personal insights]\n\n**What I''d Do Differently:**\n[If you had more time or could start over]\n\n**Screenshots:**\n[Add screenshots of your project]"
   }'::jsonb,
   1,
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 5 Content: Day 4 Reflection (reflection_card)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1581,7 +1531,6 @@ VALUES (
 -- DAY 5: PATH_ACTIVITIES
 -- ============================================================================
 
--- Activity 1: Sprint Retrospective
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1607,7 +1556,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 2: Ikigai Mapping
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1633,7 +1581,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 3: Career Fit Analysis
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1659,7 +1606,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 4: Explore Next Steps
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1685,7 +1631,6 @@ VALUES (
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Activity 5: Final Decision
 INSERT INTO public.path_activities (
   id,
   path_day_id,
@@ -1715,7 +1660,6 @@ VALUES (
 -- DAY 5: PATH_CONTENT
 -- ============================================================================
 
--- Activity 1 Content: Sprint Retrospective (npc_chat)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1743,7 +1687,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 2 Content: Ikigai Mapping (reflection_card)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1766,7 +1709,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 2 Content: Ikigai text content
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1789,7 +1731,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 3 Content: Career Fit Analysis (ai_chat)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1816,7 +1757,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 4 Content: Explore Next Steps (text)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1833,13 +1773,12 @@ VALUES (
   'Next Steps Options',
   '{
     "title": "Explore Next Steps",
-    "body": "You''ve experienced what it''s like to be a web developer. Now it''s time to decide how to move forward. Here are the main paths people take:\n\n**Coding Bootcamps (3-6 months)**\nIntensive, structured programs that teach job-ready skills. Great if you want guided learning and career support.\n\n**Self-Taught Path (6-12+ months)**\nLearn at your own pace using free/cheap resources. Requires discipline but offers flexibility. Build a portfolio through projects.\n\n**Computer Science Degree (4 years)**\nDeep theoretical foundation. Best for certain roles (AI, systems programming) and larger companies. Significant time and cost investment.\n\n**Hybrid Approach**\nCombine elements: take a short bootcamp, supplement with self-study, or get a degree while building projects.\n\nThere''s no "right" answer - only what fits your situation, learning style, and goals."
+    "body": "You''ve experienced what it''s like to be a web developer. Now it''s time to decide how to move forward. Here are the main paths people take:\n\n**Coding Bootcamps (3-6 months)**\nIntensive, structured programs that teach job-ready skills. Great if you want guided learning and career support.\n\n**Self-Taught Path (6-12+ months)**\nLearn at your own pace using free/cheap resources. Requires discipline but offers flexibility. Build a portfolio through projects.\n\n**Computer Science Degree (4 years)**\nDeep theoretical foundation. Best for certain roles (AI, systems programming) and larger companies. Significant time and cost investment.\n\n**Hybrid Approach**\nCombine elements: take a short bootcamp, supplement with self-study, or get a degree while building projects.\n\nThere''s no \"right\" answer - only what fits your situation, learning style, and goals."
   }'::jsonb,
   1,
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 4 Content: Resource Links
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1924,7 +1863,6 @@ VALUES (
   NOW()
 ) ON CONFLICT DO NOTHING;
 
--- Activity 5 Content: Final Decision (daily_prompt)
 INSERT INTO public.path_content (
   id,
   activity_id,
@@ -1939,22 +1877,7 @@ VALUES (
   'web-dev-day5-act5',
   'daily_prompt',
   'Final Decision',
-  '## My Decision
-
-**After this week, I believe web development is:**
-[ ] Definitely for me - I want to pursue this
-[ ] Maybe for me - I want to explore more
-[ ] Probably not for me - I want to explore other paths
-[ ] Definitely not for me - I''m glad I tried but this isn''t it
-
-**My reasoning:**
-[Why did you choose this answer?]
-
-**My next steps:**
-[What will you do in the next 30 days?]
-
-**Resources I''ll explore:**
-[Links, courses, communities, etc.]',
+  '## My Decision\n\n**After this week, I believe web development is:**\n[ ] Definitely for me - I want to pursue this\n[ ] Maybe for me - I want to explore more\n[ ] Probably not for me - I want to explore other paths\n[ ] Definitely not for me - I''m glad I tried but this isn''t it\n\n**My reasoning:**\n[Why did you choose this answer?]\n\n**My next steps:**\n[What will you do in the next 30 days?]\n\n**Resources I''ll explore:**\n[Links, courses, communities, etc.]',
   1,
   NOW()
 ) ON CONFLICT DO NOTHING;
