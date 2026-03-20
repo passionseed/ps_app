@@ -11,7 +11,6 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { AppText } from "../../components/AppText";
 import { GlassButton } from "../../components/Glass";
 import { useAuth } from "../../lib/auth";
@@ -21,20 +20,11 @@ import {
   getUserEnrollment,
   enrollInPath,
   getPathDays,
+  getExpertForSeed,
+  type ExpertInfo,
 } from "../../lib/pathlab";
 import type { Seed } from "../../types/seeds";
 import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
-import {
-  PageBg,
-  Text as ThemeText,
-  Border,
-  Shadow,
-  Radius,
-  Gradient,
-  Accent,
-  Space,
-  Type,
-} from "../../lib/theme";
 
 export default function SeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,7 +34,8 @@ export default function SeedDetailScreen() {
   const [seed, setSeed] = useState<Seed | null>(null);
   const [path, setPath] = useState<Path | null>(null);
   const [enrollment, setEnrollment] = useState<PathEnrollment | null>(null);
-  const [pathDays, setPathDays] = useState<PathDay[]>([]);
+  const [pathDays, setPathDays] = useState<Pick<PathDay, "day_number" | "title">[]>([]);
+  const [expert, setExpert] = useState<ExpertInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
 
@@ -67,6 +58,11 @@ export default function SeedDetailScreen() {
         setLoading(false);
         return;
       }
+
+      // Load expert info
+      const expertData = await getExpertForSeed(id);
+      console.log("[SeedDetail] Expert loaded:", expertData?.name);
+      setExpert(expertData);
 
       // Load path
       const pathData = await getPathBySeedId(id);
@@ -131,32 +127,26 @@ export default function SeedDetailScreen() {
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
-        style={s.container}
-      >
+      <View style={s.container}>
         <StatusBar style="dark" />
         <View style={s.center}>
           <ActivityIndicator size="large" color="#BFFF00" />
         </View>
-      </LinearGradient>
+      </View>
     );
   }
 
   if (!seed || !path) {
     return (
-      <LinearGradient
-        colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
-        style={s.container}
-      >
+      <View style={s.container}>
         <StatusBar style="dark" />
-        <View style={[s.center, { paddingTop: insets.top + 16 }]}>
-          <Pressable
-            style={[s.backBtn, { top: insets.top + 8 }]}
-            onPress={() => router.back()}
-          >
+        {/* Header */}
+        <View style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 12 }]}>
+          <Pressable style={s.backBtn} onPress={() => router.back()}>
             <AppText style={s.backBtnIcon}>←</AppText>
           </Pressable>
+        </View>
+        <View style={s.center}>
           <AppText
             variant="bold"
             style={{ fontSize: 24, color: "#111", marginBottom: 8 }}
@@ -179,7 +169,7 @@ export default function SeedDetailScreen() {
             </AppText>
           </Pressable>
         </View>
-      </LinearGradient>
+      </View>
     );
   }
 
@@ -187,27 +177,24 @@ export default function SeedDetailScreen() {
   const currentDay = enrollment?.current_day || 1;
 
   return (
-    <LinearGradient
-      colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
-      style={s.container}
-    >
+    <View style={s.container}>
       <StatusBar style="dark" />
 
-      <Pressable
-        style={[s.backBtn, { top: insets.top + 8 }]}
-        onPress={() => router.back()}
-      >
-        <AppText style={s.backBtnIcon}>←</AppText>
-      </Pressable>
+      {/* Sticky Header */}
+      <View style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 12 }]}>
+        <Pressable style={s.backBtn} onPress={() => router.back()}>
+          <AppText style={s.backBtnIcon}>←</AppText>
+        </Pressable>
+      </View>
 
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[s.scrollContent, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
-        bounces={false}
+        bounces={true}
       >
         {/* Header with cover image */}
-        <View style={[s.heroSection, { paddingTop: Math.max(insets.top + 16, 60) }]}>
+        <View style={s.heroSection}>
           {seed.cover_image_url && (
             <Image
               source={
@@ -223,6 +210,15 @@ export default function SeedDetailScreen() {
             <AppText variant="bold" style={s.seedTitle}>
               {seed.title}
             </AppText>
+            {expert && (
+              <View style={s.expertRow}>
+                <AppText style={s.expertLabel}>โดย </AppText>
+                <AppText variant="bold" style={s.expertName}>{expert.name}</AppText>
+                {expert.title && (
+                  <AppText style={s.expertTitle}> • {expert.title}</AppText>
+                )}
+              </View>
+            )}
             {seed.slogan && (
               <AppText style={s.seedSlogan}>{seed.slogan}</AppText>
             )}
@@ -313,10 +309,7 @@ export default function SeedDetailScreen() {
 
       {/* CTA */}
       <View style={[s.ctaBar, { paddingBottom: insets.bottom + 20 }]}>
-        <LinearGradient
-          colors={["rgba(238, 242, 255, 0)", "#EEF2FF", "#EEF2FF"]}
-          style={StyleSheet.absoluteFillObject}
-        />
+        <View style={s.ctaGradient} />
         <GlassButton
           variant="primary"
           size="large"
@@ -328,12 +321,15 @@ export default function SeedDetailScreen() {
           {isEnrolled ? `เริ่มวัน ${currentDay}` : "เริ่มเส้นทางนี้"}
         </GlassButton>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+  },
   center: {
     flex: 1,
     justifyContent: "center",
@@ -341,10 +337,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 32,
   },
 
+  // Header
+  header: {
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   backBtn: {
-    position: "absolute",
-    left: 20,
-    zIndex: 10,
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -359,19 +359,26 @@ const s = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  backBtnIcon: { fontSize: 20, color: "#111" },
+  backBtnIcon: {
+    fontSize: 20,
+    color: "#111",
+    fontFamily: "BaiJamjuree_400Regular",
+  },
 
-  scrollContent: { paddingHorizontal: 0 },
+  scrollContent: {
+    paddingHorizontal: 0,
+  },
 
   heroSection: {
     paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 24,
   },
   coverImage: {
     width: "100%",
     height: 200,
-    borderRadius: 20,
-    marginBottom: 16,
+    borderRadius: 32,
+    marginBottom: 20,
   },
   heroContent: {
     gap: 8,
@@ -379,18 +386,41 @@ const s = StyleSheet.create({
   seedTitle: {
     fontSize: 28,
     color: "#111827",
-    lineHeight: 34,
+    lineHeight: 36,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  expertRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  expertLabel: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  expertName: {
+    fontSize: 13,
+    color: "#111827",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  expertTitle: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontFamily: "BaiJamjuree_400Regular",
   },
   seedSlogan: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#6B7280",
-    lineHeight: 20,
+    lineHeight: 22,
+    fontFamily: "BaiJamjuree_400Regular",
   },
 
   card: {
     backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 32,
+    padding: 24,
     marginHorizontal: 20,
     marginBottom: 16,
     borderWidth: 1,
@@ -405,11 +435,13 @@ const s = StyleSheet.create({
     fontSize: 16,
     color: "#111827",
     marginBottom: 12,
+    fontFamily: "BaiJamjuree_700Bold",
   },
   descriptionText: {
     fontSize: 14,
     color: "#374151",
     lineHeight: 22,
+    fontFamily: "BaiJamjuree_400Regular",
   },
 
   dayRow: {
@@ -451,11 +483,24 @@ const s = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 8,
   },
-  dayCheckmark: { fontSize: 14, color: "#fff" },
-  dayNum: { fontSize: 13, color: "#9CA3AF" },
+  dayCheckmark: {
+    fontSize: 14,
+    color: "#fff",
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  dayNum: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    fontFamily: "BaiJamjuree_400Regular",
+  },
 
   dayLabelCol: { flex: 1 },
-  dayTitle: { fontSize: 14, color: "#111827", lineHeight: 18 },
+  dayTitle: {
+    fontSize: 14,
+    color: "#111827",
+    lineHeight: 18,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
   dayTitleDone: { color: "#10B981" },
 
   dayDoneBadge: {
@@ -464,14 +509,22 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
   },
-  dayDoneText: { fontSize: 10, color: "#10B981" },
+  dayDoneText: {
+    fontSize: 10,
+    color: "#10B981",
+    fontFamily: "BaiJamjuree_400Regular",
+  },
   dayActiveBadge: {
     backgroundColor: "rgba(59,130,246,0.1)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
-  dayActiveText: { fontSize: 10, color: "#3B82F6" },
+  dayActiveText: {
+    fontSize: 10,
+    color: "#3B82F6",
+    fontFamily: "BaiJamjuree_400Regular",
+  },
 
   ctaBar: {
     position: "absolute",
@@ -480,6 +533,14 @@ const s = StyleSheet.create({
     right: 0,
     paddingHorizontal: 20,
     paddingTop: 40,
+  },
+  ctaGradient: {
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#F3F4F6",
   },
   ctaBtn: {
     backgroundColor: "#BFFF00",
@@ -491,5 +552,9 @@ const s = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
   },
-  ctaBtnText: { fontSize: 17, color: "#111" },
+  ctaBtnText: {
+    fontSize: 17,
+    color: "#111",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
 });
