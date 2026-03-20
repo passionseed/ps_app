@@ -192,3 +192,37 @@ export interface OrchestratorState {
   startedAt: Date;
   completedAt: Date | null;
 }
+
+// Validation types
+
+export interface ValidationResult {
+  passed: boolean;
+  issues: ValidationIssue[];
+  summary: string;
+}
+
+export interface ValidationIssue {
+  dayNumber: number;
+  agent: 1 | 2 | 3 | 4 | 5;
+  issue: string;
+  severity: 'critical' | 'warning';
+  suggestion: string;
+}
+
+export interface RepairState {
+  attemptNumber: number;
+  maxAttempts: number;
+  issuesHistory: ValidationIssue[][];
+  regeneratedDays: number[];
+}
+
+export interface BatchResult {
+  totalProcessed: number;
+  completed: number;
+  failed: number;
+  failedExperts: Array<{
+    expertId: string;
+    error: string;
+  }>;
+  totalTimeMs: number;
+}
