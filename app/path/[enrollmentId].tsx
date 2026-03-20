@@ -274,6 +274,7 @@ export default function DailyPathScreen() {
             completed={activity.progress?.status === "completed"}
             onComplete={() => handleActivityComplete(activity.id)}
             enrollmentId={enrollmentId!}
+            totalActivities={activities.length}
           />
         ))}
 
@@ -302,12 +303,14 @@ function ActivityCard({
   completed,
   onComplete,
   enrollmentId,
+  totalActivities,
 }: {
   activity: PathActivityWithContent;
   index: number;
   completed: boolean;
   onComplete: () => void;
   enrollmentId: string;
+  totalActivities: number;
 }) {
   // Determine activity type from content or assessment
   const activityType = activity.path_content?.[0]?.content_type ||
@@ -372,7 +375,9 @@ function ActivityCard({
 
   const handlePress = () => {
     if (completed) return;
-    router.push(`/activity/${activity.id}?enrollmentId=${enrollmentId}`);
+    const url = `/activity/${activity.id}?enrollmentId=${enrollmentId}&pageIndex=${index - 1}&totalPages=${totalActivities}`;
+    console.log('[ActivityCard] Navigating to:', url, { index, totalActivities });
+    router.push(url);
   };
 
   return (

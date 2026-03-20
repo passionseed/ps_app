@@ -169,7 +169,7 @@ export default function StepCareers({
             value={customInput}
             onChangeText={setCustomInput}
             placeholder="Add your own..."
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor="rgba(0,0,0,0.4)"
             returnKeyType="done"
             onSubmitEditing={addCustom}
           />
@@ -206,12 +206,12 @@ const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
   loadingText: {
     fontFamily: "Orbit_400Regular",
-    color: "rgba(255,255,255,0.6)",
+    color: "#6B7280",
     fontSize: 15,
   },
   errorText: {
     fontFamily: "Orbit_400Regular",
-    color: "rgba(255,255,255,0.6)",
+    color: "#6B7280",
     fontSize: 15,
     textAlign: "center",
     paddingHorizontal: 32,
@@ -234,14 +234,14 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     fontSize: 24,
-    color: "#fff",
+    color: "#111827",
     marginBottom: 8,
   },
   subtitle: {
     fontFamily: "Orbit_400Regular",
     fontWeight: "300",
     fontSize: 14,
-    color: "rgba(255,255,255,0.5)",
+    color: "#6B7280",
     marginBottom: 28,
   },
   chipsWrap: {
@@ -255,45 +255,45 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: "rgba(0,0,0,0.15)",
+    backgroundColor: "rgba(0,0,0,0.03)",
   },
   chipActive: { backgroundColor: "#BFFF00", borderColor: "#BFFF00" },
   chipText: {
     fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
+    color: "#4B5563",
   },
   chipTextActive: { color: "#0a0514" },
   customRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: "rgba(0,0,0,0.15)",
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: "#fff",
+    color: "#111827",
     fontFamily: "Orbit_400Regular",
     fontSize: 15,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(0,0,0,0.03)",
   },
   addBtn: {
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(0,0,0,0.05)",
     width: 48,
     height: 48,
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: "rgba(0,0,0,0.15)",
   },
-  addBtnText: { color: "#fff", fontSize: 24 },
+  addBtnText: { color: "#111827", fontSize: 24 },
   hint: {
     fontFamily: "Orbit_400Regular",
     fontSize: 13,
-    color: "rgba(255,255,255,0.4)",
+    color: "#9CA3AF",
     textAlign: "center",
     marginBottom: 24,
   },

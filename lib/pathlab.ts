@@ -84,6 +84,13 @@ export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
 }
 
 export async function getSeedById(seedId: string): Promise<Seed | null> {
+  // Check if this is a valid UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(seedId)) {
+    console.log("[getSeedById] Invalid UUID format, skipping database query:", seedId);
+    return null;
+  }
+
   const { data: seedData, error: seedError } = await supabase
     .from("seeds")
     .select("*")
@@ -117,6 +124,12 @@ export interface ExpertInfo {
 }
 
 export async function getExpertForSeed(seedId: string): Promise<ExpertInfo | null> {
+  // Check if this is a valid UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(seedId)) {
+    return null;
+  }
+
   // Get expert_pathlab entry for this seed
   const { data: pathlabData, error: pathlabError } = await supabase
     .from("expert_pathlabs")
@@ -139,6 +152,12 @@ export async function getExpertForSeed(seedId: string): Promise<ExpertInfo | nul
 }
 
 export async function getSeedNpcAvatar(seedId: string): Promise<SeedNpcAvatar | null> {
+  // Check if this is a valid UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(seedId)) {
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("seed_npc_avatars")
     .select("*")
@@ -156,6 +175,12 @@ export async function getSeedNpcAvatar(seedId: string): Promise<SeedNpcAvatar | 
 // ============ Path Enrollment ============
 
 export async function getPathBySeedId(seedId: string): Promise<Path | null> {
+  // Check if this is a valid UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(seedId)) {
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("paths")
     .select("*")

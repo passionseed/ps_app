@@ -269,12 +269,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontFamily: "Orbit_400Regular",
-    color: "rgba(255,255,255,0.6)",
+    color: "#6B7280",
     fontSize: 15,
   },
   errorText: {
     fontFamily: "Orbit_400Regular",
-    color: "rgba(255,255,255,0.6)",
+    color: "#6B7280",
     fontSize: 15,
     textAlign: "center",
     paddingHorizontal: 32,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     fontSize: 16,
-    color: "rgba(255,255,255,0.5)",
+    color: "#6B7280",
     textAlign: "center",
     marginBottom: 12,
   },
@@ -318,13 +318,13 @@ const styles = StyleSheet.create({
   progressText: {
     fontFamily: "Orbit_400Regular",
     fontSize: 13,
-    color: "rgba(255,255,255,0.4)",
+    color: "#9CA3AF",
     textAlign: "center",
     marginBottom: 8,
   },
   progressBar: {
     height: 3,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(0,0,0,0.1)",
     borderRadius: 2,
     marginBottom: 32,
     overflow: "hidden",
@@ -341,9 +341,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(0,0,0,0.1)",
     borderRadius: 24,
     padding: 32,
     width: "100%",
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   cardText: {
     fontFamily: "Orbit_400Regular",
     fontSize: 18,
-    color: "#fff",
+    color: "#111827",
     lineHeight: 28,
     textAlign: "center",
   },
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   skipBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(0,0,0,0.2)",
     borderRadius: 100,
     paddingVertical: 16,
     alignItems: "center",
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     fontSize: 16,
-    color: "rgba(255,255,255,0.5)",
+    color: "#6B7280",
   },
   selectBtn: {
     flex: 1,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   talkMoreText: {
     fontFamily: "Orbit_400Regular",
     fontSize: 14,
-    color: "rgba(255,255,255,0.4)",
+    color: "#9CA3AF",
   },
 
   // Summary
@@ -415,14 +415,14 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     fontSize: 22,
-    color: "#fff",
+    color: "#111827",
     marginBottom: 24,
     textAlign: "center",
   },
   emptyText: {
     fontFamily: "Orbit_400Regular",
     fontSize: 16,
-    color: "rgba(255,255,255,0.5)",
+    color: "#6B7280",
     textAlign: "center",
     marginTop: 32,
     marginBottom: 32,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   summaryStatement: {
     fontFamily: "Orbit_400Regular",
     fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
+    color: "#4B5563",
     lineHeight: 22,
     marginBottom: 4,
     paddingLeft: 8,
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   },
   ghostBtn: {
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(0,0,0,0.2)",
     borderRadius: 100,
     paddingVertical: 14,
     alignItems: "center",
@@ -474,6 +474,6 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     fontSize: 15,
-    color: "rgba(255,255,255,0.5)",
+    color: "#6B7280",
   },
 });

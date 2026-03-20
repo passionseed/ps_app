@@ -11,6 +11,8 @@ import {
   Linking,
   useWindowDimensions,
   Animated,
+  PanResponder,
+  Image,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { StatusBar } from "expo-status-bar";
@@ -87,13 +89,20 @@ export default function ActivityDetailScreen() {
     totalPages?: string;
   }>();
 
-  const showPagination = pageIndex !== undefined && totalPages !== undefined;
-  const currentPage = pageIndex ? parseInt(pageIndex) : 0;
-  const total = totalPages ? parseInt(totalPages) : 0;
-
   const [activity, setActivity] = useState<ActivityWithContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
+
+  // Auto-detected pagination
+  const [autoCurrentPage, setAutoCurrentPage] = useState(0);
+  const [autoTotalPages, setAutoTotalPages] = useState(0);
+  const [dayActivitiesCount, setDayActivitiesCount] = useState(0);
+  const [dayActivitiesList, setDayActivitiesList] = useState<{ id: string; display_order: number }[]>([]);
+
+  // Use auto-detected pagination if URL params not provided
+  const currentPage = pageIndex !== undefined ? parseInt(pageIndex) : autoCurrentPage;
+  const total = totalPages !== undefined ? parseInt(totalPages) : autoTotalPages;
+  const showPagination = total > 0;
 
   // AI Chat state
   const [aiMessages, setAiMessages] = useState<AIChatMessage[]>([]);
@@ -251,6 +260,51 @@ export default function ActivityDetailScreen() {
       });
 
       setActivity(fullActivity);
+
+      // Fetch pagination info - get all activities for this day via path_days
+      console.log('[Activity] Checking pagination - day_number:', fullActivity.day_number, 'enrollmentId:', enrollmentId);
+
+      if (enrollmentId) {
+        try {
+          // First, get the path_day_id from the current activity
+          const { data: activityWithDay, error: dayError } = await supabase
+            .from("path_activities")
+            .select("path_day_id")
+            .eq("id", activityId)
+            .single();
+
+          if (dayError) {
+            console.error('[Activity] Error fetching path_day_id:', dayError);
+          }
+
+          if (activityWithDay?.path_day_id) {
+            // Get all activities for this path_day
+            const { data: dayActivities, error: activitiesError } = await supabase
+              .from("path_activities")
+              .select("id, display_order")
+              .eq("path_day_id", activityWithDay.path_day_id)
+              .order("display_order", { ascending: true });
+
+            if (activitiesError) {
+              console.error('[Activity] Error fetching day activities:', activitiesError);
+            }
+
+            if (dayActivities && dayActivities.length > 0) {
+              const currentIndex = dayActivities.findIndex(a => a.id === activityId);
+              setAutoCurrentPage(currentIndex >= 0 ? currentIndex : 0);
+              setAutoTotalPages(dayActivities.length);
+              setDayActivitiesCount(dayActivities.length);
+              setDayActivitiesList(dayActivities);
+            } else {
+              console.warn('[Activity] No activities found for path_day_id:', activityWithDay.path_day_id);
+            }
+          } else {
+            console.warn('[Activity] No path_day_id found for activity:', activityId);
+          }
+        } catch (err) {
+          console.error('[Activity] Error fetching pagination:', err);
+        }
+      }
 
       // Initialize activity-specific state based on content/assessment type
       if (activityType === "ai_chat") {
@@ -609,7 +663,7 @@ export default function ActivityDetailScreen() {
     bounceAnimation.start();
 
     let currentIndex = 0;
-    const typingSpeed = 50; // milliseconds per character (reduced from 30 for slower typing)
+    const typingSpeed = 30; // milliseconds per character - faster typing
 
     const typingInterval = setInterval(() => {
       if (currentIndex < fullText.length) {
@@ -960,6 +1014,15 @@ export default function ActivityDetailScreen() {
 
         setNpcCompleted(true);
         setNpcChoices([]);
+
+        // Auto-complete the activity
+        if (enrollmentId && activityId) {
+          await updateActivityProgress({
+            enrollmentId,
+            activityId,
+            status: "completed",
+          });
+        }
         return;
       }
 
@@ -986,6 +1049,15 @@ export default function ActivityDetailScreen() {
 
           setNpcCompleted(true);
           setNpcChoices([]);
+
+          // Auto-complete the activity
+          if (enrollmentId && activityId) {
+            await updateActivityProgress({
+              enrollmentId,
+              activityId,
+              status: "completed",
+            });
+          }
         }
         // For non-end nodes, typing animation effect will handle loading choices
       }
@@ -1008,6 +1080,11 @@ export default function ActivityDetailScreen() {
     // NPC dialogue: must complete conversation
     if (activityType === "npc_chat") {
       return npcCompleted;
+    }
+
+    // Short videos and text: no button, swipe to complete
+    if (activityType === "short_video" || activityType === "video" || activityType === "text") {
+      return false;
     }
 
     // Other activities: can complete immediately
@@ -1034,6 +1111,56 @@ export default function ActivityDetailScreen() {
       setCompleting(false);
     }
   };
+
+  const handleSwipeToNext = async () => {
+    if (!enrollmentId || !activityId) return;
+
+    const activityType = getActivityType(activity!);
+
+    // For content types that allow swipe, auto-complete the activity
+    if (activityType === "short_video" || activityType === "video" || activityType === "text" || npcCompleted) {
+      try {
+        await updateActivityProgress({
+          enrollmentId,
+          activityId,
+          status: "completed",
+        });
+      } catch (error) {
+        console.error("Error completing activity:", error);
+      }
+    }
+
+    const nextIndex = currentPage + 1;
+    if (nextIndex < dayActivitiesList.length) {
+      const nextActivity = dayActivitiesList[nextIndex];
+      router.replace(`/activity/${nextActivity.id}?enrollmentId=${enrollmentId}&pageIndex=${nextIndex}&totalPages=${dayActivitiesList.length}`);
+    } else {
+      // No more activities, go back to path screen
+      router.replace(`/path/${enrollmentId}`);
+    }
+  };
+
+  // Pan responder for swipe down gesture
+  const canSwipe = () => {
+    if (!activity) return false;
+    const activityType = getActivityType(activity);
+    return npcCompleted || activityType === "short_video" || activityType === "video" || activityType === "text";
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => canSwipe(),
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return canSwipe() && Math.abs(gestureState.dy) > 10;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (canSwipe() && gestureState.dy > 100) {
+          // Swiped down
+          handleSwipeToNext();
+        }
+      },
+    })
+  ).current;
 
   if (loading) {
     return (
@@ -1103,23 +1230,23 @@ export default function ActivityDetailScreen() {
             <Text style={styles.backButtonOverlayText}>✕</Text>
           </Pressable>
 
-          {/* Page Indicator Dots for NPC chat */}
-          {showPagination && (
-            <View style={styles.npcDotsContainer}>
-              {Array.from({ length: total }).map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.npcDot,
-                    index === currentPage && styles.npcDotActive,
-                  ]}
-                />
-              ))}
-            </View>
-          )}
-
           {/* NPC Dialogue - Full Screen Cinematic */}
           <View style={styles.npcFullscreenContainer}>
+            {/* Progress dots */}
+            {showPagination && (
+              <View style={styles.npcProgressDots}>
+                {Array.from({ length: total }).map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.npcDot,
+                      i === currentPage ? styles.npcDotActive : styles.npcDotInactive,
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+
             {npcError ? (
               <View style={styles.npcErrorCard}>
                 <Text style={styles.npcErrorIcon}>⚠️</Text>
@@ -1178,62 +1305,45 @@ export default function ActivityDetailScreen() {
                       <Text style={styles.npcAvatarEmojiLarge}>👤</Text>
                     </View>
                   )}
-
-                  {/* Floating name tag */}
-                  {npcSeedAvatar?.name && (
-                    <View style={styles.npcNameTag}>
-                      <View style={styles.npcOnlineIndicator} />
-                      <Text style={styles.npcNameTagText}>
-                        {npcSeedAvatar.name}
-                      </Text>
-                    </View>
-                  )}
                 </Animated.View>
 
-                {/* Speech Bubble with tail */}
+                {/* Speech Bubble and Timer Bar */}
                 <View style={styles.speechBubbleContainer}>
-                  <View style={styles.speechBubbleTail} />
                   <View style={styles.speechBubble}>
                     <Text style={styles.speechBubbleText}>
                       {displayedText}
                       {isTyping && <Text style={styles.typingCursor}>|</Text>}
                     </Text>
                   </View>
+
+                  {/* Timer Bar - Below speech bubble */}
+                  {timeRemainingPrecise !== null && timeRemainingPrecise > 0 && npcCurrentNode && (
+                    <View style={styles.timerBarBelowBubble}>
+                      {/* Grey background (consumed) */}
+                      <View style={[
+                        styles.timerBarGreyFull,
+                        timeRemaining !== null && timeRemaining <= 5 && styles.timerBarGreyUrgent,
+                      ]} />
+                      {/* Green bar (remaining time) - shrinks from right to left */}
+                      <View
+                        style={[
+                          styles.timerBarGreenRemaining,
+                          {
+                            width: `${(timeRemainingPrecise / (npcCurrentNode.metadata?.timeout_seconds || 30)) * 100}%`,
+                          },
+                        ]}
+                      />
+                    </View>
+                  )}
                 </View>
 
-                {/* Timer Bar - Below speech bubble */}
-                {timeRemainingPrecise !== null && timeRemainingPrecise > 0 && npcCurrentNode && (
-                  <View style={styles.timerBarBelowBubble}>
-                    {/* Full green background */}
-                    <View style={styles.timerBarBackground} />
-                    {/* Grey bars eating from both sides - using precise time for smooth animation */}
-                    <View
-                      style={[
-                        styles.timerBarGreyLeft,
-                        {
-                          width: `${((npcCurrentNode.metadata?.timeout_seconds || 30) - timeRemainingPrecise) / (npcCurrentNode.metadata?.timeout_seconds || 30) * 50}%`,
-                        },
-                        timeRemaining !== null && timeRemaining <= 5 && styles.timerBarGreyUrgent,
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.timerBarGreyRight,
-                        {
-                          width: `${((npcCurrentNode.metadata?.timeout_seconds || 30) - timeRemainingPrecise) / (npcCurrentNode.metadata?.timeout_seconds || 30) * 50}%`,
-                        },
-                        timeRemaining !== null && timeRemaining <= 5 && styles.timerBarGreyUrgent,
-                      ]}
-                    />
-                    {/* Time remaining number */}
-                    <View style={styles.timerNumberBelowContainer}>
-                      <Text style={[
-                        styles.timerNumberBelow,
-                        timeRemaining !== null && timeRemaining <= 5 && styles.timerNumberBelowUrgent,
-                      ]}>
-                        {timeRemaining}
-                      </Text>
-                    </View>
+                {/* Floating name tag - positioned in front of speech bubble */}
+                {npcSeedAvatar?.name && (
+                  <View style={styles.npcNameTag}>
+                    <View style={styles.npcOnlineIndicator} />
+                    <Text style={styles.npcNameTagText}>
+                      {npcSeedAvatar.name}
+                    </Text>
                   </View>
                 )}
 
@@ -1265,20 +1375,42 @@ export default function ActivityDetailScreen() {
                 )}
 
                 {npcCompleted && (
-                  <View style={styles.completionOverlay}>
+                  <View style={styles.completionOverlay} {...panResponder.panHandlers}>
                     <Text style={styles.completionIcon}>✓</Text>
                     <Text style={styles.completionText}>
                       Conversation Complete
                     </Text>
+                    {currentPage < dayActivitiesList.length - 1 ? (
+                      <>
+                        <Text style={styles.swipeHint}>↓</Text>
+                        <Text style={styles.swipeText}>Swipe down for next activity</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.swipeHint}>↓</Text>
+                        <Text style={styles.swipeText}>Swipe down to finish day</Text>
+                      </>
+                    )}
                   </View>
                 )}
               </>
             ) : npcCompleted ? (
-              <View style={styles.completionOverlay}>
+              <View style={styles.completionOverlay} {...panResponder.panHandlers}>
                 <Text style={styles.completionIcon}>✓</Text>
                 <Text style={styles.completionText}>
                   Conversation Complete
                 </Text>
+                {currentPage < dayActivitiesList.length - 1 ? (
+                  <>
+                    <Text style={styles.swipeHint}>↓</Text>
+                    <Text style={styles.swipeText}>Swipe down for next activity</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.swipeHint}>↓</Text>
+                    <Text style={styles.swipeText}>Swipe down to finish day</Text>
+                  </>
+                )}
               </View>
             ) : null}
           </View>
@@ -1288,6 +1420,7 @@ export default function ActivityDetailScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          {...panResponder.panHandlers}
         >
           {/* Instructions */}
           {activity.instructions && (
@@ -1511,7 +1644,7 @@ function extractYouTubeId(url: string): string | null {
 }
 
 function ContentItem({ content }: { content: PathContent }) {
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   // containerWidth = windowWidth - scrollPadding(40) - cardPadding(32)
   const containerWidth = windowWidth - 72;
 
@@ -1542,13 +1675,14 @@ function ContentItem({ content }: { content: PathContent }) {
         let playerHeight = containerWidth * (9 / 16);
 
         if (isShort) {
-          playerWidth = containerWidth * 0.6;
-          playerHeight = playerWidth * (16 / 9);
+          // For short videos, make them much larger - fill most of the screen height
+          playerHeight = windowHeight * 0.7; // 70% of screen height
+          playerWidth = playerHeight * (9 / 16); // Maintain 9:16 aspect ratio for vertical video
         }
 
         return (
-          <View style={styles.contentCard}>
-            {content.content_title && (
+          <View style={isShort ? styles.shortVideoWrapper : styles.contentCard}>
+            {content.content_title && !isShort && (
               <Text style={styles.contentTitle}>{content.content_title}</Text>
             )}
             {isYouTube ? (
@@ -1600,6 +1734,30 @@ function ContentItem({ content }: { content: PathContent }) {
                 />
               </View>
             ) : null}
+            {content.content_body && !isShort && (
+              <Text style={styles.contentBody}>{content.content_body}</Text>
+            )}
+          </View>
+        );
+
+      case "image":
+        console.log('[Image] Rendering image:', { url: content.content_url, title: content.content_title });
+        return (
+          <View style={styles.contentCard}>
+            {content.content_title && (
+              <Text style={styles.contentTitle}>{content.content_title}</Text>
+            )}
+            {content.content_url ? (
+              <Image
+                source={{ uri: content.content_url }}
+                style={styles.contentImage}
+                resizeMode="contain"
+                onError={(error) => console.error('[Image] Failed to load:', error.nativeEvent.error)}
+                onLoad={() => console.log('[Image] Loaded successfully')}
+              />
+            ) : (
+              <Text style={styles.contentBody}>No image URL provided</Text>
+            )}
             {content.content_body && (
               <Text style={styles.contentBody}>{content.content_body}</Text>
             )}
@@ -1742,6 +1900,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    paddingHorizontal: 0,
   },
   instructionsCard: {
     backgroundColor: "#e8f5e0",
@@ -2024,6 +2183,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#FDFFF5",
     position: "relative",
   },
+  npcProgressDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 32,
+    paddingTop: 60,
+    paddingBottom: 16,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: 'rgba(255, 0, 0, 0.3)',
+  },
+  npcDot: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 4,
+    borderColor: '#000',
+  },
+  npcDotActive: {
+    backgroundColor: Accent.yellow,
+  },
+  npcDotInactive: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
   npcLoadingCard: {
     flex: 1,
     justifyContent: "center",
@@ -2104,17 +2289,20 @@ const styles = StyleSheet.create({
     fontSize: 120,
   },
   npcNameTag: {
+    position: "absolute",
+    top: 495,
+    alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    marginTop: 12,
     gap: 8,
     borderWidth: 2,
     borderColor: "rgba(191, 255, 0, 0.8)",
     ...Shadow.card,
+    zIndex: 3,
   },
   npcOnlineIndicator: {
     width: 8,
@@ -2176,36 +2364,29 @@ const styles = StyleSheet.create({
 
   // Timer Bar - Below speech bubble, inverted (grey eats green)
   timerBarBelowBubble: {
-    position: "absolute",
-    top: 650,
-    left: 40,
-    right: 40,
+    marginTop: 20,
+    marginHorizontal: 20,
     height: 8,
     borderRadius: 4,
     overflow: "hidden",
-    zIndex: 2,
+    position: "relative",
   },
-  timerBarBackground: {
+  timerBarGreyFull: {
     position: "absolute",
     left: 0,
     right: 0,
+    top: 0,
+    height: 8,
+    backgroundColor: "#3a3a45",
+    borderRadius: 4,
+  },
+  timerBarGreenRemaining: {
+    position: "absolute",
+    left: 0,
     top: 0,
     height: 8,
     backgroundColor: Accent.yellow,
-  },
-  timerBarGreyLeft: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    height: 8,
-    backgroundColor: "#3a3a45",
-  },
-  timerBarGreyRight: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    height: 8,
-    backgroundColor: "#3a3a45",
+    borderRadius: 4,
   },
   timerBarGreyUrgent: {
     backgroundColor: "#8a1a1a",
@@ -2359,6 +2540,19 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#111",
+    marginBottom: 16,
+  },
+  swipeHint: {
+    fontSize: 48,
+    color: Accent.yellow,
+    marginTop: 24,
+  },
+  swipeText: {
+    fontSize: 16,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "500",
+    color: ThemeText.secondary,
+    marginTop: 8,
   },
 
   objectiveMetCard: {
@@ -2383,6 +2577,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee",
   },
+  shortVideoWrapper: {
+    marginBottom: 12,
+  },
   contentIcon: {
     fontSize: 24,
     marginBottom: 8,
@@ -2397,13 +2594,15 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   videoContainerShort: {
-    width: "60%",
+    width: "100%",
     aspectRatio: 9 / 16,
+    maxHeight: 700,
     alignSelf: "center",
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     overflow: "hidden",
     backgroundColor: "#000",
-    marginBottom: 8,
+    marginBottom: 16,
+    marginTop: 8,
     position: "relative",
   },
   video: {
@@ -2460,6 +2659,13 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     color: ThemeText.secondary,
     lineHeight: 22,
+  },
+  contentImage: {
+    width: "100%",
+    height: 300,
+    borderRadius: Radius.md,
+    marginVertical: 12,
+    backgroundColor: "#f5f5f5",
   },
   contentUrl: {
     fontSize: 12,

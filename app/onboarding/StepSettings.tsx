@@ -93,7 +93,7 @@ export default function StepSettings({ userId }: Props) {
           <Switch
             value={pushEnabled}
             onValueChange={handlePushToggle}
-            trackColor={{ false: "rgba(255,255,255,0.1)", true: "#BFFF00" }}
+            trackColor={{ false: "rgba(0,0,0,0.1)", true: "#BFFF00" }}
             thumbColor="#fff"
           />
         </View>
@@ -162,24 +162,24 @@ export default function StepSettings({ userId }: Props) {
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: "center", padding: 24 },
   card: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "#FFFFFF",
     borderRadius: 32,
     padding: 28,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(0,0,0,0.08)",
   },
   title: {
     fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     fontSize: 26,
-    color: "#fff",
+    color: "#111827",
     marginBottom: 8,
   },
   subtitle: {
     fontFamily: "Orbit_400Regular",
     fontWeight: "300",
     fontSize: 15,
-    color: "rgba(255,255,255,0.6)",
+    color: "#6B7280",
     marginBottom: 32,
   },
   row: {
@@ -192,13 +192,13 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
+    color: "#374151",
     marginBottom: 12,
   },
   labelSub: {
     fontFamily: "Orbit_400Regular",
     fontSize: 12,
-    color: "rgba(255,255,255,0.4)",
+    color: "#9CA3AF",
     marginTop: 2,
   },
   chipRow: {
@@ -212,15 +212,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: "rgba(0,0,0,0.15)",
+    backgroundColor: "rgba(0,0,0,0.03)",
   },
   chipActive: { backgroundColor: "#BFFF00", borderColor: "#BFFF00" },
   chipText: {
     fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
+    color: "#4B5563",
   },
   chipTextActive: { color: "#0a0514" },
   btn: {
