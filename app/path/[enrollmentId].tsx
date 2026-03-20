@@ -144,8 +144,13 @@ export default function DailyPathScreen() {
       );
 
       if (firstIncomplete) {
-        console.log("🎯 Auto-navigating to first incomplete activity:", firstIncomplete.id);
-        router.replace(`/activity/${firstIncomplete.id}?enrollmentId=${enrollmentId}`);
+        const activityIndex = activitiesData.findIndex(a => a.id === firstIncomplete.id);
+        console.log("🎯 Auto-navigating to first incomplete activity:", {
+          id: firstIncomplete.id,
+          index: activityIndex,
+          totalActivities: activitiesData.length,
+        });
+        router.replace(`/activity/${firstIncomplete.id}?enrollmentId=${enrollmentId}&pageIndex=${activityIndex}&totalPages=${activitiesData.length}`);
         return;
       }
 
