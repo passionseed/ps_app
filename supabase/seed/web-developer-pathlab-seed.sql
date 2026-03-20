@@ -6,13 +6,15 @@
 -- 1. SEED RECORD
 -- ============================================================================
 
-INSERT INTO public.seeds (id, title, description, seed_type, difficulty, created_at)
+-- Note: map_id is required. Using a default learning map ID.
+-- If this doesn't exist, create it first or use an existing map_id.
+INSERT INTO public.seeds (id, map_id, title, description, seed_type, created_at)
 VALUES (
   'web-developer-pathlab-001',
+  '00000000-0000-0000-0000-000000000001', -- Default learning map (create if needed)
   'Web Developer: Ship Your First Project',
   'A 5-day immersive experience to discover if web development is your career fit. Build with AI tools, ship a real project, and decide your future.',
   'pathlab',
-  'beginner',
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -33,15 +35,13 @@ VALUES (
 -- 3. NPC AVATAR - PM Alex
 -- ============================================================================
 
-INSERT INTO public.seed_npc_avatars (id, seed_id, name, role, avatar_url, greeting_text, personality)
+INSERT INTO public.seed_npc_avatars (id, seed_id, name, svg_data, description)
 VALUES (
   gen_random_uuid(),
   'web-developer-pathlab-001',
   'Alex',
-  'Senior Product Manager',
-  'pm_alex_npc.png',
-  'Hey! I''m Alex, your Product Manager for this project. Excited to have you on the team. Let me give you the quick context: We''re building something from scratch this week, and you''re going to ship it live by Day 4. Ready to dive in?',
-  '{"traits": ["encouraging", "realistic", "asks_good_questions"], "voice": "casual_professional", "uses_we_language": true}'::jsonb
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="35" r="25" fill="#4A5568"/><rect x="25" y="65" width="50" height="30" rx="5" fill="#4A5568"/><circle cx="42" cy="32" r="3" fill="#FFF"/><circle cx="58" cy="32" r="3" fill="#FFF"/><path d="M40 42 Q50 50 60 42" stroke="#FFF" stroke-width="2" fill="none"/></svg>',
+  'Senior Product Manager. Encouraging but realistic, asks good questions, celebrates wins. Greeting: "Hey! I''m Alex, your Product Manager for this project. Excited to have you on the team."'
 ) ON CONFLICT (seed_id) DO NOTHING;
 
 -- ============================================================================
