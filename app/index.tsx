@@ -8,6 +8,7 @@ import {
   Linking,
   Animated as RNAnimated,
   Dimensions,
+  Pressable,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -21,9 +22,40 @@ import {
 } from "../lib/auth";
 import { AppText } from "../components/AppText";
 import { GlassButton, GlassCard } from "../components/Glass";
-import { PageBg, Text as ThemeText, Accent, Shadow, Radius } from "../lib/theme";
+import { PageBg, Text as ThemeText, Accent, Shadow, Radius, Space } from "../lib/theme";
 
 const { width, height } = Dimensions.get("window");
+
+const COPY = {
+  th: {
+    tagline1: "ค้นหาเส้นทางที่ใช่",
+    tagline2: "ก่อนตัดสินใจจริง",
+    description: "ทดลองอาชีพในฝัน เพียง 30 นาทีต่อวัน\nเพื่อค้นพบตัวตนที่แท้จริงของคุณ",
+    googleBtn: "เข้าสู่ระบบด้วย Google",
+    appleBtn: "เข้าสู่ระบบด้วย Apple",
+    guestBtn: "เรียกดูก่อนเข้าสู่ระบบ",
+    features: [
+      { icon: "🎯", text: "ภารกิจรายวัน", subtext: "30 นาที" },
+      { icon: "📝", text: "สะท้อนความรู้สึก", subtext: "ทุกวัน" },
+      { icon: "🗺️", text: "แนวทางอาชีพ", subtext: "" },
+    ],
+    footer: "ออกแบบสำหรับนักเรียนและผู้ที่กำลังค้นหาเส้นทางอาชีพ",
+  },
+  en: {
+    tagline1: "Find Your Path",
+    tagline2: "Before You Commit",
+    description: "Try your dream career in just 30 min/day\nDiscover what truly drives you",
+    googleBtn: "Continue with Google",
+    appleBtn: "Sign in with Apple",
+    guestBtn: "Explore without signing in",
+    features: [
+      { icon: "🎯", text: "Daily Tasks", subtext: "30 min" },
+      { icon: "📝", text: "Daily Reflection", subtext: "" },
+      { icon: "🗺️", text: "Career Roadmap", subtext: "" },
+    ],
+    footer: "Designed for students discovering their career path",
+  },
+} as const;
 
 export default function LandingPage() {
   const { signInWithGoogle, signInWithApple, loading: authLoading, enterAsGuest } = useAuth();
@@ -31,6 +63,8 @@ export default function LandingPage() {
     "google" | "apple" | null
   >(null);
   const [isEntering, setIsEntering] = useState(false);
+  const [lang, setLang] = useState<"th" | "en">("th");
+  const c = COPY[lang];
 
   // Animation values
   const cardY = useState(new RNAnimated.Value(50))[0];
@@ -166,22 +200,41 @@ export default function LandingPage() {
 
           {/* Main Card */}
           <GlassCard variant="master" size="large" style={styles.mainCard}>
+            {/* Language Selector */}
+            <View style={styles.langSelector}>
+              <Pressable
+                onPress={() => setLang("th")}
+                style={[styles.langPill, lang === "th" && styles.langPillActive]}
+              >
+                <AppText style={[styles.langPillText, lang === "th" && styles.langPillTextActive]}>
+                  TH
+                </AppText>
+              </Pressable>
+              <Pressable
+                onPress={() => setLang("en")}
+                style={[styles.langPill, lang === "en" && styles.langPillActive]}
+              >
+                <AppText style={[styles.langPillText, lang === "en" && styles.langPillTextActive]}>
+                  EN
+                </AppText>
+              </Pressable>
+            </View>
+
             {/* Tagline */}
             <View style={styles.taglineContainer}>
               <AppText variant="bold" style={styles.tagline}>
-                ค้นหาเส้นทางที่ใช่
+                {c.tagline1}
               </AppText>
               <View style={styles.highlightWrapper}>
                 <AppText variant="bold" style={styles.taglineHighlight}>
-                  ก่อนตัดสินใจจริง
+                  {c.tagline2}
                 </AppText>
               </View>
             </View>
 
             {/* Description */}
             <AppText style={styles.description}>
-              ทดลองอาชีพในฝัน เพียง 30 นาทีต่อวัน{"\n"}
-              เพื่อค้นพบตัวตนที่แท้จริงของคุณ
+              {c.description}
             </AppText>
 
             {/* Sign In Buttons */}
@@ -195,7 +248,7 @@ export default function LandingPage() {
                 disabled={signingInProvider !== null || authLoading}
                 icon={<FontAwesome name="google" size={20} color="#111" />}
               >
-                เข้าสู่ระบบด้วย Google
+                {c.googleBtn}
               </GlassButton>
 
               {Platform.OS === "ios" && (
@@ -208,7 +261,7 @@ export default function LandingPage() {
                   disabled={signingInProvider !== null || authLoading}
                   icon={<FontAwesome name="apple" size={22} color="#111" />}
                 >
-                  Sign in with Apple
+                  {c.appleBtn}
                 </GlassButton>
               )}
 
@@ -219,21 +272,21 @@ export default function LandingPage() {
                 fullWidth
                 disabled={isEntering}
               >
-                เรียกดูก่อนเข้าสู่ระบบ
+                {c.guestBtn}
               </GlassButton>
             </View>
 
             {/* Features */}
             <View style={styles.features}>
-              <FeatureItem icon="🎯" text="ภารกิจรายวัน" subtext="30 นาที" />
-              <FeatureItem icon="📝" text="สะท้อนความรู้สึก" subtext="ทุกวัน" />
-              <FeatureItem icon="🗺️" text="แนวทางการ" subtext="เรียนต่อ" />
+              {c.features.map((f) => (
+                <FeatureItem key={f.icon} icon={f.icon} text={f.text} subtext={f.subtext} />
+              ))}
             </View>
           </GlassCard>
 
           {/* Footer */}
           <AppText style={styles.footer}>
-            ออกแบบสำหรับนักเรียนและผู้ที่กำลังค้นหาเส้นทางอาชีพ
+            {c.footer}
           </AppText>
         </RNAnimated.View>
       </View>
@@ -295,8 +348,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    paddingTop: 60,
+    padding: Space["2xl"],
+    paddingTop: Space["5xl"] + 12,
   },
   contentWrapper: {
     width: "100%",
@@ -321,6 +374,30 @@ const styles = StyleSheet.create({
   mainCard: {
     width: "100%",
   },
+  langSelector: {
+    flexDirection: "row",
+    alignSelf: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    borderRadius: Radius.full,
+    padding: 3,
+    marginBottom: 20,
+  },
+  langPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+  },
+  langPillActive: {
+    backgroundColor: Accent.yellow,
+  },
+  langPillText: {
+    fontSize: 12,
+    color: ThemeText.secondary,
+    fontWeight: "700",
+  },
+  langPillTextActive: {
+    color: "#111827",
+  },
   taglineContainer: {
     alignItems: "center",
     marginBottom: 16,
@@ -341,17 +418,17 @@ const styles = StyleSheet.create({
     ...Shadow.ctaGlow,
   },
   taglineHighlight: {
-    fontSize: 20,
+    fontSize: 22,
     color: "#111827",
     textAlign: "center",
     fontWeight: "700",
   },
   description: {
-    fontSize: 15,
+    fontSize: 16,
     color: ThemeText.secondary,
     textAlign: "center",
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: Space["3xl"],
   },
   buttonsContainer: {
     width: "100%",

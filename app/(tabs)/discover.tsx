@@ -9,11 +9,8 @@ import {
   Image,
   TextInput,
   Animated,
-  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { BlurView, BlurTargetView } from "expo-blur";
-import { GlassView, isGlassEffectAPIAvailable } from "expo-glass-effect";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -155,23 +152,14 @@ export default function DiscoverScreen() {
   const [isThai, setIsThai] = useState(false);
   const insets = useSafeAreaInsets();
 
-  // Check if native glass effect is available (iOS 26+)
-  const [glassAvailable, setGlassAvailable] = useState(false);
-
   // Animated values for scroll-based animations
   const scrollY = useRef(new Animated.Value(0)).current;
   const searchInputRef = useRef<TextInput>(null);
   const compactSearchInputRef = useRef<TextInput>(null);
-  const blurTargetRef = useRef<View>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Inline search mode - shows search field in sticky header
   const [inlineSearchMode, setInlineSearchMode] = useState(false);
-
-  useEffect(() => {
-    // Check glass effect API availability at runtime
-    setGlassAvailable(isGlassEffectAPIAvailable());
-  }, []);
 
   useEffect(() => {
     if (user?.id) {
@@ -371,10 +359,8 @@ export default function DiscoverScreen() {
     <View style={styles.container}>
       <StatusBar style="dark" />
 
-      {/* BlurTargetView wraps scrollable content for Android blur support */}
-      <BlurTargetView ref={blurTargetRef} style={styles.blurTargetContainer}>
-        {/* Main ScrollView with Animated Event */}
-        <Animated.ScrollView
+      {/* Main ScrollView with Animated Event */}
+      <Animated.ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -467,9 +453,8 @@ export default function DiscoverScreen() {
         {/* Bottom padding for tab bar */}
         <View style={{ height: 120 }} />
       </Animated.ScrollView>
-      </BlurTargetView>
 
-      {/* Sticky Navigation Header with Blur - rendered AFTER BlurTargetView for proper blur */}
+      {/* Sticky Navigation Header with Gradient - matches tab bar design */}
       <Animated.View
         style={[
           styles.stickyHeader,
@@ -480,27 +465,12 @@ export default function DiscoverScreen() {
         ]}
         pointerEvents="box-none"
       >
-        {/* Native Liquid Glass on iOS 26+, BlurView fallback on older iOS/Android */}
-        {glassAvailable ? (
-          <GlassView
-            style={StyleSheet.absoluteFill}
-            glassEffectStyle="clear"
-          />
-        ) : Platform.OS === "ios" ? (
-          <BlurView
-            intensity={80}
-            tint="light"
-            style={StyleSheet.absoluteFill}
-          />
-        ) : (
-          <BlurView
-            blurTarget={blurTargetRef}
-            intensity={80}
-            tint="light"
-            style={StyleSheet.absoluteFill}
-            blurMethod="dimezisBlurViewSdk31Plus"
-          />
-        )}
+        {/* Gradient background matching tab bar */}
+        <LinearGradient
+          colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
+          locations={[0, 0.5, 1]}
+          style={StyleSheet.absoluteFill}
+        />
         <View style={styles.stickyHeaderContent} pointerEvents="box-none">
           {/* Inline Search Mode - Apple HIG style */}
           {inlineSearchMode ? (
@@ -792,9 +762,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: PageBg.default,
   },
-  blurTargetContainer: {
-    flex: 1,
-  },
   loadingContainer: {
     flex: 1,
     backgroundColor: PageBg.default,
@@ -814,9 +781,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
-    backgroundColor: Platform.OS === "ios" ? "transparent" : "rgba(243, 244, 246, 0.95)",
-    borderBottomWidth: Platform.OS === "ios" ? 0 : 1,
-    borderBottomColor: Border.light,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgb(206, 206, 206)",
   },
   stickyHeaderContent: {
     height: ANIMATION_CONFIG.smallTitleHeight,
@@ -1064,5 +1030,6 @@ const styles = StyleSheet.create({
   doneBadgeText: {
     fontSize: 10,
     color: Accent.green,
+    fontFamily: "Orbit_400Regular",
   },
 });
