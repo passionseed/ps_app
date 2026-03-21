@@ -1,6 +1,6 @@
 # Career Simulator — Design Guidelines
 
-This document serves as the canonical reference for the visual design tokens, layout mathematics, and "Premium Glass & Glow" effects established in the `Career Simulator` redesign.
+This document serves as the canonical reference for the visual design tokens, layout mathematics, and restrained premium glass styling established in the `Career Simulator` redesign.
 
 ## 1. Global Themes & Colors
 
@@ -47,12 +47,13 @@ We use a dual-font system to ensure premium clarity for both English and Thai sc
 
 ## 3. The "Premium Glass" Recipe
 
-Glassmorphism in Career Simulator is achieved through a specific layering of gradients, highlights, and shadows.
+Glassmorphism in Career Simulator is achieved through a specific layering of gradients, highlights, and restrained shadows.
 
 ### A. The Master Gradient
 Used for high-priority containers like `CareerPathCard`.
 - **Colors**: `LinearGradient(180deg, #FFFFFF 0%, #F9F5FF 50%, #EEF2FF 100%)`
 - **Effect**: Subtle shift from white to atmospheric purple and blue.
+- **Do not use**: Decorative color circles, floating orb backgrounds, or halo effects behind content.
 
 ### B. Glass Physics
 - **Border**: `1px` solid `rgb(206, 206, 206)` or semantic accent at `0.15` opacity.
@@ -65,13 +66,13 @@ Used for high-priority containers like `CareerPathCard`.
 ### C. Shadow Systems
 - **Neutral Card**: `shadowOpacity: 0.06, shadowRadius: 4, elevation: 2`
 - **Deep Card**: `shadowOpacity: 0.08, shadowRadius: 12, elevation: 4`
-- **Semantic Glow**: Use `rgba(Accent, 0.25)` for step-specific lighting.
-- **CTA Glow**: `shadowColor: "#BFFF00", shadowOpacity: 0.3, shadowRadius: 16, elevation: 10`
+- **Colored shadows**: Avoid accent-tinted glows. Keep shadows neutral and structural.
+- **CTA treatment**: Use color, contrast, and shape for emphasis instead of extra glow.
 
 ## 4. Interactive Components
 
 ### Buttons (`GlassButton.tsx`)
-- **Primary**: High-saturation Lime gradient (`#BFFF00` ➔ `#9FE800`) with a matching glow.
+- **Primary**: High-saturation Lime treatment (`#BFFF00` ➔ `#9FE800`) without extra glow.
 - **Ghost**: `50%` white background with `30%` white border.
 - **Micro-interactions**:
   - `PressIn`: Scale to `0.96`, spring tension `300`.

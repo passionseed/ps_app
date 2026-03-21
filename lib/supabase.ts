@@ -1,15 +1,35 @@
 import "react-native-url-polyfill/auto";
 import { createClient } from "@supabase/supabase-js";
 import "expo-sqlite/localStorage/install";
+import {
+  getSupabaseConfigErrorMessage,
+  getSupabaseRuntimeConfig,
+} from "./runtime-config";
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+const supabaseConfigError = getSupabaseConfigErrorMessage();
+const { url: supabaseUrl, publishableKey: supabaseAnonKey } =
+  getSupabaseRuntimeConfig();
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: localStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+function createMissingConfigProxy(message: string) {
+  return new Proxy(
+    {},
+    {
+      get() {
+        throw new Error(message);
+      },
+    },
+  );
+}
+
+export const supabase = supabaseConfigError
+  ? (createMissingConfigProxy(supabaseConfigError) as ReturnType<
+      typeof createClient
+    >)
+  : createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storage: localStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+    });

@@ -35,7 +35,12 @@
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "${EXPO_PUBLIC_SUPABASE_URL}",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "${EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY}",
+        "EXPO_PUBLIC_PROJECT_ID": "${EXPO_PUBLIC_PROJECT_ID}"
+      }
     }
   },
   "submit": {
