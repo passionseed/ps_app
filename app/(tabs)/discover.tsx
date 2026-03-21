@@ -148,7 +148,7 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const { user } = useAuth();
+  const { user, isGuest, guestLanguage } = useAuth();
   const [isThai, setIsThai] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -162,14 +162,17 @@ export default function DiscoverScreen() {
   const [inlineSearchMode, setInlineSearchMode] = useState(false);
 
   useEffect(() => {
+    if (isGuest) {
+      setIsThai(guestLanguage === "th");
+      return;
+    }
+
     if (user?.id) {
       getProfile(user.id).then((p) => {
-        if (p?.preferred_language === "th") {
-          setIsThai(true);
-        }
+        setIsThai(p?.preferred_language === "th");
       });
     }
-  }, [user?.id]);
+  }, [guestLanguage, isGuest, user?.id]);
 
   const loadSeeds = useCallback(async () => {
     try {

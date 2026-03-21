@@ -13,6 +13,7 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { PageBg } from "../../lib/theme";
+import { useAuth } from "../../lib/auth";
 
 type TabRoute = "discover" | "my-paths" | "profile";
 
@@ -55,6 +56,20 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const animatedIndex = useSharedValue(state.index);
+  const { isGuest, guestLanguage } = useAuth();
+
+  const guestLabels =
+    guestLanguage === "th"
+      ? {
+          discover: "ค้นหา",
+          "my-paths": "เส้นทาง",
+          profile: "โปรไฟล์",
+        }
+      : {
+          discover: "Discover",
+          "my-paths": "My Paths",
+          profile: "Profile",
+        };
 
   useEffect(() => {
     animatedIndex.value = withSpring(state.index, {
@@ -137,6 +152,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               const isFocused = state.index === index;
               const routeName = route.name as TabRoute;
               const theme = TAB_THEMES[routeName] || TAB_THEMES["my-paths"];
+              const label = isGuest ? guestLabels[routeName] : theme.label;
 
               const onPress = () => {
                 if (!isFocused) {
@@ -151,7 +167,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                   isFocused={isFocused}
                   index={index}
                   animatedIndex={animatedIndex}
-                  theme={theme}
+                  theme={{ ...theme, label }}
                   onPress={onPress}
                 />
               );

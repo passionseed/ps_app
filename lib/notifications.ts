@@ -1,6 +1,7 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
+import { getExpoProjectId } from "./runtime-config";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -26,7 +27,7 @@ export async function requestPushPermissions(): Promise<string | null> {
   }
 
   const token = await Notifications.getExpoPushTokenAsync({
-    projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+    projectId: getExpoProjectId(),
   });
 
   if (Platform.OS === "android") {

@@ -29,7 +29,7 @@ import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
 export default function SeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const { isGuest, session } = useAuth();
+  const { isGuest, guestLanguage, session } = useAuth();
 
   const [seed, setSeed] = useState<Seed | null>(null);
   const [path, setPath] = useState<Path | null>(null);
@@ -38,6 +38,46 @@ export default function SeedDetailScreen() {
   const [expert, setExpert] = useState<ExpertInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const guestCopy =
+    guestLanguage === "th"
+      ? {
+          signInTitle: "เข้าสู่ระบบก่อน",
+          signInBody: "คุณต้องเข้าสู่ระบบก่อนเพื่อเริ่มเส้นทางนี้",
+          cancel: "ยกเลิก",
+          signIn: "เข้าสู่ระบบ",
+          errorTitle: "เกิดข้อผิดพลาด",
+          errorBody: "เริ่มเส้นทางไม่สำเร็จ ลองใหม่อีกครั้ง",
+          comingSoonTitle: "เร็ว ๆ นี้",
+          comingSoonBody: "เส้นทางนี้กำลังพัฒนาอยู่ กลับมาดูใหม่นะ!",
+          back: "กลับ",
+          about: "📖 เกี่ยวกับเส้นทางนี้",
+          days: (totalDays: number) => `📅 เส้นทาง ${totalDays} วัน`,
+          dayLabel: (dayNumber: number, title?: string) =>
+            `Day ${dayNumber}${title ? `: ${title}` : ""}`,
+          done: "เสร็จ",
+          today: "วันนี้",
+          startCurrentDay: (dayNumber: number) => `เริ่มวัน ${dayNumber}`,
+          startPath: "เริ่มเส้นทางนี้",
+        }
+      : {
+          signInTitle: "Sign in first",
+          signInBody: "You need to sign in before starting this path.",
+          cancel: "Cancel",
+          signIn: "Sign in",
+          errorTitle: "Error",
+          errorBody: "Failed to start this path. Please try again.",
+          comingSoonTitle: "Coming Soon!",
+          comingSoonBody: "This path is still in development. Check back soon.",
+          back: "Back",
+          about: "📖 About this path",
+          days: (totalDays: number) => `📅 ${totalDays}-day path`,
+          dayLabel: (dayNumber: number, title?: string) =>
+            `Day ${dayNumber}${title ? `: ${title}` : ""}`,
+          done: "Done",
+          today: "Today",
+          startCurrentDay: (dayNumber: number) => `Start day ${dayNumber}`,
+          startPath: "Start this path",
+        };
 
   useEffect(() => {
     loadData();
@@ -90,11 +130,11 @@ export default function SeedDetailScreen() {
   const handleEnroll = async () => {
     if (isGuest || !session) {
       Alert.alert(
-        "เข้าสู่ระบบก่อน",
-        "คุณต้องเข้าสู่ระบบก่อนเพื่อเริ่มเส้นทางนี้",
+        guestCopy.signInTitle,
+        guestCopy.signInBody,
         [
-          { text: "ยกเลิก", style: "cancel" },
-          { text: "เข้าสู่ระบบ", onPress: () => router.replace("/") },
+          { text: guestCopy.cancel, style: "cancel" },
+          { text: guestCopy.signIn, onPress: () => router.replace("/") },
         ]
       );
       return;
@@ -111,7 +151,7 @@ export default function SeedDetailScreen() {
       router.push(`/path/${newEnrollment.id}`);
     } catch (error) {
       console.error("[SeedDetail] Error enrolling:", error);
-      Alert.alert("Error", "Failed to enroll in path. Please try again.");
+      Alert.alert(guestCopy.errorTitle, guestCopy.errorBody);
     } finally {
       setEnrolling(false);
     }
@@ -149,7 +189,7 @@ export default function SeedDetailScreen() {
             variant="bold"
             style={{ fontSize: 24, color: "#111", marginBottom: 8 }}
           >
-            Coming Soon!
+            {guestCopy.comingSoonTitle}
           </AppText>
           <AppText
             style={{
@@ -159,11 +199,11 @@ export default function SeedDetailScreen() {
               marginBottom: 24,
             }}
           >
-            เส้นทางนี้กำลังพัฒนาอยู่ กลับมาดูใหม่นะ!
+            {guestCopy.comingSoonBody}
           </AppText>
           <Pressable style={s.ctaBtn} onPress={() => router.back()}>
             <AppText variant="bold" style={s.ctaBtnText}>
-              กลับ
+              {guestCopy.back}
             </AppText>
           </Pressable>
         </View>
@@ -227,7 +267,7 @@ export default function SeedDetailScreen() {
         {seed.description && (
           <View style={s.card}>
             <AppText variant="bold" style={s.cardTitle}>
-              📖 เกี่ยวกับเส้นทางนี้
+              {guestCopy.about}
             </AppText>
             <AppText style={s.descriptionText}>{seed.description}</AppText>
           </View>
@@ -237,7 +277,7 @@ export default function SeedDetailScreen() {
         {pathDays.length > 0 && (
           <View style={s.card}>
             <AppText variant="bold" style={s.cardTitle}>
-              📅 เส้นทาง {path.total_days} วัน
+              {guestCopy.days(path.total_days)}
             </AppText>
             {pathDays.map((day, i) => {
               const isDone = enrollment && currentDay > day.day_number;
@@ -280,20 +320,19 @@ export default function SeedDetailScreen() {
                       variant={isActive ? "bold" : "regular"}
                       style={[s.dayTitle, isDone && s.dayTitleDone]}
                     >
-                      Day {day.day_number}
-                      {day.title ? `: ${day.title}` : ""}
+                      {guestCopy.dayLabel(day.day_number, day.title ?? undefined)}
                     </AppText>
                   </View>
 
                   {/* Status */}
                   {isDone && (
                     <View style={s.dayDoneBadge}>
-                      <AppText style={s.dayDoneText}>เสร็จ</AppText>
+                      <AppText style={s.dayDoneText}>{guestCopy.done}</AppText>
                     </View>
                   )}
                   {isActive && (
                     <View style={s.dayActiveBadge}>
-                      <AppText style={s.dayActiveText}>วันนี้</AppText>
+                      <AppText style={s.dayActiveText}>{guestCopy.today}</AppText>
                     </View>
                   )}
                 </View>
@@ -316,7 +355,9 @@ export default function SeedDetailScreen() {
           loading={enrolling}
           disabled={enrolling}
         >
-          {isEnrolled ? `เริ่มวัน ${currentDay}` : "เริ่มเส้นทางนี้"}
+          {isEnrolled
+            ? guestCopy.startCurrentDay(currentDay)
+            : guestCopy.startPath}
         </GlassButton>
       </View>
     </View>

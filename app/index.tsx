@@ -71,13 +71,15 @@ export default function LandingPage() {
     signInWithGoogle,
     signInWithApple,
     loading: authLoading,
+    guestLanguage,
+    setGuestLanguage,
     enterAsGuest,
   } = useAuth();
   const [signingInProvider, setSigningInProvider] = useState<
     "google" | "apple" | null
   >(null);
   const [isEntering, setIsEntering] = useState(false);
-  const [lang, setLang] = useState<"th" | "en">("th");
+  const lang = guestLanguage;
   const c = COPY[lang];
 
   // Animation values
@@ -196,10 +198,6 @@ export default function LandingPage() {
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        {/* Floating accent orbs */}
-        <View style={[styles.orb, styles.orb1]} />
-        <View style={[styles.orb, styles.orb2]} />
-        <View style={[styles.orb, styles.orb3]} />
       </RNAnimated.View>
 
       <View style={styles.container}>
@@ -219,7 +217,9 @@ export default function LandingPage() {
             {/* Language Selector */}
             <View style={styles.langSelector}>
               <Pressable
-                onPress={() => setLang("th")}
+                onPress={() => {
+                  void setGuestLanguage("th");
+                }}
                 style={[
                   styles.langPill,
                   lang === "th" && styles.langPillActive,
@@ -235,7 +235,9 @@ export default function LandingPage() {
                 </AppText>
               </Pressable>
               <Pressable
-                onPress={() => setLang("en")}
+                onPress={() => {
+                  void setGuestLanguage("en");
+                }}
                 style={[
                   styles.langPill,
                   lang === "en" && styles.langPillActive,
@@ -359,38 +361,12 @@ const styles = StyleSheet.create({
     right: -50,
     bottom: -100,
   },
-  orb: {
-    position: "absolute",
-    borderRadius: 999,
-    opacity: 0.15,
-  },
-  orb1: {
-    width: 300,
-    height: 300,
-    backgroundColor: "#8B5CF6",
-    top: "10%",
-    left: "-20%",
-  },
-  orb2: {
-    width: 250,
-    height: 250,
-    backgroundColor: "#3B82F6",
-    top: "50%",
-    right: "-15%",
-  },
-  orb3: {
-    width: 200,
-    height: 200,
-    backgroundColor: "#10B981",
-    bottom: "15%",
-    left: "30%",
-  },
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: Space["2xl"],
-    paddingTop: Space["5xl"] + 48,
+    paddingTop: Space["5xl"] + 96,
   },
   contentWrapper: {
     width: "100%",
