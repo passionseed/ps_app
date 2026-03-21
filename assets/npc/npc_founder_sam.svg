@@ -1,0 +1,39 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle with Glass Effect -->
+  <circle cx="100" cy="100" r="90" fill="url(#glass_gradient)" stroke="white" stroke-opacity="0.2" stroke-width="2"/>
+  
+  <!-- Character: Shoulders/Blazer -->
+  <path d="M50 180C50 155 70 140 100 140C130 140 150 155 150 180" stroke="#4B5563" stroke-width="24" stroke-linecap="round"/>
+  <path d="M50 180C50 155 70 140 100 140C130 140 150 155 150 180" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" stroke-opacity="0.1"/>
+  
+  <!-- Character: Neck -->
+  <rect x="92" y="125" width="16" height="15" fill="#FFD4B5"/>
+  
+  <!-- Character: Head -->
+  <path d="M75 80C75 55 85 40 100 40C115 40 125 55 125 80C125 105 115 125 100 125C85 125 75 105 75 80Z" fill="#FFD4B5"/>
+  
+  <!-- Hair (Sam Altman messier style) -->
+  <path d="M72 75C70 65 75 45 100 35C125 25 130 55 128 75L125 55C125 45 115 35 100 35C85 35 75 45 75 55L72 75Z" fill="#8B5E3C"/>
+  <path d="M75 55C75 45 85 41 100 41C115 41 125 45 125 55" stroke="#714A2E" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Eyes -->
+  <circle cx="88" cy="85" r="3" fill="#111827"/>
+  <circle cx="112" cy="85" r="3" fill="#111827"/>
+  
+  <!-- Smile -->
+  <path d="M90 105C95 108 105 108 110 105" stroke="#111827" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Accent: Brand Color Detail (Pocket Square or Logo) -->
+  <rect x="125" y="155" width="8" height="2" rx="1" fill="#BFFF00"/>
+  
+  <!-- Glass Highlight Overlay -->
+  <path d="M30 60C50 40 100 30 170 80" stroke="white" stroke-opacity="0.3" stroke-width="2" stroke-linecap="round"/>
+
+  <defs>
+    <linearGradient id="glass_gradient" x1="100" y1="10" x2="100" y2="190" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white"/>
+      <stop offset="0.5" stop-color="#F9F5FF"/>
+      <stop offset="1" stop-color="#EEF2FF"/>
+    </linearGradient>
+  </defs>
+</svg>

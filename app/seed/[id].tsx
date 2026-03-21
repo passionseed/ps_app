@@ -49,36 +49,34 @@ export default function SeedDetailScreen() {
     try {
       console.log("[SeedDetail] Loading seed:", id);
 
-      // Load seed
-      const seedData = await getSeedById(id);
+      // Round 1: load seed, expert, and path in parallel — all only need `id`
+      const [seedData, expertData, pathData] = await Promise.all([
+        getSeedById(id),
+        getExpertForSeed(id),
+        getPathBySeedId(id),
+      ]);
+
       console.log("[SeedDetail] Seed loaded:", seedData?.title);
       setSeed(seedData);
+      console.log("[SeedDetail] Expert loaded:", expertData?.name);
+      setExpert(expertData);
+      console.log("[SeedDetail] Path loaded:", pathData?.id);
+      setPath(pathData);
 
       if (!seedData) {
         setLoading(false);
         return;
       }
 
-      // Load expert info
-      const expertData = await getExpertForSeed(id);
-      console.log("[SeedDetail] Expert loaded:", expertData?.name);
-      setExpert(expertData);
-
-      // Load path
-      const pathData = await getPathBySeedId(id);
-      console.log("[SeedDetail] Path loaded:", pathData?.id);
-      setPath(pathData);
-
       if (pathData) {
-        // Load enrollment if user is logged in
-        if (session?.user) {
-          const enrollmentData = await getUserEnrollment(pathData.id);
-          console.log("[SeedDetail] Enrollment:", enrollmentData?.status);
-          setEnrollment(enrollmentData);
-        }
+        // Round 2: load enrollment and path days in parallel — both need `pathData.id`
+        const [enrollmentData, daysData] = await Promise.all([
+          session?.user ? getUserEnrollment(pathData.id) : Promise.resolve(null),
+          getPathDays(pathData.id),
+        ]);
 
-        // Load path days
-        const daysData = await getPathDays(pathData.id);
+        console.log("[SeedDetail] Enrollment:", enrollmentData?.status);
+        setEnrollment(enrollmentData);
         console.log("[SeedDetail] Path days loaded:", daysData.length);
         setPathDays(daysData);
       }

@@ -103,6 +103,12 @@ export default function ActivityDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
 
+  // Granular loading states for skeleton UI
+  const [loadingActivity, setLoadingActivity] = useState(true);
+  const [loadingContent, setLoadingContent] = useState(true);
+  const [loadingAssessment, setLoadingAssessment] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(true);
+
   // Debug screen dimensions on mount and when they change
   useEffect(() => {
     console.log('[SCREEN DEBUG] Screen dimensions:', { width: screenWidth, height: screenHeight });
@@ -173,85 +179,73 @@ export default function ActivityDetailScreen() {
     console.log("[Activity] Loading activity:", activityId);
     console.log("[Activity] Enrollment ID:", enrollmentId);
 
+    // Reset granular loading states
+    setLoadingActivity(true);
+    setLoadingContent(true);
+    setLoadingAssessment(true);
+    setLoadingProgress(true);
+
     try {
-      // Get activity
-      const { data: activityData, error: activityError } = await supabase
-        .from("path_activities")
-        .select("*")
-        .eq("id", activityId)
-        .single();
+      // PARALLEL: Fetch activity, content, assessments, and progress simultaneously
+      const [
+        activityResult,
+        contentResult,
+        assessmentsResult,
+        progressResult,
+      ] = await Promise.all([
+        supabase.from("path_activities").select("*").eq("id", activityId).single(),
+        supabase.from("path_content").select("*").eq("activity_id", activityId).order("display_order", { ascending: true }),
+        supabase.from("path_assessments").select("*").eq("activity_id", activityId),
+        enrollmentId
+          ? supabase.from("path_activity_progress").select("*").eq("enrollment_id", enrollmentId).eq("activity_id", activityId).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
+
+      const { data: activityData, error: activityError } = activityResult;
+      const { data: contentData } = contentResult;
+      const { data: assessmentsData } = assessmentsResult;
+      const { data: progressData } = progressResult;
+
+      // Update granular loading states as data arrives
+      setLoadingActivity(false);
+      setLoadingContent(false);
+      setLoadingAssessment(false);
+      setLoadingProgress(!enrollmentId ? false : !progressData);
 
       console.log("[Activity] Activity data:", activityData);
-      console.log("[Activity] Activity error:", activityError);
+      console.log("[Activity] Content data:", contentData);
+      console.log("[Activity] Assessments data:", assessmentsData);
 
       if (activityError) throw activityError;
 
-      // Get content
-      const { data: contentData, error: contentError } = await supabase
-        .from("path_content")
-        .select("*")
-        .eq("activity_id", activityId)
-        .order("display_order", { ascending: true });
-
-      console.log("[Activity] Content data:", contentData);
-      console.log("[Activity] Content error:", contentError);
-
-      // Get assessments
-      const { data: assessmentsData, error: assessmentsError } = await supabase
-        .from("path_assessments")
-        .select("*")
-        .eq("activity_id", activityId);
-
-      console.log("[Activity] Assessments data:", assessmentsData);
-      console.log("[Activity] Assessments error:", assessmentsError);
-
-      // Get quiz questions if any
+      // PARALLEL: Fetch quiz questions and create progress if needed
       let quizQuestions: PathQuizQuestion[] = [];
-      if (assessmentsData && assessmentsData.length > 0) {
-        const assessmentIds = assessmentsData.map((a) => a.id);
-        const { data: questionsData } = await supabase
-          .from("path_quiz_questions")
-          .select("*")
-          .in("assessment_id", assessmentIds);
-        quizQuestions = questionsData || [];
-      }
+      let progress: PathActivityProgress | undefined = progressData || undefined;
 
-      // Get or create progress
-      let progress: PathActivityProgress | undefined;
-      if (enrollmentId) {
-        console.log("[Activity] Looking for existing progress...");
-        const { data: progressData } = await supabase
-          .from("path_activity_progress")
-          .select("*")
-          .eq("enrollment_id", enrollmentId)
-          .eq("activity_id", activityId)
-          .maybeSingle();
-
-        if (progressData) {
-          console.log("[Activity] Found existing progress:", progressData.id);
-          progress = progressData;
-        } else {
-          console.log("[Activity] No progress found, creating new progress record...");
-          // Create a new progress record
-          const { data: newProgress, error: progressError } = await supabase
-            .from("path_activity_progress")
-            .insert({
+      const [questionsResult, newProgressResult] = await Promise.all([
+        // Fetch quiz questions if assessments exist
+        assessmentsData && assessmentsData.length > 0
+          ? supabase.from("path_quiz_questions").select("*").in("assessment_id", assessmentsData.map((a) => a.id))
+          : Promise.resolve({ data: null, error: null }),
+        // Create progress if not found and enrollmentId exists
+        !progressData && enrollmentId
+          ? supabase.from("path_activity_progress").insert({
               enrollment_id: enrollmentId,
               activity_id: activityId,
               status: "in_progress",
               started_at: new Date().toISOString(),
-            })
-            .select()
-            .single();
+            }).select().single()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
 
-          if (progressError) {
-            console.error("[Activity] Error creating progress:", progressError);
-          } else if (newProgress) {
-            console.log("[Activity] Created new progress:", newProgress.id);
-            progress = newProgress;
-          }
-        }
+      quizQuestions = questionsResult.data || [];
+      if (newProgressResult.data) {
+        console.log("[Activity] Created new progress:", newProgressResult.data.id);
+        progress = newProgressResult.data;
+      } else if (progress) {
+        console.log("[Activity] Found existing progress:", progress.id);
       }
+      setLoadingProgress(false);
 
       // Build path_assessment object (single assessment or null)
       let pathAssessment: (PathAssessment & { quiz_questions?: PathQuizQuestion[] }) | null = null;
@@ -295,45 +289,31 @@ export default function ActivityDetailScreen() {
 
       setActivity(fullActivity);
 
-      // Fetch pagination info - get all activities for this day via path_days
-      console.log('[Activity] Checking pagination - day_number:', fullActivity.day_number, 'enrollmentId:', enrollmentId);
+      // Fetch pagination info - use path_day_id from already-fetched activityData
+      console.log('[Activity] Checking pagination - path_day_id:', activityData.path_day_id, 'enrollmentId:', enrollmentId);
 
-      if (enrollmentId) {
+      if (enrollmentId && activityData.path_day_id) {
         try {
-          // First, get the path_day_id from the current activity
-          const { data: activityWithDay, error: dayError } = await supabase
+          // Use path_day_id from already-fetched activityData (no extra query needed)
+          const { data: dayActivities, error: activitiesError } = await supabase
             .from("path_activities")
-            .select("path_day_id")
-            .eq("id", activityId)
-            .single();
+            .select("id, display_order")
+            .eq("path_day_id", activityData.path_day_id)
+            .eq("is_draft", false)
+            .order("display_order", { ascending: true });
 
-          if (dayError) {
-            console.error('[Activity] Error fetching path_day_id:', dayError);
+          if (activitiesError) {
+            console.error('[Activity] Error fetching day activities:', activitiesError);
           }
 
-          if (activityWithDay?.path_day_id) {
-            // Get all activities for this path_day
-            const { data: dayActivities, error: activitiesError } = await supabase
-              .from("path_activities")
-              .select("id, display_order")
-              .eq("path_day_id", activityWithDay.path_day_id)
-              .order("display_order", { ascending: true });
-
-            if (activitiesError) {
-              console.error('[Activity] Error fetching day activities:', activitiesError);
-            }
-
-            if (dayActivities && dayActivities.length > 0) {
-              const currentIndex = dayActivities.findIndex(a => a.id === activityId);
-              setAutoCurrentPage(currentIndex >= 0 ? currentIndex : 0);
-              setAutoTotalPages(dayActivities.length);
-              setDayActivitiesCount(dayActivities.length);
-              setDayActivitiesList(dayActivities);
-            } else {
-              console.warn('[Activity] No activities found for path_day_id:', activityWithDay.path_day_id);
-            }
+          if (dayActivities && dayActivities.length > 0) {
+            const currentIndex = dayActivities.findIndex(a => a.id === activityId);
+            setAutoCurrentPage(currentIndex >= 0 ? currentIndex : 0);
+            setAutoTotalPages(dayActivities.length);
+            setDayActivitiesCount(dayActivities.length);
+            setDayActivitiesList(dayActivities);
           } else {
-            console.warn('[Activity] No path_day_id found for activity:', activityId);
+            console.warn('[Activity] No activities found for path_day_id:', activityData.path_day_id);
           }
         } catch (err) {
           console.error('[Activity] Error fetching pagination:', err);
@@ -1283,12 +1263,69 @@ export default function ActivityDetailScreen() {
     },
   });
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#BFFF00" />
+  // Skeleton component for loading states
+  const SkeletonBlock = ({ width, height, borderRadius = 8 }: { width: number | `${number}%`; height: number; borderRadius?: number }) => (
+    <View
+      style={{
+        width: width as any,
+        height,
+        borderRadius,
+        backgroundColor: '#E0E0E0',
+        overflow: 'hidden',
+      }}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#F5F5F5',
+        }}
+      />
+    </View>
+  );
+
+  // Skeleton screen for initial loading
+  const renderSkeleton = () => (
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+
+      {/* Header skeleton */}
+      <View style={styles.header}>
+        <SkeletonBlock width={60} height={20} />
+        <SkeletonBlock width="60%" height={20} />
+        <View style={{ width: 60 }} />
       </View>
-    );
+
+      {/* Content skeleton */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Title skeleton */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <SkeletonBlock width="80%" height={28} />
+        </View>
+
+        {/* Instructions skeleton */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+          <SkeletonBlock width="100%" height={16} />
+          <View style={{ height: 8 }} />
+          <SkeletonBlock width="90%" height={16} />
+          <View style={{ height: 8 }} />
+          <SkeletonBlock width="70%" height={16} />
+        </View>
+
+        {/* Content block skeleton */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+          <SkeletonBlock width="100%" height={200} borderRadius={12} />
+        </View>
+
+        {/* Assessment skeleton */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+          <SkeletonBlock width="100%" height={120} borderRadius={12} />
+        </View>
+      </ScrollView>
+    </View>
+  );
+
+  if (loading) {
+    return renderSkeleton();
   }
 
   if (!activity) {

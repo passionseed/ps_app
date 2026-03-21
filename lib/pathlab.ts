@@ -23,16 +23,17 @@ import type {
 // ============ Seeds ============
 
 export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
-  const { data: { user } } = await supabase.auth.getUser();
-
   console.log("[getAvailableSeeds] Starting query...");
 
-  // Get seeds
-  const { data: seedsData, error: seedsError } = await supabase
-    .from("seeds")
-    .select("*")
-    .eq("seed_type", "pathlab")
-    .order("created_at", { ascending: false });
+  // Fetch user + seeds+paths in parallel
+  const [{ data: { user } }, { data: seedsData, error: seedsError }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("seeds")
+      .select("*, paths(id, seed_id, total_days)")
+      .eq("seed_type", "pathlab")
+      .order("created_at", { ascending: false }),
+  ]);
 
   console.log("[getAvailableSeeds] Query result:", {
     count: seedsData?.length || 0,
@@ -50,16 +51,11 @@ export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
     return [];
   }
 
-  // Get paths for these seeds
-  const { data: pathsData } = await supabase
-    .from("paths")
-    .select("id, seed_id, total_days")
-    .in("seed_id", seedsData.map(s => s.id));
-
-  // Combine seeds with their paths
-  const seeds = seedsData.map(seed => ({
+  // Normalize: seeds.paths is an array from the join, take first match
+  const seeds = seedsData.map((seed: any) => ({
     ...seed,
-    path: pathsData?.find(p => p.seed_id === seed.id) || null,
+    path: Array.isArray(seed.paths) ? (seed.paths[0] ?? null) : (seed.paths ?? null),
+    paths: undefined,
   })) as Seed[];
 
   // If user is logged in, get their enrollments
@@ -91,11 +87,22 @@ export async function getSeedById(seedId: string): Promise<Seed | null> {
     return null;
   }
 
-  const { data: seedData, error: seedError } = await supabase
-    .from("seeds")
-    .select("*")
-    .eq("id", seedId)
-    .maybeSingle();
+  // Fetch seed and its path in parallel (path query only needs seedId, not the seed row)
+  const [
+    { data: seedData, error: seedError },
+    { data: pathData },
+  ] = await Promise.all([
+    supabase
+      .from("seeds")
+      .select("*")
+      .eq("id", seedId)
+      .maybeSingle(),
+    supabase
+      .from("paths")
+      .select("id, total_days")
+      .eq("seed_id", seedId)
+      .maybeSingle(),
+  ]);
 
   if (seedError) {
     console.error("Error loading seed:", seedError);
@@ -103,13 +110,6 @@ export async function getSeedById(seedId: string): Promise<Seed | null> {
   }
 
   if (!seedData) return null;
-
-  // Get the path for this seed
-  const { data: pathData } = await supabase
-    .from("paths")
-    .select("id, total_days")
-    .eq("seed_id", seedId)
-    .maybeSingle();
 
   return {
     ...seedData,
@@ -296,20 +296,33 @@ export async function getPathDayActivities(
 
   const activityIds = activities.map(a => a.id);
 
-  // Get content for these activities
-  const { data: content } = await supabase
-    .from("path_content")
-    .select("*")
-    .in("activity_id", activityIds)
-    .order("display_order", { ascending: true });
+  // Fetch content, assessments, and progress in parallel (all independent of each other)
+  const [
+    { data: content },
+    { data: assessments },
+    { data: progressData },
+  ] = await Promise.all([
+    supabase
+      .from("path_content")
+      .select("*")
+      .in("activity_id", activityIds)
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("path_assessments")
+      .select("*")
+      .in("activity_id", activityIds),
+    enrollmentId
+      ? supabase
+          .from("path_activity_progress")
+          .select("*")
+          .eq("enrollment_id", enrollmentId)
+          .in("activity_id", activityIds)
+      : Promise.resolve({ data: [] as PathActivityProgress[] }),
+  ]);
 
-  // Get assessments for these activities
-  const { data: assessments } = await supabase
-    .from("path_assessments")
-    .select("*")
-    .in("activity_id", activityIds);
+  const progress: PathActivityProgress[] = progressData || [];
 
-  // Get quiz questions if there are any quiz assessments
+  // Get quiz questions if there are any quiz assessments (depends on assessments result)
   let quizQuestions: PathQuizQuestion[] = [];
   if (assessments && assessments.length > 0) {
     const assessmentIds = assessments.map(a => a.id);
@@ -318,17 +331,6 @@ export async function getPathDayActivities(
       .select("*")
       .in("assessment_id", assessmentIds);
     quizQuestions = questions || [];
-  }
-
-  // Get progress if enrollment ID provided
-  let progress: PathActivityProgress[] = [];
-  if (enrollmentId) {
-    const { data: progressData } = await supabase
-      .from("path_activity_progress")
-      .select("*")
-      .eq("enrollment_id", enrollmentId)
-      .in("activity_id", activityIds);
-    progress = progressData || [];
   }
 
   // Combine everything - new schema: path_content and path_assessment
