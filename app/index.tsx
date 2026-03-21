@@ -22,7 +22,14 @@ import {
 } from "../lib/auth";
 import { AppText } from "../components/AppText";
 import { GlassButton, GlassCard } from "../components/Glass";
-import { PageBg, Text as ThemeText, Accent, Shadow, Radius, Space } from "../lib/theme";
+import {
+  PageBg,
+  Text as ThemeText,
+  Accent,
+  Shadow,
+  Radius,
+  Space,
+} from "../lib/theme";
 
 const { width, height } = Dimensions.get("window");
 
@@ -30,21 +37,23 @@ const COPY = {
   th: {
     tagline1: "ค้นหาเส้นทางที่ใช่",
     tagline2: "ก่อนตัดสินใจจริง",
-    description: "ทดลองอาชีพในฝัน เพียง 30 นาทีต่อวัน\nเพื่อค้นพบตัวตนที่แท้จริงของคุณ",
+    description:
+      "ลองอาชีพในฝัน เพียง 30 นาทีต่อวัน\nเพื่อค้นพบตัวตนที่แท้จริงของคุณ",
     googleBtn: "เข้าสู่ระบบด้วย Google",
     appleBtn: "เข้าสู่ระบบด้วย Apple",
-    guestBtn: "เรียกดูก่อนเข้าสู่ระบบ",
+    guestBtn: "ข้าม",
     features: [
       { icon: "🎯", text: "ภารกิจรายวัน", subtext: "30 นาที" },
-      { icon: "📝", text: "สะท้อนความรู้สึก", subtext: "ทุกวัน" },
-      { icon: "🗺️", text: "แนวทางอาชีพ", subtext: "" },
+      { icon: "📝", text: "คิดกับตัวเอง", subtext: "ทุกวัน" },
+      { icon: "🗺️", text: "แนวทางอาชีพ", subtext: "ของจริง" },
     ],
     footer: "ออกแบบสำหรับนักเรียนและผู้ที่กำลังค้นหาเส้นทางอาชีพ",
   },
   en: {
     tagline1: "Find Your Path",
     tagline2: "Before You Commit",
-    description: "Try your dream career in just 30 min/day\nDiscover what truly drives you",
+    description:
+      "Try your dream career in just 30 min/day\nDiscover what truly drives you",
     googleBtn: "Continue with Google",
     appleBtn: "Sign in with Apple",
     guestBtn: "Explore without signing in",
@@ -58,7 +67,12 @@ const COPY = {
 } as const;
 
 export default function LandingPage() {
-  const { signInWithGoogle, signInWithApple, loading: authLoading, enterAsGuest } = useAuth();
+  const {
+    signInWithGoogle,
+    signInWithApple,
+    loading: authLoading,
+    enterAsGuest,
+  } = useAuth();
   const [signingInProvider, setSigningInProvider] = useState<
     "google" | "apple" | null
   >(null);
@@ -99,7 +113,7 @@ export default function LandingPage() {
           duration: 4000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     loop.start();
 
@@ -133,7 +147,7 @@ export default function LandingPage() {
                 void Linking.openSettings();
               },
             },
-          ]
+          ],
         );
         return;
       }
@@ -173,7 +187,9 @@ export default function LandingPage() {
       <StatusBar style="dark" />
 
       {/* Animated background with soft gradients */}
-      <RNAnimated.View style={[styles.backgroundContainer, backgroundAnimatedStyle]}>
+      <RNAnimated.View
+        style={[styles.backgroundContainer, backgroundAnimatedStyle]}
+      >
         <LinearGradient
           colors={["#F3F4F6", "#E5E7EB", "#F3F4F6"]}
           start={{ x: 0, y: 0 }}
@@ -204,17 +220,33 @@ export default function LandingPage() {
             <View style={styles.langSelector}>
               <Pressable
                 onPress={() => setLang("th")}
-                style={[styles.langPill, lang === "th" && styles.langPillActive]}
+                style={[
+                  styles.langPill,
+                  lang === "th" && styles.langPillActive,
+                ]}
               >
-                <AppText style={[styles.langPillText, lang === "th" && styles.langPillTextActive]}>
+                <AppText
+                  style={[
+                    styles.langPillText,
+                    lang === "th" && styles.langPillTextActive,
+                  ]}
+                >
                   TH
                 </AppText>
               </Pressable>
               <Pressable
                 onPress={() => setLang("en")}
-                style={[styles.langPill, lang === "en" && styles.langPillActive]}
+                style={[
+                  styles.langPill,
+                  lang === "en" && styles.langPillActive,
+                ]}
               >
-                <AppText style={[styles.langPillText, lang === "en" && styles.langPillTextActive]}>
+                <AppText
+                  style={[
+                    styles.langPillText,
+                    lang === "en" && styles.langPillTextActive,
+                  ]}
+                >
                   EN
                 </AppText>
               </Pressable>
@@ -233,9 +265,7 @@ export default function LandingPage() {
             </View>
 
             {/* Description */}
-            <AppText style={styles.description}>
-              {c.description}
-            </AppText>
+            <AppText style={styles.description}>{c.description}</AppText>
 
             {/* Sign In Buttons */}
             <View style={styles.buttonsContainer}>
@@ -279,22 +309,33 @@ export default function LandingPage() {
             {/* Features */}
             <View style={styles.features}>
               {c.features.map((f) => (
-                <FeatureItem key={f.icon} icon={f.icon} text={f.text} subtext={f.subtext} />
+                <FeatureItem
+                  key={f.icon}
+                  icon={f.icon}
+                  text={f.text}
+                  subtext={f.subtext}
+                />
               ))}
             </View>
           </GlassCard>
 
           {/* Footer */}
-          <AppText style={styles.footer}>
-            {c.footer}
-          </AppText>
+          <AppText style={styles.footer}>{c.footer}</AppText>
         </RNAnimated.View>
       </View>
     </View>
   );
 }
 
-function FeatureItem({ icon, text, subtext }: { icon: string; text: string; subtext: string }) {
+function FeatureItem({
+  icon,
+  text,
+  subtext,
+}: {
+  icon: string;
+  text: string;
+  subtext: string;
+}) {
   return (
     <View style={styles.featureItem}>
       <View style={styles.featureIconContainer}>
@@ -349,7 +390,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: Space["2xl"],
-    paddingTop: Space["5xl"] + 12,
+    paddingTop: Space["5xl"] + 48,
   },
   contentWrapper: {
     width: "100%",
