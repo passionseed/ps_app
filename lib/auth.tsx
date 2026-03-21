@@ -4,6 +4,11 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import {
+  type GuestLanguage,
+  readGuestLanguage,
+  saveGuestLanguage,
+} from "./guest-language";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -83,8 +88,10 @@ type AuthContext = {
   user: User | null;
   loading: boolean;
   isGuest: boolean;
+  guestLanguage: GuestLanguage;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  setGuestLanguage: (language: GuestLanguage) => Promise<void>;
   enterAsGuest: () => void;
   exitGuestMode: () => void;
 };
@@ -94,8 +101,10 @@ const AuthContext = createContext<AuthContext>({
   user: null,
   loading: true,
   isGuest: false,
+  guestLanguage: "th",
   signInWithGoogle: async () => {},
   signInWithApple: async () => {},
+  setGuestLanguage: async () => {},
   enterAsGuest: () => {},
   exitGuestMode: () => {},
 });
@@ -104,12 +113,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const [guestLanguage, setGuestLanguageState] =
+    useState<GuestLanguage>("th");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    Promise.all([supabase.auth.getSession(), readGuestLanguage()])
+      .then(([{ data: { session } }, language]) => {
+        setSession(session);
+        setGuestLanguageState(language);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -122,6 +137,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const enterAsGuest = () => {
     setIsGuest(true);
+  };
+
+  const setGuestLanguage = async (language: GuestLanguage) => {
+    setGuestLanguageState(language);
+    await saveGuestLanguage(language);
   };
 
   const exitGuestMode = () => {
@@ -223,8 +243,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: session?.user ?? null,
         loading,
         isGuest,
+        guestLanguage,
         signInWithGoogle,
         signInWithApple,
+        setGuestLanguage,
         enterAsGuest,
         exitGuestMode,
       }}

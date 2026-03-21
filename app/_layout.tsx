@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { getProfile } from "../lib/onboarding";
+import { getSupabaseConfigErrorMessage } from "../lib/runtime-config";
 import type { Profile } from "../types/onboarding";
 
 SplashScreen.setOptions({
@@ -87,6 +88,35 @@ function AppLaunchScreen() {
       />
       <View style={styles.launchFooter}>
         <ActivityIndicator size="large" color="#FDFFF5" />
+      </View>
+    </View>
+  );
+}
+
+function ConfigErrorScreen({ message }: { message: string }) {
+  return (
+    <View style={styles.errorRoot}>
+      <LinearGradient
+        colors={["#fff8f1", "#ffe4e6", "#fee2e2"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.errorCard}>
+        <Animated.Image
+          source={require("../assets/passionseed-logo.png")}
+          style={styles.errorLogo}
+          resizeMode="contain"
+        />
+        <View style={styles.errorCopy}>
+          <Animated.Text style={styles.errorTitle}>
+            App configuration error
+          </Animated.Text>
+          <Animated.Text style={styles.errorBody}>{message}</Animated.Text>
+          <Animated.Text style={styles.errorHint}>
+            Rebuild the production app with the required Expo public env vars.
+          </Animated.Text>
+        </View>
       </View>
     </View>
   );
@@ -172,6 +202,7 @@ export default function RootLayout() {
     Orbit_400Regular: require("../assets/Orbit_400Regular.ttf"),
   });
   const [isReady, setIsReady] = useState(false);
+  const configError = getSupabaseConfigErrorMessage();
 
   useEffect(() => {
     if (!fontsLoaded || isReady) return;
@@ -200,6 +231,10 @@ export default function RootLayout() {
 
   if (!fontsLoaded || !isReady) {
     return <AppLaunchScreen />;
+  }
+
+  if (configError) {
+    return <ConfigErrorScreen message={configError} />;
   }
 
   return (
@@ -241,5 +276,56 @@ const styles = StyleSheet.create({
   launchFooter: {
     position: "absolute",
     bottom: 44,
+  },
+  errorRoot: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "#fff8f1",
+  },
+  errorCard: {
+    width: "100%",
+    maxWidth: 420,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    borderRadius: 28,
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderWidth: 1,
+    borderColor: "rgba(244, 63, 94, 0.16)",
+    shadowColor: "#fb7185",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    gap: 18,
+  },
+  errorLogo: {
+    width: 72,
+    height: 72,
+    alignSelf: "center",
+  },
+  errorCopy: {
+    gap: 10,
+  },
+  errorTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: "Orbit_400Regular",
+    color: "#111827",
+    textAlign: "center",
+  },
+  errorBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: "BaiJamjuree_500Medium",
+    color: "#991b1b",
+    textAlign: "center",
+  },
+  errorHint: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: "BaiJamjuree_400Regular",
+    color: "#4b5563",
+    textAlign: "center",
   },
 });
