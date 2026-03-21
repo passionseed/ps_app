@@ -234,7 +234,7 @@ VALUES ('c1000001-0000-0000-0000-000000000001', 'b1000001-0000-0000-0000-0000000
 ON CONFLICT (id) DO NOTHING;
 
 UPDATE public.path_npc_conversations SET root_node_id = 'b1000001-0000-0000-0000-000000000001'
-WHERE id = 'a1000001-0000-0000-0000-000000000001' AND root_node_id IS NULL;
+WHERE id = 'a1000001-0000-0000-0000-000000000001' AND root_node_id IS NULL; -- guard: no-op if already set (safe for manual re-runs against live DB)
 
 -- DAY 2: Requirements Review with Alex
 INSERT INTO public.path_npc_conversations (id, seed_id, title, root_node_id, estimated_minutes)
@@ -261,7 +261,7 @@ VALUES ('c1000002-0000-0000-0000-000000000001', 'b1000002-0000-0000-0000-0000000
 ON CONFLICT (id) DO NOTHING;
 
 UPDATE public.path_npc_conversations SET root_node_id = 'b1000002-0000-0000-0000-000000000001'
-WHERE id = 'a1000001-0000-0000-0000-000000000002' AND root_node_id IS NULL;
+WHERE id = 'a1000001-0000-0000-0000-000000000002' AND root_node_id IS NULL; -- guard: no-op if already set
 
 -- DAY 3: Sprint Check-in with Alex
 INSERT INTO public.path_npc_conversations (id, seed_id, title, root_node_id, estimated_minutes)
@@ -289,7 +289,7 @@ VALUES ('c1000003-0000-0000-0000-000000000001', 'b1000003-0000-0000-0000-0000000
 ON CONFLICT (id) DO NOTHING;
 
 UPDATE public.path_npc_conversations SET root_node_id = 'b1000003-0000-0000-0000-000000000001'
-WHERE id = 'a1000001-0000-0000-0000-000000000003' AND root_node_id IS NULL;
+WHERE id = 'a1000001-0000-0000-0000-000000000003' AND root_node_id IS NULL; -- guard: no-op if already set
 
 -- DAY 4: Final Review with Alex (branching)
 INSERT INTO public.path_npc_conversations (id, seed_id, title, root_node_id, estimated_minutes)
@@ -333,7 +333,7 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 UPDATE public.path_npc_conversations SET root_node_id = 'b1000004-0000-0000-0000-000000000001'
-WHERE id = 'a1000001-0000-0000-0000-000000000004' AND root_node_id IS NULL;
+WHERE id = 'a1000001-0000-0000-0000-000000000004' AND root_node_id IS NULL; -- guard: no-op if already set
 
 -- DAY 5: Sprint Retrospective with Alex
 INSERT INTO public.path_npc_conversations (id, seed_id, title, root_node_id, estimated_minutes)
@@ -362,7 +362,7 @@ VALUES ('c1000005-0000-0000-0000-000000000001', 'b1000005-0000-0000-0000-0000000
 ON CONFLICT (id) DO NOTHING;
 
 UPDATE public.path_npc_conversations SET root_node_id = 'b1000005-0000-0000-0000-000000000001'
-WHERE id = 'a1000001-0000-0000-0000-000000000005' AND root_node_id IS NULL;
+WHERE id = 'a1000001-0000-0000-0000-000000000005' AND root_node_id IS NULL; -- guard: no-op if already set
 
 -- ============================================================================
 -- DAY 1: PATH_CONTENT
