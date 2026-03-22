@@ -67,6 +67,14 @@ module.exports = {
       "expo-image",
       "expo-sharing",
       "expo-asset",
+      [
+        "@sentry/react-native/expo",
+        {
+          url: "https://sentry.io/",
+          project: "ps_app",
+          organization: "big-zk",
+        },
+      ],
     ],
     extra: {
       router: {},

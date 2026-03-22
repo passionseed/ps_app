@@ -20,6 +20,26 @@ import { AuthProvider, useAuth } from "../lib/auth";
 import { getProfile } from "../lib/onboarding";
 import { getSupabaseConfigErrorMessage } from "../lib/runtime-config";
 import type { Profile } from "../types/onboarding";
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://7b4ad4da49242478ad4aef96a6dd2a41@o4511084030328832.ingest.us.sentry.io/4511089087873024',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 SplashScreen.setOptions({
   duration: 900,
@@ -194,7 +214,7 @@ function RootNavigator() {
   );
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const [fontsLoaded] = useFonts({
     BaiJamjuree_400Regular,
     BaiJamjuree_500Medium,
@@ -245,7 +265,7 @@ export default function RootLayout() {
       </View>
     </AuthProvider>
   );
-}
+});
 
 const styles = StyleSheet.create({
   launchRoot: {
