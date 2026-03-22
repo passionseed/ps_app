@@ -252,6 +252,12 @@ export default function LandingPage() {
                   EN
                 </AppText>
               </Pressable>
+              <Pressable
+                title="Try!"
+                onPress={() => {
+                  Sentry.captureException(new Error("First error"));
+                }}
+              />
             </View>
 
             {/* Tagline */}

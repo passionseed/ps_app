@@ -16,6 +16,7 @@ import { getProfile } from "../lib/onboarding";
 import type { Profile, MobileSettings } from "../types/onboarding";
 import { GlassCard } from "../components/Glass";
 import { PageBg, Text as ThemeText, Accent, Radius, Shadow, glassCard } from "../lib/theme";
+import * as Sentry from '@sentry/react-native';
 
 export default function SettingsScreen() {
   const { user } = useAuth();
@@ -223,6 +224,20 @@ export default function SettingsScreen() {
                 <View style={styles.optionDivider} />
                 <Pressable style={styles.optionRow}>
                   <Text style={styles.optionText}>Terms of Service</Text>
+                  <Text style={styles.chevron}>›</Text>
+                </Pressable>
+              </GlassCard>
+            </View>
+
+            {/* Developer */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Developer</Text>
+              <GlassCard variant="neutral" size="small" noPadding>
+                <Pressable
+                  style={styles.optionRow}
+                  onPress={() => Sentry.captureException(new Error('First error'))}
+                >
+                  <Text style={styles.optionText}>Test Sentry</Text>
                   <Text style={styles.chevron}>›</Text>
                 </Pressable>
               </GlassCard>

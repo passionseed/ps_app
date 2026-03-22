@@ -44,3 +44,7 @@ yarn-error.*
 build-*.ipa
 build-*
 /PassionSeedDevelopment.app
+
+.env.local
+
+.env.local
