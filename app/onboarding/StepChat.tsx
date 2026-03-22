@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TextInput,
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  Animated,
+  Easing,
 } from "react-native";
 import {
   callOnboardingChat,
@@ -43,7 +43,14 @@ export default function StepChat({
   );
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const dot1Anim = useRef(new Animated.Value(0.2)).current;
+  const dot2Anim = useRef(new Animated.Value(0.2)).current;
+  const dot3Anim = useRef(new Animated.Value(0.2)).current;
+
+  const currentNpcText =
+    [...bubbles].reverse().find((b) => b.role === "model")?.text ?? "";
 
   // Send initial greeting if no history
   useEffect(() => {
@@ -51,6 +58,64 @@ export default function StepChat({
       sendToAI([]);
     }
   }, []);
+
+  // Animations while loading
+  useEffect(() => {
+    if (loading) {
+      const glowLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+        ]),
+      );
+      glowLoop.start();
+
+      const makeDotLoop = (anim: Animated.Value, delay: number) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(anim, {
+              toValue: 1,
+              duration: 600,
+              delay,
+              useNativeDriver: true,
+            }),
+            Animated.timing(anim, {
+              toValue: 0.2,
+              duration: 600,
+              useNativeDriver: true,
+            }),
+          ]),
+        );
+
+      const d1 = makeDotLoop(dot1Anim, 0);
+      const d2 = makeDotLoop(dot2Anim, 200);
+      const d3 = makeDotLoop(dot3Anim, 400);
+      d1.start();
+      d2.start();
+      d3.start();
+
+      return () => {
+        glowLoop.stop();
+        glowAnim.setValue(0);
+        d1.stop();
+        d2.stop();
+        d3.stop();
+        dot1Anim.setValue(0.2);
+        dot2Anim.setValue(0.2);
+        dot3Anim.setValue(0.2);
+      };
+    }
+  }, [loading]);
 
   const sendToAI = async (history: ChatMessage[], userText?: string) => {
     setLoading(true);
@@ -94,24 +159,6 @@ export default function StepChat({
     }
   };
 
-  const handleEditMessage = (index: number) => {
-    if (loading) return;
-    const message = bubbles[index];
-    setInput(message.text);
-
-    // Truncate bubbles to everything before the tapped message
-    const truncatedBubbles = bubbles.slice(0, index);
-    setBubbles(truncatedBubbles);
-
-    // Update chat history accordingly
-    const truncatedHistory: ChatMessage[] = truncatedBubbles.map((b) => ({
-      role: b.role,
-      parts: [{ text: b.text }] as [{ text: string }],
-    }));
-    onChatHistoryUpdate(truncatedHistory);
-    upsertOnboardingState(userId, { chat_history: truncatedHistory });
-  };
-
   const handleSend = () => {
     const text = input.trim();
     if (!text || loading) return;
@@ -124,165 +171,185 @@ export default function StepChat({
     sendToAI(currentHistory, text);
   };
 
-  useEffect(() => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [bubbles]);
-
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={0}
     >
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Tell me about yourself</Text>
-      </View>
+      <View style={styles.container}>
+        {/* NPC portrait area */}
+        <View style={styles.portraitArea}>
+          <Animated.View
+            style={[
+              styles.portrait,
+              {
+                shadowOpacity: glowAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 0.6],
+                }),
+                borderColor: glowAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["#BFFF00", "#9FE800"],
+                }),
+              },
+            ]}
+          >
+            <Text style={styles.portraitLabel}>NPC</Text>
+          </Animated.View>
+        </View>
 
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {bubbles.map((b, i) => {
-          const isUser = b.role === "user";
-          const lastUserIndex = bubbles.reduce(
-            (acc, cur, idx) => (cur.role === "user" ? idx : acc),
-            -1,
-          );
-          const isLastUserMessage = isUser && i === lastUserIndex;
+        {/* Dialog box */}
+        <View style={styles.dialogBox}>
+          <Text style={styles.npcName}>PIP — CAREER GUIDE</Text>
 
-          if (isUser) {
-            return (
-              <View key={i}>
-                <Pressable
-                  onPress={() => handleEditMessage(i)}
-                  disabled={loading}
-                  style={[styles.bubble, styles.bubbleUser]}
-                >
-                  <Text style={[styles.bubbleText, styles.bubbleTextUser]}>
-                    {b.text}
-                  </Text>
-                </Pressable>
-                {isLastUserMessage && !loading && (
-                  <Text style={styles.editHint}>แตะเพื่อแก้ไข</Text>
-                )}
-              </View>
-            );
-          }
-
-          return (
-            <View
-              key={i}
-              style={[styles.bubble, styles.bubbleAI]}
-            >
-              <Text style={[styles.bubbleText, styles.bubbleTextAI]}>
-                {b.text}
-              </Text>
+          {loading ? (
+            <View style={styles.dotsRow}>
+              <Animated.View style={[styles.dot, { opacity: dot1Anim }]} />
+              <Animated.View style={[styles.dot, { opacity: dot2Anim }]} />
+              <Animated.View style={[styles.dot, { opacity: dot3Anim }]} />
             </View>
-          );
-        })}
-        {loading && (
-          <View style={[styles.bubble, styles.bubbleAI]}>
-            <ActivityIndicator color="#BFFF00" size="small" />
-          </View>
-        )}
-      </ScrollView>
+          ) : (
+            <Text style={styles.npcText}>{currentNpcText}</Text>
+          )}
 
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Type your answer..."
-          placeholderTextColor="rgba(0,0,0,0.4)"
-          multiline
-          returnKeyType="send"
-          onSubmitEditing={handleSend}
-        />
-        <Pressable
-          style={[
-            styles.sendBtn,
-            (!input.trim() || loading) && styles.sendBtnDisabled,
-          ]}
-          onPress={handleSend}
-        >
-          <Text style={styles.sendBtnText}>→</Text>
-        </Pressable>
+          <View style={styles.divider} />
+
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, loading && { opacity: 0.5 }]}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Type your answer..."
+              placeholderTextColor="rgba(0,0,0,0.35)"
+              multiline
+              returnKeyType="send"
+              onSubmitEditing={handleSend}
+              editable={!loading}
+            />
+            <Pressable
+              style={[styles.sendBtn, loading && styles.sendBtnDisabled]}
+              onPress={handleSend}
+              disabled={loading || !input.trim()}
+            >
+              <Text style={styles.sendBtnText}>→</Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { paddingTop: 16, paddingHorizontal: 24, paddingBottom: 12 },
-  headerText: {
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    fontSize: 18,
-    color: "#374151",
+  container: {
+    flex: 1,
+    flexDirection: "column",
   },
-  scroll: { flex: 1 },
-  scrollContent: { padding: 16, gap: 16, paddingBottom: 32 },
-  bubble: {
-    maxWidth: "82%",
+  portraitArea: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  portrait: {
+    width: 110,
+    height: 140,
     borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    backgroundColor: "#e5e7eb",
+    borderWidth: 2,
+    borderColor: "#BFFF00",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#BFFF00",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 12,
+    elevation: 0,
   },
-  bubbleAI: {
-    alignSelf: "flex-start",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.1)",
-    borderBottomLeftRadius: 4,
+  portraitLabel: {
+    fontFamily: "Orbit_400Regular",
+    fontSize: 12,
+    color: "#aaa",
   },
-  bubbleUser: {
-    alignSelf: "flex-end",
+  dialogBox: {
+    marginHorizontal: 16,
+    marginBottom: Platform.OS === "ios" ? 32 : 24,
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "#e5e7eb",
+    borderRadius: 20,
+    padding: 16,
+    gap: 10,
+    minHeight: 170,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  npcName: {
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "700",
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: "#9FE800",
+    textTransform: "uppercase",
+  },
+  npcText: {
+    fontFamily: "Orbit_400Regular",
+    fontSize: 13,
+    color: "#111",
+    lineHeight: 20,
+    minHeight: 42,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minHeight: 42,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: "#BFFF00",
-    borderBottomRightRadius: 4,
   },
-  bubbleText: { fontFamily: "Orbit_400Regular", fontSize: 16, lineHeight: 24 },
-  bubbleTextAI: { color: "#111827" },
-  bubbleTextUser: { color: "#0a0514", fontWeight: "600" },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.06)",
+  },
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
-    marginHorizontal: 16,
-    marginBottom: Platform.OS === "ios" ? 32 : 24,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    gap: 12,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.15)",
-    backgroundColor: "#FFFFFF",
+    gap: 8,
   },
   input: {
     flex: 1,
-    paddingHorizontal: 12,
-    paddingTop: Platform.OS === "ios" ? 12 : 8,
-    paddingBottom: Platform.OS === "ios" ? 12 : 8,
-    color: "#111827",
+    backgroundColor: "#FDFFF5",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
     fontFamily: "Orbit_400Regular",
-    fontSize: 16,
-    minHeight: 44,
-    maxHeight: 120,
+    color: "#111",
+    maxHeight: 80,
   },
   sendBtn: {
     backgroundColor: "#BFFF00",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
   },
-  sendBtnDisabled: { opacity: 0.4 },
-  sendBtnText: { fontSize: 20, color: "#0a0514", fontWeight: "700" },
-  editHint: {
-    fontSize: 11,
-    color: "rgba(0,0,0,0.4)",
-    textAlign: "right",
-    marginTop: 2,
-    marginRight: 4,
+  sendBtnDisabled: {
+    opacity: 0.3,
+  },
+  sendBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0a0514",
   },
 });
