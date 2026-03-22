@@ -41,6 +41,9 @@ yarn-error.*
 /ios
 /android
 
+# git worktrees
+.worktrees/
+
 build-*.ipa
 build-*
 /PassionSeedDevelopment.app
