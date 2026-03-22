@@ -614,6 +614,17 @@ export default function ProfileScreen() {
             </>
           )}
 
+          {/* Dev: Test Onboarding */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.testOnboardingBtn,
+              pressed && styles.testOnboardingBtnPressed,
+            ]}
+            onPress={() => router.push("/onboarding")}
+          >
+            <Text style={styles.testOnboardingText}>Test Onboarding</Text>
+          </Pressable>
+
           {/* Sign out */}
           <Pressable
             style={({ pressed }) => [
@@ -1383,6 +1394,26 @@ const styles = StyleSheet.create({
   },
 
   // Footer
+  testOnboardingBtn: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+  },
+  testOnboardingBtnPressed: {
+    backgroundColor: "#F3F4F6",
+  },
+  testOnboardingText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "500",
+    color: "#6B7280",
+  },
   signOutBtn: {
     marginHorizontal: 16,
     marginTop: 8,
