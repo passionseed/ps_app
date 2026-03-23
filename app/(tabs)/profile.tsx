@@ -15,6 +15,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import { getProfile } from "../../lib/onboarding";
+import {
+  getUserIkigaiScores,
+  getScoreTimeline,
+  hasUserScores,
+  type IkigaiScores,
+  type ScoreTimelineItem,
+} from "../../lib/scoreEngine";
 import type {
   Profile,
   InterestCategory,
@@ -32,48 +39,121 @@ import {
   Type,
 } from "../../lib/theme";
 
-// ------- Mock Data -------
-const MOCK_IKIGAI = {
-  passion: {
-    score: 85,
-    label: "Passion",
-    emoji: "🔥",
-    description: "What you love",
-    insight:
-      "You're driven by creativity and design — keep following this energy!",
-    route: "/ikigai/passion",
-  },
-  mission: {
-    score: 72,
-    label: "Mission",
-    emoji: "🎯",
-    description: "What the world needs",
-    insight:
-      "Strong social awareness. You want to make things better for others.",
-    route: "/ikigai/mission",
-  },
-  profession: {
-    score: 48,
-    label: "Profession",
-    emoji: "💼",
-    description: "What you can be paid for",
-    insight:
-      "This is your growth zone — explore more career paths to boost this score.",
-    route: "/ikigai/profession",
-  },
-  vocation: {
-    score: 61,
-    label: "Vocation",
-    emoji: "🌍",
-    description: "What you're good at",
-    insight:
-      "You have solid foundational skills. Level them up to unlock advanced paths.",
-    route: "/ikigai/vocation",
-  },
-};
+// ------- Types -------
+interface IkigaiPillar {
+  score: number;
+  label: string;
+  emoji: string;
+  description: string;
+  insight: string;
+  route: string;
+}
 
-const MOCK_IKIGAI_INSIGHT =
-  "Your passion and mission are strongly aligned — you're built to make an impact. Focus on leveling up your profession score next! 🚀";
+// ------- Helper Functions -------
+function getIkigaiInsight(scores: IkigaiScores): string {
+  const { passion, mission, profession, vocation } = scores;
+  const avg = (passion + mission + profession + vocation) / 4;
+
+  if (passion >= 75 && mission >= 75) {
+    return "Your passion and mission are strongly aligned — you're built to make an impact! Focus on building skills to turn this into a career. 🚀";
+  } else if (profession >= 75 && vocation >= 75) {
+    return "You have strong professional skills! Now find work that also ignites your passion. 💼";
+  } else if (avg >= 70) {
+    return "Great balance across all dimensions! You're on a solid path. Keep exploring to refine your direction. ✨";
+  } else if (passion < 50 && profession < 50) {
+    return "Early exploration phase! Try more Seeds to discover what you love and what you can be paid for. 🌱";
+  } else if (vocation < 50) {
+    return "Focus on skill-building! Complete more tasks to level up what you're good at. 📈";
+  } else {
+    return "Keep exploring different paths! Your scores will become clearer as you complete more Seeds. 🔍";
+  }
+}
+
+function getPillarInsight(dimension: string, score: number): string {
+  if (score >= 80) {
+    switch (dimension) {
+      case "passion":
+        return "You're deeply passionate about this area!";
+      case "mission":
+        return "Strong sense of purpose and social impact!";
+      case "profession":
+        return "Excellent career viability in this field!";
+      case "vocation":
+        return "Highly skilled and competent!";
+    }
+  } else if (score >= 60) {
+    switch (dimension) {
+      case "passion":
+        return "Good enthusiasm — keep nurturing this!";
+      case "mission":
+        return "Solid alignment with what the world needs.";
+      case "profession":
+        return "Promising career potential here.";
+      case "vocation":
+        return "Good skills foundation — keep building!";
+    }
+  } else if (score >= 40) {
+    switch (dimension) {
+      case "passion":
+        return "Growing interest — explore more!";
+      case "mission":
+        return "Developing sense of purpose.";
+      case "profession":
+        return "Career potential emerging.";
+      case "vocation":
+        return "Skills developing — practice more!";
+    }
+  } else {
+    switch (dimension) {
+      case "passion":
+        return "Still discovering what you love.";
+      case "mission":
+        return "Exploring how you can contribute.";
+      case "profession":
+        return "Early stage — more exploration needed.";
+      case "vocation":
+        return "Building foundational skills.";
+    }
+  }
+  return "";
+}
+
+function buildIkigaiData(scores: IkigaiScores): Record<string, IkigaiPillar> {
+  return {
+    passion: {
+      score: scores.passion,
+      label: "Passion",
+      emoji: "🔥",
+      description: "What you love",
+      insight: getPillarInsight("passion", scores.passion),
+      route: "/ikigai/passion",
+    },
+    mission: {
+      score: scores.mission,
+      label: "Mission",
+      emoji: "🎯",
+      description: "What the world needs",
+      insight: getPillarInsight("mission", scores.mission),
+      route: "/ikigai/mission",
+    },
+    profession: {
+      score: scores.profession,
+      label: "Profession",
+      emoji: "💼",
+      description: "What you can be paid for",
+      insight: getPillarInsight("profession", scores.profession),
+      route: "/ikigai/profession",
+    },
+    vocation: {
+      score: scores.vocation,
+      label: "Vocation",
+      emoji: "🌍",
+      description: "What you're good at",
+      insight: getPillarInsight("vocation", scores.vocation),
+      route: "/ikigai/vocation",
+    },
+  };
+}
 
 const MOCK_SKILLS = [
   { id: 1, name: "UI Design", level: "Intermediate", category: "Design" },
@@ -145,26 +225,47 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [interests, setInterests] = useState<InterestCategory[]>([]);
   const [careers, setCareers] = useState<CareerGoal[]>([]);
+  const [ikigaiScores, setIkigaiScores] = useState<IkigaiScores | null>(null);
+  const [scoreTimeline, setScoreTimeline] = useState<ScoreTimelineItem[]>([]);
+  const [hasScores, setHasScores] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scoresLoading, setScoresLoading] = useState(true);
 
   useEffect(() => {
     if (!user?.id) {
       setLoading(false);
+      setScoresLoading(false);
       return;
     }
 
     const loadData = async () => {
       setLoading(true);
-      const [profileData, interestsData, careersData] = await Promise.all([
+      setScoresLoading(true);
+
+      const [
+        profileData,
+        interestsData,
+        careersData,
+        scoresData,
+        timelineData,
+        hasScoresData,
+      ] = await Promise.all([
         getProfile(user.id),
         supabase.from("user_interests").select("*").eq("user_id", user.id),
         supabase.from("career_goals").select("*").eq("user_id", user.id),
+        getUserIkigaiScores(),
+        getScoreTimeline(),
+        hasUserScores(),
       ]);
 
       setProfile(profileData);
       setInterests(interestsData.data || []);
       setCareers(careersData.data || []);
+      setIkigaiScores(scoresData);
+      setScoreTimeline(timelineData);
+      setHasScores(hasScoresData);
       setLoading(false);
+      setScoresLoading(false);
     };
 
     loadData();
@@ -337,16 +438,61 @@ export default function ProfileScreen() {
               {/* ── Section 2: Ikigai Compass ── */}
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Your Ikigai Compass</Text>
-                <View style={styles.ikigaiGrid}>
-                  {Object.values(MOCK_IKIGAI).map((pillar) => (
-                    <IkigaiCell key={pillar.label} pillar={pillar} />
-                  ))}
-                </View>
-                <View style={styles.insightCard}>
-                  <Text style={styles.insightText}>
-                    💡 {MOCK_IKIGAI_INSIGHT}
-                  </Text>
-                </View>
+
+                {scoresLoading ? (
+                  <View style={styles.scoresLoadingContainer}>
+                    <ActivityIndicator color="#8B5CF6" />
+                    <Text style={styles.scoresLoadingText}>
+                      Loading your scores...
+                    </Text>
+                  </View>
+                ) : hasScores && ikigaiScores ? (
+                  <>
+                    <View style={styles.ikigaiGrid}>
+                      {Object.values(buildIkigaiData(ikigaiScores)).map(
+                        (pillar) => (
+                          <IkigaiCell key={pillar.label} pillar={pillar} />
+                        )
+                      )}
+                    </View>
+
+                    {/* Score Timeline */}
+                    {scoreTimeline.length > 1 && (
+                      <View style={styles.timelineContainer}>
+                        <Text style={styles.timelineTitle}>Score Trend</Text>
+                        <ScoreTimeline timeline={scoreTimeline} />
+                      </View>
+                    )}
+
+                    <View style={styles.insightCard}>
+                      <Text style={styles.insightText}>
+                        💡 {getIkigaiInsight(ikigaiScores)}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={styles.emptyScoresContainer}>
+                    <Text style={styles.emptyScoresEmoji}>🌱</Text>
+                    <Text style={styles.emptyScoresTitle}>
+                      Discover Your Ikigai
+                    </Text>
+                    <Text style={styles.emptyScoresText}>
+                      Complete Seeds and submit reflections to reveal your
+                      passion, mission, profession, and vocation scores.
+                    </Text>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.exploreSeedsBtn,
+                        pressed && styles.exploreSeedsBtnPressed,
+                      ]}
+                      onPress={() => router.push("/discover")}
+                    >
+                      <Text style={styles.exploreSeedsBtnText}>
+                        Explore Seeds
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
 
               {/* ── Section 3: Skills Inventory ── */}
@@ -498,6 +644,84 @@ export default function ProfileScreen() {
 }
 
 // ------- Sub-Components -------
+
+function ScoreTimeline({ timeline }: { timeline: ScoreTimelineItem[] }) {
+  // Show last 7 data points max
+  const recentTimeline = timeline.slice(-7);
+  const maxScore = 100;
+
+  return (
+    <View style={styles.timelineWrapper}>
+      <View style={styles.timelineChart}>
+        {recentTimeline.map((item, index) => {
+          const passionHeight = (item.passion / maxScore) * 100;
+          const missionHeight = (item.mission / maxScore) * 100;
+          const professionHeight = (item.profession / maxScore) * 100;
+          const vocationHeight = (item.vocation / maxScore) * 100;
+
+          return (
+            <View key={item.date} style={styles.timelineColumn}>
+              <View style={styles.timelineBars}>
+                <View
+                  style={[
+                    styles.timelineBar,
+                    styles.timelineBarPassion,
+                    { height: `${passionHeight}%` },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.timelineBar,
+                    styles.timelineBarMission,
+                    { height: `${missionHeight}%` },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.timelineBar,
+                    styles.timelineBarProfession,
+                    { height: `${professionHeight}%` },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.timelineBar,
+                    styles.timelineBarVocation,
+                    { height: `${vocationHeight}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.timelineDate}>
+                {new Date(item.date).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      <View style={styles.timelineLegend}>
+        <View style={styles.timelineLegendItem}>
+          <View style={[styles.timelineLegendDot, { backgroundColor: "#EF4444" }]} />
+          <Text style={styles.timelineLegendText}>Passion</Text>
+        </View>
+        <View style={styles.timelineLegendItem}>
+          <View style={[styles.timelineLegendDot, { backgroundColor: "#3B82F6" }]} />
+          <Text style={styles.timelineLegendText}>Mission</Text>
+        </View>
+        <View style={styles.timelineLegendItem}>
+          <View style={[styles.timelineLegendDot, { backgroundColor: "#10B981" }]} />
+          <Text style={styles.timelineLegendText}>Profession</Text>
+        </View>
+        <View style={styles.timelineLegendItem}>
+          <View style={[styles.timelineLegendDot, { backgroundColor: "#F59E0B" }]} />
+          <Text style={styles.timelineLegendText}>Vocation</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
 
 function VisionChip({
   text,
@@ -1191,5 +1415,139 @@ const styles = StyleSheet.create({
     fontFamily: "Orbit_400Regular",
     color: "#D1D5DB",
     letterSpacing: 0.2,
+  },
+
+  // Scores Loading
+  scoresLoadingContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+    gap: 12,
+  },
+  scoresLoadingText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    color: "#6B7280",
+  },
+
+  // Empty Scores State
+  emptyScoresContainer: {
+    alignItems: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+  },
+  emptyScoresEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyScoresTitle: {
+    fontSize: 20,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  emptyScoresText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  exploreSeedsBtn: {
+    backgroundColor: Accent.yellow,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  exploreSeedsBtnPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  exploreSeedsBtnText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#111827",
+  },
+
+  // Score Timeline
+  timelineContainer: {
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  timelineTitle: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 12,
+  },
+  timelineWrapper: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  timelineChart: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    height: 100,
+    marginBottom: 12,
+  },
+  timelineColumn: {
+    flex: 1,
+    alignItems: "center",
+    gap: 6,
+  },
+  timelineBars: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 1,
+    height: 80,
+  },
+  timelineBar: {
+    width: 4,
+    borderRadius: 2,
+  },
+  timelineBarPassion: {
+    backgroundColor: "#EF4444",
+  },
+  timelineBarMission: {
+    backgroundColor: "#3B82F6",
+  },
+  timelineBarProfession: {
+    backgroundColor: "#10B981",
+  },
+  timelineBarVocation: {
+    backgroundColor: "#F59E0B",
+  },
+  timelineDate: {
+    fontSize: 9,
+    fontFamily: "Orbit_400Regular",
+    color: "#9CA3AF",
+  },
+  timelineLegend: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+    marginTop: 8,
+  },
+  timelineLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  timelineLegendDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  timelineLegendText: {
+    fontSize: 10,
+    fontFamily: "Orbit_400Regular",
+    color: "#6B7280",
   },
 });
