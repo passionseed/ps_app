@@ -396,46 +396,6 @@ export async function updateActivityProgress(params: {
   return data;
 }
 
-// ============ File Storage ============
-
-/**
- * Upload a file to Supabase storage and return the public URL.
- * Files are stored under: assessment-uploads/{progressId}/{filename}
- */
-export async function uploadFileToStorage(
-  localUri: string,
-  fileName: string,
-  progressId: string,
-  mimeType: string = "application/octet-stream"
-): Promise<string> {
-  const bucketName = "assessment-uploads";
-  const storagePath = `${progressId}/${Date.now()}-${fileName}`;
-
-  console.log("[uploadFileToStorage] Starting upload:", { fileName, progressId, storagePath });
-
-  // Read the file as a blob using fetch
-  const response = await fetch(localUri);
-  const blob = await response.blob();
-
-  const { data, error } = await supabase.storage
-    .from(bucketName)
-    .upload(storagePath, blob, {
-      contentType: mimeType,
-      upsert: false,
-    });
-
-  if (error) {
-    console.error("[uploadFileToStorage] Upload error:", error);
-    throw new Error(`File upload failed: ${error.message}`);
-  }
-
-  // Get the public URL
-  const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(storagePath);
-
-  console.log("[uploadFileToStorage] Upload success:", urlData.publicUrl);
-  return urlData.publicUrl;
-}
-
 // NEW: Submit assessment
 export async function submitAssessment(params: {
   progressId: string;
