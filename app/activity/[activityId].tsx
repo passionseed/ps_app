@@ -22,7 +22,7 @@ import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { SvgXml } from "react-native-svg";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { supabase } from "../../lib/supabase";
-import { updateActivityProgress, submitAssessment, uploadFileToStorage } from "../../lib/pathlab";
+import { updateActivityProgress } from "../../lib/pathlab";
 import {
   initializeSounds,
   playNPCSpeakSound,
@@ -146,13 +146,6 @@ export default function ActivityDetailScreen() {
   const [npcError, setNpcError] = useState<string | null>(null);
   const [npcSeedAvatar, setNpcSeedAvatar] = useState<{ id: string; name: string; svg_data: string } | null>(null);
   const [npcSummary, setNpcSummary] = useState<string | null>(null);
-
-  // File upload state for assessment submissions
-  const [selectedFile, setSelectedFile] = useState<{ name: string; uri: string } | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-
-  // Quiz submission state - lifted from AssessmentItem to enable "Mark as Complete"
-  const [quizSubmitted, setQuizSubmitted] = useState(false);
 
   // Typing animation state
   const [displayedText, setDisplayedText] = useState("");
@@ -402,31 +395,44 @@ export default function ActivityDetailScreen() {
 
   const sendInitialGreeting = async (metadata: AIChatMetadata) => {
     try {
+      const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      if (!geminiApiKey) return;
+
       const systemPrompt = metadata.system_prompt || "You are a helpful assistant.";
 
-      // Call edge function instead of Gemini directly
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
-        body: {
-          message: "Start the conversation with a friendly greeting in Thai.",
-          systemPrompt: systemPrompt,
-          conversationHistory: [],
-          activityId,
-          enrollmentId,
-        },
-      });
+      const geminiPayload = {
+        contents: [
+          {
+            parts: [
+              { text: `${systemPrompt}\n\nStart the conversation with a friendly greeting in Thai.` }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 256,
+        }
+      };
 
-      if (error) {
-        console.error("[AI] Edge function error:", error);
-        throw error;
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(geminiPayload),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const greeting = data.candidates?.[0]?.content?.parts?.[0]?.text || "สวัสดีค่ะ! มีอะไรให้ช่วยไหม?";
+
+        setAiMessages([{
+          role: "assistant",
+          content: greeting,
+          timestamp: new Date().toISOString(),
+        }]);
       }
-
-      const greeting = data?.response || "สวัสดีค่ะ! มีอะไรให้ช่วยไหม?";
-
-      setAiMessages([{
-        role: "assistant",
-        content: greeting,
-        timestamp: new Date().toISOString(),
-      }]);
     } catch (error) {
       console.error("[AI] Error getting initial greeting:", error);
       // Fallback greeting
@@ -806,36 +812,81 @@ export default function ActivityDetailScreen() {
       console.log("[AI] Sending message to AI service...");
       console.log("[AI] Metadata:", metadata);
 
-      // Build conversation history for edge function
-      const systemPrompt = metadata.system_prompt || "You are a helpful assistant.";
-      const conversationHistory = aiMessages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-      }));
+      // Build messages array including system prompt
+      const messages = [
+        { role: "system", content: metadata.system_prompt || "You are a helpful assistant." },
+        ...aiMessages.map(msg => ({ role: msg.role, content: msg.content })),
+        { role: "user", content: userMessage.content }
+      ];
 
-      console.log("[AI] Calling edge function");
-      console.log("[AI] Conversation history length:", conversationHistory.length);
-
-      // Call edge function instead of Gemini directly
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
-        body: {
-          message: userMessage.content,
-          systemPrompt,
-          conversationHistory,
-          activityId,
-          enrollmentId,
-        },
-      });
-
-      if (error) {
-        console.error("[AI] Edge function error:", error);
-        throw new Error(`AI service error: ${error.message || "Unknown error"}`);
+      // Get Gemini API key from environment
+      const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        throw new Error("Gemini API key not configured. Please add EXPO_PUBLIC_GEMINI_API_KEY to .env.local");
       }
 
-      console.log("[AI] Response from edge function:", data);
+      // Convert messages to Gemini format
+      const systemPrompt = metadata.system_prompt || "You are a helpful assistant.";
+      const conversationParts = aiMessages.map(msg => ({
+        text: `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
+      }));
 
-      // Extract assistant message from response
-      const assistantContent = data?.response || "I couldn't generate a response.";
+      // Add current user message
+      conversationParts.push({
+        text: `User: ${userMessage.content}`
+      });
+
+      const geminiPayload = {
+        contents: [
+          {
+            parts: [
+              { text: `${systemPrompt}\n\n${conversationParts.map(p => p.text).join("\n")}\n\nAssistant:` }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1024,
+        }
+      };
+
+      console.log("[AI] Using Gemini API");
+      console.log("[AI] Request payload:", {
+        model: "gemini-2.5-flash",
+        messageCount: conversationParts.length,
+      });
+
+      // Call Gemini API
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(geminiPayload),
+        }
+      );
+
+      console.log("[AI] Response status:", response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        console.error("[AI] Error response:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+        });
+        throw new Error(`AI service error (${response.status}): ${errorText || response.statusText || "Unknown error"}`);
+      }
+
+      const data = await response.json();
+      console.log("[AI] Response from Gemini:", data);
+
+      // Extract assistant message from Gemini response
+      const assistantContent =
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "I couldn't generate a response.";
 
       const assistantMessage: AIChatMessage = {
         role: "assistant",
@@ -1068,11 +1119,6 @@ export default function ActivityDetailScreen() {
       return false;
     }
 
-    // Quiz: must submit before marking complete
-    if (activityType === "quiz") {
-      return quizSubmitted;
-    }
-
     // Other activities: can complete immediately
     return true;
   };
@@ -1084,64 +1130,6 @@ export default function ActivityDetailScreen() {
     try {
       // Play completion sound
       playActivityCompleteSound();
-
-      // Get progress ID for file uploads
-      const progressId = activity?.progress?.id;
-
-      // Handle assessment submission with file/image uploads
-      if (activity?.path_assessment && progressId) {
-        const assessment = activity.path_assessment;
-        let fileUrls: string[] | undefined;
-        let imageUrl: string | undefined;
-
-        // Upload selected file if present
-        if (assessment.assessment_type === "file_upload" && selectedFile) {
-          try {
-            console.log("[handleComplete] Uploading file:", selectedFile.name);
-            const url = await uploadFileToStorage(
-              selectedFile.uri,
-              selectedFile.name,
-              progressId
-            );
-            fileUrls = [url];
-            console.log("[handleComplete] File uploaded:", url);
-          } catch (uploadError) {
-            console.error("[handleComplete] File upload failed:", uploadError);
-            Alert.alert("Upload Failed", "Could not upload your file. Please try again.");
-            setCompleting(false);
-            return;
-          }
-        }
-
-        // Upload selected image if present
-        if (assessment.assessment_type === "image_upload" && selectedImage) {
-          try {
-            console.log("[handleComplete] Uploading image...");
-            const url = await uploadFileToStorage(
-              selectedImage,
-              `image-${Date.now()}.jpg`,
-              progressId,
-              "image/jpeg"
-            );
-            imageUrl = url;
-            console.log("[handleComplete] Image uploaded:", url);
-          } catch (uploadError) {
-            console.error("[handleComplete] Image upload failed:", uploadError);
-            Alert.alert("Upload Failed", "Could not upload your image. Please try again.");
-            setCompleting(false);
-            return;
-          }
-        }
-
-        // Submit the assessment
-        await submitAssessment({
-          progressId,
-          assessmentId: assessment.id,
-          fileUrls,
-          imageUrl,
-        });
-        console.log("[handleComplete] Assessment submitted successfully");
-      }
 
       await updateActivityProgress({
         enrollmentId,
@@ -1733,13 +1721,7 @@ export default function ActivityDetailScreen() {
 
         {/* Assessment */}
         {activity.path_assessment && (
-          <AssessmentItem
-            assessment={activity.path_assessment}
-            onFileSelected={setSelectedFile}
-            onImageSelected={setSelectedImage}
-            progress={activity.progress}
-            onQuizSubmitted={() => setQuizSubmitted(true)}
-          />
+          <AssessmentItem assessment={activity.path_assessment} />
         )}
 
           {/* Swipe hint for swipeable content */}
@@ -2003,85 +1985,6 @@ function ContentItem({ content }: { content: PathContent }) {
           </View>
         );
 
-      case "pdf":
-        return (
-          <View style={styles.pdfContainer}>
-            {content.content_title && (
-              <View style={styles.contentCard}>
-                <Text style={styles.contentTitle}>{content.content_title}</Text>
-              </View>
-            )}
-            {content.content_url ? (
-              <View style={styles.pdfWebViewContainer}>
-                <WebView
-                  source={{ uri: content.content_url }}
-                  style={styles.pdfWebView}
-                  startInLoadingState
-                  renderLoading={() => (
-                    <View style={styles.pdfLoadingContainer}>
-                      <ActivityIndicator size="large" color={Accent.yellow} />
-                      <Text style={styles.pdfLoadingText}>Loading PDF...</Text>
-                    </View>
-                  )}
-                  allowsInlineMediaPlayback
-                  javaScriptEnabled
-                  domStorageEnabled
-                />
-                <Pressable
-                  style={styles.openInBrowserButton}
-                  onPress={() => Linking.openURL(content.content_url || "")}
-                >
-                  <Text style={styles.openInBrowserText}>📄 Open in Browser</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.contentCard}>
-                <Text style={styles.contentBody}>No PDF URL provided</Text>
-              </View>
-            )}
-          </View>
-        );
-
-      case "canva_slide":
-        return (
-          <View style={styles.canvaContainer}>
-            {content.content_title && (
-              <View style={styles.contentCard}>
-                <Text style={styles.contentTitle}>{content.content_title}</Text>
-              </View>
-            )}
-            {content.content_url ? (
-              <View style={styles.canvaWebViewContainer}>
-                <WebView
-                  source={{ uri: content.content_url }}
-                  style={styles.canvaWebView}
-                  startInLoadingState
-                  renderLoading={() => (
-                    <View style={styles.pdfLoadingContainer}>
-                      <ActivityIndicator size="large" color={Accent.yellow} />
-                      <Text style={styles.pdfLoadingText}>Loading presentation...</Text>
-                    </View>
-                  )}
-                  allowsInlineMediaPlayback
-                  javaScriptEnabled
-                  domStorageEnabled
-                  scalesPageToFit
-                />
-                <Pressable
-                  style={styles.openInBrowserButton}
-                  onPress={() => Linking.openURL(content.content_url || "")}
-                >
-                  <Text style={styles.openInBrowserText}>🎨 Open in Browser</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.contentCard}>
-                <Text style={styles.contentBody}>No presentation URL provided</Text>
-              </View>
-            )}
-          </View>
-        );
-
       default:
         return null;
     }
@@ -2092,28 +1995,14 @@ function ContentItem({ content }: { content: PathContent }) {
 
 function AssessmentItem({
   assessment,
-  onFileSelected,
-  onImageSelected,
-  progress,
-  onQuizSubmitted,
 }: {
   assessment: PathAssessment & { quiz_questions?: PathQuizQuestion[] };
-  onFileSelected?: (file: { name: string; uri: string } | null) => void;
-  onImageSelected?: (uri: string | null) => void;
-  progress?: PathActivityProgress;
-  onQuizSubmitted?: () => void;
 }) {
   const [textAnswer, setTextAnswer] = useState("");
   const [selectedFile, setSelectedFile] = useState<{ name: string; uri: string } | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageHeight, setImageHeight] = useState<number>(300);
   const { width: screenWidth } = useWindowDimensions();
-
-  // Quiz state
-  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
-  const [showResults, setShowResults] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [score, setScore] = useState<{ correct: number; total: number } | null>(null);
 
   // Calculate image dimensions when image is selected
   useEffect(() => {
@@ -2146,9 +2035,7 @@ function AssessmentItem({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        const selected = { name: file.name, uri: file.uri };
-        setSelectedFile(selected);
-        onFileSelected?.(selected);
+        setSelectedFile({ name: file.name, uri: file.uri });
       }
     } catch (error) {
       console.error('Error picking file:', error);
@@ -2175,9 +2062,7 @@ function AssessmentItem({
       console.log('[Camera] Result:', result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        setSelectedImage(uri);
-        onImageSelected?.(uri);
+        setSelectedImage(result.assets[0].uri);
       }
     } catch (error: any) {
       console.error('[Camera] Error taking photo:', error);
@@ -2200,69 +2085,13 @@ function AssessmentItem({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        setSelectedImage(uri);
-        onImageSelected?.(uri);
+        setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
   };
-
-  // Quiz: handle answer selection
-  const handleQuizAnswer = (questionId: string, optionIndex: number) => {
-    if (showResults) return;
-    setQuizAnswers((prev) => ({ ...prev, [questionId]: optionIndex }));
-  };
-
-  // Quiz: calculate score
-  // correct_option is stored as "A", "B", "C" in DB, convert to 0, 1, 2 for comparison
-  const letterToIndex = (letter: string): number => {
-    return letter.charCodeAt(0) - "A".charCodeAt(0);
-  };
-
-  const calculateQuizScore = () => {
-    const questions = assessment.quiz_questions || [];
-    let correct = 0;
-    questions.forEach((q) => {
-      const correctIndex = typeof q.correct_option === 'string'
-        ? letterToIndex(q.correct_option)
-        : q.correct_option;
-      if (quizAnswers[q.id] === correctIndex) correct++;
-    });
-    return { correct, total: questions.length };
-  };
-
-  // Quiz: handle submit
-  const handleQuizSubmit = async () => {
-    if (!progress || !assessment.id) return;
-    setSubmitting(true);
-    try {
-      const calculated = calculateQuizScore();
-      setScore(calculated);
-      setShowResults(true);
-      onQuizSubmitted?.();
-      await submitAssessment({
-        progressId: progress.id,
-        assessmentId: assessment.id,
-        quizAnswers: quizAnswers as Record<string, unknown>,
-        metadata: {
-          score_correct: calculated.correct,
-          score_total: calculated.total,
-          score_percentage: calculated.total > 0 ? (calculated.correct / calculated.total) * 100 : 0,
-        },
-      });
-    } catch (error) {
-      console.error('Error submitting quiz:', error);
-      Alert.alert('Error', 'Failed to submit quiz. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const questions = assessment.quiz_questions || [];
-  const allQuestionsAnswered = questions.every((q) => quizAnswers[q.id] !== undefined);
 
   return (
     <>
@@ -2271,80 +2100,25 @@ function AssessmentItem({
           {assessment.assessment_type.replace(/_/g, " ").toUpperCase()}
         </Text>
 
-        {questions.length > 0 && (
+        {assessment.quiz_questions && assessment.quiz_questions.length > 0 && (
           <View style={styles.quizContainer}>
-            {questions.map((question, index) => (
+            {assessment.quiz_questions.map((question, index) => (
               <View key={question.id} style={styles.questionCard}>
                 <Text style={styles.questionText}>
                   {index + 1}. {question.question_text}
                 </Text>
                 {question.options &&
                   Array.isArray(question.options) &&
-                  question.options.map((opt: any, optIndex: number) => {
-                    const isSelected = quizAnswers[question.id] === optIndex;
-                    const correctIndex = typeof question.correct_option === 'string'
-                      ? letterToIndex(question.correct_option)
-                      : question.correct_option;
-                    const isCorrect = showResults && optIndex === correctIndex;
-                    const isWrongSelected = showResults && isSelected && optIndex !== correctIndex;
-                    return (
-                      <Pressable
-                        key={optIndex}
-                        style={({ pressed }) => [
-                          styles.optionRow,
-                          isSelected && !showResults && styles.optionRowSelected,
-                          isCorrect && styles.optionRowCorrect,
-                          isWrongSelected && styles.optionRowWrong,
-                          pressed && !showResults && styles.optionRowPressed,
-                        ]}
-                        onPress={() => handleQuizAnswer(question.id, optIndex)}
-                        disabled={showResults}
-                      >
-                        <View style={[
-                          styles.optionCircle,
-                          isSelected && !showResults && styles.optionCircleSelected,
-                          isCorrect && styles.optionCircleCorrect,
-                          isWrongSelected && styles.optionCircleWrong,
-                        ]} />
-                        <Text style={[
-                          styles.optionText,
-                          isSelected && !showResults && styles.optionTextSelected,
-                          isCorrect && styles.optionTextCorrect,
-                          isWrongSelected && styles.optionTextWrong,
-                        ]}>
-                          {typeof opt === "string" ? opt : opt.text || opt.option}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                  question.options.map((opt: any, optIndex: number) => (
+                    <View key={optIndex} style={styles.optionRow}>
+                      <View style={styles.optionCircle} />
+                      <Text style={styles.optionText}>
+                        {typeof opt === "string" ? opt : opt.text || opt.option}
+                      </Text>
+                    </View>
+                  ))}
               </View>
             ))}
-
-            {/* Score results */}
-            {showResults && score && (
-              <View style={styles.scoreCard}>
-                <Text style={styles.scoreText}>
-                  Score: {score.correct}/{score.total} ({(score.total > 0 ? (score.correct / score.total) * 100 : 0).toFixed(0)}%)
-                </Text>
-              </View>
-            )}
-
-            {/* Submit button */}
-            {!showResults && (
-              <Pressable
-                style={[
-                  styles.quizSubmitButton,
-                  !allQuestionsAnswered && styles.quizSubmitButtonDisabled,
-                  submitting && styles.quizSubmitButtonDisabled,
-                ]}
-                onPress={handleQuizSubmit}
-                disabled={!allQuestionsAnswered || submitting}
-              >
-                <Text style={styles.quizSubmitButtonText}>
-                  {submitting ? 'Submitting...' : 'Submit Quiz'}
-                </Text>
-              </Pressable>
-            )}
           </View>
         )}
 
@@ -2372,10 +2146,7 @@ function AssessmentItem({
             {selectedFile && (
               <View style={styles.selectedFileCard}>
                 <Text style={styles.selectedFileName}>📄 {selectedFile.name}</Text>
-                <Pressable onPress={() => {
-                  setSelectedFile(null);
-                  onFileSelected?.(null);
-                }}>
+                <Pressable onPress={() => setSelectedFile(null)}>
                   <Text style={styles.removeFileText}>✕</Text>
                 </Pressable>
               </View>
@@ -2420,10 +2191,7 @@ function AssessmentItem({
                 resizeMode="contain"
               />
             </ScrollView>
-            <Pressable style={styles.removeImageButton} onPress={() => {
-              setSelectedImage(null);
-              onImageSelected?.(null);
-            }}>
+            <Pressable style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
               <Text style={styles.removeFileText}>✕</Text>
             </Pressable>
           </View>
@@ -3330,69 +3098,6 @@ const styles = StyleSheet.create({
     color: ThemeText.primary,
     lineHeight: 24,
   },
-  // PDF viewer styles
-  pdfContainer: {
-    marginBottom: 12,
-  },
-  pdfWebViewContainer: {
-    width: "100%",
-    height: 600,
-    borderRadius: Radius.md,
-    overflow: "hidden",
-    backgroundColor: "#f5f5f5",
-    position: "relative",
-  },
-  pdfWebView: {
-    flex: 1,
-  },
-  pdfLoadingContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-  },
-  pdfLoadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    color: ThemeText.secondary,
-  },
-  openInBrowserButton: {
-    position: "absolute",
-    bottom: 12,
-    right: 12,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(191, 255, 0, 0.5)",
-  },
-  openInBrowserText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#fff",
-  },
-  // Canva presentation styles
-  canvaContainer: {
-    marginBottom: 12,
-  },
-  canvaWebViewContainer: {
-    width: "100%",
-    height: 500,
-    borderRadius: Radius.md,
-    overflow: "hidden",
-    backgroundColor: "#f5f5f5",
-    position: "relative",
-  },
-  canvaWebView: {
-    flex: 1,
-  },
   assessmentCard: {
     backgroundColor: "#f0f0f0",
     padding: 16,
@@ -3425,20 +3130,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
-    borderRadius: 8,
-    paddingHorizontal: 4,
-  },
-  optionRowSelected: {
-    backgroundColor: "rgba(191, 255, 0, 0.15)",
-  },
-  optionRowPressed: {
-    backgroundColor: "rgba(191, 255, 0, 0.1)",
-  },
-  optionRowCorrect: {
-    backgroundColor: "rgba(0, 200, 83, 0.15)",
-  },
-  optionRowWrong: {
-    backgroundColor: "rgba(255, 59, 48, 0.15)",
   },
   optionCircle: {
     width: 20,
@@ -3448,65 +3139,10 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     marginRight: 12,
   },
-  optionCircleSelected: {
-    borderColor: Accent.yellow,
-    backgroundColor: Accent.yellow,
-  },
-  optionCircleCorrect: {
-    borderColor: "#00c853",
-    backgroundColor: "#00c853",
-  },
-  optionCircleWrong: {
-    borderColor: "#ff3b30",
-    backgroundColor: "#ff3b30",
-  },
   optionText: {
     fontSize: 13,
     fontFamily: "Orbit_400Regular",
     color: ThemeText.secondary,
-    flex: 1,
-  },
-  optionTextSelected: {
-    color: ThemeText.primary,
-    fontWeight: "500",
-  },
-  optionTextCorrect: {
-    color: "#00c853",
-    fontWeight: "500",
-  },
-  optionTextWrong: {
-    color: "#ff3b30",
-    fontWeight: "500",
-  },
-  scoreCard: {
-    backgroundColor: Accent.yellow,
-    padding: 12,
-    borderRadius: Radius.md,
-    marginTop: 16,
-    alignItems: "center",
-  },
-  scoreText: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "700",
-    color: ThemeText.primary,
-  },
-  quizSubmitButton: {
-    backgroundColor: Accent.yellow,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: Radius.md,
-    marginTop: 16,
-    alignItems: "center",
-  },
-  quizSubmitButtonDisabled: {
-    backgroundColor: "#ddd",
-  },
-  quizSubmitButtonText: {
-    fontSize: 15,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: ThemeText.primary,
   },
   textAnswerContainer: {
     marginTop: 12,
