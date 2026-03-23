@@ -33,6 +33,8 @@ export default function ReflectionScreen() {
   const [enrollment, setEnrollment] = useState<EnrollmentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [scoring, setScoring] = useState(false);
+  const [scoreError, setScoreError] = useState<string | null>(null);
 
   // Reflection state
   const [energyLevel, setEnergyLevel] = useState(5);
@@ -84,6 +86,7 @@ export default function ReflectionScreen() {
     });
 
     setSubmitting(true);
+    setScoreError(null);
     try {
       const result = await submitDailyReflection({
         enrollmentId: enrollment.id,
@@ -98,18 +101,38 @@ export default function ReflectionScreen() {
       console.log('[Reflection] Submission result:', result);
       console.log('[Reflection] Submission successful!');
 
-      // Mock triggering Score Engine after reflection
+      // Trigger Score Engine after reflection submission succeeds
+      setScoring(true);
       try {
-        console.log("Triggering Score Engine for simulation update");
-        // In a real implementation this would call the Supabase Edge Function
-        await supabase.functions.invoke("score-engine/ingest", {
-          body: {
-            reflectionData: { energyLevel, interestLevel },
-            simulationId: enrollment.id,
-          },
-        });
+        console.log('[Reflection] Triggering Score Engine for reflection:', result.id);
+        const { data: scoreData, error: scoreError } = await supabase.functions.invoke(
+          "score-engine/ingest",
+          {
+            body: {
+              reflectionId: result.id,
+              enrollmentId: enrollment.id,
+              reflectionData: {
+                energyLevel,
+                confusionLevel,
+                interestLevel,
+                openResponse: openResponse || undefined,
+                dayNumber: enrollment.current_day,
+              },
+            },
+          }
+        );
+
+        if (scoreError) {
+          console.error('[Reflection] Score Engine error:', scoreError);
+          setScoreError('Failed to update scores, but your reflection was saved.');
+        } else {
+          console.log('[Reflection] Score Engine response:', scoreData);
+        }
       } catch (err) {
-        console.error("Score Engine error", err);
+        console.error('[Reflection] Score Engine exception:', err);
+        setScoreError('Failed to update scores, but your reflection was saved.');
+      } finally {
+        setScoring(false);
       }
 
       console.log('[Reflection] Navigating based on decision:', decision);
@@ -319,7 +342,7 @@ export default function ReflectionScreen() {
               <Pressable
                 style={[styles.decisionBtn, styles.decisionBtnPrimary]}
                 onPress={() => handleSubmit("final_reflection")}
-                disabled={submitting}
+                disabled={submitting || scoring}
               >
                 <Text style={styles.decisionBtnText}>
                   🎓 Complete Path & See Report
@@ -332,7 +355,7 @@ export default function ReflectionScreen() {
               <Pressable
                 style={[styles.decisionBtn, styles.decisionBtnPrimary]}
                 onPress={() => handleSubmit("continue_tomorrow")}
-                disabled={submitting}
+                disabled={submitting || scoring}
               >
                 <Text style={styles.decisionBtnText}>
                   ✓ Done for today, continue tomorrow
@@ -342,7 +365,7 @@ export default function ReflectionScreen() {
               <Pressable
                 style={[styles.decisionBtn, styles.decisionBtnSecondary]}
                 onPress={() => handleSubmit("continue_now")}
-                disabled={submitting}
+                disabled={submitting || scoring}
               >
                 <Text
                   style={[
@@ -357,7 +380,7 @@ export default function ReflectionScreen() {
               <Pressable
                 style={[styles.decisionBtn, styles.decisionBtnTertiary]}
                 onPress={() => handleSubmit("pause")}
-                disabled={submitting}
+                disabled={submitting || scoring}
               >
                 <Text
                   style={[
@@ -372,7 +395,7 @@ export default function ReflectionScreen() {
               <Pressable
                 style={[styles.decisionBtn, styles.decisionBtnDanger]}
                 onPress={() => handleSubmit("quit")}
-                disabled={submitting}
+                disabled={submitting || scoring}
               >
                 <Text
                   style={[styles.decisionBtnText, styles.decisionBtnTextDanger]}
@@ -388,6 +411,19 @@ export default function ReflectionScreen() {
           <View style={styles.submittingOverlay}>
             <ActivityIndicator size="small" color="#BFFF00" />
             <Text style={styles.submittingText}>Saving reflection...</Text>
+          </View>
+        )}
+
+        {scoring && (
+          <View style={styles.scoringOverlay}>
+            <ActivityIndicator size="small" color="#BFFF00" />
+            <Text style={styles.scoringText}>Calculating your scores...</Text>
+          </View>
+        )}
+
+        {scoreError && (
+          <View style={styles.scoreErrorContainer}>
+            <Text style={styles.scoreErrorText}>⚠️ {scoreError}</Text>
           </View>
         )}
 
@@ -591,5 +627,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Orbit_400Regular",
     color: "#666",
+  },
+  scoringOverlay: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: "#F0F9FF",
+    borderRadius: 8,
+  },
+  scoringText: {
+    fontSize: 13,
+    fontFamily: "Orbit_400Regular",
+    color: "#0369A1",
+  },
+  scoreErrorContainer: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 8,
+  },
+  scoreErrorText: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#92400E",
+    textAlign: "center",
   },
 });
