@@ -87,7 +87,7 @@ export interface PathQuizQuestion {
   assessment_id: string;
   question_text: string;
   options: string[];
-  correct_option: number;
+  correct_option: number | string; // "A", "B", "C" from DB or 0, 1, 2
   created_at: string;
 }
 
