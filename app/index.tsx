@@ -208,12 +208,15 @@ export default function LandingPage() {
               <Image
                 source={require("../assets/passionseed-logo.png")}
                 style={styles.logoImage}
+                resizeMode="contain"
               />
             </View>
           </View>
 
           {/* Main Card */}
           <GlassCard variant="master" size="large" style={styles.mainCard}>
+            <View style={styles.cardTopSpacer} />
+
             {/* Language Selector */}
             <View style={styles.langSelector}>
               <Pressable
@@ -374,22 +377,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logoContainer: {
-    marginBottom: 32,
+    marginBottom: -36,
     alignItems: "center",
+    zIndex: 3,
+    overflow: "visible",
   },
   logoGlow: {
     ...Shadow.floating,
     shadowColor: Accent.yellow,
     shadowOpacity: 0.3,
     borderRadius: 999,
+    overflow: "visible",
   },
   logoImage: {
     width: 100,
     height: 100,
-    borderRadius: 999,
   },
   mainCard: {
     width: "100%",
+  },
+  cardTopSpacer: {
+    height: 12,
   },
   langSelector: {
     flexDirection: "row",

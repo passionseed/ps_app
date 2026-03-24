@@ -316,6 +316,32 @@ export default function MyPathsScreen() {
           </View>
         )}
 
+        {/* TCAS Admission Plans Section */}
+        <View style={styles.plansSection}>
+          <Text style={styles.plansSectionTitle}>
+            {isGuest && guestLanguage === "en" ? "📋 TCAS Admission Plans" : "📋 แผนสมัคร TCAS"}
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.plansCard, pressed && styles.plansCardPressed]}
+            onPress={() => router.push("/plans")}
+          >
+            <View style={styles.plansCardContent}>
+              <Text style={styles.plansCardIcon}>🎓</Text>
+              <View style={styles.plansCardText}>
+                <Text style={styles.plansCardTitle}>
+                  {isGuest && guestLanguage === "en" ? "Plan Your Applications" : "วางแผนการสมัคร"}
+                </Text>
+                <Text style={styles.plansCardSubtitle}>
+                  {isGuest && guestLanguage === "en"
+                    ? "Create admission plans for each TCAS round"
+                    : "สร้างแผนสมัครสำหรับแต่ละรอบ TCAS"}
+                </Text>
+              </View>
+              <Text style={styles.plansCardArrow}>→</Text>
+            </View>
+          </Pressable>
+        </View>
+
         <View style={{ height: 120 }} />
       </ScrollView>
     </View>
@@ -512,5 +538,56 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: "#111",
+  },
+
+  // Plans Section
+  plansSection: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    gap: 12,
+  },
+  plansSectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  plansCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 16,
+    ...Shadow.neutral,
+  },
+  plansCardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  plansCardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  plansCardIcon: {
+    fontSize: 32,
+  },
+  plansCardText: {
+    flex: 1,
+    gap: 4,
+  },
+  plansCardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+  },
+  plansCardSubtitle: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  plansCardArrow: {
+    fontSize: 20,
+    color: "#9CA3AF",
   },
 });

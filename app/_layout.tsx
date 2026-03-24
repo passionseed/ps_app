@@ -1,113 +1,113 @@
-import { Stack, router } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import { LinearGradient } from "expo-linear-gradient";
-import { StatusBar } from "expo-status-bar";
-import {
-  BaiJamjuree_400Regular,
-  BaiJamjuree_500Medium,
-  BaiJamjuree_700Bold,
-} from "@expo-google-fonts/bai-jamjuree";
-import { useFonts } from "expo-font";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   Easing,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
-import { AuthProvider, useAuth } from "../lib/auth";
-import { getProfile } from "../lib/onboarding";
-import { getSupabaseConfigErrorMessage } from "../lib/runtime-config";
-import type { Profile } from "../types/onboarding";
-import * as Sentry from '@sentry/react-native';
-
-Sentry.init({
-  dsn: 'https://7b4ad4da49242478ad4aef96a6dd2a41@o4511084030328832.ingest.us.sentry.io/4511089087873024',
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
-
-  // Enable Logs
-  enableLogs: true,
-
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-});
-
-SplashScreen.setOptions({
-  duration: 900,
-  fade: true,
-});
-void SplashScreen.preventAutoHideAsync();
+import { AtmosphericBackground } from "./components/AtmosphericBackground";
+import { RisingParticles } from "./components/RisingParticles";
+import { ShimmerOverlay } from "./components/ShimmerOverlay";
 
 function AppLaunchScreen() {
-  const logoScale = useRef(new Animated.Value(0.82)).current;
-  const glowPulse = useRef(new Animated.Value(0)).current;
-
-  const ringScale = glowPulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.88, 1.18],
-  });
-  const ringOpacity = glowPulse.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0.25, 0.75, 0.35],
-  });
+  const logoScale = useRef(new Animated.Value(0.5)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
+  const glowScale = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
-    Animated.spring(logoScale, {
-      toValue: 1,
-      damping: 14,
-      stiffness: 120,
-      useNativeDriver: true,
-    }).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowPulse, {
+    // Entrance animation sequence
+    Animated.sequence([
+      // Logo fades in and scales up
+      Animated.parallel([
+        Animated.spring(logoScale, {
           toValue: 1,
-          duration: 1300,
-          easing: Easing.inOut(Easing.quad),
+          damping: 12,
+          stiffness: 100,
           useNativeDriver: true,
         }),
-        Animated.timing(glowPulse, {
-          toValue: 0,
-          duration: 1300,
-          easing: Easing.inOut(Easing.quad),
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 800,
           useNativeDriver: true,
         }),
       ]),
-      { resetBeforeIteration: true },
+      // Glow appears
+      Animated.parallel([
+        Animated.timing(glowOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(glowScale, {
+          toValue: 1,
+          damping: 10,
+          stiffness: 80,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    // Continuous glow pulse (prime duration for organic feel)
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowOpacity, {
+          toValue: 0.6,
+          duration: 4231,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowOpacity, {
+          toValue: 1,
+          duration: 4231,
+          useNativeDriver: true,
+        }),
+      ])
     ).start();
-  }, [logoScale, glowPulse]);
+  }, []);
 
   return (
     <View style={styles.launchRoot}>
-      <LinearGradient
-        colors={["#0a0514", "#21114b", "#412a7d", "#14b8ff"]}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 0.85, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <Animated.View
-        style={[
-          styles.launchRing,
-          { opacity: ringOpacity, transform: [{ scale: ringScale }] },
-        ]}
-      />
-      <Animated.Image
-        source={require("../assets/passionseed-logo.png")}
-        style={[styles.launchLogo, { transform: [{ scale: logoScale }] }]}
-        resizeMode="contain"
-      />
+      {/* Atmospheric background */}
+      <AtmosphericBackground />
+
+      {/* Rising particles */}
+      <RisingParticles count={12} />
+
+      {/* Shimmer overlay */}
+      <ShimmerOverlay />
+
+      {/* Logo container */}
+      <View style={styles.logoContainer}>
+        {/* Glow effect behind logo */}
+        <Animated.View
+          style={[
+            styles.logoGlow,
+            {
+              opacity: glowOpacity,
+              transform: [{ scale: glowScale }],
+            },
+          ]}
+        />
+
+        {/* Logo */}
+        <Animated.Image
+          source={require("../assets/passionseed-logo.png")}
+          style={[
+            styles.launchLogo,
+            {
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
+            },
+          ]}
+          resizeMode="contain"
+        />
+      </View>
+
+      {/* Loading indicator */}
       <View style={styles.launchFooter}>
-        <ActivityIndicator size="large" color="#FDFFF5" />
+        <ActivityIndicator size="large" color="#fbbf24" />
       </View>
     </View>
   );
@@ -116,12 +116,6 @@ function AppLaunchScreen() {
 function ConfigErrorScreen({ message }: { message: string }) {
   return (
     <View style={styles.errorRoot}>
-      <LinearGradient
-        colors={["#fff8f1", "#ffe4e6", "#fee2e2"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
       <View style={styles.errorCard}>
         <Animated.Image
           source={require("../assets/passionseed-logo.png")}
@@ -142,79 +136,136 @@ function ConfigErrorScreen({ message }: { message: string }) {
   );
 }
 
-function RootNavigator() {
-  const { session, loading, isGuest } = useAuth();
-  const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
+export default function RootLayout() {
+  const { initializeSentry } = require("../lib/sentry") as typeof import("../lib/sentry");
+  initializeSentry();
 
-  useEffect(() => {
-    if (loading) return;
+  const { Stack, router } = require("expo-router") as typeof import("expo-router");
+  const { StatusBar } = require("expo-status-bar") as typeof import("expo-status-bar");
+  const { useFonts } = require("expo-font") as typeof import("expo-font");
+  const {
+    BaiJamjuree_400Regular,
+    BaiJamjuree_500Medium,
+    BaiJamjuree_700Bold,
+  } = require("@expo-google-fonts/bai-jamjuree") as typeof import("@expo-google-fonts/bai-jamjuree");
+  const SplashScreen = require("expo-splash-screen") as typeof import("expo-splash-screen");
+  const { AuthProvider, useAuth } = require("../lib/auth") as typeof import("../lib/auth");
+  const { getProfile } = require("../lib/onboarding") as typeof import("../lib/onboarding");
+  const { logAppOpened } = require("../lib/eventLogger") as typeof import("../lib/eventLogger");
+  const {
+    getSupabaseConfigErrorMessage,
+  } = require("../lib/runtime-config") as typeof import("../lib/runtime-config");
 
-    if (!session && !isGuest) {
-      setProfile(null);
-      router.replace("/");
-      return;
-    }
+  SplashScreen.setOptions({
+    duration: 900,
+    fade: true,
+  });
+  void SplashScreen.preventAutoHideAsync();
 
-    if (isGuest) {
-      setProfile(null);
-      router.replace("/(tabs)/discover");
-      return;
-    }
+  function RootNavigator() {
+    const { session, loading, isGuest } = useAuth();
+    const [profile, setProfile] = useState<
+      import("../types/onboarding").Profile | null | undefined
+    >(undefined);
+    const [isNavReady, setIsNavReady] = useState(false);
 
-    getProfile(session!.user.id).then((p) => {
-      setProfile(p);
-      if (!p || !p.is_onboarded) {
-        router.replace("/onboarding");
-      } else {
-        router.replace("/(tabs)/discover");
+    useEffect(() => {
+      console.log("[RootNavigator] Effect running:", { loading, hasSession: !!session, isGuest });
+      if (loading) return;
+
+      // Log app opened event
+      logAppOpened().catch(() => {});
+
+      if (!session && !isGuest) {
+        // Not logged in - show landing page
+        console.log("[RootNavigator] Not logged in, staying on index");
+        setProfile(null);
+        setIsNavReady(true);
+        return;
       }
-    });
-  }, [session, loading, isGuest]);
 
-  return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: "fade",
-        animationDuration: 400,
-        contentStyle: {
-          backgroundColor: "#F3F4F6",
-        },
-      }}
-    >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="onboarding" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="seed/[id]" options={{ presentation: "card" }} />
-      <Stack.Screen
-        name="path/[enrollmentId]"
-        options={{ presentation: "card" }}
-      />
-      <Stack.Screen
-        name="activity/[activityId]"
-        options={{ presentation: "card" }}
-      />
-      <Stack.Screen
-        name="reflection/[enrollmentId]"
-        options={{ presentation: "modal" }}
-      />
-      <Stack.Screen
-        name="university/[key]"
-        options={{ presentation: "card" }}
-      />
-      <Stack.Screen
-        name="university/compare"
-        options={{ presentation: "card" }}
-      />
-      <Stack.Screen name="settings" options={{ presentation: "card" }} />
-      <Stack.Screen name="portfolio" options={{ presentation: "card" }} />
-      <Stack.Screen name="fit" options={{ presentation: "card" }} />
-      <Stack.Screen name="career/[name]" options={{ presentation: "card" }} />
-    </Stack>
-  );
-}
+      if (isGuest) {
+        // Guest user - go to discover
+        console.log("[RootNavigator] Guest mode, going to tabs");
+        setProfile(null);
+        router.replace("/(tabs)/discover");
+        setIsNavReady(true);
+        return;
+      }
 
-export default Sentry.wrap(function RootLayout() {
+      // Logged in user - check onboarding status
+      console.log("[RootNavigator] Logged in, fetching profile...");
+      getProfile(session!.user.id).then((p) => {
+        console.log("[RootNavigator] Profile fetched:", { hasProfile: !!p, isOnboarded: p?.is_onboarded });
+        setProfile(p);
+        if (!p || !p.is_onboarded) {
+          router.replace("/onboarding");
+        } else {
+          router.replace("/(tabs)/discover");
+        }
+        setIsNavReady(true);
+      });
+    }, [isGuest, loading, session]);
+
+    // Show splash screen while auth is loading
+    // This prevents showing the landing page to logged-in users
+    if (!isNavReady) {
+      return <AppLaunchScreen />;
+    }
+
+    return (
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "fade",
+          animationDuration: 400,
+          contentStyle: {
+            backgroundColor: "#F3F4F6",
+          },
+        }}
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen name="onboarding" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="seed/[id]" options={{ presentation: "card" }} />
+        <Stack.Screen
+          name="path/[enrollmentId]"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen
+          name="activity/[activityId]"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen
+          name="reflection/[enrollmentId]"
+          options={{ presentation: "modal" }}
+        />
+        <Stack.Screen
+          name="university/[key]"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen
+          name="university/compare"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen name="settings" options={{ presentation: "card" }} />
+        <Stack.Screen
+          name="portfolio/index"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen name="fit/index" options={{ presentation: "card" }} />
+        <Stack.Screen name="career/[name]" options={{ presentation: "card" }} />
+        {/* Super Planner screens */}
+        <Stack.Screen name="programs/index" options={{ presentation: "card" }} />
+        <Stack.Screen name="programs/[programId]" options={{ presentation: "card" }} />
+        <Stack.Screen name="saved/index" options={{ presentation: "card" }} />
+        <Stack.Screen name="plans/index" options={{ presentation: "card" }} />
+        <Stack.Screen name="plans/[planId]" options={{ presentation: "card" }} />
+        <Stack.Screen name="plans/create" options={{ presentation: "card" }} />
+      </Stack>
+    );
+  }
+
   const [fontsLoaded] = useFonts({
     BaiJamjuree_400Regular,
     BaiJamjuree_500Medium,
@@ -247,7 +298,7 @@ export default Sentry.wrap(function RootLayout() {
         clearTimeout(timeoutId);
       }
     };
-  }, [fontsLoaded, isReady]);
+  }, [fontsLoaded, isReady, SplashScreen]);
 
   if (!fontsLoaded || !isReady) {
     return <AppLaunchScreen />;
@@ -265,7 +316,8 @@ export default Sentry.wrap(function RootLayout() {
       </View>
     </AuthProvider>
   );
-});
+}
+
 
 const styles = StyleSheet.create({
   launchRoot: {
@@ -273,55 +325,59 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    backgroundColor: "#0a0514",
   },
-  launchRing: {
+  logoContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  logoGlow: {
     position: "absolute",
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    borderWidth: 2,
-    borderColor: "rgba(191, 255, 0, 0.55)",
-    backgroundColor: "rgba(191, 255, 0, 0.18)",
-    shadowColor: "#bfff00",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(251, 191, 36, 0.3)",
+    shadowColor: "#f97316",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
+    shadowOpacity: 0.5,
+    shadowRadius: 40,
   },
   launchLogo: {
-    width: 150,
-    height: 150,
+    width: 120,
+    height: 120,
     zIndex: 2,
   },
   launchFooter: {
     position: "absolute",
-    bottom: 44,
+    bottom: 60,
+    zIndex: 10,
   },
   errorRoot: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
-    backgroundColor: "#fff8f1",
+    backgroundColor: "#F3F4F6",
   },
   errorCard: {
     width: "100%",
-    maxWidth: 420,
+    maxWidth: 360,
+    borderRadius: 32,
     paddingHorizontal: 24,
     paddingVertical: 28,
-    borderRadius: 28,
-    backgroundColor: "rgba(255,255,255,0.88)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(244, 63, 94, 0.16)",
-    shadowColor: "#fb7185",
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    gap: 18,
+    borderColor: "rgb(206, 206, 206)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   errorLogo: {
-    width: 72,
-    height: 72,
+    width: 84,
+    height: 84,
+    marginBottom: 20,
     alignSelf: "center",
   },
   errorCopy: {
@@ -330,22 +386,20 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 22,
     lineHeight: 28,
-    fontFamily: "Orbit_400Regular",
+    fontWeight: "800",
     color: "#111827",
     textAlign: "center",
   },
   errorBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: "BaiJamjuree_500Medium",
-    color: "#991b1b",
+    fontSize: 16,
+    lineHeight: 22,
+    color: "#4B5563",
     textAlign: "center",
   },
   errorHint: {
-    fontSize: 13,
-    lineHeight: 19,
-    fontFamily: "BaiJamjuree_400Regular",
-    color: "#4b5563",
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#EF4444",
     textAlign: "center",
   },
 });

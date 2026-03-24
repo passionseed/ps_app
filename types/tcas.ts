@@ -23,6 +23,7 @@ export interface TcasProgram {
   program_type_name: string | null;
   total_seats: number | null;
   cost: string | null;
+  degree_level?: string | null;
   embedding: number[] | null;
   projection_2d: number[] | null;
   // Joined/computed fields from RPC results
@@ -39,6 +40,7 @@ export interface TcasAdmissionRound {
   round_number: number | null;
   project_name: string | null;
   receive_seats: number | null;
+  quota?: number | null;
   min_gpax: number | null;
   min_total_score: number | null;
   score_weights: Record<string, number> | null;
@@ -82,7 +84,11 @@ export interface ProgramSearchResult {
 export interface ProgramTextSearchResult {
   program_id: string;
   program_name: string;
+  program_name_en: string | null;
   faculty_name: string;
+  faculty_name_en: string | null;
   university_name: string;
+  university_id: string;
   rank: number;
+  round_numbers?: number[];
 }

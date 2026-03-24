@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, Pressable, ActivityIndicator, Animated,
 } from "react-native";
 import { callOnboardingChat, saveInterests } from "../../lib/onboarding";
+import { logInterestSelected } from "../../lib/eventLogger";
 import type { ChatMessage, InterestCategory } from "../../types/onboarding";
 
 type Props = {
@@ -119,6 +120,8 @@ export default function StepInterests({
   const onThisIsMe = () => {
     const card = cards[currentIndex];
     handleSelect(card.statement, card.catIndex);
+    // Log interest selected
+    logInterestSelected(card.catName, card.statement).catch(() => {});
     animateOut("right", advance);
   };
 

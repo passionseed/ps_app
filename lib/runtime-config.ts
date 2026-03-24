@@ -16,7 +16,10 @@ export function getMissingRuntimeConfig(
   keys: RuntimeConfigKey[],
 ): string[] {
   return keys
-    .filter((key) => !runtimeConfig[key]?.trim())
+    .filter((key) => {
+      const val = runtimeConfig[key]?.trim();
+      return !val || (val.startsWith("${") && val.endsWith("}"));
+    })
     .map((key) => LABELS[key]);
 }
 

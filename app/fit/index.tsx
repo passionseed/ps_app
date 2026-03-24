@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import { getFitScores, getDiscoveredPrograms } from "../../lib/portfolioFit";
+import { logFitScoreViewed } from "../../lib/eventLogger";
 import type { FitScoreResult } from "../../types/portfolio";
 import { Text as ThemeText, Border, Radius, Shadow } from "../../lib/theme";
 
@@ -149,6 +150,8 @@ export default function FitBrowserScreen() {
 
   useEffect(() => {
     load();
+    // Log fit score viewed
+    logFitScoreViewed(filter).catch(() => {});
   }, [load]);
 
   const filtered =

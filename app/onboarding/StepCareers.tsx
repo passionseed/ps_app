@@ -11,6 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { callOnboardingChat, saveCareers } from "../../lib/onboarding";
+import { logCareerSelected } from "../../lib/eventLogger";
 import type { InterestCategory, CareerGoal } from "../../types/onboarding";
 
 type Props = {
@@ -64,16 +65,21 @@ export default function StepCareers({
   }, []);
 
   const toggleSuggestion = (career: string) => {
-    setSelected((prev) =>
-      prev.includes(career)
+    setSelected((prev) => {
+      const isAdding = !prev.includes(career);
+      if (isAdding) {
+        logCareerSelected(career, "ai").catch(() => {});
+      }
+      return prev.includes(career)
         ? prev.filter((c) => c !== career)
-        : [...prev, career],
-    );
+        : [...prev, career];
+    });
   };
 
   const addCustom = () => {
     const val = customInput.trim();
     if (!val) return;
+    logCareerSelected(val, "custom").catch(() => {});
     setCustomCareers((prev) => [...prev, val]);
     setCustomInput("");
   };
