@@ -10,6 +10,8 @@ import {
   Animated,
   Easing,
 } from "react-native";
+import { SvgXml, Svg, Circle } from "react-native-svg";
+import trumpSvg from "../../assets/npc/trump-svg";
 import {
   callOnboardingChat,
   upsertOnboardingState,
@@ -42,6 +44,7 @@ export default function StepChat({
     chatHistory.map((m) => ({ role: m.role, text: m.parts[0].text })),
   );
   const [input, setInput] = useState("");
+  const [inputKey, setInputKey] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -51,6 +54,15 @@ export default function StepChat({
 
   const currentNpcText =
     [...bubbles].reverse().find((b) => b.role === "model")?.text ?? "";
+
+  const userReplies = bubbles.filter((b) => b.role === "user").length;
+  const EXPECTED_TURNS = 5;
+  const progressPercent = Math.min(Math.round((userReplies / EXPECTED_TURNS) * 100), 95);
+  const ringSize = 48;
+  const strokeWidth = 5;
+  const radius = (ringSize - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - progressPercent / 100);
 
   // Send initial greeting if no history
   useEffect(() => {
@@ -163,6 +175,7 @@ export default function StepChat({
     const text = input.trim();
     if (!text || loading) return;
     setInput("");
+    setInputKey((k) => k + 1);
     const currentHistory = bubbles.map((b) => ({
       role: b.role,
       parts: [{ text: b.text }] as [{ text: string }],
@@ -178,31 +191,54 @@ export default function StepChat({
       keyboardVerticalOffset={0}
     >
       <View style={styles.container}>
-        {/* NPC portrait area */}
-        <View style={styles.portraitArea}>
+        {/* Progress ring — top left of screen */}
+        <View style={styles.progressRingWrap}>
+          <Svg width={ringSize} height={ringSize} style={{ transform: [{ rotate: "-90deg" }] }}>
+            <Circle
+              cx={ringSize / 2}
+              cy={ringSize / 2}
+              r={radius}
+              stroke="#e5e7eb"
+              strokeWidth={strokeWidth}
+              fill="none"
+            />
+            <Circle
+              cx={ringSize / 2}
+              cy={ringSize / 2}
+              r={radius}
+              stroke="#BFFF00"
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeDasharray={`${circumference}`}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+            />
+          </Svg>
+          <Text style={styles.progressText}>{progressPercent}%</Text>
+        </View>
+
+        {/* NPC portrait */}
+        <View style={styles.npcAnchor}>
+          <View style={styles.npcNamePill}>
+            <Text style={styles.npcName}>P.Trump — Noble Peace Winner</Text>
+          </View>
           <Animated.View
             style={[
               styles.portrait,
               {
                 shadowOpacity: glowAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0, 0.6],
-                }),
-                borderColor: glowAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["#BFFF00", "#9FE800"],
+                  outputRange: [0, 0.8],
                 }),
               },
             ]}
           >
-            <Text style={styles.portraitLabel}>NPC</Text>
+            <SvgXml xml={trumpSvg} width="100%" height="100%" />
           </Animated.View>
         </View>
 
         {/* Dialog box */}
         <View style={styles.dialogBox}>
-          <Text style={styles.npcName}>PIP — CAREER GUIDE</Text>
-
           {loading ? (
             <View style={styles.dotsRow}>
               <Animated.View style={[styles.dot, { opacity: dot1Anim }]} />
@@ -217,6 +253,7 @@ export default function StepChat({
 
           <View style={styles.inputRow}>
             <TextInput
+              key={inputKey}
               style={[styles.input, loading && { opacity: 0.5 }]}
               value={input}
               onChangeText={setInput}
@@ -245,35 +282,48 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: "column",
+    overflow: "visible",
   },
-  portraitArea: {
+  npcAnchor: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-end",
+    overflow: "visible",
+    zIndex: 1,
   },
   portrait: {
-    width: 110,
-    height: 140,
-    borderRadius: 20,
-    backgroundColor: "#e5e7eb",
-    borderWidth: 2,
-    borderColor: "#BFFF00",
+    width: 560,
+    height: 720,
+    marginBottom: -220,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#BFFF00",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0,
-    shadowRadius: 12,
+    shadowRadius: 24,
     elevation: 0,
   },
-  portraitLabel: {
+  progressRingWrap: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+  },
+  progressText: {
+    position: "absolute",
     fontFamily: "Orbit_400Regular",
-    fontSize: 12,
-    color: "#aaa",
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#111",
   },
   dialogBox: {
     marginHorizontal: 16,
     marginBottom: Platform.OS === "ios" ? 32 : 24,
+    zIndex: 10,
     backgroundColor: "white",
     borderWidth: 1.5,
     borderColor: "#e5e7eb",
@@ -287,13 +337,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
+  npcNamePill: {
+    backgroundColor: "#111",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginBottom: 10,
+    zIndex: 1,
+  },
   npcName: {
     fontFamily: "Orbit_400Regular",
     fontWeight: "700",
-    fontSize: 9,
+    fontSize: 11,
     letterSpacing: 1.2,
-    color: "#9FE800",
+    color: "#BFFF00",
     textTransform: "uppercase",
+    textAlign: "center",
   },
   npcText: {
     fontFamily: "Orbit_400Regular",
