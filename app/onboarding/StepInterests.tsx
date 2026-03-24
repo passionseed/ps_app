@@ -66,6 +66,7 @@ export default function StepInterests({
     load();
   }, []);
 
+
   // Flatten all statements into a single ordered array
   const cards: FlatCard[] = categories.flatMap((cat, catIndex) =>
     cat.statements.map((statement, stmtIndex) => ({
@@ -74,7 +75,7 @@ export default function StepInterests({
       statement,
       stmtIndex,
     })),
-  );
+  ).slice(0, 10);
 
   const total = cards.length;
 
@@ -155,6 +156,18 @@ export default function StepInterests({
     );
   }
 
+  // ---------- Empty ----------
+  if (cards.length === 0) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>No interest cards generated. Try again.</Text>
+        <Pressable style={styles.retryBtn} onPress={load}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   // ---------- Error ----------
   if (error) {
     return (
@@ -212,6 +225,8 @@ export default function StepInterests({
 
   // ---------- Card View ----------
   const card = cards[currentIndex];
+
+  if (!card) return null;
 
   return (
     <View style={styles.container}>
