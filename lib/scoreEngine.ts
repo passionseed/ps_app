@@ -191,29 +191,16 @@ export async function getScoreTimeline(
   const timeline: ScoreTimelineItem[] = [];
 
   eventsByDate.forEach((dateEvents, date) => {
-    // Get the latest scores from metadata or use score_value
     const latestEvent = dateEvents[0];
-    const metadata = (latestEvent.metadata as { scores?: IkigaiScores }) || {};
+    const metadata = (latestEvent.metadata as Record<string, number>) || {};
 
-    if (metadata.scores) {
-      timeline.push({
-        date,
-        passion: metadata.scores.passion || 0,
-        mission: metadata.scores.mission || 0,
-        profession: metadata.scores.profession || 0,
-        vocation: metadata.scores.vocation || 0,
-      });
-    } else {
-      // Fallback: use score_value for all dimensions
-      const score = latestEvent.score_value;
-      timeline.push({
-        date,
-        passion: score,
-        mission: score,
-        profession: score,
-        vocation: score,
-      });
-    }
+    timeline.push({
+      date,
+      passion: metadata.passion || 0,
+      mission: metadata.mission || 0,
+      profession: metadata.profession || 0,
+      vocation: metadata.vocation || 0,
+    });
   });
 
   // Sort by date ascending (oldest first)
@@ -249,29 +236,14 @@ export async function getLatestScoresByDimension(): Promise<{
 
   const events = data as ScoreEvent[];
 
-  // Find latest event for each dimension from metadata
-  const result = {
-    passion: null as ScoreEvent | null,
-    mission: null as ScoreEvent | null,
-    profession: null as ScoreEvent | null,
-    vocation: null as ScoreEvent | null,
+  // Each event stores all 4 ikigai dimensions — use the latest event
+  const latestEvent = events[0] ?? null;
+  return {
+    passion: latestEvent,
+    mission: latestEvent,
+    profession: latestEvent,
+    vocation: latestEvent,
   };
-
-  for (const event of events) {
-    const metadata = event.metadata as { dimension?: string } | null;
-    const dimension = metadata?.dimension;
-
-    if (dimension && !result[dimension as keyof typeof result]) {
-      result[dimension as keyof typeof result] = event;
-    }
-
-    // Stop if we have all dimensions
-    if (result.passion && result.mission && result.profession && result.vocation) {
-      break;
-    }
-  }
-
-  return result;
 }
 
 /**

@@ -372,20 +372,21 @@ serve(async (req) => {
     // ── 4. Store score event in database ─────────────────────────────────────
     const { error: insertError } = await supabase.from("score_events").insert({
       user_id: user.id,
-      enrollment_id: enrollmentId,
       reflection_id: reflectionId,
-      passion_score: finalScores.passion,
-      mission_score: finalScores.mission,
-      vocation_score: finalScores.vocation,
-      profession_score: finalScores.profession,
-      overall_score: finalScores.overall,
-      analysis: analysis,
-      signal_data: {
+      score_type: "daily_reflection",
+      score_value: Math.round(finalScores.overall * 100),
+      metadata: {
+        passion: finalScores.passion,
+        mission: finalScores.mission,
+        vocation: finalScores.vocation,
+        profession: finalScores.profession,
+        overall: finalScores.overall,
+        analysis,
         energy_level: energyLevel,
         confusion_level: confusionLevel,
         interest_level: interestLevel,
         day_number: dayNumber,
-        language: language,
+        language,
         seed_title: seedTitle,
       },
     });

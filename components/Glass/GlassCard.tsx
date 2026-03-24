@@ -26,26 +26,34 @@ export function GlassCard({
   const variantStyles = getVariantStyles(variant);
   const sizeStyles = getSizeStyles(size);
 
-  // Master card uses gradient background
-  if (variant === "master" || variant === "education" || variant === "experience" || variant === "destination") {
-    return (
+  return (
+    <View
+      style={[
+        styles.card,
+        sizeStyles.container,
+        !noShadow && variantStyles.shadow,
+        style,
+      ]}
+    >
       <View
         style={[
-          styles.card,
+          styles.surface,
           sizeStyles.container,
-          !noShadow && variantStyles.shadow,
-          style,
+          variantStyles.container,
         ]}
       >
-        <LinearGradient
-          colors={variantStyles.gradient}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={[
-            StyleSheet.absoluteFill,
-            { borderRadius: sizeStyles.container.borderRadius },
-          ]}
-        />
+        {variantStyles.gradient ? (
+          <LinearGradient
+            colors={variantStyles.gradient}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={[
+              StyleSheet.absoluteFill,
+              { borderRadius: sizeStyles.container.borderRadius },
+            ]}
+          />
+        ) : null}
+
         {/* Top highlight reflection */}
         <View style={styles.topHighlight} />
 
@@ -53,44 +61,12 @@ export function GlassCard({
         <View style={[!noPadding && sizeStyles.padding, styles.content]}>
           {children}
         </View>
-
-        {/* Border */}
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              borderRadius: sizeStyles.container.borderRadius,
-              borderWidth: variantStyles.borderWidth,
-              borderColor: variantStyles.borderColor,
-            },
-          ]}
-          pointerEvents="none"
-        />
       </View>
-    );
-  }
-
-  // Neutral card - simple white background
-  return (
-    <View
-      style={[
-        styles.card,
-        sizeStyles.container,
-        variantStyles.container,
-        !noPadding && sizeStyles.padding,
-        !noShadow && variantStyles.shadow,
-        style,
-      ]}
-    >
-      {/* Top highlight reflection for glass effect */}
-      <View style={styles.topHighlight} />
-
-      {children}
 
       {/* Border */}
       <View
         style={[
-          StyleSheet.absoluteFill,
+          styles.borderOverlay,
           {
             borderRadius: sizeStyles.container.borderRadius,
             borderWidth: variantStyles.borderWidth,
@@ -107,7 +83,7 @@ function getVariantStyles(variant: CardVariant) {
   switch (variant) {
     case "master":
       return {
-        gradient: ["#FFFFFF", "#F9F5FF", "#EEF2FF"],
+        gradient: ["#FFFFFF", "#F9F5FF", "#EEF2FF"] as const,
         borderWidth: 1,
         borderColor: "rgb(206, 206, 206)",
         shadow: Shadow.card,
@@ -115,7 +91,7 @@ function getVariantStyles(variant: CardVariant) {
 
     case "education":
       return {
-        gradient: ["#FFFFFF", "#FDFCFF"],
+        gradient: ["#FFFFFF", "#FDFCFF"] as const,
         borderWidth: 1,
         borderColor: "rgba(139, 92, 246, 0.15)",
         shadow: {
@@ -129,7 +105,7 @@ function getVariantStyles(variant: CardVariant) {
 
     case "experience":
       return {
-        gradient: ["#FFFFFF", "#FCFDFF"],
+        gradient: ["#FFFFFF", "#FCFDFF"] as const,
         borderWidth: 1,
         borderColor: "rgba(59, 130, 246, 0.15)",
         shadow: {
@@ -143,7 +119,7 @@ function getVariantStyles(variant: CardVariant) {
 
     case "destination":
       return {
-        gradient: ["#FFFFFF", "#FCFEFD"],
+        gradient: ["#FFFFFF", "#FCFEFD"] as const,
         borderWidth: 1,
         borderColor: "rgba(16, 185, 129, 0.15)",
         shadow: {
@@ -205,11 +181,18 @@ function getSizeStyles(size: CardSize) {
 const styles = StyleSheet.create({
   card: {
     position: "relative",
+    overflow: "visible",
+  },
+  surface: {
+    position: "relative",
     overflow: "hidden",
   },
   content: {
     position: "relative",
     zIndex: 1,
+  },
+  borderOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   topHighlight: {
     position: "absolute",

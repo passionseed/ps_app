@@ -16,6 +16,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth";
 import { addPortfolioItem } from "../../lib/portfolioFit";
+import { logPortfolioItemAdded } from "../../lib/eventLogger";
 import type { PortfolioItemType } from "../../types/portfolio";
 
 const TYPES: Array<{
@@ -60,6 +61,8 @@ export default function AddPortfolioItemScreen() {
         description: description.trim() || undefined,
         tags,
       });
+      // Log event
+      logPortfolioItemAdded(itemType, title.trim()).catch(() => {});
       router.back();
     } catch (e: any) {
       setError(e?.message ?? "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง");
