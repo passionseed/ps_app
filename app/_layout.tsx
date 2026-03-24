@@ -7,111 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { AtmosphericBackground } from "./components/AtmosphericBackground";
-import { RisingParticles } from "./components/RisingParticles";
-import { ShimmerOverlay } from "./components/ShimmerOverlay";
-
-function AppLaunchScreen() {
-  const logoScale = useRef(new Animated.Value(0.5)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const glowOpacity = useRef(new Animated.Value(0)).current;
-  const glowScale = useRef(new Animated.Value(0.8)).current;
-
-  useEffect(() => {
-    // Entrance animation sequence
-    Animated.sequence([
-      // Logo fades in and scales up
-      Animated.parallel([
-        Animated.spring(logoScale, {
-          toValue: 1,
-          damping: 12,
-          stiffness: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoOpacity, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Glow appears
-      Animated.parallel([
-        Animated.timing(glowOpacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(glowScale, {
-          toValue: 1,
-          damping: 10,
-          stiffness: 80,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-
-    // Continuous glow pulse (prime duration for organic feel)
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowOpacity, {
-          toValue: 0.6,
-          duration: 4231,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowOpacity, {
-          toValue: 1,
-          duration: 4231,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, []);
-
-  return (
-    <View style={styles.launchRoot}>
-      {/* Atmospheric background */}
-      <AtmosphericBackground />
-
-      {/* Rising particles */}
-      <RisingParticles count={12} />
-
-      {/* Shimmer overlay */}
-      <ShimmerOverlay />
-
-      {/* Logo container */}
-      <View style={styles.logoContainer}>
-        {/* Glow effect behind logo */}
-        <Animated.View
-          style={[
-            styles.logoGlow,
-            {
-              opacity: glowOpacity,
-              transform: [{ scale: glowScale }],
-            },
-          ]}
-        />
-
-        {/* Logo */}
-        <Animated.Image
-          source={require("../assets/passionseed-logo.png")}
-          style={[
-            styles.launchLogo,
-            {
-              opacity: logoOpacity,
-              transform: [{ scale: logoScale }],
-            },
-          ]}
-          resizeMode="contain"
-        />
-      </View>
-
-      {/* Loading indicator */}
-      <View style={styles.launchFooter}>
-        <ActivityIndicator size="large" color="#fbbf24" />
-      </View>
-    </View>
-  );
-}
+import { AnimatedSplash } from "./components/AnimatedSplash";
 
 function ConfigErrorScreen({ message }: { message: string }) {
   return (
@@ -207,10 +103,10 @@ export default function RootLayout() {
       });
     }, [isGuest, loading, session]);
 
-    // Show splash screen while auth is loading
+    // Show animated splash while auth is loading
     // This prevents showing the landing page to logged-in users
     if (!isNavReady) {
-      return <AppLaunchScreen />;
+      return <AnimatedSplash />;
     }
 
     return (
@@ -301,7 +197,7 @@ export default function RootLayout() {
   }, [fontsLoaded, isReady, SplashScreen]);
 
   if (!fontsLoaded || !isReady) {
-    return <AppLaunchScreen />;
+    return <AnimatedSplash />;
   }
 
   if (configError) {
@@ -320,38 +216,6 @@ export default function RootLayout() {
 
 
 const styles = StyleSheet.create({
-  launchRoot: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  logoContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-  },
-  logoGlow: {
-    position: "absolute",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(251, 191, 36, 0.3)",
-    shadowColor: "#f97316",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 40,
-  },
-  launchLogo: {
-    width: 120,
-    height: 120,
-    zIndex: 2,
-  },
-  launchFooter: {
-    position: "absolute",
-    bottom: 60,
-    zIndex: 10,
-  },
   errorRoot: {
     flex: 1,
     alignItems: "center",
