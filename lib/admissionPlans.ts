@@ -110,8 +110,7 @@ export async function getPlanById(planId: string): Promise<AdmissionPlan | null>
         program_name_en,
         faculty_name,
         faculty_name_en,
-        university_id,
-        degree_level
+        university_id
       )
     `)
     .eq('plan_id', planId)

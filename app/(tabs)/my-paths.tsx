@@ -27,7 +27,6 @@ import {
 } from "../../lib/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-// Leave margin so previous/next cards peek out, but keep cards wider.
 const CARD_WIDTH = SCREEN_WIDTH - 48;
 const SNAP_INTERVAL = CARD_WIDTH + 8;
 
@@ -135,6 +134,9 @@ export default function MyPathsScreen() {
           step2: "Gain experience through internships",
           step3: "Do the work you dream about",
           cta: "Start building your path →",
+          plansTitle: "TCAS Admission Plans",
+          plansCardTitle: "Plan Your Applications",
+          plansCardSubtitle: "Create admission plans for each TCAS round",
         }
       : {
           title: "จำลองเส้นทางอาชีพ",
@@ -147,6 +149,9 @@ export default function MyPathsScreen() {
           step2: "ฝึกงานและสะสมประสบการณ์",
           step3: "ทำงานตามความฝัน",
           cta: "เริ่มสร้างเส้นทาง →",
+          plansTitle: "แผนสมัคร TCAS",
+          plansCardTitle: "วางแผนการสมัคร",
+          plansCardSubtitle: "สร้างแผนสมัครสำหรับแต่ละรอบ TCAS",
         };
 
   const paths = journeys.map(journeyToCareerPath);
@@ -162,13 +167,14 @@ export default function MyPathsScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: Math.max(insets.top + 12, 48) },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View
-          style={[styles.header, { paddingTop: Math.max(insets.top + 24, 60) }]}
-        >
+        <View style={styles.header}>
           <Text style={styles.headerTitle}>{copy.title}</Text>
         </View>
 
@@ -177,7 +183,7 @@ export default function MyPathsScreen() {
             <ActivityIndicator size="large" color="#BFFF00" />
           </View>
         ) : !hasSimulations ? (
-          /* Empty State with Placeholder Card */
+          /* Empty State with Compact Placeholder Card */
           <View style={styles.emptyState}>
             <View style={styles.emptyIconGroup}>
               <Text style={styles.emptyEmoji}>🧭</Text>
@@ -185,64 +191,50 @@ export default function MyPathsScreen() {
             <Text style={styles.emptyTitle}>{copy.emptyTitle}</Text>
             <Text style={styles.emptySubtext}>{copy.emptySubtext}</Text>
 
-            {/* Placeholder Card Preview */}
-            <LinearGradient
-              colors={Gradient.masterCard}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.placeholderCardGradient}
+            {/* Compact Placeholder Card */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.placeholderCard,
+                pressed && styles.placeholderCardPressed,
+              ]}
+              onPress={handleBuildPath}
             >
-              <Pressable
-                style={({ pressed }) => [
-                  styles.placeholderCard,
-                  pressed && styles.placeholderCardPressed,
-                ]}
-                onPress={handleBuildPath}
-              >
-                {/* Card Header */}
-                  <View style={styles.placeholderHeader}>
-                    <View style={styles.placeholderIconCircle}>
-                      <Text style={styles.placeholderIcon}>✨</Text>
-                    </View>
-                    <View style={styles.placeholderTitleSection}>
-                      <Text style={styles.placeholderTitle}>{copy.createTitle}</Text>
-                      <Text style={styles.placeholderSubtitle}>
-                        {copy.createSubtitle}
-                      </Text>
-                    </View>
-                  </View>
-
-                {/* Preview Steps */}
-                  <View style={styles.placeholderSteps}>
-                    <View style={styles.placeholderStep}>
-                      <View style={[styles.stepDot, { backgroundColor: "#3B82F6" }]} />
-                      <View style={styles.stepLine} />
-                      <Text style={styles.stepText}>{copy.step1}</Text>
-                    </View>
-                    <View style={styles.placeholderStep}>
-                      <View style={[styles.stepDot, { backgroundColor: "#10B981" }]} />
-                      <View style={styles.stepLine} />
-                      <Text style={styles.stepText}>{copy.step2}</Text>
-                    </View>
-                    <View style={styles.placeholderStep}>
-                      <View style={[styles.stepDot, { backgroundColor: "#8B5CF6" }]} />
-                      <Text style={styles.stepText}>{copy.step3}</Text>
-                    </View>
-                  </View>
-
-                {/* CTA Button inside card */}
-                <View style={styles.placeholderCta}>
-                  <LinearGradient
-                    colors={Gradient.primaryCta}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.placeholderCtaGradient}
-                  >
-                    <Text style={styles.placeholderCtaText}>{copy.cta}</Text>
-                  </LinearGradient>
+              <View style={styles.placeholderHeader}>
+                <View style={styles.placeholderIconCircle}>
+                  <Text style={styles.placeholderIcon}>✨</Text>
                 </View>
-              </Pressable>
-            </LinearGradient>
+                <View style={styles.placeholderTitleSection}>
+                  <Text style={styles.placeholderTitle}>{copy.createTitle}</Text>
+                  <Text style={styles.placeholderSubtitle}>
+                    {copy.createSubtitle}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.placeholderSteps}>
+                <View style={styles.placeholderStep}>
+                  <View style={[styles.stepDot, { backgroundColor: "#3B82F6" }]} />
+                  <Text style={styles.stepText}>{copy.step1}</Text>
+                </View>
+                <View style={styles.placeholderStep}>
+                  <View style={[styles.stepDot, { backgroundColor: "#10B981" }]} />
+                  <Text style={styles.stepText}>{copy.step2}</Text>
+                </View>
+                <View style={styles.placeholderStep}>
+                  <View style={[styles.stepDot, { backgroundColor: "#8B5CF6" }]} />
+                  <Text style={styles.stepText}>{copy.step3}</Text>
+                </View>
+              </View>
+
+              <LinearGradient
+                colors={Gradient.primaryCta}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.placeholderCtaGradient}
+              >
+                <Text style={styles.placeholderCtaText}>{copy.cta}</Text>
+              </LinearGradient>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.carouselContainer}>
@@ -318,31 +310,39 @@ export default function MyPathsScreen() {
 
         {/* TCAS Admission Plans Section */}
         <View style={styles.plansSection}>
-          <Text style={styles.plansSectionTitle}>
-            {isGuest && guestLanguage === "en" ? "📋 TCAS Admission Plans" : "📋 แผนสมัคร TCAS"}
+          <Text style={styles.sectionTitle}>
+            📋 {copy.plansTitle}
           </Text>
+          
           <Pressable
-            style={({ pressed }) => [styles.plansCard, pressed && styles.plansCardPressed]}
+            style={({ pressed }) => [
+              styles.plansCard,
+              pressed && styles.plansCardPressed,
+            ]}
             onPress={() => router.push("/plans")}
           >
-            <View style={styles.plansCardContent}>
-              <Text style={styles.plansCardIcon}>🎓</Text>
-              <View style={styles.plansCardText}>
-                <Text style={styles.plansCardTitle}>
-                  {isGuest && guestLanguage === "en" ? "Plan Your Applications" : "วางแผนการสมัคร"}
-                </Text>
-                <Text style={styles.plansCardSubtitle}>
-                  {isGuest && guestLanguage === "en"
-                    ? "Create admission plans for each TCAS round"
-                    : "สร้างแผนสมัครสำหรับแต่ละรอบ TCAS"}
-                </Text>
+            <LinearGradient
+              colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.plansCardGradient}
+            >
+              <View style={styles.plansCardHeader}>
+                <View style={styles.plansIconCircle}>
+                  <Text style={styles.plansIcon}>🎓</Text>
+                </View>
+                <View style={styles.plansCardText}>
+                  <Text style={styles.plansCardTitle}>{copy.plansCardTitle}</Text>
+                  <Text style={styles.plansCardSubtitle}>{copy.plansCardSubtitle}</Text>
+                </View>
+                <Text style={styles.plansCardArrow}>→</Text>
               </View>
-              <Text style={styles.plansCardArrow}>→</Text>
-            </View>
+            </LinearGradient>
           </Pressable>
         </View>
 
-        <View style={{ height: 120 }} />
+        {/* Bottom padding for tab bar */}
+        <View style={{ height: 100 }} />
       </ScrollView>
     </View>
   );
@@ -357,74 +357,54 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 20,
   },
   // Header
   header: {
-    paddingTop: 48, // very tight professional spacing
     paddingHorizontal: 24,
-    paddingBottom: 8, // reduced padding drastically
+    paddingBottom: 8,
   },
   headerTitle: {
-    fontSize: 28, // slightly smaller to match tighter layout
+    fontSize: 24,
     fontWeight: "700",
     color: "#111",
   },
   // Loading
   loadingContainer: {
+    paddingVertical: 60,
     alignItems: "center",
-    paddingVertical: 80,
   },
   // Empty State
   emptyState: {
     alignItems: "center",
-    paddingTop: 40,
+    paddingTop: 16,
     paddingHorizontal: 24,
-    paddingBottom: 60,
+    paddingBottom: 24,
   },
   emptyIconGroup: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   emptyEmoji: {
-    fontSize: 56,
+    fontSize: 48,
   },
   emptyTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: "#111",
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: "center",
   },
   emptySubtext: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "400",
     color: "#888",
     textAlign: "center",
-    marginBottom: 28,
-    lineHeight: 22,
-  },
-  buildPathBtn: {
-    borderRadius: 14,
-    overflow: "hidden",
-    marginTop: 20,
-  },
-  buildPathBtnPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.97 }],
-  },
-  buildPathGradient: {
-    paddingVertical: 14,
-    paddingHorizontal: 36,
-    borderRadius: 14,
-  },
-  buildPathBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111",
+    marginBottom: 16,
+    lineHeight: 20,
   },
   // Carousel
   carouselContainer: {
-    marginTop: 8,
+    marginTop: 4,
   },
   carouselContent: {
     paddingHorizontal: 24,
@@ -438,7 +418,7 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
     justifyContent: "center",
     alignItems: "center",
-    minHeight: 400, // Make it roughly the height of a career path card
+    minHeight: 300,
   },
   addCardInner: {
     alignItems: "center",
@@ -454,19 +434,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#6B7280",
   },
-  // Placeholder Card
-  placeholderCardGradient: {
-    borderRadius: Radius["2xl"],
-    marginTop: Space["3xl"],
-    marginHorizontal: Space["2xl"],
+  // Placeholder Card - Compact
+  placeholderCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.xl,
+    padding: 20,
     width: CARD_WIDTH,
     ...Shadow.neutral,
-  },
-  placeholderCard: {
-    backgroundColor: "transparent",
-    borderRadius: Radius["2xl"],
-    padding: Space["2xl"],
-    width: "100%",
   },
   placeholderCardPressed: {
     transform: [{ scale: 0.98 }],
@@ -475,10 +449,96 @@ const styles = StyleSheet.create({
   placeholderHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 24,
-    gap: 16,
+    marginBottom: 16,
+    gap: 12,
   },
   placeholderIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderIcon: {
+    fontSize: 22,
+  },
+  placeholderTitleSection: {
+    flex: 1,
+  },
+  placeholderTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 2,
+  },
+  placeholderSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  placeholderSteps: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  placeholderStep: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  stepDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  stepText: {
+    fontSize: 13,
+    color: "#4B5563",
+    flex: 1,
+  },
+  placeholderCtaGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 100,
+    alignItems: "center",
+  },
+  placeholderCtaText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111",
+  },
+
+  // Plans Section - Matching style
+  plansSection: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+  },
+  plansCard: {
+    borderRadius: Radius["2xl"],
+    overflow: "hidden",
+    ...Shadow.neutral,
+  },
+  plansCardPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.95,
+  },
+  plansCardGradient: {
+    padding: 24,
+    borderRadius: Radius["2xl"],
+    borderWidth: 1,
+    borderColor: "rgb(206, 206, 206)",
+  },
+  plansCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  plansIconCircle: {
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -486,104 +546,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  placeholderIcon: {
+  plansIcon: {
     fontSize: 28,
-  },
-  placeholderTitleSection: {
-    flex: 1,
-  },
-  placeholderTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111",
-    marginBottom: 4,
-  },
-  placeholderSubtitle: {
-    fontSize: 13,
-    color: "#6B7280",
-  },
-  placeholderSteps: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  placeholderStep: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  stepDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  stepLine: {
-    width: 24,
-    height: 2,
-    backgroundColor: "#E5E7EB",
-  },
-  stepText: {
-    fontSize: 14,
-    color: "#4B5563",
-    flex: 1,
-  },
-  placeholderCta: {
-    alignItems: "center",
-  },
-  placeholderCtaGradient: {
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 100,
-  },
-  placeholderCtaText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#111",
-  },
-
-  // Plans Section
-  plansSection: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 12,
-  },
-  plansSectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  plansCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 16,
-    ...Shadow.neutral,
-  },
-  plansCardPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  plansCardContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  plansCardIcon: {
-    fontSize: 32,
   },
   plansCardText: {
     flex: 1,
     gap: 4,
   },
   plansCardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#111",
   },
   plansCardSubtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#6B7280",
   },
   plansCardArrow: {

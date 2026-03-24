@@ -84,8 +84,7 @@ export async function getSavedPrograms(): Promise<SavedProgram[]> {
         program_name_en,
         faculty_name,
         faculty_name_en,
-        university_id,
-        degree_level
+        university_id
       )
     `)
     .eq('user_id', user.id)
