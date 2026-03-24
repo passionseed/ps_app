@@ -17,6 +17,7 @@ import {
   getPortfolioItems,
   deletePortfolioItem,
 } from "../../lib/portfolioFit";
+import { logPortfolioItemDeleted } from "../../lib/eventLogger";
 import type {
   StudentPortfolioItem,
   PortfolioItemType,
@@ -66,6 +67,8 @@ export default function PortfolioScreen() {
     setDeleting(id);
     try {
       await deletePortfolioItem(user.id, id);
+      // Log event
+      logPortfolioItemDeleted(id).catch(() => {});
       setItems((prev) => prev.filter((i) => i.id !== id));
     } catch (e) {
       console.error("Delete failed:", e);

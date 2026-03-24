@@ -447,6 +447,51 @@ export default function DiscoverScreen() {
           seeds={notForYou}
         />
 
+        {/* TCAS Programs Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {isThai ? "🎓 สาขา TCAS" : "🎓 TCAS Programs"}
+          </Text>
+          <View style={styles.quickLinks}>
+            <Pressable
+              style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}
+              onPress={() => router.push("/programs")}
+            >
+              <Text style={styles.quickLinkIcon}>🔍</Text>
+              <Text style={styles.quickLinkTitle}>
+                {isThai ? "ค้นหาสาขา" : "Browse Programs"}
+              </Text>
+              <Text style={styles.quickLinkSubtitle}>
+                {isThai ? "ค้นหาสาขาที่สนใจ" : "Find your dream program"}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}
+              onPress={() => router.push("/saved")}
+            >
+              <Text style={styles.quickLinkIcon}>⭐</Text>
+              <Text style={styles.quickLinkTitle}>
+                {isThai ? "สาขาที่บันทึก" : "Saved Programs"}
+              </Text>
+              <Text style={styles.quickLinkSubtitle}>
+                {isThai ? "ดูสาขาที่สนใจ" : "View your favorites"}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}
+              onPress={() => router.push("/plans")}
+            >
+              <Text style={styles.quickLinkIcon}>📋</Text>
+              <Text style={styles.quickLinkTitle}>
+                {isThai ? "แผนสมัคร" : "My Plans"}
+              </Text>
+              <Text style={styles.quickLinkSubtitle}>
+                {isThai ? "วางแผนการสมัคร" : "Plan your applications"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
         {/* Bottom padding for tab bar */}
         <View style={{ height: 120 }} />
       </Animated.ScrollView>
@@ -1028,5 +1073,40 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Accent.green,
     fontFamily: "Orbit_400Regular",
+  },
+
+  // Quick Links for TCAS
+  quickLinks: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Space.md,
+    paddingHorizontal: Space["2xl"],
+  },
+  quickLinkCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Border.default,
+    padding: Space.lg,
+    width: "47%",
+    ...Shadow.neutral,
+  },
+  quickLinkPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  quickLinkIcon: {
+    fontSize: 28,
+    marginBottom: Space.sm,
+  },
+  quickLinkTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: ThemeText.primary,
+    marginBottom: Space.xs,
+  },
+  quickLinkSubtitle: {
+    fontSize: 12,
+    color: ThemeText.tertiary,
   },
 });
