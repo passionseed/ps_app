@@ -40,7 +40,9 @@
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "${EXPO_PUBLIC_SUPABASE_URL}",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "${EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY}"
       }
     }
   },
