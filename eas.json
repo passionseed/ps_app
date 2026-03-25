@@ -31,9 +31,9 @@
       },
       "env": {
         "APP_NAME_SUFFIX": " (Preview)",
-        "EXPO_PUBLIC_SUPABASE_URL": "${EXPO_PUBLIC_SUPABASE_URL}",
-        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "${EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY}",
-        "EXPO_PUBLIC_PROJECT_ID": "${EXPO_PUBLIC_PROJECT_ID}"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://iikrvgjfkuijcpvdwzvv.supabase.co/",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_3BzLdHOi5zinIv2WFRxVYQ8gJq3nc",
+        "EXPO_PUBLIC_PROJECT_ID": "baca732a-c7d8-4bd2-9742-48cc2a5e939f"
       }
     },
     "production": {
