@@ -533,7 +533,7 @@ export default function ActivityDetailScreen() {
         .from("path_npc_conversations")
         .select("root_node_id, seed_id")
         .eq("id", metadata.conversation_id)
-        .single();
+        .maybeSingle();
 
       console.log("[NPC] Conversation data:", JSON.stringify(conversation, null, 2));
       console.log("[NPC] Conversation error:", convError);

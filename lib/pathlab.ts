@@ -362,7 +362,7 @@ export async function updateActivityProgress(params: {
   activityId: string;
   status: "in_progress" | "completed" | "skipped";
   timeSpentSeconds?: number;
-}): Promise<PathActivityProgress> {
+}): Promise<void> {
   const now = new Date().toISOString();
 
   const updateData: any = {
@@ -384,16 +384,13 @@ export async function updateActivityProgress(params: {
     updateData.time_spent_seconds = params.timeSpentSeconds;
   }
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("path_activity_progress")
     .upsert(updateData, {
       onConflict: "enrollment_id,activity_id",
-    })
-    .select()
-    .single();
+    });
 
   if (error) throw new Error(error.message);
-  return data;
 }
 
 // NEW: Submit assessment
