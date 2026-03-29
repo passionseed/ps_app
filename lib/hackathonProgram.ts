@@ -1,0 +1,389 @@
+import type {
+  HackathonModuleGateStatus,
+  HackathonModuleProgress,
+  HackathonModuleProgressSnapshot,
+  HackathonModuleStatus,
+  HackathonPhaseDetail,
+  HackathonPhaseModule,
+  HackathonPhasePlaylist,
+  HackathonProgram,
+  HackathonProgramHome,
+  HackathonProgramPhase,
+  HackathonSubmissionStatus,
+  HackathonTeam,
+  HackathonTeamMembership,
+  HackathonTeamProgramEnrollment,
+} from "../types/hackathon-program";
+import type {
+  PathActivityScope,
+  PathGateRule,
+  PathReviewMode,
+} from "../types/pathlab-content";
+
+type CardTone = "neutral" | "education" | "destination";
+
+type ModuleProgressInput = {
+  memberStatuses: Array<
+    | HackathonSubmissionStatus
+    | "completed"
+    | "pending"
+    | "revision_required"
+  >;
+  workflow: {
+    scope: PathActivityScope;
+    gate_rule: PathGateRule;
+    review_mode: PathReviewMode;
+    required_member_count?: number | null;
+  };
+  teamSubmissionStatus?: HackathonSubmissionStatus | null;
+};
+
+const RETRYABLE_MESSAGES = [
+  "network request failed",
+  "failed to fetch",
+  "ssl handshake failed",
+  "cloudflare",
+];
+
+function stringifyError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+async function getSupabaseClient() {
+  const mod = await import("./supabase");
+  return mod.supabase;
+}
+
+function isRetryable(error: unknown) {
+  const message = stringifyError(error).toLowerCase();
+  return RETRYABLE_MESSAGES.some((snippet) => message.includes(snippet));
+}
+
+async function withRetry<T>(
+  task: () => Promise<T>,
+  fallback: string,
+  attempts = 3,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      lastError = error;
+      if (!isRetryable(error) || attempt === attempts) {
+        throw new Error(stringifyError(error) || fallback);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+    }
+  }
+  throw new Error(stringifyError(lastError) || fallback);
+}
+
+function normalizeSubmissionStatus(
+  status: ModuleProgressInput["memberStatuses"][number],
+): HackathonSubmissionStatus {
+  if (status === "completed") return "passed";
+  if (status === "pending") return "not_started";
+  return status;
+}
+
+export function buildModuleProgressSnapshot(
+  input: ModuleProgressInput,
+): HackathonModuleProgressSnapshot {
+  const memberStatuses = input.memberStatuses.map(normalizeSubmissionStatus);
+  const readyMembers = memberStatuses.filter(
+    (status) => status === "passed" || status === "submitted",
+  ).length;
+  const revisionRequiredMembers = memberStatuses.filter(
+    (status) => status === "revision_required",
+  ).length;
+  const pendingMembers =
+    memberStatuses.length - readyMembers - revisionRequiredMembers;
+
+  const requiredMemberCount =
+    input.workflow.required_member_count ?? memberStatuses.length;
+  const teamStatus = input.teamSubmissionStatus ?? "not_started";
+
+  let gateStatus: HackathonModuleGateStatus = "blocked";
+  let canOpenTeamSubmission = false;
+
+  if (teamStatus === "passed") {
+    gateStatus = "passed";
+    canOpenTeamSubmission = true;
+  } else if (revisionRequiredMembers > 0) {
+    gateStatus = "revision_required";
+  } else {
+    switch (input.workflow.gate_rule) {
+      case "complete":
+        gateStatus = readyMembers > 0 ? "passed" : "blocked";
+        canOpenTeamSubmission = input.workflow.scope !== "individual";
+        break;
+      case "all_members_complete":
+        canOpenTeamSubmission = pendingMembers === 0 && readyMembers > 0;
+        gateStatus = canOpenTeamSubmission ? "ready_for_team" : "blocked";
+        break;
+      case "min_members_complete":
+        canOpenTeamSubmission = readyMembers >= requiredMemberCount;
+        gateStatus = canOpenTeamSubmission ? "ready_for_team" : "blocked";
+        break;
+      case "mentor_pass":
+      case "team_submission_pass":
+        canOpenTeamSubmission =
+          input.workflow.scope === "team"
+            ? true
+            : readyMembers >= requiredMemberCount;
+        gateStatus =
+          teamStatus === "pending_review"
+            ? "ready_for_team"
+            : canOpenTeamSubmission
+              ? "ready_for_team"
+              : "blocked";
+        break;
+      default:
+        gateStatus = "blocked";
+    }
+  }
+
+  return {
+    gate_status: gateStatus,
+    ready_members: readyMembers,
+    pending_members: pendingMembers,
+    revision_required_members: revisionRequiredMembers,
+    can_open_team_submission: canOpenTeamSubmission,
+  };
+}
+
+export function getModuleScopeCopy(scope: PathActivityScope): string {
+  switch (scope) {
+    case "individual":
+      return "Required for each member before the team can move on.";
+    case "team":
+      return "One team submission represents the whole group.";
+    case "hybrid":
+      return "Members and the team both submit work before the module is complete.";
+  }
+}
+
+export function getModuleStatusTone(
+  gateStatus: HackathonModuleGateStatus,
+): CardTone {
+  switch (gateStatus) {
+    case "ready_for_team":
+      return "education";
+    case "passed":
+      return "destination";
+    case "blocked":
+    case "revision_required":
+    default:
+      return "neutral";
+  }
+}
+
+export function deriveModuleStatus(
+  module: HackathonModuleProgress,
+): HackathonModuleStatus {
+  if (module.isLocked) return "blocked";
+  if (module.completedIndividualCount === 0) return "not_started";
+
+  const individualReady =
+    module.completedIndividualCount >= module.requiredIndividualCount;
+
+  if (!individualReady) return "in_progress";
+  if (!module.requiresTeamSubmission) return "completed";
+  if (module.teamSubmissionStatus === "passed") return "completed";
+  if (module.teamSubmissionStatus === "submitted") return "ready_for_review";
+  return "in_progress";
+}
+
+export type { HackathonModuleProgress } from "../types/hackathon-program";
+
+export function summarizePhaseModules(modules: HackathonModuleProgress[]) {
+  const summary = {
+    total: modules.length,
+    blocked: 0,
+    notStarted: 0,
+    inProgress: 0,
+    readyForReview: 0,
+    completed: 0,
+  };
+
+  for (const module of modules) {
+    const status = deriveModuleStatus(module);
+    switch (status) {
+      case "blocked":
+        summary.blocked += 1;
+        break;
+      case "not_started":
+        summary.notStarted += 1;
+        break;
+      case "in_progress":
+        summary.inProgress += 1;
+        break;
+      case "ready_for_review":
+        summary.readyForReview += 1;
+        break;
+      case "completed":
+        summary.completed += 1;
+        break;
+    }
+  }
+
+  return summary;
+}
+
+async function getCurrentUserId() {
+  const supabase = await getSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
+export async function getCurrentHackathonTeamMembership(): Promise<HackathonTeamMembership | null> {
+  return withRetry(async () => {
+    const supabase = await getSupabaseClient();
+    const userId = await getCurrentUserId();
+    if (!userId) return null;
+
+    const { data, error } = await supabase
+      .from("hackathon_team_members")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return (data as HackathonTeamMembership | null) ?? null;
+  }, "Unable to load hackathon team membership");
+}
+
+export async function getCurrentHackathonProgramHome(): Promise<HackathonProgramHome> {
+  return withRetry(async () => {
+    const supabase = await getSupabaseClient();
+    const membership = await getCurrentHackathonTeamMembership();
+    if (!membership) {
+      return {
+        team: null,
+        enrollment: null,
+        program: null,
+        phases: [],
+      };
+    }
+
+    const [{ data: team }, { data: enrollment }] = await Promise.all([
+      supabase
+        .from("hackathon_teams")
+        .select("*")
+        .eq("id", membership.team_id)
+        .maybeSingle(),
+      supabase
+        .from("hackathon_team_program_enrollments")
+        .select("*")
+        .eq("team_id", membership.team_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    if (!enrollment) {
+      return {
+        team: (team as HackathonTeam | null) ?? null,
+        enrollment: null,
+        program: null,
+        phases: [],
+      };
+    }
+
+    const [{ data: program }, { data: phases }] = await Promise.all([
+      supabase
+        .from("hackathon_programs")
+        .select("*")
+        .eq("id", enrollment.program_id)
+        .maybeSingle(),
+      supabase
+        .from("hackathon_program_phases")
+        .select("*")
+        .eq("program_id", enrollment.program_id)
+        .order("phase_number", { ascending: true }),
+    ]);
+
+    return {
+      team: (team as HackathonTeam | null) ?? null,
+      enrollment: enrollment as HackathonTeamProgramEnrollment,
+      program: (program as HackathonProgram | null) ?? null,
+      phases: (phases as HackathonProgramPhase[] | null) ?? [],
+    };
+  }, "Unable to load hackathon program");
+}
+
+export async function getHackathonPhaseDetail(
+  phaseId: string,
+): Promise<HackathonPhaseDetail> {
+  return withRetry(async () => {
+    const supabase = await getSupabaseClient();
+    const [{ data: phase }, { data: playlists }] = await Promise.all([
+      supabase
+        .from("hackathon_program_phases")
+        .select("*")
+        .eq("id", phaseId)
+        .maybeSingle(),
+      supabase
+        .from("hackathon_phase_playlists")
+        .select("*")
+        .eq("phase_id", phaseId)
+        .order("display_order", { ascending: true }),
+    ]);
+
+    const playlistIds = (playlists ?? []).map((playlist) => playlist.id);
+    const { data: modules } = playlistIds.length
+      ? await supabase
+          .from("hackathon_phase_modules")
+          .select("*")
+          .in("playlist_id", playlistIds)
+          .order("display_order", { ascending: true })
+      : { data: [] as HackathonPhaseModule[] };
+
+    const playlistModules = (playlists as HackathonPhasePlaylist[] | null)?.map(
+      (playlist) => ({
+        ...playlist,
+        modules:
+          (modules as HackathonPhaseModule[] | null)?.filter(
+            (module) => module.playlist_id === playlist.id,
+          ) ?? [],
+      }),
+    ) ?? [];
+
+    return {
+      phase: (phase as HackathonProgramPhase | null) ?? null,
+      playlists: playlistModules,
+    };
+  }, "Unable to load hackathon phase");
+}
+
+export async function getHackathonModuleDetail(moduleId: string) {
+  return withRetry(async () => {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase
+      .from("hackathon_phase_modules")
+      .select("*")
+      .eq("id", moduleId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return (data as HackathonPhaseModule | null) ?? null;
+  }, "Unable to load hackathon module");
+}
+
+export function getEmptyHackathonProgramHome(): HackathonProgramHome {
+  return {
+    team: null,
+    enrollment: null,
+    program: null,
+    phases: [],
+  };
+}
