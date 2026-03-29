@@ -20,63 +20,145 @@ import type {
   PathAssessmentSubmission,
 } from "../types/pathlab-content";
 
-// ============ Seeds ============
+export type EnrollmentWithPath = PathEnrollment & {
+  path: {
+    id: string;
+    total_days: number;
+    seed: {
+      id: string;
+      title: string;
+    };
+  };
+};
 
-export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
-  console.log("[getAvailableSeeds] Starting query...");
+export interface PathDayBundle {
+  enrollment: EnrollmentWithPath;
+  pathDay: PathDay;
+  activities: PathActivityWithContent[];
+  loadedAt?: number;
+}
 
-  // Fetch user + seeds+paths in parallel
-  const [{ data: { user } }, { data: seedsData, error: seedsError }] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase
-      .from("seeds")
-      .select("*, paths(id, seed_id, total_days)")
-      .eq("seed_type", "pathlab")
-      .order("created_at", { ascending: false }),
-  ]);
+const RETRYABLE_STATUS_CODES = ["408", "425", "429", "500", "502", "503", "504", "520", "521", "522", "523", "524", "525", "526"];
 
-  console.log("[getAvailableSeeds] Query result:", {
-    count: seedsData?.length || 0,
-    error: seedsError,
-    sampleSeed: seedsData?.[0],
-  });
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  if (seedsError) {
-    console.error("Error loading seeds:", seedsError);
-    throw new Error(seedsError.message);
+function stringifyError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function isRetryableSupabaseError(error: unknown) {
+  const message = stringifyError(error).toLowerCase();
+
+  return (
+    message.includes("ssl handshake failed") ||
+    message.includes("cloudflare") ||
+    message.includes("network request failed") ||
+    message.includes("failed to fetch") ||
+    message.includes("<!doctype html>") ||
+    RETRYABLE_STATUS_CODES.some((code) => message.includes(`error code ${code}`) || message.includes(`status ${code}`))
+  );
+}
+
+function toUserFacingPathlabError(error: unknown, fallback: string) {
+  const message = stringifyError(error);
+
+  if (isRetryableSupabaseError(error)) {
+    return `${fallback}. The connection to our server failed temporarily. Please try again.`;
   }
 
-  if (!seedsData || seedsData.length === 0) {
-    console.log("[getAvailableSeeds] No PathLab seeds found in database");
-    return [];
-  }
+  return message || fallback;
+}
 
-  // Normalize: seeds.paths is an array from the join, take first match
-  const seeds = seedsData.map((seed: any) => ({
-    ...seed,
-    path: Array.isArray(seed.paths) ? (seed.paths[0] ?? null) : (seed.paths ?? null),
-    paths: undefined,
-  })) as Seed[];
+async function withSupabaseRetry<T>(
+  task: () => Promise<T>,
+  fallback: string,
+  attempts = 3
+): Promise<T> {
+  let lastError: unknown;
 
-  // If user is logged in, get their enrollments
-  if (user) {
-    const pathIds = seeds.map(s => s.path?.id).filter(Boolean);
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      lastError = error;
 
-    if (pathIds.length > 0) {
-      const { data: enrollments } = await supabase
-        .from("path_enrollments")
-        .select("id, path_id, current_day, status")
-        .eq("user_id", user.id)
-        .in("path_id", pathIds);
+      if (!isRetryableSupabaseError(error) || attempt === attempts) {
+        throw new Error(toUserFacingPathlabError(error, fallback));
+      }
 
-      return seeds.map(seed => ({
-        ...seed,
-        enrollment: enrollments?.find(e => e.path_id === seed.path?.id) || null,
-      }));
+      await sleep(250 * attempt);
     }
   }
 
-  return seeds.map(s => ({ ...s, enrollment: null }));
+  throw new Error(toUserFacingPathlabError(lastError, fallback));
+}
+
+// ============ Seeds ============
+
+export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
+  return withSupabaseRetry(async () => {
+    console.log("[getAvailableSeeds] Starting query...");
+
+    const [{ data: { user } }, { data: seedsData, error: seedsError }] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase
+        .from("seeds")
+        .select("*, paths(id, seed_id, total_days)")
+        .eq("seed_type", "pathlab")
+        .order("created_at", { ascending: false }),
+    ]);
+
+    console.log("[getAvailableSeeds] Query result:", {
+      count: seedsData?.length || 0,
+      error: seedsError,
+      sampleSeed: seedsData?.[0],
+    });
+
+    if (seedsError) {
+      console.error("Error loading seeds:", seedsError);
+      throw seedsError;
+    }
+
+    if (!seedsData || seedsData.length === 0) {
+      console.log("[getAvailableSeeds] No PathLab seeds found in database");
+      return [];
+    }
+
+    const seeds = seedsData.map((seed: any) => ({
+      ...seed,
+      path: Array.isArray(seed.paths) ? (seed.paths[0] ?? null) : (seed.paths ?? null),
+      paths: undefined,
+    })) as Seed[];
+
+    if (user) {
+      const pathIds = seeds.map(s => s.path?.id).filter(Boolean);
+
+      if (pathIds.length > 0) {
+        const { data: enrollments, error: enrollmentsError } = await supabase
+          .from("path_enrollments")
+          .select("id, path_id, current_day, status")
+          .eq("user_id", user.id)
+          .in("path_id", pathIds);
+
+        if (enrollmentsError) throw enrollmentsError;
+
+        return seeds.map(seed => ({
+          ...seed,
+          enrollment: enrollments?.find(e => e.path_id === seed.path?.id) || null,
+        }));
+      }
+    }
+
+    return seeds.map(s => ({ ...s, enrollment: null }));
+  }, "Unable to load paths");
 }
 
 export async function getSeedById(seedId: string): Promise<Seed | null> {
@@ -87,34 +169,39 @@ export async function getSeedById(seedId: string): Promise<Seed | null> {
     return null;
   }
 
-  // Fetch seed and its path in parallel (path query only needs seedId, not the seed row)
-  const [
-    { data: seedData, error: seedError },
-    { data: pathData },
-  ] = await Promise.all([
-    supabase
-      .from("seeds")
-      .select("*")
-      .eq("id", seedId)
-      .maybeSingle(),
-    supabase
-      .from("paths")
-      .select("id, total_days")
-      .eq("seed_id", seedId)
-      .maybeSingle(),
-  ]);
+  return withSupabaseRetry(async () => {
+    const [
+      { data: seedData, error: seedError },
+      { data: pathData, error: pathError },
+    ] = await Promise.all([
+      supabase
+        .from("seeds")
+        .select("*")
+        .eq("id", seedId)
+        .maybeSingle(),
+      supabase
+        .from("paths")
+        .select("id, total_days")
+        .eq("seed_id", seedId)
+        .maybeSingle(),
+    ]);
 
-  if (seedError) {
-    console.error("Error loading seed:", seedError);
-    throw new Error(seedError.message);
-  }
+    if (seedError) {
+      console.error("Error loading seed:", seedError);
+      throw seedError;
+    }
 
-  if (!seedData) return null;
+    if (pathError) {
+      throw pathError;
+    }
 
-  return {
-    ...seedData,
-    path: pathData || null,
-  } as Seed;
+    if (!seedData) return null;
+
+    return {
+      ...seedData,
+      path: pathData || null,
+    } as Seed;
+  }, "Unable to load this path");
 }
 
 export interface ExpertInfo {
@@ -130,25 +217,25 @@ export async function getExpertForSeed(seedId: string): Promise<ExpertInfo | nul
     return null;
   }
 
-  // Get expert_pathlab entry for this seed
-  const { data: pathlabData, error: pathlabError } = await supabase
-    .from("expert_pathlabs")
-    .select("expert_profile_id")
-    .eq("seed_id", seedId)
-    .maybeSingle();
+  return withSupabaseRetry(async () => {
+    const { data: pathlabData, error: pathlabError } = await supabase
+      .from("expert_pathlabs")
+      .select("expert_profile_id")
+      .eq("seed_id", seedId)
+      .maybeSingle();
 
-  if (pathlabError || !pathlabData) return null;
+    if (pathlabError || !pathlabData) return null;
 
-  // Get expert profile
-  const { data: expertData, error: expertError } = await supabase
-    .from("expert_profiles")
-    .select("name, title, company")
-    .eq("id", pathlabData.expert_profile_id)
-    .maybeSingle();
+    const { data: expertData, error: expertError } = await supabase
+      .from("expert_profiles")
+      .select("name, title, company")
+      .eq("id", pathlabData.expert_profile_id)
+      .maybeSingle();
 
-  if (expertError || !expertData) return null;
+    if (expertError || !expertData) return null;
 
-  return expertData;
+    return expertData;
+  }, "Unable to load expert details");
 }
 
 export async function getSeedNpcAvatar(seedId: string): Promise<SeedNpcAvatar | null> {
@@ -181,29 +268,33 @@ export async function getPathBySeedId(seedId: string): Promise<Path | null> {
     return null;
   }
 
-  const { data, error } = await supabase
-    .from("paths")
-    .select("*")
-    .eq("seed_id", seedId)
-    .maybeSingle();
+  return withSupabaseRetry(async () => {
+    const { data, error } = await supabase
+      .from("paths")
+      .select("*")
+      .eq("seed_id", seedId)
+      .maybeSingle();
 
-  if (error) throw new Error(error.message);
-  return data;
+    if (error) throw error;
+    return data;
+  }, "Unable to load this path");
 }
 
 export async function getUserEnrollment(pathId: string): Promise<PathEnrollment | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  return withSupabaseRetry(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
-  const { data, error } = await supabase
-    .from("path_enrollments")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("path_id", pathId)
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from("path_enrollments")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("path_id", pathId)
+      .maybeSingle();
 
-  if (error) throw new Error(error.message);
-  return data;
+    if (error) throw error;
+    return data;
+  }, "Unable to load your progress");
 }
 
 export async function enrollInPath(params: {
@@ -256,26 +347,66 @@ export async function enrollInPath(params: {
 // ============ Path Days & Activities ============
 
 export async function getPathDay(pathId: string, dayNumber: number): Promise<PathDay | null> {
-  const { data, error } = await supabase
-    .from("path_days")
-    .select("*")
-    .eq("path_id", pathId)
-    .eq("day_number", dayNumber)
-    .maybeSingle();
+  return withSupabaseRetry(async () => {
+    const { data, error } = await supabase
+      .from("path_days")
+      .select("*")
+      .eq("path_id", pathId)
+      .eq("day_number", dayNumber)
+      .maybeSingle();
 
-  if (error) throw new Error(error.message);
-  return data;
+    if (error) throw error;
+    return data;
+  }, "Unable to load this day");
+}
+
+export async function getEnrollmentDayBundle(
+  enrollmentId: string
+): Promise<PathDayBundle | null> {
+  return withSupabaseRetry(async () => {
+    const { data: enrollmentData, error: enrollError } = await supabase
+      .from("path_enrollments")
+      .select(`
+        *,
+        path:paths(
+          id,
+          total_days,
+          seed:seeds(id, title)
+        )
+      `)
+      .eq("id", enrollmentId)
+      .single();
+
+    if (enrollError) throw enrollError;
+    if (!enrollmentData) return null;
+    if (!enrollmentData.path_id || !enrollmentData.current_day || enrollmentData.current_day < 1) {
+      throw new Error("Enrollment is missing path_id or current_day");
+    }
+
+    const pathDay = await getPathDay(enrollmentData.path_id, enrollmentData.current_day);
+    if (!pathDay) return null;
+
+    const activities = await getPathDayActivities(pathDay.id, enrollmentId);
+
+    return {
+      enrollment: enrollmentData as EnrollmentWithPath,
+      pathDay,
+      activities,
+    };
+  }, "Unable to load your current day");
 }
 
 export async function getPathDays(pathId: string): Promise<Pick<PathDay, "day_number" | "title">[]> {
-  const { data, error } = await supabase
-    .from("path_days")
-    .select("day_number, title")
-    .eq("path_id", pathId)
-    .order("day_number", { ascending: true });
+  return withSupabaseRetry(async () => {
+    const { data, error } = await supabase
+      .from("path_days")
+      .select("day_number, title")
+      .eq("path_id", pathId)
+      .order("day_number", { ascending: true });
 
-  if (error) throw new Error(error.message);
-  return (data || []) as Pick<PathDay, "day_number" | "title">[];
+    if (error) throw error;
+    return (data || []) as Pick<PathDay, "day_number" | "title">[];
+  }, "Unable to load the path outline");
 }
 
 // NEW: Get activities for a specific day
@@ -283,77 +414,118 @@ export async function getPathDayActivities(
   pathDayId: string,
   enrollmentId?: string
 ): Promise<PathActivityWithContent[]> {
-  // Get activities
-  const { data: activities, error: activitiesError } = await supabase
-    .from("path_activities")
-    .select("*")
-    .eq("path_day_id", pathDayId)
-    .eq("is_draft", false)
-    .order("display_order", { ascending: true });
-
-  if (activitiesError) throw new Error(activitiesError.message);
-  if (!activities || activities.length === 0) return [];
-
-  const activityIds = activities.map(a => a.id);
-
-  // Fetch content, assessments, and progress in parallel (all independent of each other)
-  const [
-    { data: content },
-    { data: assessments },
-    { data: progressData },
-  ] = await Promise.all([
-    supabase
-      .from("path_content")
+  return withSupabaseRetry(async () => {
+    const { data: activities, error: activitiesError } = await supabase
+      .from("path_activities")
       .select("*")
-      .in("activity_id", activityIds)
-      .order("display_order", { ascending: true }),
-    supabase
-      .from("path_assessments")
-      .select("*")
-      .in("activity_id", activityIds),
-    enrollmentId
-      ? supabase
-          .from("path_activity_progress")
-          .select("*")
-          .eq("enrollment_id", enrollmentId)
-          .in("activity_id", activityIds)
-      : Promise.resolve({ data: [] as PathActivityProgress[] }),
-  ]);
+      .eq("path_day_id", pathDayId)
+      .eq("is_draft", false)
+      .order("display_order", { ascending: true });
 
-  const progress: PathActivityProgress[] = progressData || [];
+    if (activitiesError) throw activitiesError;
+    if (!activities || activities.length === 0) return [];
 
-  // Get quiz questions if there are any quiz assessments (depends on assessments result)
-  let quizQuestions: PathQuizQuestion[] = [];
-  if (assessments && assessments.length > 0) {
-    const assessmentIds = assessments.map(a => a.id);
-    const { data: questions } = await supabase
-      .from("path_quiz_questions")
-      .select("*")
-      .in("assessment_id", assessmentIds);
-    quizQuestions = questions || [];
-  }
+    const activityIds = activities.map(a => a.id);
 
-  // Combine everything - new schema: path_content and path_assessment
-  return activities.map(activity => {
-    const activityContent = (content || []).filter(c => c.activity_id === activity.id);
-    const activityAssessments = (assessments || []).filter(a => a.activity_id === activity.id);
+    const [
+      { data: content, error: contentError },
+      { data: assessments, error: assessmentsError },
+      { data: progressData, error: progressError },
+    ] = await Promise.all([
+      supabase
+        .from("path_content")
+        .select("*")
+        .in("activity_id", activityIds)
+        .order("display_order", { ascending: true }),
+      supabase
+        .from("path_assessments")
+        .select("*")
+        .in("activity_id", activityIds),
+      enrollmentId
+        ? supabase
+            .from("path_activity_progress")
+            .select("*")
+            .eq("enrollment_id", enrollmentId)
+            .in("activity_id", activityIds)
+        : Promise.resolve({ data: [] as PathActivityProgress[], error: null }),
+    ]);
 
-    // Build path_assessment (single assessment or null)
-    let pathAssessment = null;
-    if (activityAssessments.length > 0) {
-      pathAssessment = {
-        ...activityAssessments[0],
-        quiz_questions: quizQuestions.filter(q => q.assessment_id === activityAssessments[0].id),
-      };
+    if (contentError) throw contentError;
+    if (assessmentsError) throw assessmentsError;
+    if (progressError) throw progressError;
+
+    const progress: PathActivityProgress[] = progressData || [];
+
+    let quizQuestions: PathQuizQuestion[] = [];
+    if (assessments && assessments.length > 0) {
+      const assessmentIds = assessments.map(a => a.id);
+      const { data: questions, error: questionsError } = await supabase
+        .from("path_quiz_questions")
+        .select("*")
+        .in("assessment_id", assessmentIds);
+
+      if (questionsError) throw questionsError;
+      quizQuestions = questions || [];
     }
 
-    return {
-      ...activity,
-      path_content: activityContent,
-      path_assessment: pathAssessment,
-      progress: progress.find(p => p.activity_id === activity.id),
-    };
-  });
+    return activities.map(activity => {
+      const activityContent = (content || []).filter(c => c.activity_id === activity.id);
+      const activityAssessments = (assessments || []).filter(a => a.activity_id === activity.id);
+
+      let pathAssessment = null;
+      if (activityAssessments.length > 0) {
+        pathAssessment = {
+          ...activityAssessments[0],
+          quiz_questions: quizQuestions.filter(q => q.assessment_id === activityAssessments[0].id),
+        };
+      }
+
+      return {
+        ...activity,
+        path_content: activityContent,
+        path_assessment: pathAssessment,
+        progress: progress.find(p => p.activity_id === activity.id),
+      };
+    });
+  }, "Unable to load day activities");
+}
+
+export async function ensureActivityProgress(
+  enrollmentId: string,
+  activityId: string
+): Promise<PathActivityProgress> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("path_activity_progress")
+    .insert({
+      enrollment_id: enrollmentId,
+      activity_id: activityId,
+      status: "in_progress",
+      started_at: now,
+    })
+    .select()
+    .single();
+
+  if (!error && data) {
+    return data;
+  }
+
+  if (error && error.code !== "23505") {
+    throw new Error(error.message);
+  }
+
+  const { data: existingProgress, error: existingProgressError } = await supabase
+    .from("path_activity_progress")
+    .select("*")
+    .eq("enrollment_id", enrollmentId)
+    .eq("activity_id", activityId)
+    .single();
+
+  if (existingProgressError) {
+    throw new Error(existingProgressError.message);
+  }
+
+  return existingProgress;
 }
 
 // NEW: Update activity progress

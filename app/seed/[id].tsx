@@ -13,6 +13,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "../../components/AppText";
 import { GlassButton } from "../../components/Glass";
+import { AnimatedSplash } from "../components/AnimatedSplash";
 import { useAuth } from "../../lib/auth";
 import {
   getSeedById,
@@ -21,8 +22,10 @@ import {
   enrollInPath,
   getPathDays,
   getExpertForSeed,
+  getEnrollmentDayBundle,
   type ExpertInfo,
 } from "../../lib/pathlab";
+import { warmPathDayBundle } from "../../lib/pathlabSession";
 import type { Seed } from "../../types/seeds";
 import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
 
@@ -38,6 +41,7 @@ export default function SeedDetailScreen() {
   const [expert, setExpert] = useState<ExpertInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const guestCopy =
     guestLanguage === "th"
       ? {
@@ -47,6 +51,8 @@ export default function SeedDetailScreen() {
           signIn: "เข้าสู่ระบบ",
           errorTitle: "เกิดข้อผิดพลาด",
           errorBody: "เริ่มเส้นทางไม่สำเร็จ ลองใหม่อีกครั้ง",
+          loadFailedTitle: "เชื่อมต่อไม่ได้ชั่วคราว",
+          retry: "ลองอีกครั้ง",
           comingSoonTitle: "เร็ว ๆ นี้",
           comingSoonBody: "เส้นทางนี้กำลังพัฒนาอยู่ กลับมาดูใหม่นะ!",
           back: "กลับ",
@@ -66,6 +72,8 @@ export default function SeedDetailScreen() {
           signIn: "Sign in",
           errorTitle: "Error",
           errorBody: "Failed to start this path. Please try again.",
+          loadFailedTitle: "Temporary connection issue",
+          retry: "Try again",
           comingSoonTitle: "Coming Soon!",
           comingSoonBody: "This path is still in development. Check back soon.",
           back: "Back",
@@ -85,6 +93,8 @@ export default function SeedDetailScreen() {
 
   const loadData = async () => {
     if (!id) return;
+
+    setLoadError(null);
 
     try {
       console.log("[SeedDetail] Loading seed:", id);
@@ -122,6 +132,9 @@ export default function SeedDetailScreen() {
       }
     } catch (error) {
       console.error("[SeedDetail] Error loading data:", error);
+      setLoadError(
+        error instanceof Error ? error.message : "Unable to load this path. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -146,9 +159,7 @@ export default function SeedDetailScreen() {
     try {
       const newEnrollment = await enrollInPath({ pathId: path.id });
       setEnrollment(newEnrollment);
-
-      // Navigate to the path screen
-      router.push(`/path/${newEnrollment.id}`);
+      await navigateToCurrentActivity(newEnrollment.id);
     } catch (error) {
       console.error("[SeedDetail] Error enrolling:", error);
       Alert.alert(guestCopy.errorTitle, guestCopy.errorBody);
@@ -159,7 +170,43 @@ export default function SeedDetailScreen() {
 
   const handleContinue = () => {
     if (enrollment) {
-      router.push(`/path/${enrollment.id}`);
+      setEnrolling(true);
+      void navigateToCurrentActivity(enrollment.id);
+    }
+  };
+
+  const navigateToCurrentActivity = async (enrollmentId: string) => {
+    try {
+      const dayBundle = await getEnrollmentDayBundle(enrollmentId);
+
+      if (!dayBundle) {
+        router.push(`/path/${enrollmentId}`);
+        return;
+      }
+
+      warmPathDayBundle(enrollmentId, dayBundle);
+
+      const firstIncomplete = dayBundle.activities.find(
+        (activity) => activity.progress?.status !== "completed"
+      );
+
+      if (!firstIncomplete) {
+        router.push(`/path/${enrollmentId}`);
+        return;
+      }
+
+      const activityIndex = dayBundle.activities.findIndex(
+        (activity) => activity.id === firstIncomplete.id
+      );
+
+      router.push(
+        `/activity/${firstIncomplete.id}?enrollmentId=${enrollmentId}&pageIndex=${activityIndex}&totalPages=${dayBundle.activities.length}`
+      );
+    } catch (error) {
+      console.error("[SeedDetail] Error preloading day bundle:", error);
+      router.push(`/path/${enrollmentId}`);
+    } finally {
+      setEnrolling(false);
     }
   };
 
@@ -169,6 +216,45 @@ export default function SeedDetailScreen() {
         <StatusBar style="dark" />
         <View style={s.center}>
           <ActivityIndicator size="large" color="#BFFF00" />
+        </View>
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={s.container}>
+        <StatusBar style="dark" />
+        <View style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 12 }]}>
+          <Pressable style={s.backBtn} onPress={() => router.back()}>
+            <AppText style={s.backBtnIcon}>←</AppText>
+          </Pressable>
+        </View>
+        <View style={s.center}>
+          <AppText
+            variant="bold"
+            style={{ fontSize: 24, color: "#111", marginBottom: 8 }}
+          >
+            {guestCopy.loadFailedTitle}
+          </AppText>
+          <AppText
+            style={{
+              fontSize: 14,
+              color: "#6B7280",
+              textAlign: "center",
+              marginBottom: 24,
+            }}
+          >
+            {loadError}
+          </AppText>
+          <Pressable style={s.ctaBtn} onPress={() => {
+            setLoading(true);
+            void loadData();
+          }}>
+            <AppText variant="bold" style={s.ctaBtnText}>
+              {guestCopy.retry}
+            </AppText>
+          </Pressable>
         </View>
       </View>
     );
@@ -360,6 +446,12 @@ export default function SeedDetailScreen() {
             : guestCopy.startPath}
         </GlassButton>
       </View>
+
+      {enrolling && (
+        <View style={s.loadingOverlay}>
+          <AnimatedSplash />
+        </View>
+      )}
     </View>
   );
 }
@@ -580,6 +672,10 @@ const s = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "#F3F4F6",
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
   },
   ctaBtn: {
     backgroundColor: "#BFFF00",

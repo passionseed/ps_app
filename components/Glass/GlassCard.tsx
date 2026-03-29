@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, ViewStyle } from "react-native";
+import { View, StyleSheet, ViewStyle, StyleProp } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Shadow, Radius } from "../../lib/theme";
 
@@ -10,7 +10,7 @@ interface GlassCardProps {
   children: React.ReactNode;
   variant?: CardVariant;
   size?: CardSize;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   noPadding?: boolean;
   noShadow?: boolean;
 }

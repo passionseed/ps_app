@@ -1,7 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Pressable,
@@ -9,14 +8,14 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { supabase } from "../../lib/supabase";
 import {
-  getPathDay,
-  getPathDayActivities,
+  getEnrollmentDayBundle,
   updateActivityProgress,
+  type EnrollmentWithPath,
 } from "../../lib/pathlab";
-import type { PathDay, PathEnrollment } from "../../types/pathlab";
+import type { PathDay } from "../../types/pathlab";
 import type { PathActivityWithContent } from "../../types/pathlab-content";
+import { warmPathDayBundle } from "../../lib/pathlabSession";
 import {
   PageBg,
   Text as ThemeText,
@@ -25,18 +24,12 @@ import {
   Radius,
   Accent,
   StepThemes,
+  Type,
+  Space,
 } from "../../lib/theme";
-
-type EnrollmentWithPath = PathEnrollment & {
-  path: {
-    id: string;
-    total_days: number;
-    seed: {
-      id: string;
-      title: string;
-    };
-  };
-};
+import { AppText } from "../../components/AppText";
+import { GlassCard } from "../../components/Glass/GlassCard";
+import { GlassButton } from "../../components/Glass/GlassButton";
 
 export default function DailyPathScreen() {
   const { enrollmentId } = useLocalSearchParams<{ enrollmentId: string }>();
@@ -57,31 +50,15 @@ export default function DailyPathScreen() {
     setError(null);
 
     try {
-      // Get enrollment with path info
-      const { data: enrollmentData, error: enrollError } = await supabase
-        .from("path_enrollments")
-        .select(`
-          *,
-          path:paths(
-            id,
-            total_days,
-            seed:seeds(id, title)
-          )
-        `)
-        .eq("id", enrollmentId)
-        .single();
+      const dayBundle = await getEnrollmentDayBundle(enrollmentId);
 
-      if (enrollError) {
-        console.error("❌ Error loading enrollment:", enrollError);
-        setError(`Failed to load enrollment: ${enrollError.message}`);
-        return;
-      }
-
-      if (!enrollmentData) {
-        console.error("❌ No enrollment found for ID:", enrollmentId);
+      if (!dayBundle) {
+        console.error("❌ No enrollment/day bundle found for ID:", enrollmentId);
         setError("Enrollment not found");
         return;
       }
+
+      const { enrollment: enrollmentData, pathDay: dayData, activities: activitiesData } = dayBundle;
 
       console.log("✅ Enrollment loaded:", {
         id: enrollmentData.id,
@@ -91,45 +68,14 @@ export default function DailyPathScreen() {
       });
 
       setEnrollment(enrollmentData as EnrollmentWithPath);
-
-      // Validate required fields for path day lookup
-      if (!enrollmentData.path_id) {
-        console.error("❌ Enrollment missing path_id:", enrollmentData);
-        setError("Enrollment is missing path information");
-        return;
-      }
-
-      if (!enrollmentData.current_day || enrollmentData.current_day < 1) {
-        console.error("❌ Enrollment has invalid current_day:", enrollmentData.current_day);
-        setError("Invalid day number in enrollment");
-        return;
-      }
-
-      // Get today's path day
       console.log("📅 Fetching path day for:", {
         path_id: enrollmentData.path_id,
         current_day: enrollmentData.current_day,
       });
 
-      const dayData = await getPathDay(
-        enrollmentData.path_id,
-        enrollmentData.current_day
-      );
-
       console.log("📦 Path day data received:", JSON.stringify(dayData, null, 2));
-
-      if (!dayData) {
-        console.error("❌ NO PATH DAY FOUND for path_id:", enrollmentData.path_id, "day:", enrollmentData.current_day);
-        setError(`No path day found for day ${enrollmentData.current_day}`);
-        setPathDay(null);
-        return;
-      }
-
       setPathDay(dayData);
-
-      // Get activities for today's path day
       console.log("📚 Fetching activities for path_day_id:", dayData.id);
-      const activitiesData = await getPathDayActivities(dayData.id, enrollmentId);
       console.log("✅ Activities received:", activitiesData.length, "activities");
 
       if (activitiesData.length === 0) {
@@ -137,6 +83,11 @@ export default function DailyPathScreen() {
       }
 
       setActivities(activitiesData);
+      warmPathDayBundle(enrollmentId, {
+        enrollment: enrollmentData,
+        pathDay: dayData,
+        activities: activitiesData,
+      });
 
       // Automatically navigate to first incomplete activity
       const firstIncomplete = activitiesData.find(
@@ -218,16 +169,16 @@ export default function DailyPathScreen() {
   if (!enrollment || !pathDay) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorIcon}>🎉</Text>
-        <Text style={styles.errorTitle}>
+        <AppText style={styles.errorIcon}>🎉</AppText>
+        <AppText variant="bold" style={styles.errorTitle}>
           {error ? "Unable to Load Path" : "Path Completed!"}
-        </Text>
-        <Text style={styles.errorText}>
+        </AppText>
+        <AppText style={styles.errorText}>
           {error || "You've finished exploring this path"}
-        </Text>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Go Back</Text>
-        </Pressable>
+        </AppText>
+        <GlassButton variant="primary" onPress={() => router.back()}>
+          Go Back
+        </GlassButton>
       </View>
     );
   }
@@ -243,13 +194,13 @@ export default function DailyPathScreen() {
       {/* Header with Back Button */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
-          <Text style={styles.backText}>← Back</Text>
+          <AppText style={styles.backText}>← Back</AppText>
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.dayLabel}>Day {enrollment.current_day}</Text>
-          <Text style={styles.seedTitle} numberOfLines={1}>
+          <AppText variant="bold" style={styles.dayLabel}>Day {enrollment.current_day}</AppText>
+          <AppText style={styles.seedTitle} numberOfLines={1}>
             {enrollment.path.seed.title}
-          </Text>
+          </AppText>
         </View>
         <View style={{ width: 60 }} />
       </View>
@@ -262,13 +213,13 @@ export default function DailyPathScreen() {
       >
         {/* Context Text (show at top) */}
         {pathDay?.context_text && (
-          <View style={styles.contextCard}>
-            <Text style={styles.contextText}>{pathDay.context_text}</Text>
-          </View>
+          <GlassCard variant="destination" style={styles.contextCard}>
+            <AppText style={styles.contextText}>{pathDay.context_text}</AppText>
+          </GlassCard>
         )}
 
         {/* Section Title */}
-        <Text style={styles.sectionTitle}>Today's Activities</Text>
+        <AppText variant="bold" style={styles.sectionTitle}>Today's Activities</AppText>
 
         {/* All Activities as Cards */}
         {activities.map((activity, index) => (
@@ -285,15 +236,14 @@ export default function DailyPathScreen() {
 
         {/* Finish Day Button */}
         {allActivitiesCompleted && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.ctaButton,
-              pressed && styles.ctaButtonPressed,
-            ]}
+          <GlassButton
+            variant="primary"
             onPress={handleFinishDay}
+            fullWidth
+            style={{ marginTop: Space["2xl"] }}
           >
-            <Text style={styles.ctaText}>Complete Day & Reflect</Text>
-          </Pressable>
+            Complete Day & Reflect
+          </GlassButton>
         )}
 
         <View style={{ height: 40 }} />
@@ -388,38 +338,43 @@ function ActivityCard({
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.taskCard,
-        completed && styles.taskCardCompleted,
+        styles.taskCardWrapper,
         pressed && styles.taskCardPressed,
       ]}
       onPress={handlePress}
       disabled={completed}
     >
-      <View style={styles.taskIndex}>
-        {completed ? (
-          <Text style={styles.taskCheckmark}>✓</Text>
-        ) : (
-          <Text style={styles.taskNumber}>{index}</Text>
-        )}
-      </View>
-
-      <View style={styles.taskContent}>
-        <View style={styles.taskHeader}>
-          <Text style={styles.taskIcon}>{getTypeIcon(activityType)}</Text>
-          <Text style={styles.taskType}>{getTypeLabel(activityType)}</Text>
-          {activity.estimated_minutes && (
-            <Text style={styles.taskDuration}>• {activity.estimated_minutes}m</Text>
+      <GlassCard 
+        variant="neutral" 
+        noPadding 
+        style={[styles.taskCardInner, completed && styles.taskCardCompleted]}
+      >
+        <View style={styles.taskIndex}>
+          {completed ? (
+            <AppText style={styles.taskCheckmark}>✓</AppText>
+          ) : (
+            <AppText variant="bold" style={styles.taskNumber}>{index}</AppText>
           )}
         </View>
-        <Text style={[styles.taskTitle, completed && styles.taskTitleCompleted]}>
-          {activity.title}
-        </Text>
-        {activity.instructions && (
-          <Text style={styles.taskDescription} numberOfLines={2}>
-            {activity.instructions}
-          </Text>
-        )}
-      </View>
+
+        <View style={styles.taskContent}>
+          <View style={styles.taskHeader}>
+            <AppText style={styles.taskIcon}>{getTypeIcon(activityType)}</AppText>
+            <AppText variant="bold" style={styles.taskType}>{getTypeLabel(activityType)}</AppText>
+            {activity.estimated_minutes && (
+              <AppText style={styles.taskDuration}>• {activity.estimated_minutes}m</AppText>
+            )}
+          </View>
+          <AppText variant="bold" style={[styles.taskTitle, completed && styles.taskTitleCompleted]}>
+            {activity.title}
+          </AppText>
+          {activity.instructions && (
+            <AppText style={styles.taskDescription} numberOfLines={2}>
+              {activity.instructions}
+            </AppText>
+          )}
+        </View>
+      </GlassCard>
     </Pressable>
   );
 }
@@ -447,114 +402,82 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorTitle: {
-    fontSize: 24,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
+    fontSize: Type.title.fontSize,
+    fontWeight: Type.title.fontWeight,
     color: ThemeText.primary,
     marginBottom: 8,
   },
   errorText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontSize: Type.body.fontSize,
     color: ThemeText.tertiary,
     marginBottom: 24,
-  },
-  backBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: Accent.yellow,
-    borderRadius: Radius.md,
-  },
-  backBtnText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: ThemeText.primary,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingTop: Space["5xl"],
+    paddingHorizontal: Space.xl,
+    paddingBottom: Space.lg,
   },
   backText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontSize: Type.body.fontSize,
     color: ThemeText.tertiary,
   },
   headerCenter: {
     flex: 1,
     alignItems: "center",
-    marginHorizontal: 16,
+    marginHorizontal: Space.lg,
   },
   dayLabel: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
+    fontSize: Type.label.fontSize,
     color: Accent.yellow,
     backgroundColor: ThemeText.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radius.sm,
     overflow: "hidden",
+    textTransform: "uppercase",
   },
   seedTitle: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
+    fontSize: Type.body.fontSize,
     color: ThemeText.tertiary,
     marginTop: 4,
   },
   contextCard: {
-    margin: 20,
-    padding: 16,
-    backgroundColor: StepThemes.job.accentLight,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: StepThemes.job.border,
-    ...Shadow.neutral,
+    marginBottom: Space.xl,
   },
   contextText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
-    color: "#333",
+    fontSize: Type.body.fontSize,
+    color: ThemeText.primary,
     lineHeight: 22,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: Space.xl,
     paddingTop: 8,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
+    fontSize: Type.label.fontSize,
     color: ThemeText.tertiary,
     textTransform: "uppercase",
     letterSpacing: 1,
-    marginBottom: 16,
+    marginBottom: Space.lg,
   },
-  taskCard: {
+  taskCardWrapper: {
+    marginBottom: Space.md,
+  },
+  taskCardInner: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: Radius.lg,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Border.default,
-    ...Shadow.neutral,
+    padding: Space.lg,
   },
   taskCardCompleted: {
-    backgroundColor: "#f8f8f8",
-    borderColor: "#ddd",
+    opacity: 0.6,
   },
   taskCardPressed: {
-    opacity: 0.9,
+    opacity: 0.8,
   },
   taskIndex: {
     width: 32,
@@ -563,16 +486,14 @@ const styles = StyleSheet.create({
     backgroundColor: Accent.yellow,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: Space.md,
   },
   taskNumber: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
+    fontSize: Type.body.fontSize,
     color: ThemeText.primary,
   },
   taskCheckmark: {
-    fontSize: 16,
+    fontSize: Type.body.fontSize,
     color: ThemeText.primary,
   },
   taskContent: {
@@ -585,25 +506,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   taskIcon: {
-    fontSize: 14,
+    fontSize: Type.body.fontSize,
   },
   taskType: {
-    fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
+    fontSize: Type.caption.fontSize,
     color: ThemeText.muted,
     textTransform: "uppercase",
   },
   taskDuration: {
-    fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
+    fontSize: Type.caption.fontSize,
     color: ThemeText.muted,
   },
   taskTitle: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
+    fontSize: Type.body.fontSize,
     color: ThemeText.primary,
     marginBottom: 4,
   },
@@ -612,27 +527,8 @@ const styles = StyleSheet.create({
     textDecorationLine: "line-through",
   },
   taskDescription: {
-    fontSize: 13,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
+    fontSize: Type.caption.fontSize + 2,
     color: ThemeText.secondary,
     lineHeight: 18,
-  },
-  ctaButton: {
-    backgroundColor: Accent.yellow,
-    paddingVertical: 16,
-    borderRadius: Radius.md,
-    alignItems: "center",
-    marginTop: 24,
-    ...Shadow.card,
-  },
-  ctaButtonPressed: {
-    backgroundColor: Accent.yellowDark,
-  },
-  ctaText: {
-    fontSize: 18,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "700",
-    color: ThemeText.primary,
   },
 });

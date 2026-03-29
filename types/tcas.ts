@@ -92,3 +92,64 @@ export interface ProgramTextSearchResult {
   rank: number;
   round_numbers?: number[];
 }
+
+export type PlannerDeadlineStatus = "open" | "soon" | "expired" | "unknown";
+
+export interface ProgramPlannerRoundSummary {
+  round_id: string | null;
+  round_number: number | null;
+  round_type: string | null;
+  project_name: string | null;
+  receive_seats: number | null;
+  min_gpax: number | null;
+  folio_closed_date: string | null;
+  link: string | null;
+  has_requirements: boolean;
+  is_eligible: boolean | null;
+  deadline_status: PlannerDeadlineStatus;
+  days_until_deadline: number | null;
+}
+
+export interface ProgramPlannerScoreBreakdown {
+  exact: number;
+  prefix: number;
+  text: number;
+  semantics: number;
+  availability: number;
+  profile: number;
+  penalties: number;
+  total: number;
+}
+
+export interface ProgramPlannerCandidate {
+  program_id: string;
+  program_name: string;
+  program_name_en: string | null;
+  faculty_name: string | null;
+  faculty_name_en: string | null;
+  field_name: string | null;
+  field_name_en: string | null;
+  program_type: string | null;
+  program_type_name: string | null;
+  university_id: string;
+  university_name: string;
+  university_name_en?: string | null;
+  description_th: string | null;
+  total_seats: number | null;
+  cost: string | null;
+  degree_level?: string | null;
+  has_embedding: boolean;
+  has_requirements: boolean;
+  round_numbers: number[];
+  best_round: ProgramPlannerRoundSummary | null;
+  score_breakdown: ProgramPlannerScoreBreakdown;
+  rationale: string;
+  tradeoff_summary: string;
+}
+
+export interface ProgramPlannerSection {
+  key: "best-matches" | "hidden-gems" | "prestige-vs-fit" | "search-results";
+  title: string;
+  subtitle: string;
+  items: ProgramPlannerCandidate[];
+}

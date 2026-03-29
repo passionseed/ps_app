@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Pressable,
@@ -14,7 +13,10 @@ import { supabase } from "../../lib/supabase";
 import { submitDailyReflection } from "../../lib/pathlab";
 import { VoiceAIReflection } from "../../components/Reflection";
 import type { PathReflectionDecision } from "../../types/pathlab";
-import { Radius, Border, Shadow, Text as ThemeText } from "../../lib/theme";
+import { Radius, Border, Shadow, Text as ThemeText, Space, Type, Accent } from "../../lib/theme";
+import { AppText } from "../../components/AppText";
+import { GlassCard } from "../../components/Glass/GlassCard";
+import { GlassButton } from "../../components/Glass/GlassButton";
 
 type EnrollmentData = {
   id: string;
@@ -66,7 +68,7 @@ export default function ReflectionScreen() {
       console.log('[Reflection] Enrollment data:', JSON.stringify(data, null, 2));
       console.log('[Reflection] Error:', error);
 
-      setEnrollment(data as EnrollmentData);
+      setEnrollment(data as unknown as EnrollmentData);
       setLoading(false);
     }
     load();
@@ -169,10 +171,10 @@ export default function ReflectionScreen() {
     });
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Something went wrong</Text>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.backText}>Go Back</Text>
-        </Pressable>
+        <AppText style={styles.errorText}>Something went wrong</AppText>
+        <GlassButton variant="secondary" onPress={() => router.back()}>
+          Go Back
+        </GlassButton>
       </View>
     );
   }
@@ -187,9 +189,9 @@ export default function ReflectionScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
-          <Text style={styles.closeText}>✕</Text>
+          <AppText style={styles.closeText}>✕</AppText>
         </Pressable>
-        <Text style={styles.headerTitle}>Daily Reflection</Text>
+        <AppText variant="bold" style={styles.headerTitle}>Daily Reflection</AppText>
         <View style={{ width: 30 }} />
       </View>
 
@@ -200,24 +202,24 @@ export default function ReflectionScreen() {
       >
         {/* Day info */}
         <View style={styles.dayInfo}>
-          <Text style={styles.dayBadge}>
+          <AppText variant="bold" style={styles.dayBadge}>
             Day {enrollment.current_day} Complete! 🎉
-          </Text>
-          <Text style={styles.seedName}>
+          </AppText>
+          <AppText style={styles.seedName}>
             {seedTitle}
-          </Text>
+          </AppText>
         </View>
 
         {/* Prompts intro */}
-        <Text style={styles.intro}>
+        <AppText style={styles.intro}>
           Take a moment to reflect on today's experience
-        </Text>
+        </AppText>
 
         {/* Energy Level */}
-        <View style={styles.sliderSection}>
-          <Text style={styles.sliderLabel}>How energized do you feel?</Text>
+        <GlassCard style={styles.sliderSection}>
+          <AppText variant="bold" style={styles.sliderLabel}>How energized do you feel?</AppText>
           <View style={styles.sliderRow}>
-            <Text style={styles.sliderEmoji}>😴</Text>
+            <AppText style={styles.sliderEmoji}>😴</AppText>
             <View style={styles.sliderTrack}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
                 <Pressable
@@ -230,15 +232,15 @@ export default function ReflectionScreen() {
                 />
               ))}
             </View>
-            <Text style={styles.sliderEmoji}>⚡</Text>
+            <AppText style={styles.sliderEmoji}>⚡</AppText>
           </View>
-        </View>
+        </GlassCard>
 
         {/* Confusion Level */}
-        <View style={styles.sliderSection}>
-          <Text style={styles.sliderLabel}>How clear was everything?</Text>
+        <GlassCard style={styles.sliderSection}>
+          <AppText variant="bold" style={styles.sliderLabel}>How clear was everything?</AppText>
           <View style={styles.sliderRow}>
-            <Text style={styles.sliderEmoji}>😕</Text>
+            <AppText style={styles.sliderEmoji}>😕</AppText>
             <View style={styles.sliderTrack}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
                 <Pressable
@@ -251,20 +253,20 @@ export default function ReflectionScreen() {
                 />
               ))}
             </View>
-            <Text style={styles.sliderEmoji}>💡</Text>
+            <AppText style={styles.sliderEmoji}>💡</AppText>
           </View>
-          <Text style={styles.sliderHint}>
+          <AppText style={styles.sliderHint}>
             (Low = confusing, High = crystal clear)
-          </Text>
-        </View>
+          </AppText>
+        </GlassCard>
 
         {/* Interest Level */}
-        <View style={styles.sliderSection}>
-          <Text style={styles.sliderLabel}>
+        <GlassCard style={styles.sliderSection}>
+          <AppText variant="bold" style={styles.sliderLabel}>
             How interested are you in this path?
-          </Text>
+          </AppText>
           <View style={styles.sliderRow}>
-            <Text style={styles.sliderEmoji}>😐</Text>
+            <AppText style={styles.sliderEmoji}>😐</AppText>
             <View style={styles.sliderTrack}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
                 <Pressable
@@ -277,9 +279,9 @@ export default function ReflectionScreen() {
                 />
               ))}
             </View>
-            <Text style={styles.sliderEmoji}>🤩</Text>
+            <AppText style={styles.sliderEmoji}>🤩</AppText>
           </View>
-        </View>
+        </GlassCard>
 
         {/* Open response */}
         {showVoiceAI ? (
@@ -305,22 +307,21 @@ export default function ReflectionScreen() {
               }}
               onPress={() => setShowVoiceAI(true)}
             >
-              <Text style={{ fontSize: 16 }}>🎙️</Text>
-              <Text
+              <AppText style={{ fontSize: 16 }}>🎙️</AppText>
+              <AppText
                 style={{
                   fontSize: 14,
-                  fontFamily: "Orbit_400Regular",
                   color: "#4B5563",
                 }}
               >
                 Reflect with Voice AI
-              </Text>
+              </AppText>
             </Pressable>
           </View>
         )}
 
-        <View style={styles.textSection}>
-          <Text style={styles.sliderLabel}>Any thoughts or insights?</Text>
+        <GlassCard style={styles.textSection}>
+          <AppText variant="bold" style={styles.sliderLabel}>Any thoughts or insights?</AppText>
           <TextInput
             style={styles.textInput}
             placeholder="What stood out today? What surprised you?"
@@ -330,79 +331,62 @@ export default function ReflectionScreen() {
             multiline
             numberOfLines={4}
           />
-        </View>
+        </GlassCard>
 
         {/* Decision buttons */}
         <View style={styles.decisionSection}>
-          <Text style={styles.decisionTitle}>What's next?</Text>
+          <AppText variant="bold" style={styles.decisionTitle}>What's next?</AppText>
 
           {isLastDay ? (
             // Last day - show final reflection option
             <>
-              <Pressable
-                style={[styles.decisionBtn, styles.decisionBtnPrimary]}
+              <GlassButton
+                variant="primary"
+                fullWidth
                 onPress={() => handleSubmit("final_reflection")}
                 disabled={submitting || scoring}
               >
-                <Text style={styles.decisionBtnText}>
-                  🎓 Complete Path & See Report
-                </Text>
-              </Pressable>
+                🎓 Complete Path & See Report
+              </GlassButton>
             </>
           ) : (
             // Not last day - show continue/pause/quit options
             <>
-              <Pressable
-                style={[styles.decisionBtn, styles.decisionBtnPrimary]}
+              <GlassButton
+                variant="primary"
+                fullWidth
                 onPress={() => handleSubmit("continue_tomorrow")}
                 disabled={submitting || scoring}
               >
-                <Text style={styles.decisionBtnText}>
-                  ✓ Done for today, continue tomorrow
-                </Text>
-              </Pressable>
+                ✓ Done for today, continue tomorrow
+              </GlassButton>
 
-              <Pressable
-                style={[styles.decisionBtn, styles.decisionBtnSecondary]}
+              <GlassButton
+                variant="secondary"
+                fullWidth
                 onPress={() => handleSubmit("continue_now")}
                 disabled={submitting || scoring}
               >
-                <Text
-                  style={[
-                    styles.decisionBtnText,
-                    styles.decisionBtnTextSecondary,
-                  ]}
-                >
-                  🚀 I'm on fire! Start Day {enrollment.current_day + 1}
-                </Text>
-              </Pressable>
+                {`🚀 I'm on fire! Start Day ${enrollment.current_day + 1}`}
+              </GlassButton>
 
-              <Pressable
-                style={[styles.decisionBtn, styles.decisionBtnTertiary]}
+              <GlassButton
+                variant="ghost"
+                fullWidth
                 onPress={() => handleSubmit("pause")}
                 disabled={submitting || scoring}
               >
-                <Text
-                  style={[
-                    styles.decisionBtnText,
-                    styles.decisionBtnTextTertiary,
-                  ]}
-                >
-                  ⏸️ Pause for now
-                </Text>
-              </Pressable>
+                ⏸️ Pause for now
+              </GlassButton>
 
-              <Pressable
-                style={[styles.decisionBtn, styles.decisionBtnDanger]}
+              <GlassButton
+                variant="danger"
+                fullWidth
                 onPress={() => handleSubmit("quit")}
                 disabled={submitting || scoring}
               >
-                <Text
-                  style={[styles.decisionBtnText, styles.decisionBtnTextDanger]}
-                >
-                  This isn't for me
-                </Text>
-              </Pressable>
+                This isn't for me
+              </GlassButton>
             </>
           )}
         </View>
@@ -410,20 +394,20 @@ export default function ReflectionScreen() {
         {submitting && (
           <View style={styles.submittingOverlay}>
             <ActivityIndicator size="small" color="#BFFF00" />
-            <Text style={styles.submittingText}>Saving reflection...</Text>
+            <AppText style={styles.submittingText}>Saving reflection...</AppText>
           </View>
         )}
 
         {scoring && (
           <View style={styles.scoringOverlay}>
             <ActivityIndicator size="small" color="#BFFF00" />
-            <Text style={styles.scoringText}>Calculating your scores...</Text>
+            <AppText style={styles.scoringText}>Calculating your scores...</AppText>
           </View>
         )}
 
         {scoreError && (
           <View style={styles.scoreErrorContainer}>
-            <Text style={styles.scoreErrorText}>⚠️ {scoreError}</Text>
+            <AppText style={styles.scoreErrorText}>⚠️ {scoreError}</AppText>
           </View>
         )}
 
@@ -452,80 +436,71 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   errorText: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
+    fontSize: Type.body.fontSize,
     color: "#666",
   },
   backText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    color: "#BFFF00",
+    fontSize: Type.body.fontSize,
+    color: Accent.yellow,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingTop: Space["5xl"],
+    paddingHorizontal: Space.xl,
+    paddingBottom: Space.lg,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: Border.light,
   },
   closeText: {
     fontSize: 20,
     color: "#666",
   },
   headerTitle: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
+    fontSize: Type.subtitle.fontSize,
+    fontWeight: Type.subtitle.fontWeight,
+    color: ThemeText.primary,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
+    padding: Space["2xl"],
   },
   dayInfo: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: Space["2xl"],
   },
   dayBadge: {
-    fontSize: 20,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
+    fontSize: Type.title.fontSize,
+    fontWeight: Type.title.fontWeight,
+    color: ThemeText.primary,
     marginBottom: 4,
   },
   seedName: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
-    color: "#666",
+    fontSize: Type.body.fontSize,
+    color: ThemeText.secondary,
   },
   intro: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
-    color: "#666",
+    fontSize: Type.body.fontSize,
+    color: ThemeText.secondary,
     textAlign: "center",
-    marginBottom: 32,
+    marginBottom: Space["3xl"],
   },
   sliderSection: {
-    marginBottom: 28,
+    marginBottom: Space.xl,
+    padding: Space.xl,
   },
   sliderLabel: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
-    color: "#111",
-    marginBottom: 12,
+    fontSize: Type.body.fontSize,
+    color: ThemeText.primary,
+    marginBottom: Space.md,
   },
   sliderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: Space.md,
   },
   sliderEmoji: {
     fontSize: 20,
@@ -539,121 +514,77 @@ const styles = StyleSheet.create({
   sliderDot: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: Radius.full,
     backgroundColor: "#eee",
   },
   sliderDotActive: {
-    backgroundColor: "#BFFF00",
+    backgroundColor: Accent.yellow,
+    ...Shadow.ctaGlow,
   },
   sliderHint: {
-    fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "300",
-    color: "#999",
+    fontSize: Type.caption.fontSize,
+    color: ThemeText.muted,
     marginTop: 6,
     textAlign: "center",
   },
   textSection: {
-    marginBottom: 32,
+    marginBottom: Space["3xl"],
+    padding: Space.xl,
   },
   textInput: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: Border.default,
-    borderRadius: Radius.lg,
-    padding: 16,
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    backgroundColor: "transparent",
+    fontSize: Type.body.fontSize,
+    fontFamily: "LibreFranklin_Regular",
     color: ThemeText.primary,
     minHeight: 100,
+    marginTop: Space.md,
     textAlignVertical: "top",
-    ...Shadow.neutral,
   },
   decisionSection: {
-    gap: 12,
+    gap: Space.lg,
   },
   decisionTitle: {
-    fontSize: 16,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
-    marginBottom: 8,
+    fontSize: Type.subtitle.fontSize,
+    fontWeight: Type.subtitle.fontWeight,
+    color: ThemeText.primary,
+    marginBottom: 4,
     textAlign: "center",
-  },
-  decisionBtn: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  decisionBtnPrimary: {
-    backgroundColor: "#BFFF00",
-  },
-  decisionBtnSecondary: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#BFFF00",
-  },
-  decisionBtnTertiary: {
-    backgroundColor: "#f5f5f5",
-  },
-  decisionBtnDanger: {
-    backgroundColor: "transparent",
-  },
-  decisionBtnText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111",
-  },
-  decisionBtnTextSecondary: {
-    color: "#111",
-  },
-  decisionBtnTextTertiary: {
-    color: "#666",
-  },
-  decisionBtnTextDanger: {
-    color: "#999",
-    fontWeight: "400",
   },
   submittingOverlay: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginTop: 16,
+    marginTop: Space.lg,
   },
   submittingText: {
-    fontSize: 13,
-    fontFamily: "Orbit_400Regular",
-    color: "#666",
+    fontSize: Type.caption.fontSize,
+    color: ThemeText.secondary,
   },
   scoringOverlay: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginTop: 12,
+    marginTop: Space.md,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: Space.lg,
     backgroundColor: "#F0F9FF",
-    borderRadius: 8,
+    borderRadius: Radius.md,
   },
   scoringText: {
-    fontSize: 13,
-    fontFamily: "Orbit_400Regular",
+    fontSize: Type.caption.fontSize,
     color: "#0369A1",
   },
   scoreErrorContainer: {
-    marginTop: 12,
+    marginTop: Space.md,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: Space.lg,
     backgroundColor: "#FEF3C7",
-    borderRadius: 8,
+    borderRadius: Radius.md,
   },
   scoreErrorText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontSize: Type.caption.fontSize,
     color: "#92400E",
     textAlign: "center",
   },
