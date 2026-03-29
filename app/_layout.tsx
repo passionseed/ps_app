@@ -92,27 +92,44 @@ export default function RootLayout() {
       // Logged in user - check onboarding status
       console.log("[RootNavigator] Logged in, fetching profile...", { userId: session!.user.id });
       const profileStart = Date.now();
+
+      // Safety: cancelled flag prevents stale async updates if effect re-runs
+      let cancelled = false;
+      // Hard timeout: if getProfile hangs >10s, unblock navigation
       const profileTimeout = setTimeout(() => {
-        console.warn("[RootNavigator] ⚠️ getProfile still pending after 5s — possible RLS timeout or network hang");
-      }, 5000);
-      getProfile(session!.user.id).then((p) => {
-        clearTimeout(profileTimeout);
-        console.log("[RootNavigator] Profile fetched in", Date.now() - profileStart, "ms:", { hasProfile: !!p, isOnboarded: p?.is_onboarded });
-        setProfile(p);
-        if (!p || !p.is_onboarded) {
-          router.replace("/onboarding");
-        } else {
+        if (cancelled) return;
+        console.warn("[RootNavigator] ⚠️ getProfile timed out after 10s — possible RLS timeout or network hang");
+        router.replace("/onboarding");
+        setIsNavReady(true);
+      }, 10000);
+
+      getProfile(session!.user.id)
+        .then((p) => {
+          if (cancelled) return;
+          clearTimeout(profileTimeout);
+          console.log("[RootNavigator] Profile fetched in", Date.now() - profileStart, "ms:", { hasProfile: !!p, isOnboarded: p?.is_onboarded });
+          setProfile(p);
+          if (!p || !p.is_onboarded) {
+            router.replace("/onboarding");
+          } else {
+            router.replace("/(tabs)/discover");
+          }
+          setIsNavReady(true);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          clearTimeout(profileTimeout);
+          console.error("[RootNavigator] ❌ getProfile threw after", Date.now() - profileStart, "ms:", err);
+          // Proceed without profile — go to discover as fallback
+          setProfile(null);
           router.replace("/(tabs)/discover");
-        }
-        setIsNavReady(true);
-      }).catch((err) => {
+          setIsNavReady(true);
+        });
+
+      return () => {
+        cancelled = true;
         clearTimeout(profileTimeout);
-        console.error("[RootNavigator] ❌ getProfile threw after", Date.now() - profileStart, "ms:", err);
-        // Proceed without profile — go to discover as fallback
-        setProfile(null);
-        router.replace("/(tabs)/discover");
-        setIsNavReady(true);
-      });
+      };
     }, [isGuest, loading, session]);
 
     // Show animated splash while auth is loading
