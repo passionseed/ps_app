@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Animated, Dimensions, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-const { width, height } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
 export function AnimatedSplash() {
   // Gradient animation - moves upward
@@ -92,10 +92,6 @@ export function AnimatedSplash() {
         />
       </Animated.View>
 
-      {/* Subtle purple accent orbs */}
-      <View style={styles.orb1} />
-      <View style={styles.orb2} />
-
       {/* Logo container */}
       <Animated.View style={[styles.logoContainer, logoStyle]}>
         {/* Glow behind logo */}
@@ -118,26 +114,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-  },
-  orb1: {
-    position: "absolute",
-    top: "20%",
-    left: "-10%",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(139, 92, 246, 0.08)",
-    transform: [{ scale: 1.5 }],
-  },
-  orb2: {
-    position: "absolute",
-    bottom: "25%",
-    right: "-5%",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(168, 85, 247, 0.06)",
-    transform: [{ scale: 1.5 }],
   },
   logoContainer: {
     alignItems: "center",
