@@ -11,10 +11,10 @@ import {
   useWindowDimensions,
   Animated,
   PanResponder,
-  Image,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import * as ImagePicker from 'expo-image-picker';
+import { Image as ExpoImage } from 'expo-image';
 import * as DocumentPicker from 'expo-document-picker';
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -1831,25 +1831,7 @@ function ContentItem({ content }: { content: PathContent }) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   // containerWidth = windowWidth - scrollPadding(40) - cardPadding(32)
   const containerWidth = windowWidth - 72;
-  const [imageHeight, setImageHeight] = useState<number>(500);
-
-  // Calculate image height for full-width display
-  useEffect(() => {
-    if (content.content_type === 'image' && content.content_url) {
-      Image.getSize(
-        content.content_url,
-        (width, height) => {
-          const aspectRatio = height / width;
-          const calculatedHeight = windowWidth * aspectRatio;
-          console.log('[Image] Dimensions:', { width, height, aspectRatio, calculatedHeight, windowWidth });
-          setImageHeight(calculatedHeight);
-        },
-        (error) => {
-          console.error('[Image] Failed to get size:', error);
-        }
-      );
-    }
-  }, [content.content_url, content.content_type, windowWidth]);
+  const [imageHeight, setImageHeight] = useState<number>(300);
 
   const renderContent = () => {
     switch (content.content_type) {
@@ -1948,7 +1930,6 @@ function ContentItem({ content }: { content: PathContent }) {
         );
 
       case "image":
-        console.log('[Image] Rendering image:', { url: content.content_url, title: content.content_title, screenWidth: windowWidth });
         return (
           <>
             {/* Title and description in card */}
@@ -1966,12 +1947,16 @@ function ContentItem({ content }: { content: PathContent }) {
             {/* Full-width image outside card */}
             {content.content_url ? (
               <View style={[styles.fullWidthContentImageContainer, { width: windowWidth, height: imageHeight }]}>
-                <Image
-                  source={{ uri: content.content_url }}
+                <ExpoImage
+                  source={content.content_url}
                   style={[styles.fullWidthContentImage, { width: windowWidth, height: imageHeight }]}
-                  resizeMode="contain"
-                  onError={(error) => console.error('[Image] Failed to load:', error.nativeEvent.error)}
-                  onLoad={() => console.log('[Image] Loaded successfully')}
+                  contentFit="contain"
+                  onLoad={(e) => {
+                    const { width, height } = e.source;
+                    if (width && height) {
+                      setImageHeight(windowWidth * (height / width));
+                    }
+                  }}
                 />
               </View>
             ) : (
@@ -2024,28 +2009,6 @@ function AssessmentItem({
   const [imageHeight, setImageHeight] = useState<number>(300);
   const { width: screenWidth } = useWindowDimensions();
 
-  // Calculate image dimensions when image is selected
-  useEffect(() => {
-    if (selectedImage) {
-      console.log('[IMAGE DEBUG] Screen width:', screenWidth);
-      Image.getSize(
-        selectedImage,
-        (width, height) => {
-          // Calculate height to maintain aspect ratio with full screen width
-          const aspectRatio = height / width;
-          const calculatedHeight = screenWidth * aspectRatio;
-          console.log('[IMAGE DEBUG] Original image dimensions:', { width, height });
-          console.log('[IMAGE DEBUG] Aspect ratio:', aspectRatio);
-          console.log('[IMAGE DEBUG] Calculated height:', calculatedHeight);
-          setImageHeight(calculatedHeight);
-        },
-        (error) => {
-          console.error('[IMAGE DEBUG] Error getting image size:', error);
-        }
-      );
-    }
-  }, [selectedImage, screenWidth]);
-
   const handlePickFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -2082,7 +2045,11 @@ function AssessmentItem({
       console.log('[Camera] Result:', result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        setSelectedImage(asset.uri);
+        if (asset.width && asset.height) {
+          setImageHeight(screenWidth * (asset.height / asset.width));
+        }
       }
     } catch (error: any) {
       console.error('[Camera] Error taking photo:', error);
@@ -2105,7 +2072,11 @@ function AssessmentItem({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        setSelectedImage(asset.uri);
+        if (asset.width && asset.height) {
+          setImageHeight(screenWidth * (asset.height / asset.width));
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -2188,32 +2159,18 @@ function AssessmentItem({
       </GlassCard>
 
       {/* Full-width image display OUTSIDE of assessmentCard */}
-      {assessment.assessment_type === "image_upload" && selectedImage && (() => {
-        console.log('[IMAGE DEBUG] Rendering image with:', {
-          screenWidth,
-          imageHeight,
-          containerWidth: screenWidth,
-          imageWidth: screenWidth
-        });
-        return (
-          <View style={[styles.fullWidthImageContainer, { width: screenWidth }]}>
-            <ScrollView
-              style={styles.imageScrollContainer}
-              contentContainerStyle={styles.imageScrollContent}
-              showsVerticalScrollIndicator={true}
-            >
-              <Image
-                source={{ uri: selectedImage }}
-                style={[styles.selectedImage, { height: imageHeight, width: screenWidth }]}
-                resizeMode="contain"
-              />
-            </ScrollView>
-            <Pressable style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
-              <AppText style={styles.removeFileText}>✕</AppText>
-            </Pressable>
-          </View>
-        );
-      })()}
+      {assessment.assessment_type === "image_upload" && selectedImage && (
+        <View style={[styles.fullWidthImageContainer, { width: screenWidth }]}>
+          <ExpoImage
+            source={selectedImage}
+            style={[styles.selectedImage, { height: imageHeight, width: screenWidth }]}
+            contentFit="contain"
+          />
+          <Pressable style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
+            <AppText style={styles.removeFileText}>✕</AppText>
+          </Pressable>
+        </View>
+      )}
     </>
   );
 }
