@@ -10,36 +10,35 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import Constants from "expo-constants";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import { getProfile } from "../../lib/onboarding";
 import {
-  getUserIkigaiScores,
   getScoreTimeline,
+  getUserIkigaiScores,
   hasUserScores,
   type IkigaiScores,
   type ScoreTimelineItem,
 } from "../../lib/scoreEngine";
-import type {
-  Profile,
-  InterestCategory,
-  CareerGoal,
-} from "../../types/onboarding";
+import { getPortfolioItems } from "../../lib/portfolioFit";
+import { getSavedPrograms } from "../../lib/savedPrograms";
 import {
-  PageBg,
-  Text as ThemeText,
-  Border,
-  Shadow,
-  Radius,
-  Gradient,
-  Accent,
-  Space,
-  Type,
-} from "../../lib/theme";
+  buildFocusSections,
+  buildProfileMetaPills,
+  buildRecentActivityItems,
+  type ProfileActivityItem,
+  type ProfileFocusSection,
+} from "../../lib/profileScreenData";
+import type { UserEvent } from "../../types/events";
+import type {
+  CareerGoal,
+  InterestCategory,
+  Profile,
+} from "../../types/onboarding";
+import { Accent, PageBg } from "../../lib/theme";
 
-// ------- Types -------
 interface IkigaiPillar {
   score: number;
   label: string;
@@ -49,70 +48,72 @@ interface IkigaiPillar {
   route: string;
 }
 
-// ------- Helper Functions -------
 function getIkigaiInsight(scores: IkigaiScores): string {
   const { passion, mission, profession, vocation } = scores;
   const avg = (passion + mission + profession + vocation) / 4;
 
   if (passion >= 75 && mission >= 75) {
-    return "Your passion and mission are strongly aligned — you're built to make an impact! Focus on building skills to turn this into a career. 🚀";
-  } else if (profession >= 75 && vocation >= 75) {
-    return "You have strong professional skills! Now find work that also ignites your passion. 💼";
-  } else if (avg >= 70) {
-    return "Great balance across all dimensions! You're on a solid path. Keep exploring to refine your direction. ✨";
-  } else if (passion < 50 && profession < 50) {
-    return "Early exploration phase! Try more Seeds to discover what you love and what you can be paid for. 🌱";
-  } else if (vocation < 50) {
-    return "Focus on skill-building! Complete more tasks to level up what you're good at. 📈";
-  } else {
-    return "Keep exploring different paths! Your scores will become clearer as you complete more Seeds. 🔍";
+    return "Your passion and mission are strongly aligned. Keep building the skills that turn that direction into real work.";
   }
+  if (profession >= 75 && vocation >= 75) {
+    return "You already have strong momentum in career-fit and strengths. Now keep pressure on the work that excites you.";
+  }
+  if (avg >= 70) {
+    return "You have a strong balance across the four Ikigai dimensions. Keep exploring to sharpen what should come next.";
+  }
+  if (passion < 50 && profession < 50) {
+    return "You are still early in exploration. Try more Seeds and reflections to learn what actually holds your attention.";
+  }
+  if (vocation < 50) {
+    return "Your direction is forming, but your skill base still needs repetition. More practice should make the path clearer.";
+  }
+  return "The signal is starting to form. Keep exploring and reflecting so the pattern becomes easier to trust.";
 }
 
 function getPillarInsight(dimension: string, score: number): string {
   if (score >= 80) {
     switch (dimension) {
       case "passion":
-        return "You're deeply passionate about this area!";
+        return "You care deeply about this area.";
       case "mission":
-        return "Strong sense of purpose and social impact!";
+        return "This feels closely tied to meaningful impact.";
       case "profession":
-        return "Excellent career viability in this field!";
+        return "This direction already looks career-viable.";
       case "vocation":
-        return "Highly skilled and competent!";
+        return "Your strengths are showing up clearly here.";
     }
   } else if (score >= 60) {
     switch (dimension) {
       case "passion":
-        return "Good enthusiasm — keep nurturing this!";
+        return "The interest is strong and worth following.";
       case "mission":
-        return "Solid alignment with what the world needs.";
+        return "You are building a clearer sense of purpose.";
       case "profession":
-        return "Promising career potential here.";
+        return "This has promising career potential.";
       case "vocation":
-        return "Good skills foundation — keep building!";
+        return "Your capability is building in a real way.";
     }
   } else if (score >= 40) {
     switch (dimension) {
       case "passion":
-        return "Growing interest — explore more!";
+        return "There is some pull here, but it needs more exploration.";
       case "mission":
-        return "Developing sense of purpose.";
+        return "Your sense of contribution is still developing.";
       case "profession":
-        return "Career potential emerging.";
+        return "The career signal is still weak but forming.";
       case "vocation":
-        return "Skills developing — practice more!";
+        return "Skills are starting to form, but not yet stable.";
     }
   } else {
     switch (dimension) {
       case "passion":
-        return "Still discovering what you love.";
+        return "You are still testing whether this truly energizes you.";
       case "mission":
-        return "Exploring how you can contribute.";
+        return "You are still discovering how you want to contribute.";
       case "profession":
-        return "Early stage — more exploration needed.";
+        return "Career fit is still very early here.";
       case "vocation":
-        return "Building foundational skills.";
+        return "You are still building the basics.";
     }
   }
   return "";
@@ -155,71 +156,34 @@ function buildIkigaiData(scores: IkigaiScores): Record<string, IkigaiPillar> {
   };
 }
 
-const MOCK_SKILLS = [
-  { id: 1, name: "UI Design", level: "Intermediate", category: "Design" },
-  { id: 2, name: "Figma", level: "Intermediate", category: "Design" },
-  { id: 3, name: "User Research", level: "Beginner", category: "Design" },
-  { id: 4, name: "React", level: "Beginner", category: "Code" },
-  { id: 5, name: "TypeScript", level: "Beginner", category: "Code" },
-  {
-    id: 6,
-    name: "Public Speaking",
-    level: "Intermediate",
-    category: "Soft Skills",
-  },
-  {
-    id: 7,
-    name: "Critical Thinking",
-    level: "Advanced",
-    category: "Soft Skills",
-  },
-];
+function formatActivityTime(isoDate: string): string {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / (1000 * 60)));
 
-const MOCK_ACHIEVEMENTS = [
-  {
-    id: 1,
-    type: "personal",
-    text: "You unlocked the UX Fundamentals path",
-    time: "2h ago",
-    icon: "🏆",
-  },
-  {
-    id: 2,
-    type: "social",
-    text: "Alex just finished Cybersecurity basics",
-    time: "4h ago",
-    icon: "⚡️",
-  },
-  {
-    id: 3,
-    type: "personal",
-    text: "You hit a 3-day exploration streak",
-    time: "Yesterday",
-    icon: "🔥",
-  },
-  {
-    id: 4,
-    type: "social",
-    text: "Mint leveled up in Data Science",
-    time: "2 days ago",
-    icon: "🌟",
-  },
-];
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m ago`;
+  }
 
-const SKILL_LEVEL_COLORS: Record<string, string> = {
-  Beginner: Accent.green,
-  Intermediate: Accent.purple,
-  Advanced: Accent.orange,
-  Master: Accent.red,
-};
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Design: Accent.purple,
-  Code: Accent.blue,
-  "Soft Skills": Accent.green,
-};
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  }
 
-// ------- Component -------
+  return new Date(isoDate).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export default function ProfileScreen() {
   const { user, isGuest, guestLanguage, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -228,6 +192,9 @@ export default function ProfileScreen() {
   const [ikigaiScores, setIkigaiScores] = useState<IkigaiScores | null>(null);
   const [scoreTimeline, setScoreTimeline] = useState<ScoreTimelineItem[]>([]);
   const [hasScores, setHasScores] = useState<boolean | null>(null);
+  const [activityEvents, setActivityEvents] = useState<UserEvent[]>([]);
+  const [portfolioCount, setPortfolioCount] = useState(0);
+  const [savedProgramsCount, setSavedProgramsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [scoresLoading, setScoresLoading] = useState(true);
 
@@ -238,37 +205,64 @@ export default function ProfileScreen() {
       return;
     }
 
-    const loadData = async () => {
+    let cancelled = false;
+
+    async function loadData() {
       setLoading(true);
       setScoresLoading(true);
 
-      const [
-        profileData,
-        interestsData,
-        careersData,
-        scoresData,
-        timelineData,
-        hasScoresData,
-      ] = await Promise.all([
-        getProfile(user.id),
-        supabase.from("user_interests").select("*").eq("user_id", user.id),
-        supabase.from("career_goals").select("*").eq("user_id", user.id),
-        getUserIkigaiScores(),
-        getScoreTimeline(),
-        hasUserScores(),
-      ]);
+      try {
+        const [
+          profileData,
+          interestsData,
+          careersData,
+          scoresData,
+          timelineData,
+          hasScoresData,
+          portfolioItems,
+          savedPrograms,
+          eventsData,
+        ] = await Promise.all([
+          getProfile(user.id),
+          supabase.from("user_interests").select("*").eq("user_id", user.id),
+          supabase.from("career_goals").select("*").eq("user_id", user.id),
+          getUserIkigaiScores(),
+          getScoreTimeline(),
+          hasUserScores(),
+          getPortfolioItems(user.id),
+          getSavedPrograms(),
+          supabase
+            .from("user_events")
+            .select("id,user_id,event_type,event_data,session_id,created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(8),
+        ]);
 
-      setProfile(profileData);
-      setInterests(interestsData.data || []);
-      setCareers(careersData.data || []);
-      setIkigaiScores(scoresData);
-      setScoreTimeline(timelineData);
-      setHasScores(hasScoresData);
-      setLoading(false);
-      setScoresLoading(false);
-    };
+        if (cancelled) return;
+
+        setProfile(profileData);
+        setInterests((interestsData.data as InterestCategory[] | null) ?? []);
+        setCareers((careersData.data as CareerGoal[] | null) ?? []);
+        setIkigaiScores(scoresData);
+        setScoreTimeline(timelineData);
+        setHasScores(hasScoresData);
+        setPortfolioCount(portfolioItems.length);
+        setSavedProgramsCount(savedPrograms.length);
+        setActivityEvents((eventsData.data as UserEvent[] | null) ?? []);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setScoresLoading(false);
+        }
+      }
+    }
 
     loadData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id]);
 
   const handleSignOut = async () => {
@@ -281,9 +275,28 @@ export default function ProfileScreen() {
   };
 
   const displayName =
-    user?.user_metadata?.full_name || user?.user_metadata?.name || "Explorer";
+    profile?.full_name ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    "Explorer";
   const appVersion = Constants.expoConfig?.version ?? "dev";
-  const formatCareerName = (name: string) => name.split("(")[0].trim();
+  const avatarSource = profile?.avatar_url
+    ? { uri: profile.avatar_url }
+    : require("../../assets/images/user_avatar.png");
+  const metaPills = useMemo(() => buildProfileMetaPills(profile), [profile]);
+  const focusSections = useMemo(
+    () => buildFocusSections(careers, interests),
+    [careers, interests],
+  );
+  const activityItems = useMemo(
+    () => buildRecentActivityItems(activityEvents).slice(0, 6),
+    [activityEvents],
+  );
+  const primaryCareer = focusSections.find(
+    (section) => section.kind === "career-goals",
+  )?.items[0];
+  const isThai = profile?.preferred_language === "th";
+
   const guestCopy =
     guestLanguage === "th"
       ? {
@@ -309,22 +322,6 @@ export default function ProfileScreen() {
           secondary: "Already have an account? Sign in to continue",
         };
 
-  // Player title based on careers or fallback
-  const playerTitle =
-    careers.length > 0
-      ? `Aspiring ${formatCareerName(careers[0].career_name)}`
-      : "Level 3 Explorer";
-
-  // Group skills by category
-  const skillsByCategory = MOCK_SKILLS.reduce<
-    Record<string, typeof MOCK_SKILLS>
-  >((acc, skill) => {
-    if (!acc[skill.category]) acc[skill.category] = [];
-    acc[skill.category].push(skill);
-    return acc;
-  }, {});
-
-  // Guest state: show create profile CTA
   if (!authLoading && (isGuest || !user)) {
     return (
       <View style={styles.container}>
@@ -379,12 +376,10 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.mainContent}>
-          {/* ── Section 1: Player Header ── */}
           <LinearGradient
-            colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
-            style={styles.headerGradient}
+            colors={["#FFFFFF", "#F8F5FF", "#EEF4FF"]}
+            style={styles.heroCard}
           >
-            {/* Settings Button */}
             <Pressable
               style={({ pressed }) => [
                 styles.settingsBtn,
@@ -395,11 +390,10 @@ export default function ProfileScreen() {
               <Text style={styles.settingsBtnText}>⚙️</Text>
             </Pressable>
 
-            {/* Compact horizontal: Avatar + Info */}
             <View style={styles.headerRow}>
               <View style={styles.avatarContainer}>
                 <Image
-                  source={require("../../assets/images/user_avatar.png")}
+                  source={avatarSource}
                   style={styles.avatar}
                   resizeMode="cover"
                 />
@@ -407,225 +401,184 @@ export default function ProfileScreen() {
 
               <View style={styles.headerInfo}>
                 <Text style={styles.name}>{displayName}</Text>
-                <View style={styles.playerTitleBadge}>
-                  <Text style={styles.playerTitleText}>🎮 {playerTitle}</Text>
-                </View>
-                <Pressable style={styles.friendsRow} onPress={() => {}}>
-                  <Text style={styles.friendsText}>👥 12 friends</Text>
-                </Pressable>
+                <Text style={styles.heroSummary}>
+                  {primaryCareer
+                    ? `Working toward ${primaryCareer}`
+                    : "Add a career goal to make your profile reflect where you want to go."}
+                </Text>
               </View>
             </View>
+
+            {metaPills.length > 0 && (
+              <View style={styles.metaPillsRow}>
+                {metaPills.map((pill) => (
+                  <MetaPill key={pill} label={pill} />
+                ))}
+              </View>
+            )}
+
+            {loading ? (
+              <View style={styles.heroLoadingState}>
+                <ActivityIndicator color="#8B5CF6" />
+              </View>
+            ) : focusSections.length > 0 ? (
+              <View style={styles.focusStack}>
+                {focusSections.map((section) => (
+                  <FocusSectionCard key={section.kind} section={section} />
+                ))}
+              </View>
+            ) : (
+              <EmptyHeroState
+                onPress={() => router.push("/discover")}
+                title="No direction saved yet"
+                body="Start exploring careers so this page can reflect what you actually want to become."
+                cta="Explore Careers"
+              />
+            )}
           </LinearGradient>
 
-          {/* ── Onboarded Info Sections ── */}
-          {loading ? (
-            <View style={styles.loadingSection}>
-              <ActivityIndicator color="#8B5CF6" />
-            </View>
-          ) : (
-            <>
-              {/* Stats Row */}
-              <View style={styles.statsRow}>
-                <StatBox value="7" label="Paths" />
-                <View style={styles.statDivider} />
-                <StatBox value="23" label="Tasks Done" />
-                <View style={styles.statDivider} />
-                <StatBox value="5d" label="Streak" />
-                <View style={styles.statDivider} />
-                <StatBox value="12" label="Friends" />
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Your Ikigai Compass</Text>
+
+            {scoresLoading ? (
+              <View style={styles.scoresLoadingContainer}>
+                <ActivityIndicator color="#8B5CF6" />
+                <Text style={styles.scoresLoadingText}>
+                  Loading your scores...
+                </Text>
               </View>
+            ) : hasScores && ikigaiScores ? (
+              <>
+                <View style={styles.ikigaiGrid}>
+                  {Object.values(buildIkigaiData(ikigaiScores)).map((pillar) => (
+                    <IkigaiCell key={pillar.label} pillar={pillar} />
+                  ))}
+                </View>
 
-              {/* ── Section 2: Ikigai Compass ── */}
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Your Ikigai Compass</Text>
-
-                {scoresLoading ? (
-                  <View style={styles.scoresLoadingContainer}>
-                    <ActivityIndicator color="#8B5CF6" />
-                    <Text style={styles.scoresLoadingText}>
-                      Loading your scores...
-                    </Text>
-                  </View>
-                ) : hasScores && ikigaiScores ? (
-                  <>
-                    <View style={styles.ikigaiGrid}>
-                      {Object.values(buildIkigaiData(ikigaiScores)).map(
-                        (pillar) => (
-                          <IkigaiCell key={pillar.label} pillar={pillar} />
-                        )
-                      )}
-                    </View>
-
-                    {/* Score Timeline */}
-                    {scoreTimeline.length > 1 && (
-                      <View style={styles.timelineContainer}>
-                        <Text style={styles.timelineTitle}>Score Trend</Text>
-                        <ScoreTimeline timeline={scoreTimeline} />
-                      </View>
-                    )}
-
-                    <View style={styles.insightCard}>
-                      <Text style={styles.insightText}>
-                        💡 {getIkigaiInsight(ikigaiScores)}
-                      </Text>
-                    </View>
-                  </>
-                ) : (
-                  <View style={styles.emptyScoresContainer}>
-                    <Text style={styles.emptyScoresEmoji}>🌱</Text>
-                    <Text style={styles.emptyScoresTitle}>
-                      Discover Your Ikigai
-                    </Text>
-                    <Text style={styles.emptyScoresText}>
-                      Complete Seeds and submit reflections to reveal your
-                      passion, mission, profession, and vocation scores.
-                    </Text>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.exploreSeedsBtn,
-                        pressed && styles.exploreSeedsBtnPressed,
-                      ]}
-                      onPress={() => router.push("/discover")}
-                    >
-                      <Text style={styles.exploreSeedsBtnText}>
-                        Explore Seeds
-                      </Text>
-                    </Pressable>
+                {scoreTimeline.length > 1 && (
+                  <View style={styles.timelineContainer}>
+                    <Text style={styles.timelineTitle}>Score Trend</Text>
+                    <ScoreTimeline timeline={scoreTimeline} />
                   </View>
                 )}
-              </View>
 
-              {/* ── Section 3: Skills Inventory ── */}
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Skills Inventory</Text>
-                {Object.entries(skillsByCategory).map(([category, skills]) => (
-                  <View key={category} style={styles.skillCategory}>
-                    <Text
-                      style={[
-                        styles.skillCategoryLabel,
-                        { color: CATEGORY_COLORS[category] ?? "#6B7280" },
-                      ]}
-                    >
-                      {category}
-                    </Text>
-                    <View style={styles.skillsWrap}>
-                      {skills.map((skill) => (
-                        <SkillBadge key={skill.id} skill={skill} />
-                      ))}
-                    </View>
-                  </View>
-                ))}
-              </View>
-
-              {/* Education Info */}
-              {profile && (
-                <View style={styles.sectionContainer}>
-                  <Text style={styles.sectionTitle}>Education</Text>
-                  <View style={styles.statementsWrap}>
-                    <View style={styles.statementChip}>
-                      <Text style={styles.statementChipText}>
-                        {profile.education_level === "high_school"
-                          ? "High School"
-                          : profile.education_level === "university"
-                            ? "University"
-                            : "Unaffiliated"}
-                      </Text>
-                    </View>
-                    {profile.school_name && (
-                      <View style={styles.statementChip}>
-                        <Text style={styles.statementChipText}>
-                          {profile.school_name}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.statementChip}>
-                      <Text style={styles.statementChipText}>
-                        {profile.preferred_language === "en"
-                          ? "English"
-                          : "ไทย"}
-                      </Text>
-                    </View>
-                  </View>
+                <View style={styles.insightCard}>
+                  <Text style={styles.insightText}>
+                    💡 {getIkigaiInsight(ikigaiScores)}
+                  </Text>
                 </View>
-              )}
-
-              {/* ── Portfolio & Fit ── */}
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Portfolio & TCAS</Text>
+              </>
+            ) : (
+              <View style={styles.emptyScoresContainer}>
+                <Text style={styles.emptyScoresEmoji}>🌱</Text>
+                <Text style={styles.emptyScoresTitle}>Discover Your Ikigai</Text>
+                <Text style={styles.emptyScoresText}>
+                  Complete Seeds and reflections to reveal how your passion,
+                  mission, profession, and vocation are developing.
+                </Text>
                 <Pressable
                   style={({ pressed }) => [
-                    styles.actionRow,
-                    pressed && styles.actionRowPressed,
+                    styles.exploreSeedsBtn,
+                    pressed && styles.exploreSeedsBtnPressed,
                   ]}
-                  onPress={() => router.push("/portfolio")}
+                  onPress={() => router.push("/discover")}
                 >
-                  <Text style={styles.actionRowEmoji}>📁</Text>
-                  <View style={styles.actionRowContent}>
-                    <Text style={styles.actionRowTitle}>
-                      พอร์ตโฟลิโอของฉัน
-                    </Text>
-                    <Text style={styles.actionRowSubtitle}>
-                      จัดการผลงาน โปรเจกต์ และกิจกรรม
-                    </Text>
-                  </View>
-                  <Text style={styles.actionRowArrow}>›</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.actionRow,
-                    pressed && styles.actionRowPressed,
-                  ]}
-                  onPress={() => router.push("/fit")}
-                >
-                  <Text style={styles.actionRowEmoji}>🎯</Text>
-                  <View style={styles.actionRowContent}>
-                    <Text style={styles.actionRowTitle}>
-                      ความเหมาะสม TCAS1
-                    </Text>
-                    <Text style={styles.actionRowSubtitle}>
-                      ดูคะแนนความเหมาะสมกับโปรแกรมรอบ Portfolio
-                    </Text>
-                  </View>
-                  <Text style={styles.actionRowArrow}>›</Text>
+                  <Text style={styles.exploreSeedsBtnText}>Explore Seeds</Text>
                 </Pressable>
               </View>
+            )}
+          </View>
 
-              {/* ── Section 4: Achievements & Activity Feed ── */}
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>
-                  Achievements &#38; Friends
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Portfolio & Plans</Text>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionRow,
+                pressed && styles.actionRowPressed,
+              ]}
+              onPress={() => router.push("/portfolio")}
+            >
+              <Text style={styles.actionRowEmoji}>📁</Text>
+              <View style={styles.actionRowContent}>
+                <Text style={styles.actionRowTitle}>
+                  {isThai ? "พอร์ตโฟลิโอของฉัน" : "My Portfolio"}
                 </Text>
-                {MOCK_ACHIEVEMENTS.map((item) => (
-                  <View
-                    key={item.id}
-                    style={[
-                      styles.achievementCard,
-                      item.type === "social" && styles.achievementCardSocial,
-                    ]}
-                  >
-                    <Text style={styles.achievementIcon}>{item.icon}</Text>
-                    <View style={styles.achievementBody}>
-                      <Text style={styles.achievementText}>{item.text}</Text>
-                      <Text style={styles.achievementTime}>{item.time}</Text>
-                    </View>
-                  </View>
+                <Text style={styles.actionRowSubtitle}>
+                  {portfolioCount > 0
+                    ? `${pluralize(portfolioCount, "item")} ready to show`
+                    : "Add projects, awards, and activities you want to keep."}
+                </Text>
+              </View>
+              <Text style={styles.actionRowArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionRow,
+                pressed && styles.actionRowPressed,
+              ]}
+              onPress={() => router.push("/saved")}
+            >
+              <Text style={styles.actionRowEmoji}>📚</Text>
+              <View style={styles.actionRowContent}>
+                <Text style={styles.actionRowTitle}>
+                  {isThai ? "สาขาที่บันทึกไว้" : "Saved Programs"}
+                </Text>
+                <Text style={styles.actionRowSubtitle}>
+                  {savedProgramsCount > 0
+                    ? `${pluralize(savedProgramsCount, "program")} saved for later`
+                    : "Keep track of programs you want to revisit."}
+                </Text>
+              </View>
+              <Text style={styles.actionRowArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionRow,
+                pressed && styles.actionRowPressed,
+              ]}
+              onPress={() => router.push("/fit")}
+            >
+              <Text style={styles.actionRowEmoji}>🎯</Text>
+              <View style={styles.actionRowContent}>
+                <Text style={styles.actionRowTitle}>
+                  {isThai ? "ความเหมาะสม TCAS1" : "TCAS Fit"}
+                </Text>
+                <Text style={styles.actionRowSubtitle}>
+                  {portfolioCount > 0
+                    ? "See how your portfolio aligns with Portfolio-round programs."
+                    : "Add portfolio evidence to make your fit signals more useful."}
+                </Text>
+              </View>
+              <Text style={styles.actionRowArrow}>›</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+
+            {loading ? (
+              <View style={styles.loadingSection}>
+                <ActivityIndicator color="#8B5CF6" />
+              </View>
+            ) : activityItems.length > 0 ? (
+              <View style={styles.activityList}>
+                {activityItems.map((item) => (
+                  <ActivityCard key={item.id} item={item} />
                 ))}
               </View>
-            </>
-          )}
+            ) : (
+              <EmptySectionState
+                title="No recent activity yet"
+                body="As you choose interests, add portfolio items, save programs, and build paths, your real activity will show up here."
+                cta="Explore"
+                onPress={() => router.push("/discover")}
+              />
+            )}
+          </View>
 
-          {/* Dev: Test Onboarding */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.testOnboardingBtn,
-              pressed && styles.testOnboardingBtnPressed,
-            ]}
-            onPress={() => router.push("/onboarding")}
-          >
-            <Text style={styles.testOnboardingText}>Test Onboarding</Text>
-          </Pressable>
-
-          {/* Sign out */}
           <Pressable
             style={({ pressed }) => [
               styles.signOutBtn,
@@ -654,17 +607,14 @@ export default function ProfileScreen() {
   );
 }
 
-// ------- Sub-Components -------
-
 function ScoreTimeline({ timeline }: { timeline: ScoreTimelineItem[] }) {
-  // Show last 7 data points max
   const recentTimeline = timeline.slice(-7);
   const maxScore = 100;
 
   return (
     <View style={styles.timelineWrapper}>
       <View style={styles.timelineChart}>
-        {recentTimeline.map((item, index) => {
+        {recentTimeline.map((item) => {
           const passionHeight = (item.passion / maxScore) * 100;
           const missionHeight = (item.mission / maxScore) * 100;
           const professionHeight = (item.profession / maxScore) * 100;
@@ -713,79 +663,151 @@ function ScoreTimeline({ timeline }: { timeline: ScoreTimelineItem[] }) {
         })}
       </View>
       <View style={styles.timelineLegend}>
-        <View style={styles.timelineLegendItem}>
-          <View style={[styles.timelineLegendDot, { backgroundColor: "#EF4444" }]} />
-          <Text style={styles.timelineLegendText}>Passion</Text>
-        </View>
-        <View style={styles.timelineLegendItem}>
-          <View style={[styles.timelineLegendDot, { backgroundColor: "#3B82F6" }]} />
-          <Text style={styles.timelineLegendText}>Mission</Text>
-        </View>
-        <View style={styles.timelineLegendItem}>
-          <View style={[styles.timelineLegendDot, { backgroundColor: "#10B981" }]} />
-          <Text style={styles.timelineLegendText}>Profession</Text>
-        </View>
-        <View style={styles.timelineLegendItem}>
-          <View style={[styles.timelineLegendDot, { backgroundColor: "#F59E0B" }]} />
-          <Text style={styles.timelineLegendText}>Vocation</Text>
-        </View>
+        <LegendDot color="#EF4444" label="Passion" />
+        <LegendDot color="#3B82F6" label="Mission" />
+        <LegendDot color="#10B981" label="Profession" />
+        <LegendDot color="#F59E0B" label="Vocation" />
       </View>
     </View>
   );
 }
 
-function VisionChip({
-  text,
-  type,
-}: {
-  text: string;
-  type: "career" | "interest";
-}) {
-  const isCareer = type === "career";
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <View style={styles.timelineLegendItem}>
+      <View style={[styles.timelineLegendDot, { backgroundColor: color }]} />
+      <Text style={styles.timelineLegendText}>{label}</Text>
+    </View>
+  );
+}
+
+function MetaPill({ label }: { label: string }) {
+  return (
+    <View style={styles.metaPill}>
+      <Text style={styles.metaPillText}>{label}</Text>
+    </View>
+  );
+}
+
+function FocusSectionCard({ section }: { section: ProfileFocusSection }) {
+  const primary = section.emphasis === "primary";
+
   return (
     <View
       style={[
-        styles.visionChip,
-        isCareer ? styles.visionChipCareer : styles.visionChipInterest,
+        styles.focusSection,
+        primary ? styles.focusSectionPrimary : styles.focusSectionSecondary,
       ]}
     >
       <Text
         style={[
-          styles.visionChipText,
-          isCareer
-            ? styles.visionChipTextCareer
-            : styles.visionChipTextInterest,
+          styles.focusSectionLabel,
+          primary
+            ? styles.focusSectionLabelPrimary
+            : styles.focusSectionLabelSecondary,
         ]}
       >
-        {text}
+        {section.title}
       </Text>
+      <View style={styles.focusChipWrap}>
+        {section.items.map((item) => (
+          <View
+            key={`${section.kind}-${item}`}
+            style={[
+              styles.focusChip,
+              primary ? styles.careerChip : styles.interestChip,
+            ]}
+          >
+            <Text
+              style={[
+                styles.focusChipText,
+                primary ? styles.careerChipText : styles.interestChipText,
+              ]}
+            >
+              {item}
+            </Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
 
-function StatBox({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={styles.statBox}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function IkigaiCell({
-  pillar,
+function EmptyHeroState({
+  title,
+  body,
+  cta,
+  onPress,
 }: {
-  pillar: {
-    score: number;
-    label: string;
-    emoji: string;
-    description: string;
-    insight: string;
-    route: string;
-  };
+  title: string;
+  body: string;
+  cta: string;
+  onPress: () => void;
 }) {
+  return (
+    <View style={styles.emptyHeroState}>
+      <Text style={styles.emptyHeroTitle}>{title}</Text>
+      <Text style={styles.emptyHeroBody}>{body}</Text>
+      <Pressable
+        style={({ pressed }) => [
+          styles.inlineCtaButton,
+          pressed && styles.inlineCtaButtonPressed,
+        ]}
+        onPress={onPress}
+      >
+        <Text style={styles.inlineCtaText}>{cta}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function EmptySectionState({
+  title,
+  body,
+  cta,
+  onPress,
+}: {
+  title: string;
+  body: string;
+  cta: string;
+  onPress: () => void;
+}) {
+  return (
+    <View style={styles.emptySectionState}>
+      <Text style={styles.emptySectionTitle}>{title}</Text>
+      <Text style={styles.emptySectionBody}>{body}</Text>
+      <Pressable
+        style={({ pressed }) => [
+          styles.inlineCtaButton,
+          pressed && styles.inlineCtaButtonPressed,
+        ]}
+        onPress={onPress}
+      >
+        <Text style={styles.inlineCtaText}>{cta}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function ActivityCard({ item }: { item: ProfileActivityItem }) {
+  return (
+    <View style={styles.activityCard}>
+      <Text style={styles.activityIcon}>{item.icon}</Text>
+      <View style={styles.activityBody}>
+        <Text style={styles.activityTitle}>{item.title}</Text>
+        {item.detail.length > 0 && (
+          <Text style={styles.activityDetail}>{item.detail}</Text>
+        )}
+      </View>
+      <Text style={styles.activityTime}>{formatActivityTime(item.created_at)}</Text>
+    </View>
+  );
+}
+
+function IkigaiCell({ pillar }: { pillar: IkigaiPillar }) {
   const pct = pillar.score;
   const fillColor = pct >= 75 ? "#10B981" : pct >= 50 ? "#8B5CF6" : "#F59E0B";
+
   return (
     <View style={styles.ikigaiCell}>
       <View style={styles.ikigaiCellHeader}>
@@ -806,7 +828,7 @@ function IkigaiCell({
         <View
           style={[
             styles.ikigaiBarFill,
-            { width: `${pct}%` as any, backgroundColor: fillColor },
+            { width: `${pct}%` as const, backgroundColor: fillColor },
           ]}
         />
       </View>
@@ -816,31 +838,11 @@ function IkigaiCell({
   );
 }
 
-function SkillBadge({
-  skill,
-}: {
-  skill: { name: string; level: string; category: string };
-}) {
-  const levelColor = SKILL_LEVEL_COLORS[skill.level] ?? "#6B7280";
-  return (
-    <View style={styles.skillBadge}>
-      <Text style={styles.skillBadgeName}>{skill.name}</Text>
-      <View style={[styles.skillLevelDot, { backgroundColor: levelColor }]} />
-      <Text style={[styles.skillBadgeLevel, { color: levelColor }]}>
-        {skill.level}
-      </Text>
-    </View>
-  );
-}
-
-// ------- Styles -------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: PageBg.default,
   },
-
-  // Guest State Styles - Career Simulator Design System
   guestContainer: {
     flex: 1,
     backgroundColor: PageBg.default,
@@ -861,13 +863,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: Border.default,
+    borderColor: "#CECECE",
   },
   guestIcon: {
     fontSize: 48,
   },
   guestTitle: {
     fontSize: 28,
+    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: "#111827",
     marginBottom: 32,
@@ -900,6 +903,7 @@ const styles = StyleSheet.create({
   guestBenefitText: {
     flex: 1,
     fontSize: 14,
+    fontFamily: "Orbit_400Regular",
     color: "#374151",
     lineHeight: 20,
   },
@@ -918,11 +922,13 @@ const styles = StyleSheet.create({
   },
   guestCtaBtnText: {
     fontSize: 16,
+    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: "#111827",
   },
   guestSecondaryText: {
     fontSize: 14,
+    fontFamily: "Orbit_400Regular",
     color: "#6B7280",
     textAlign: "center",
   },
@@ -940,90 +946,22 @@ const styles = StyleSheet.create({
   mainContent: {
     paddingBottom: 24,
   },
-
-  // Header
-  headerGradient: {
+  heroCard: {
     marginHorizontal: 16,
     marginTop: 56,
     marginBottom: 16,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    paddingTop: 32,
-    alignItems: "center",
-    position: "relative",
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 20,
     borderRadius: 32,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    width: "100%",
-  },
-  headerInfo: {
-    flex: 1,
-    alignItems: "flex-start",
-    gap: 4,
-  },
-  friendsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
-  },
-  friendsText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  avatarContainer: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
     shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 2,
-    borderColor: "rgba(139,92,246,0.15)",
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  name: {
-    fontSize: 26,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 6,
-  },
-  playerTitleBadge: {
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
-  },
-  playerTitleText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#8B5CF6",
-    letterSpacing: 0.3,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
+    gap: 16,
   },
   settingsBtn: {
     position: "absolute",
@@ -1036,116 +974,185 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#EEE",
     zIndex: 10,
   },
   settingsBtnPressed: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#F5F5F5",
   },
   settingsBtnText: {
     fontSize: 20,
   },
-  visionBoard: {
+  headerRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 8,
+    alignItems: "center",
+    gap: 16,
     width: "100%",
+    paddingRight: 52,
   },
-  visionChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    backgroundColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  visionChipCareer: {
-    borderColor: "rgba(16, 185, 129, 0.2)",
-    shadowColor: "rgba(16, 185, 129, 0.2)",
-  },
-  visionChipInterest: {
-    borderColor: "rgba(139, 92, 246, 0.2)",
-    shadowColor: "rgba(139, 92, 246, 0.2)",
-  },
-  visionChipText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
-  },
-  visionChipTextCareer: {
-    color: "#10B981",
-  },
-  visionChipTextInterest: {
-    color: "#8B5CF6",
-  },
-  viewInterestsBtn: {
-    marginTop: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: "#F3F4F6",
-  },
-  viewInterestsBtnPressed: {
-    backgroundColor: "#E5E7EB",
-  },
-  viewInterestsText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    color: "#4B5563",
-    fontWeight: "500",
-  },
-
-  // Loading
-  loadingSection: {
-    marginHorizontal: 24,
-    paddingVertical: 40,
-    alignItems: "center",
-  },
-
-  // Stats
-  statsRow: {
-    flexDirection: "row",
-    marginHorizontal: 16,
+  avatarContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: "#fff",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginBottom: 16,
-  },
-  statBox: {
-    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 18,
-    gap: 4,
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: "rgba(139,92,246,0.15)",
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: "#E5E7EB",
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
   },
-  statValue: {
-    fontSize: 22,
+  headerInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  name: {
+    fontSize: 28,
     fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: "#111827",
   },
-  statLabel: {
-    fontSize: 9,
+  heroSummary: {
+    fontSize: 14,
     fontFamily: "Orbit_400Regular",
-    fontWeight: "400",
-    color: "#9CA3AF",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    color: "#4B5563",
+    lineHeight: 20,
   },
-
-  // Generic Section
+  metaPillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  metaPill: {
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255,255,255,0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.18)",
+  },
+  metaPillText: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "500",
+    color: "#475569",
+  },
+  heroLoadingState: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  focusStack: {
+    gap: 12,
+  },
+  focusSection: {
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+  },
+  focusSectionPrimary: {
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    borderColor: "rgba(16, 185, 129, 0.18)",
+  },
+  focusSectionSecondary: {
+    backgroundColor: "rgba(139, 92, 246, 0.06)",
+    borderColor: "rgba(139, 92, 246, 0.14)",
+  },
+  focusSectionLabel: {
+    fontSize: 11,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  focusSectionLabelPrimary: {
+    color: "#0F766E",
+  },
+  focusSectionLabelSecondary: {
+    color: "#7C3AED",
+  },
+  focusChipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  focusChip: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  careerChip: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "rgba(16, 185, 129, 0.18)",
+    shadowColor: "rgba(16, 185, 129, 0.20)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  interestChip: {
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderColor: "rgba(139, 92, 246, 0.14)",
+  },
+  focusChipText: {
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+  },
+  careerChipText: {
+    fontSize: 14,
+    color: "#047857",
+  },
+  interestChipText: {
+    fontSize: 12,
+    color: "#6D28D9",
+  },
+  emptyHeroState: {
+    alignItems: "flex-start",
+    gap: 8,
+    paddingTop: 4,
+  },
+  emptyHeroTitle: {
+    fontSize: 18,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "700",
+    color: "#111827",
+  },
+  emptyHeroBody: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    color: "#4B5563",
+    lineHeight: 20,
+  },
+  inlineCtaButton: {
+    marginTop: 4,
+    borderRadius: 14,
+    backgroundColor: "#111827",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  inlineCtaButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  inlineCtaText: {
+    fontSize: 13,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
   sectionContainer: {
     marginHorizontal: 16,
     marginBottom: 16,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     borderWidth: 1,
     borderColor: "#E5E7EB",
@@ -1160,8 +1167,10 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-
-  // Ikigai Grid
+  loadingSection: {
+    paddingVertical: 32,
+    alignItems: "center",
+  },
   ikigaiGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1237,272 +1246,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: 6,
   },
-  insightCard: {
-    marginTop: 12,
-    backgroundColor: "rgba(139, 92, 246, 0.06)",
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.12)",
-  },
-  insightText: {
-    fontSize: 13,
-    fontFamily: "Orbit_400Regular",
-    color: "#4B5563",
-    lineHeight: 20,
-  },
-
-  // Skills
-  skillCategory: {
-    marginBottom: 14,
-  },
-  skillCategoryLabel: {
-    fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  skillsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  skillBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  skillBadgeName: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#374151",
-  },
-  skillLevelDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  skillBadgeLevel: {
-    fontSize: 10,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
-  },
-
-  // Action rows (Portfolio & TCAS)
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  actionRowPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.985 }],
-  },
-  actionRowEmoji: {
-    fontSize: 24,
-  },
-  actionRowContent: {
-    flex: 1,
-    gap: 2,
-  },
-  actionRowTitle: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111827",
-  },
-  actionRowSubtitle: {
-    fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    color: "#9CA3AF",
-  },
-  actionRowArrow: {
-    fontSize: 20,
-    color: "#9CA3AF",
-    marginLeft: 4,
-  },
-
-  // Education
-  statementsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  statementChip: {
-    backgroundColor: "#F0F8E8",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  statementChipText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    color: "#374151",
-  },
-
-  // Achievements & Activity Feed
-  achievementCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  achievementCardSocial: {
-    backgroundColor: "rgba(59, 130, 246, 0.04)",
-    borderColor: "rgba(59, 130, 246, 0.1)",
-  },
-  achievementIcon: {
-    fontSize: 22,
-  },
-  achievementBody: {
-    flex: 1,
-    gap: 2,
-  },
-  achievementText: {
-    fontSize: 13,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
-    color: "#374151",
-    lineHeight: 18,
-  },
-  achievementTime: {
-    fontSize: 11,
-    fontFamily: "Orbit_400Regular",
-    color: "#9CA3AF",
-  },
-
-  // Footer
-  testOnboardingBtn: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
-  },
-  testOnboardingBtnPressed: {
-    backgroundColor: "#F3F4F6",
-  },
-  testOnboardingText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
-    color: "#6B7280",
-  },
-  signOutBtn: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  signOutBtnPressed: {
-    backgroundColor: "#F9FAFB",
-  },
-  signOutText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "500",
-    color: "#9CA3AF",
-  },
-  signOutTextPressed: {
-    color: "#6B7280",
-  },
-  versionContainer: {
-    marginTop: "auto",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingBottom: 8,
-  },
-  versionText: {
-    fontSize: 12,
-    fontFamily: "Orbit_400Regular",
-    color: "#D1D5DB",
-    letterSpacing: 0.2,
-  },
-
-  // Scores Loading
-  scoresLoadingContainer: {
-    alignItems: "center",
-    paddingVertical: 40,
-    gap: 12,
-  },
-  scoresLoadingText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    color: "#6B7280",
-  },
-
-  // Empty Scores State
-  emptyScoresContainer: {
-    alignItems: "center",
-    paddingVertical: 32,
-    paddingHorizontal: 16,
-  },
-  emptyScoresEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyScoresTitle: {
-    fontSize: 20,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  emptyScoresText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    color: "#6B7280",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  exploreSeedsBtn: {
-    backgroundColor: Accent.yellow,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  exploreSeedsBtnPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  exploreSeedsBtnText: {
-    fontSize: 14,
-    fontFamily: "Orbit_400Regular",
-    fontWeight: "600",
-    color: "#111827",
-  },
-
-  // Score Timeline
   timelineContainer: {
     marginTop: 20,
     marginBottom: 12,
@@ -1565,6 +1308,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 12,
     marginTop: 8,
+    flexWrap: "wrap",
   },
   timelineLegendItem: {
     flexDirection: "row",
@@ -1580,5 +1324,197 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: "Orbit_400Regular",
     color: "#6B7280",
+  },
+  insightCard: {
+    marginTop: 12,
+    backgroundColor: "rgba(139, 92, 246, 0.06)",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.12)",
+  },
+  insightText: {
+    fontSize: 13,
+    fontFamily: "Orbit_400Regular",
+    color: "#4B5563",
+    lineHeight: 20,
+  },
+  scoresLoadingContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+    gap: 12,
+  },
+  scoresLoadingText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    color: "#6B7280",
+  },
+  emptyScoresContainer: {
+    alignItems: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+  },
+  emptyScoresEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyScoresTitle: {
+    fontSize: 20,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  emptyScoresText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  exploreSeedsBtn: {
+    backgroundColor: Accent.yellow,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  exploreSeedsBtnPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  exploreSeedsBtnText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#111827",
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  actionRowPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.985 }],
+  },
+  actionRowEmoji: {
+    fontSize: 24,
+  },
+  actionRowContent: {
+    flex: 1,
+    gap: 2,
+  },
+  actionRowTitle: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#111827",
+  },
+  actionRowSubtitle: {
+    fontSize: 11,
+    fontFamily: "Orbit_400Regular",
+    color: "#9CA3AF",
+    lineHeight: 16,
+  },
+  actionRowArrow: {
+    fontSize: 20,
+    color: "#9CA3AF",
+    marginLeft: 4,
+  },
+  activityList: {
+    gap: 10,
+  },
+  activityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  activityIcon: {
+    fontSize: 22,
+  },
+  activityBody: {
+    flex: 1,
+    gap: 3,
+  },
+  activityTitle: {
+    fontSize: 13,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "600",
+    color: "#374151",
+  },
+  activityDetail: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#6B7280",
+    lineHeight: 18,
+  },
+  activityTime: {
+    fontSize: 11,
+    fontFamily: "Orbit_400Regular",
+    color: "#9CA3AF",
+  },
+  emptySectionState: {
+    alignItems: "flex-start",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  emptySectionTitle: {
+    fontSize: 18,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "700",
+    color: "#111827",
+  },
+  emptySectionBody: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    color: "#6B7280",
+    lineHeight: 20,
+  },
+  signOutBtn: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  signOutBtnPressed: {
+    backgroundColor: "#F9FAFB",
+  },
+  signOutText: {
+    fontSize: 14,
+    fontFamily: "Orbit_400Regular",
+    fontWeight: "500",
+    color: "#9CA3AF",
+  },
+  signOutTextPressed: {
+    color: "#6B7280",
+  },
+  versionContainer: {
+    marginTop: "auto",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+  versionText: {
+    fontSize: 12,
+    fontFamily: "Orbit_400Regular",
+    color: "#D1D5DB",
+    letterSpacing: 0.2,
   },
 });
