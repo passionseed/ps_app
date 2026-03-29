@@ -6,10 +6,10 @@ module.exports = {
     slug: "passion-seed",
     version: "1.0.3",
     orientation: "portrait",
-    icon: "./assets/icon.png",
+    icon: "./assets/passionseed-logo-1024.png",
     userInterfaceStyle: "light",
     splash: {
-      image: "./assets/splash-icon.png",
+      image: "./assets/passionseed-logo-1024.png",
       resizeMode: "contain",
       backgroundColor: "#F3F4F6",
     },
