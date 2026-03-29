@@ -16,10 +16,16 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth";
 import { getProfile } from "../../lib/onboarding";
-import { getAvailableSeeds } from "../../lib/pathlab";
+import { getAvailableSeeds, getRecommendedSeeds } from "../../lib/pathlab";
 import { supabase } from "../../lib/supabase";
 import type { SeedWithEnrollment } from "../../types/seeds";
 import { AppText as Text } from "../../components/AppText";
+import {
+  buildFallbackRecommendations,
+  buildSeedRecommendationSections,
+  type SeedRecommendation,
+  type SeedRecommendationsPayload,
+} from "../../lib/seedRecommendations";
 import {
   PageBg,
   Text as ThemeText,
@@ -145,6 +151,8 @@ const SAMPLE_SEEDS: Partial<SeedWithEnrollment>[] = [
 
 export default function DiscoverScreen() {
   const [seeds, setSeeds] = useState<SeedWithEnrollment[]>([]);
+  const [recommendations, setRecommendations] =
+    useState<SeedRecommendationsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -206,20 +214,28 @@ export default function DiscoverScreen() {
           });
 
           setSeeds(enrichedSeeds);
+          if (!isGuest && user?.id) {
+            setRecommendations(await getRecommendedSeeds());
+          } else {
+            setRecommendations(buildFallbackRecommendations(enrichedSeeds));
+          }
         } else {
           setSeeds(data);
+          setRecommendations(buildFallbackRecommendations(data));
         }
       } else {
         setSeeds(data || []);
+        setRecommendations(buildFallbackRecommendations(data || []));
       }
     } catch (error) {
       console.error("[Discover] Failed to load seeds:", error);
       setSeeds([]);
+      setRecommendations(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.id]);
+  }, [isGuest, user?.id]);
 
   // Force loading to false after timeout as failsafe
   useEffect(() => {
@@ -329,17 +345,20 @@ export default function DiscoverScreen() {
     setInlineSearchMode(false);
   }, []);
 
-  // Use database seeds if available, otherwise fallback to sample data
-  const displaySeeds = seeds.length > 0 ? seeds : SAMPLE_SEEDS as SeedWithEnrollment[];
+  const fallbackPayload = buildFallbackRecommendations(
+    seeds.length > 0
+      ? seeds
+      : (SAMPLE_SEEDS as SeedWithEnrollment[]),
+  );
+  const displayRecommendations = recommendations ?? fallbackPayload;
+  const filteredRecommendations = displayRecommendations.seeds.filter((seed) => {
+    if (!searchQuery.trim()) return true;
 
-  // Create a specialized set for "Continue your path" - only enrolled paths
-  const enrolledPaths = displaySeeds.filter(s => s.enrollment && s.enrollment.status === 'active');
-
-  // Split remaining seeds into sections
-  const unenrolledSeeds = displaySeeds.filter(s => !s.enrollment || s.enrollment.status !== 'active');
-  const youMustLike = unenrolledSeeds.slice(0, 5);
-  const maybeULike = unenrolledSeeds.slice(5, 10);
-  const notForYou = unenrolledSeeds.slice(10, 13);
+    const haystack =
+      `${seed.title} ${seed.slogan ?? ""} ${seed.description ?? ""}`.toLowerCase();
+    return haystack.includes(searchQuery.trim().toLowerCase());
+  });
+  const sections = buildSeedRecommendationSections(filteredRecommendations);
 
   if (loading) {
     return (
@@ -422,29 +441,33 @@ export default function DiscoverScreen() {
         </View>
 
         {/* Seeds Sections */}
+        <CoverageSummaryCard
+          coverage={displayRecommendations.coverage}
+          source={displayRecommendations.source}
+          isThai={isThai}
+        />
+
         {/* Continue Your Path Section */}
-        {enrolledPaths.length > 0 && (
+        {sections.continue.length > 0 && (
           <ProgressSection
             title={isThai ? "▶️ ทำต่อจากที่ค้างไว้" : "▶️ continue your path"}
-            seeds={enrolledPaths}
+            seeds={sections.continue}
           />
         )}
-        {/* You Must Like */}
+
         <SeedSection
-          title={isThai ? "🌟 คุณต้องชอบแน่ๆ" : "🌟 you must like"}
-          seeds={youMustLike}
+          title={isThai ? "🌟 แนะนำสำหรับคุณ" : "🌟 recommended for you"}
+          seeds={sections.recommended}
         />
 
-        {/* Maybe U Like */}
         <SeedSection
-          title={isThai ? "💡 คุณอาจจะชอบ" : "💡 maybe u like"}
-          seeds={maybeULike}
+          title={isThai ? "💡 สำรวจเพิ่ม" : "💡 explore more"}
+          seeds={sections.exploreMore}
         />
 
-        {/* Not For You At All */}
         <SeedSection
-          title={isThai ? "🙅‍♀️ ไม่เหมาะกับคุณเลย" : "🙅‍♀️ not for you at all"}
-          seeds={notForYou}
+          title={isThai ? "🗂️ เก็บไว้ก่อน" : "🗂️ lower priority"}
+          seeds={sections.deprioritized}
         />
 
         {/* TCAS Programs Section */}
@@ -593,8 +616,10 @@ function SeedSection({
   seeds,
 }: {
   title: string;
-  seeds: SeedWithEnrollment[];
+  seeds: SeedRecommendation[];
 }) {
+  if (seeds.length === 0) return null;
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -628,7 +653,7 @@ function ProgressSection({
   seeds,
 }: {
   title: string;
-  seeds: SeedWithEnrollment[];
+  seeds: SeedRecommendation[];
 }) {
   return (
     <View style={styles.section}>
@@ -667,7 +692,7 @@ function ProgressSeedCard({
   doneToday,
   onPress,
 }: {
-  seed: SeedWithEnrollment;
+  seed: SeedRecommendation;
   progress: number;
   index: number;
   doneToday?: boolean;
@@ -745,7 +770,7 @@ function CompactSeedCard({
   index,
   onPress,
 }: {
-  seed: SeedWithEnrollment;
+  seed: SeedRecommendation;
   index: number;
   onPress: () => void;
 }) {
@@ -795,6 +820,60 @@ function CompactSeedCard({
           )}
         </LinearGradient>
       </Pressable>
+    </View>
+  );
+}
+
+function CoverageSummaryCard({
+  coverage,
+  source,
+  isThai,
+}: {
+  coverage: SeedRecommendationsPayload["coverage"];
+  source: SeedRecommendationsPayload["source"];
+  isThai: boolean;
+}) {
+  const title = isThai ? "ความครอบคลุมการสำรวจ" : "exploration coverage";
+  const subtitle =
+    source === "cache"
+      ? isThai
+        ? "แสดงจากแคชและจะรีเฟรชเมื่อออนไลน์"
+        : "Showing cached results and refreshing when online"
+      : source === "fallback"
+        ? isThai
+          ? "กำลังใช้รายการสำรอง"
+          : "Using fallback ranking"
+        : isThai
+          ? "อัปเดตล่าสุดจากระบบแนะนำ"
+          : "Updated from the recommendation service";
+
+  return (
+    <View style={styles.coverageCard}>
+      <View style={styles.coverageHeader}>
+        <Text style={styles.coverageTitle}>{title}</Text>
+        <Text style={styles.coveragePercent}>{coverage.completionPercent}%</Text>
+      </View>
+      <Text style={styles.coverageSubtitle}>{subtitle}</Text>
+      <View style={styles.coverageBarTrack}>
+        <View
+          style={[
+            styles.coverageBarFill,
+            { width: `${Math.max(6, coverage.completionPercent)}%` },
+          ]}
+        />
+      </View>
+      <View style={styles.coverageStats}>
+        <Text style={styles.coverageStat}>
+          {isThai ? "กำลังทำ" : "active"} {coverage.activeCount}
+        </Text>
+        <Text style={styles.coverageStat}>
+          {isThai ? "สำรวจแล้ว" : "explored"} {coverage.exploredCount}/
+          {coverage.totalCount}
+        </Text>
+        <Text style={styles.coverageStat}>
+          {isThai ? "จบแล้ว" : "completed"} {coverage.completedCount}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -952,6 +1031,57 @@ const styles = StyleSheet.create({
   // Sections
   section: {
     gap: Space.md,
+  },
+  coverageCard: {
+    marginHorizontal: Space["2xl"],
+    marginTop: Space.sm,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Border.default,
+    padding: Space.lg,
+    gap: Space.sm,
+    ...Shadow.neutral,
+  },
+  coverageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Space.md,
+  },
+  coverageTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: ThemeText.primary,
+  },
+  coveragePercent: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Accent.green,
+  },
+  coverageSubtitle: {
+    fontSize: 12,
+    color: ThemeText.tertiary,
+  },
+  coverageBarTrack: {
+    height: 10,
+    borderRadius: Radius.full,
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    overflow: "hidden",
+  },
+  coverageBarFill: {
+    height: "100%",
+    borderRadius: Radius.full,
+    backgroundColor: Accent.green,
+  },
+  coverageStats: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Space.md,
+  },
+  coverageStat: {
+    fontSize: 12,
+    color: ThemeText.secondary,
   },
   sectionTitle: {
     fontSize: Type.label.fontSize,

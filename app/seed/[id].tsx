@@ -18,6 +18,7 @@ import { useAuth } from "../../lib/auth";
 import {
   getSeedById,
   getPathBySeedId,
+  getRecommendedSeeds,
   getUserEnrollment,
   enrollInPath,
   getPathDays,
@@ -28,6 +29,7 @@ import {
 import { warmPathDayBundle } from "../../lib/pathlabSession";
 import type { Seed } from "../../types/seeds";
 import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
+import type { SeedRecommendation } from "../../lib/seedRecommendations";
 
 export default function SeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,6 +41,7 @@ export default function SeedDetailScreen() {
   const [enrollment, setEnrollment] = useState<PathEnrollment | null>(null);
   const [pathDays, setPathDays] = useState<Pick<PathDay, "day_number" | "title">[]>([]);
   const [expert, setExpert] = useState<ExpertInfo | null>(null);
+  const [recommendation, setRecommendation] = useState<SeedRecommendation | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -99,11 +102,12 @@ export default function SeedDetailScreen() {
     try {
       console.log("[SeedDetail] Loading seed:", id);
 
-      // Round 1: load seed, expert, and path in parallel — all only need `id`
-      const [seedData, expertData, pathData] = await Promise.all([
+      // Round 1: load seed, expert, path, and recommendation snapshot in parallel.
+      const [seedData, expertData, pathData, recommendationPayload] = await Promise.all([
         getSeedById(id),
         getExpertForSeed(id),
         getPathBySeedId(id),
+        getRecommendedSeeds().catch(() => null),
       ]);
 
       console.log("[SeedDetail] Seed loaded:", seedData?.title);
@@ -112,6 +116,9 @@ export default function SeedDetailScreen() {
       setExpert(expertData);
       console.log("[SeedDetail] Path loaded:", pathData?.id);
       setPath(pathData);
+      setRecommendation(
+        recommendationPayload?.seeds.find((item) => item.id === id) ?? null,
+      );
 
       if (!seedData) {
         setLoading(false);
@@ -359,6 +366,38 @@ export default function SeedDetailScreen() {
           </View>
         )}
 
+        {recommendation && recommendation.reasons.length > 0 && (
+          <View style={s.card}>
+            <AppText variant="bold" style={s.cardTitle}>
+              {guestLanguage === "th"
+                ? "🌟 ทำไมเส้นทางนี้ถึงแนะนำ"
+                : "🌟 Why this path is recommended"}
+            </AppText>
+            <View style={s.recommendationMetaRow}>
+              <AppText style={s.recommendationScore}>
+                #{recommendation.bucket === "continue" ? "Now" : Math.max(1, recommendation.recommendationScore)}
+              </AppText>
+              <AppText style={s.recommendationMetaText}>
+                {guestLanguage === "th"
+                  ? "อิงจากความสนใจ เป้าหมาย และการสำรวจที่ผ่านมา"
+                  : "Based on your interests, goals, and exploration history"}
+              </AppText>
+            </View>
+            <View style={s.recommendationReasonList}>
+              {recommendation.reasons.map((reason) => (
+                <View key={reason.code} style={s.recommendationReasonItem}>
+                  <AppText variant="bold" style={s.recommendationReasonLabel}>
+                    {reason.label}
+                  </AppText>
+                  <AppText style={s.recommendationReasonDetail}>
+                    {reason.detail}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Path Days */}
         {pathDays.length > 0 && (
           <View style={s.card}>
@@ -572,6 +611,45 @@ const s = StyleSheet.create({
     fontSize: 14,
     color: "#374151",
     lineHeight: 22,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  recommendationMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  recommendationScore: {
+    fontSize: 12,
+    color: "#047857",
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  recommendationMetaText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#6B7280",
+    lineHeight: 18,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  recommendationReasonList: {
+    gap: 10,
+  },
+  recommendationReasonItem: {
+    gap: 2,
+  },
+  recommendationReasonLabel: {
+    fontSize: 13,
+    color: "#111827",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  recommendationReasonDetail: {
+    fontSize: 13,
+    color: "#4B5563",
+    lineHeight: 20,
     fontFamily: "BaiJamjuree_400Regular",
   },
 

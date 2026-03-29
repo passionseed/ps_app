@@ -4,10 +4,10 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
+import { AnimatedSplash } from "../components/AnimatedSplash";
 import {
   getEnrollmentDayBundle,
   updateActivityProgress,
@@ -154,11 +154,7 @@ export default function DailyPathScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#BFFF00" />
-      </View>
-    );
+    return <AnimatedSplash />;
   }
 
   if (!enrollment || !pathDay) {
@@ -378,12 +374,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: PageBg.default,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: PageBg.default,
-    justifyContent: "center",
-    alignItems: "center",
   },
   errorContainer: {
     flex: 1,
