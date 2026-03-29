@@ -4,7 +4,7 @@ module.exports = {
     name: `Passion Seed${process.env.APP_NAME_SUFFIX || ""}`,
     scheme: "passion-seed",
     slug: "passion-seed",
-    version: "1.0.2",
+    version: "1.0.3",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
