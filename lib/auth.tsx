@@ -117,7 +117,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useState<GuestLanguage>("th");
 
   useEffect(() => {
-    Promise.all([supabase.auth.getSession(), readGuestLanguage()])
+    const timeoutPromise = new Promise<null>((resolve) =>
+      setTimeout(() => {
+        console.warn("[Auth] getSession timed out after 3s — proceeding without stored session");
+        resolve(null);
+      }, 3000)
+    );
+
+    Promise.all([
+      Promise.race([supabase.auth.getSession(), timeoutPromise.then(() => ({ data: { session: null } }))]),
+      readGuestLanguage(),
+    ])
       .then(([{ data: { session } }, language]) => {
         setSession(session);
         setGuestLanguageState(language);
@@ -152,13 +162,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     provider: "google" | "apple",
     redirectTo: string
   ) => {
+    console.log("[Auth] signInWithOAuth start", { provider, redirectTo });
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo, skipBrowserRedirect: true },
     });
 
+    console.log("[Auth] signInWithOAuth result", { url: data?.url, error: error?.message });
     if (error) throw error;
 
+    console.log("[Auth] Opening browser:", data.url);
     const result = await WebBrowser.openAuthSessionAsync(data.url!, redirectTo, {
       showInRecents: true,
     });

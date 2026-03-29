@@ -13,11 +13,14 @@ import type {
 // ── Profile ──────────────────────────────────────────────────────────────────
 
 export async function getProfile(userId: string): Promise<Profile | null> {
+  console.log('[getProfile] Starting query for userId:', userId)
+  const t0 = Date.now()
   const { data, error } = await supabase
     .from('profiles')
     .select('id, full_name, email, avatar_url, education_level, preferred_language, school_name, is_onboarded, onboarded_at, mobile_settings')
     .eq('id', userId)
     .single()
+  console.log('[getProfile] Query done in', Date.now() - t0, 'ms — error:', error?.message ?? null)
 
   if (error) return null
   return data as Profile

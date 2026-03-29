@@ -1,5 +1,54 @@
 // PathLab API functions for mobile app
 import { supabase } from "./supabase";
+
+// ============ Activity Cache ============
+// Short-lived cache so navigating from path screen → activity screen
+// doesn't re-fetch data that was just loaded. Expires after 30s.
+interface ActivityCacheEntry {
+  activities: PathActivityWithContent[];
+  pathDayId: string;
+  enrollmentId: string;
+  ts: number;
+}
+let _activityCache: ActivityCacheEntry | null = null;
+const CACHE_TTL_MS = 30_000;
+
+export function setCachedActivities(
+  pathDayId: string,
+  enrollmentId: string,
+  activities: PathActivityWithContent[]
+) {
+  _activityCache = { activities, pathDayId, enrollmentId, ts: Date.now() };
+}
+
+export function getCachedActivity(
+  activityId: string,
+  enrollmentId: string
+): PathActivityWithContent | null {
+  if (!_activityCache) return null;
+  if (_activityCache.enrollmentId !== enrollmentId) return null;
+  if (Date.now() - _activityCache.ts > CACHE_TTL_MS) {
+    _activityCache = null;
+    return null;
+  }
+  return _activityCache.activities.find(a => a.id === activityId) ?? null;
+}
+
+export function getCachedDayActivities(
+  enrollmentId: string
+): PathActivityWithContent[] | null {
+  if (!_activityCache) return null;
+  if (_activityCache.enrollmentId !== enrollmentId) return null;
+  if (Date.now() - _activityCache.ts > CACHE_TTL_MS) {
+    _activityCache = null;
+    return null;
+  }
+  return _activityCache.activities;
+}
+
+export function invalidateActivityCache() {
+  _activityCache = null;
+}
 import type { Seed, SeedWithEnrollment, SeedNpcAvatar } from "../types/seeds";
 import type {
   Path,
@@ -456,9 +505,11 @@ export async function getPathDayActivities(
 
     const progress: PathActivityProgress[] = progressData || [];
 
+    // Only fetch quiz questions for quiz-type assessments
     let quizQuestions: PathQuizQuestion[] = [];
-    if (assessments && assessments.length > 0) {
-      const assessmentIds = assessments.map(a => a.id);
+    const quizAssessments = (assessments || []).filter(a => a.assessment_type === 'quiz');
+    if (quizAssessments.length > 0) {
+      const assessmentIds = quizAssessments.map(a => a.id);
       const { data: questions, error: questionsError } = await supabase
         .from("path_quiz_questions")
         .select("*")
