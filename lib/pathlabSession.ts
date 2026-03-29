@@ -1,6 +1,7 @@
 import type { PathDay } from "../types/pathlab";
 import type { PathActivityWithContent } from "../types/pathlab-content";
 import type { EnrollmentWithPath, PathDayBundle } from "./pathlab";
+import { writeCachedPathDayBundle } from "./seedRecommendations";
 
 interface CachedActivityPayload {
   activity: PathActivityWithContent;
@@ -30,6 +31,7 @@ export function warmPathDayBundle(
   };
 
   dayBundleCache.set(enrollmentId, dayBundle);
+  void writeCachedPathDayBundle(enrollmentId, dayBundle);
 
   const dayActivitiesList = bundle.activities.map((activity) => ({
     id: activity.id,

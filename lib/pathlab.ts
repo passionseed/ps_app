@@ -68,6 +68,14 @@ import type {
   PathActivityProgress,
   PathAssessmentSubmission,
 } from "../types/pathlab-content";
+import {
+  buildFallbackRecommendations,
+  readCachedPathDayBundle,
+  readCachedSeedRecommendations,
+  type SeedRecommendationsPayload,
+  writeCachedPathDayBundle,
+  writeCachedSeedRecommendations,
+} from "./seedRecommendations";
 
 export type EnrollmentWithPath = PathEnrollment & {
   path: {
@@ -412,37 +420,54 @@ export async function getPathDay(pathId: string, dayNumber: number): Promise<Pat
 export async function getEnrollmentDayBundle(
   enrollmentId: string
 ): Promise<PathDayBundle | null> {
-  return withSupabaseRetry(async () => {
-    const { data: enrollmentData, error: enrollError } = await supabase
-      .from("path_enrollments")
-      .select(`
-        *,
-        path:paths(
-          id,
-          total_days,
-          seed:seeds(id, title)
-        )
-      `)
-      .eq("id", enrollmentId)
-      .single();
+  try {
+    const bundle = await withSupabaseRetry(async () => {
+      const { data: enrollmentData, error: enrollError } = await supabase
+        .from("path_enrollments")
+        .select(`
+          *,
+          path:paths(
+            id,
+            total_days,
+            seed:seeds(id, title)
+          )
+        `)
+        .eq("id", enrollmentId)
+        .single();
 
-    if (enrollError) throw enrollError;
-    if (!enrollmentData) return null;
-    if (!enrollmentData.path_id || !enrollmentData.current_day || enrollmentData.current_day < 1) {
-      throw new Error("Enrollment is missing path_id or current_day");
+      if (enrollError) throw enrollError;
+      if (!enrollmentData) return null;
+      if (!enrollmentData.path_id || !enrollmentData.current_day || enrollmentData.current_day < 1) {
+        throw new Error("Enrollment is missing path_id or current_day");
+      }
+
+      const pathDay = await getPathDay(enrollmentData.path_id, enrollmentData.current_day);
+      if (!pathDay) return null;
+
+      const activities = await getPathDayActivities(pathDay.id, enrollmentId);
+
+      return {
+        enrollment: enrollmentData as EnrollmentWithPath,
+        pathDay,
+        activities,
+      };
+    }, "Unable to load your current day");
+
+    if (bundle) {
+      await writeCachedPathDayBundle(enrollmentId, {
+        ...bundle,
+        loadedAt: Date.now(),
+      });
     }
 
-    const pathDay = await getPathDay(enrollmentData.path_id, enrollmentData.current_day);
-    if (!pathDay) return null;
-
-    const activities = await getPathDayActivities(pathDay.id, enrollmentId);
-
-    return {
-      enrollment: enrollmentData as EnrollmentWithPath,
-      pathDay,
-      activities,
-    };
-  }, "Unable to load your current day");
+    return bundle;
+  } catch (error) {
+    const cached = await readCachedPathDayBundle(enrollmentId);
+    if (cached) {
+      return cached;
+    }
+    throw error;
+  }
 }
 
 export async function getPathDays(pathId: string): Promise<Pick<PathDay, "day_number" | "title">[]> {
@@ -891,4 +916,34 @@ export async function getUserCompletedEnrollments() {
       seed: seeds?.find(s => s.id === paths.find(p => p.id === enrollment.path_id)?.seed_id),
     },
   }));
+}
+
+export async function getRecommendedSeeds(options?: {
+  forceRefresh?: boolean;
+}): Promise<SeedRecommendationsPayload> {
+  try {
+    const { data, error } = await supabase.functions.invoke("seed-recommendations", {
+      body: {
+        force_refresh: options?.forceRefresh ?? false,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    await writeCachedSeedRecommendations(data as SeedRecommendationsPayload);
+    return data as SeedRecommendationsPayload;
+  } catch (error) {
+    const cached = await readCachedSeedRecommendations();
+    if (cached) {
+      return {
+        ...cached,
+        source: "cache",
+      };
+    }
+
+    const availableSeeds = await getAvailableSeeds();
+    return buildFallbackRecommendations(availableSeeds);
+  }
 }
