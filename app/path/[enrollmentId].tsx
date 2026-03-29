@@ -68,11 +68,6 @@ export default function DailyPathScreen() {
       });
 
       setEnrollment(enrollmentData as EnrollmentWithPath);
-      console.log("📅 Fetching path day for:", {
-        path_id: enrollmentData.path_id,
-        current_day: enrollmentData.current_day,
-      });
-
       console.log("📦 Path day data received:", JSON.stringify(dayData, null, 2));
       setPathDay(dayData);
       console.log("📚 Fetching activities for path_day_id:", dayData.id);

@@ -1,6 +1,6 @@
 # Career Simulator — Design Guidelines
 
-This document serves as the canonical reference for the visual design tokens, layout mathematics, and restrained premium glass styling established in the `Career Simulator` redesign.
+This document serves as the canonical reference for the visual design tokens, layout mathematics, and restrained premium glass styling established in the `Career Simulator` redesign.s
 
 ## 1. Global Themes & Colors
 
