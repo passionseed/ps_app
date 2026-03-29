@@ -1,5 +1,54 @@
 // PathLab API functions for mobile app
 import { supabase } from "./supabase";
+
+// ============ Activity Cache ============
+// Short-lived cache so navigating from path screen → activity screen
+// doesn't re-fetch data that was just loaded. Expires after 30s.
+interface ActivityCacheEntry {
+  activities: PathActivityWithContent[];
+  pathDayId: string;
+  enrollmentId: string;
+  ts: number;
+}
+let _activityCache: ActivityCacheEntry | null = null;
+const CACHE_TTL_MS = 30_000;
+
+export function setCachedActivities(
+  pathDayId: string,
+  enrollmentId: string,
+  activities: PathActivityWithContent[]
+) {
+  _activityCache = { activities, pathDayId, enrollmentId, ts: Date.now() };
+}
+
+export function getCachedActivity(
+  activityId: string,
+  enrollmentId: string
+): PathActivityWithContent | null {
+  if (!_activityCache) return null;
+  if (_activityCache.enrollmentId !== enrollmentId) return null;
+  if (Date.now() - _activityCache.ts > CACHE_TTL_MS) {
+    _activityCache = null;
+    return null;
+  }
+  return _activityCache.activities.find(a => a.id === activityId) ?? null;
+}
+
+export function getCachedDayActivities(
+  enrollmentId: string
+): PathActivityWithContent[] | null {
+  if (!_activityCache) return null;
+  if (_activityCache.enrollmentId !== enrollmentId) return null;
+  if (Date.now() - _activityCache.ts > CACHE_TTL_MS) {
+    _activityCache = null;
+    return null;
+  }
+  return _activityCache.activities;
+}
+
+export function invalidateActivityCache() {
+  _activityCache = null;
+}
 import type { Seed, SeedWithEnrollment, SeedNpcAvatar } from "../types/seeds";
 import type {
   Path,
@@ -283,62 +332,99 @@ export async function getPathDayActivities(
   pathDayId: string,
   enrollmentId?: string
 ): Promise<PathActivityWithContent[]> {
+  const t0 = Date.now();
+  console.log(`[PERF] getPathDayActivities START pathDayId=${pathDayId}`);
+
   // Get activities
+  const t1 = Date.now();
   const { data: activities, error: activitiesError } = await supabase
     .from("path_activities")
     .select("*")
     .eq("path_day_id", pathDayId)
     .eq("is_draft", false)
     .order("display_order", { ascending: true });
+  console.log(`[PERF] path_activities query: ${Date.now() - t1}ms — ${activities?.length ?? 0} rows, error=${activitiesError?.message}`);
 
   if (activitiesError) throw new Error(activitiesError.message);
   if (!activities || activities.length === 0) return [];
 
   const activityIds = activities.map(a => a.id);
 
-  // Fetch content, assessments, and progress in parallel (all independent of each other)
+  // Fetch content, assessments, and progress in parallel — timed individually
+  const t2 = Date.now();
+  const time = (label: string, start: number) =>
+    console.log(`[PERF]   ${label}: ${Date.now() - start}ms`);
+
   const [
-    { data: content },
-    { data: assessments },
-    { data: progressData },
+    { data: content, error: contentError },
+    { data: assessments, error: assessmentsError },
+    { data: progressData, error: progressError },
   ] = await Promise.all([
-    supabase
-      .from("path_content")
-      .select("*")
-      .in("activity_id", activityIds)
-      .order("display_order", { ascending: true }),
-    supabase
-      .from("path_assessments")
-      .select("*")
-      .in("activity_id", activityIds),
+    (async () => {
+      const ts = Date.now();
+      const r = await supabase
+        .from("path_content")
+        .select("*")
+        .in("activity_id", activityIds)
+        .order("display_order", { ascending: true });
+      const sizes = (r.data || []).map(row => ({
+        id: row.id,
+        type: row.content_type,
+        body_bytes: row.content_body ? JSON.stringify(row.content_body).length : 0,
+      }));
+      time(`path_content (${r.data?.length ?? 0} rows, err=${r.error?.message}, sizes=${JSON.stringify(sizes)})`, ts);
+      return r;
+    })(),
+    (async () => {
+      const ts = Date.now();
+      const r = await supabase
+        .from("path_assessments")
+        .select("*")
+        .in("activity_id", activityIds);
+      time(`path_assessments (${r.data?.length ?? 0} rows, err=${r.error?.message})`, ts);
+      return r;
+    })(),
     enrollmentId
-      ? supabase
-          .from("path_activity_progress")
-          .select("*")
-          .eq("enrollment_id", enrollmentId)
-          .in("activity_id", activityIds)
-      : Promise.resolve({ data: [] as PathActivityProgress[] }),
+      ? (async () => {
+          const ts = Date.now();
+          const r = await supabase
+            .from("path_activity_progress")
+            .select("*")
+            .eq("enrollment_id", enrollmentId)
+            .in("activity_id", activityIds);
+          time(`path_activity_progress (${r.data?.length ?? 0} rows, err=${r.error?.message})`, ts);
+          return r;
+        })()
+      : Promise.resolve({ data: [] as PathActivityProgress[], error: null }),
   ]);
+  console.log(`[PERF] parallel fetch total: ${Date.now() - t2}ms`);
 
   const progress: PathActivityProgress[] = progressData || [];
 
-  // Get quiz questions if there are any quiz assessments (depends on assessments result)
+  // Get quiz questions — only if there are actual quiz-type assessments
+  // (text_answer, file_upload, image_upload have no quiz questions — skip the fetch)
   let quizQuestions: PathQuizQuestion[] = [];
-  if (assessments && assessments.length > 0) {
-    const assessmentIds = assessments.map(a => a.id);
-    const { data: questions } = await supabase
+  const quizAssessments = (assessments || []).filter(a => a.assessment_type === 'quiz');
+  if (quizAssessments.length > 0) {
+    const assessmentIds = quizAssessments.map(a => a.id);
+    const t3 = Date.now();
+    const { data: questions, error: quizError } = await supabase
       .from("path_quiz_questions")
       .select("*")
       .in("assessment_id", assessmentIds);
+    console.log(`[PERF] path_quiz_questions: ${Date.now() - t3}ms — ${questions?.length ?? 0} rows, error=${quizError?.message}`);
     quizQuestions = questions || [];
+  } else {
+    console.log(`[PERF] path_quiz_questions: skipped (no quiz-type assessments, have ${assessments?.length ?? 0} other assessments)`);
   }
 
-  // Combine everything - new schema: path_content and path_assessment
+  console.log(`[PERF] getPathDayActivities TOTAL: ${Date.now() - t0}ms`);
+
+  // Combine everything
   return activities.map(activity => {
     const activityContent = (content || []).filter(c => c.activity_id === activity.id);
     const activityAssessments = (assessments || []).filter(a => a.activity_id === activity.id);
 
-    // Build path_assessment (single assessment or null)
     let pathAssessment = null;
     if (activityAssessments.length > 0) {
       pathAssessment = {
