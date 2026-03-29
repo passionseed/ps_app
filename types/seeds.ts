@@ -39,6 +39,14 @@ export interface SeedWithEnrollment extends Seed {
   } | null;
 }
 
+export interface SeedCoverageSummary {
+  activeCount: number;
+  exploredCount: number;
+  completedCount: number;
+  totalCount: number;
+  completionPercent: number;
+}
+
 export interface SeedNpcAvatar {
   id: string;
   seed_id: string;
