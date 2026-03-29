@@ -90,15 +90,27 @@ export default function RootLayout() {
       }
 
       // Logged in user - check onboarding status
-      console.log("[RootNavigator] Logged in, fetching profile...");
+      console.log("[RootNavigator] Logged in, fetching profile...", { userId: session!.user.id });
+      const profileStart = Date.now();
+      const profileTimeout = setTimeout(() => {
+        console.warn("[RootNavigator] ⚠️ getProfile still pending after 5s — possible RLS timeout or network hang");
+      }, 5000);
       getProfile(session!.user.id).then((p) => {
-        console.log("[RootNavigator] Profile fetched:", { hasProfile: !!p, isOnboarded: p?.is_onboarded });
+        clearTimeout(profileTimeout);
+        console.log("[RootNavigator] Profile fetched in", Date.now() - profileStart, "ms:", { hasProfile: !!p, isOnboarded: p?.is_onboarded });
         setProfile(p);
         if (!p || !p.is_onboarded) {
           router.replace("/onboarding");
         } else {
           router.replace("/(tabs)/discover");
         }
+        setIsNavReady(true);
+      }).catch((err) => {
+        clearTimeout(profileTimeout);
+        console.error("[RootNavigator] ❌ getProfile threw after", Date.now() - profileStart, "ms:", err);
+        // Proceed without profile — go to discover as fallback
+        setProfile(null);
+        router.replace("/(tabs)/discover");
         setIsNavReady(true);
       });
     }, [isGuest, loading, session]);

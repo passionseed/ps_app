@@ -22,7 +22,12 @@ import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { SvgXml } from "react-native-svg";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { supabase } from "../../lib/supabase";
-import { updateActivityProgress } from "../../lib/pathlab";
+import {
+  updateActivityProgress,
+  getCachedActivity,
+  getCachedDayActivities,
+  invalidateActivityCache,
+} from "../../lib/pathlab";
 import {
   initializeSounds,
   playNPCSpeakSound,
@@ -146,6 +151,10 @@ export default function ActivityDetailScreen() {
   const [npcError, setNpcError] = useState<string | null>(null);
   const [npcSeedAvatar, setNpcSeedAvatar] = useState<{ id: string; name: string; svg_data: string } | null>(null);
   const [npcSummary, setNpcSummary] = useState<string | null>(null);
+  const npcTreeRef = useRef<{
+    nodes: Record<string, NPCNode>;
+    choices: Record<string, NPCChoice[]>;
+  } | null>(null);
 
   // Typing animation state
   const [displayedText, setDisplayedText] = useState("");
@@ -186,84 +195,113 @@ export default function ActivityDetailScreen() {
     setLoadingProgress(true);
 
     try {
-      // PARALLEL: Fetch activity, content, assessments, and progress simultaneously
-      const [
-        activityResult,
-        contentResult,
-        assessmentsResult,
-        progressResult,
-      ] = await Promise.all([
-        supabase.from("path_activities").select("*").eq("id", activityId).single(),
-        supabase.from("path_content").select("*").eq("activity_id", activityId).order("display_order", { ascending: true }),
-        supabase.from("path_assessments").select("*").eq("activity_id", activityId),
-        enrollmentId
-          ? supabase.from("path_activity_progress").select("*").eq("enrollment_id", enrollmentId).eq("activity_id", activityId).maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-      ]);
+      let fullActivity: ActivityWithContent;
 
-      const { data: activityData, error: activityError } = activityResult;
-      const { data: contentData } = contentResult;
-      const { data: assessmentsData } = assessmentsResult;
-      const { data: progressData } = progressResult;
+      // Check cache first — populated by path screen to avoid re-fetching
+      const cached = enrollmentId ? getCachedActivity(activityId, enrollmentId) : null;
 
-      // Update granular loading states as data arrives
-      setLoadingActivity(false);
-      setLoadingContent(false);
-      setLoadingAssessment(false);
-      setLoadingProgress(!enrollmentId ? false : !progressData);
+      if (cached) {
+        console.log("[Activity] Cache hit — skipping DB fetch for activity content");
+        let progress = cached.progress;
 
-      console.log("[Activity] Activity data:", activityData);
-      console.log("[Activity] Content data:", contentData);
-      console.log("[Activity] Assessments data:", assessmentsData);
-
-      if (activityError) throw activityError;
-
-      // PARALLEL: Fetch quiz questions and create progress if needed
-      let quizQuestions: PathQuizQuestion[] = [];
-      let progress: PathActivityProgress | undefined = progressData || undefined;
-
-      const [questionsResult, newProgressResult] = await Promise.all([
-        // Fetch quiz questions if assessments exist
-        assessmentsData && assessmentsData.length > 0
-          ? supabase.from("path_quiz_questions").select("*").in("assessment_id", assessmentsData.map((a) => a.id))
-          : Promise.resolve({ data: null, error: null }),
-        // Create progress if not found and enrollmentId exists
-        !progressData && enrollmentId
-          ? supabase.from("path_activity_progress").insert({
+        // If no progress yet, create it (new activity being started for first time)
+        if (!progress && enrollmentId) {
+          const { data: newProgress } = await supabase
+            .from("path_activity_progress")
+            .insert({
               enrollment_id: enrollmentId,
               activity_id: activityId,
               status: "in_progress",
               started_at: new Date().toISOString(),
-            }).select().single()
-          : Promise.resolve({ data: null, error: null }),
-      ]);
+            })
+            .select()
+            .single();
+          if (newProgress) {
+            console.log("[Activity] Created new progress:", newProgress.id);
+            progress = newProgress;
+          }
+        }
 
-      quizQuestions = questionsResult.data || [];
-      if (newProgressResult.data) {
-        console.log("[Activity] Created new progress:", newProgressResult.data.id);
-        progress = newProgressResult.data;
-      } else if (progress) {
-        console.log("[Activity] Found existing progress:", progress.id);
-      }
-      setLoadingProgress(false);
+        fullActivity = { ...cached, progress } as ActivityWithContent;
+        setLoadingActivity(false);
+        setLoadingContent(false);
+        setLoadingAssessment(false);
+        setLoadingProgress(false);
+      } else {
+        // No cache — full fetch
+        const [
+          activityResult,
+          contentResult,
+          assessmentsResult,
+          progressResult,
+        ] = await Promise.all([
+          supabase.from("path_activities").select("*").eq("id", activityId).single(),
+          supabase.from("path_content").select("*").eq("activity_id", activityId).order("display_order", { ascending: true }),
+          supabase.from("path_assessments").select("*").eq("activity_id", activityId),
+          enrollmentId
+            ? supabase.from("path_activity_progress").select("*").eq("enrollment_id", enrollmentId).eq("activity_id", activityId).maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+        ]);
 
-      // Build path_assessment object (single assessment or null)
-      let pathAssessment: (PathAssessment & { quiz_questions?: PathQuizQuestion[] }) | null = null;
-      if (assessmentsData && assessmentsData.length > 0) {
-        pathAssessment = {
-          ...assessmentsData[0],
-          quiz_questions: quizQuestions.filter(
-            (q) => q.assessment_id === assessmentsData[0].id
-          ),
+        const { data: activityData, error: activityError } = activityResult;
+        const { data: contentData } = contentResult;
+        const { data: assessmentsData } = assessmentsResult;
+        const { data: progressData } = progressResult;
+
+        setLoadingActivity(false);
+        setLoadingContent(false);
+        setLoadingAssessment(false);
+        setLoadingProgress(!enrollmentId ? false : !progressData);
+
+        console.log("[Activity] Content data:", contentData);
+        console.log("[Activity] Assessments data:", assessmentsData);
+
+        if (activityError) throw activityError;
+
+        let quizQuestions: PathQuizQuestion[] = [];
+        let progress: PathActivityProgress | undefined = progressData || undefined;
+
+        const quizAssessments = (assessmentsData || []).filter((a) => a.assessment_type === 'quiz');
+        const [questionsResult, newProgressResult] = await Promise.all([
+          quizAssessments.length > 0
+            ? supabase.from("path_quiz_questions").select("*").in("assessment_id", quizAssessments.map((a) => a.id))
+            : Promise.resolve({ data: null, error: null }),
+          !progressData && enrollmentId
+            ? supabase.from("path_activity_progress").insert({
+                enrollment_id: enrollmentId,
+                activity_id: activityId,
+                status: "in_progress",
+                started_at: new Date().toISOString(),
+              }).select().single()
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+
+        quizQuestions = questionsResult.data || [];
+        if (newProgressResult.data) {
+          console.log("[Activity] Created new progress:", newProgressResult.data.id);
+          progress = newProgressResult.data;
+        } else if (progress) {
+          console.log("[Activity] Found existing progress:", progress.id);
+        }
+        setLoadingProgress(false);
+
+        let pathAssessment: (PathAssessment & { quiz_questions?: PathQuizQuestion[] }) | null = null;
+        if (assessmentsData && assessmentsData.length > 0) {
+          pathAssessment = {
+            ...assessmentsData[0],
+            quiz_questions: quizQuestions.filter(
+              (q) => q.assessment_id === assessmentsData[0].id
+            ),
+          };
+        }
+
+        fullActivity = {
+          ...activityData,
+          path_content: contentData || [],
+          path_assessment: pathAssessment,
+          progress,
         };
       }
-
-      const fullActivity: ActivityWithContent = {
-        ...activityData,
-        path_content: contentData || [],
-        path_assessment: pathAssessment,
-        progress,
-      };
 
       const activityType = getActivityType(fullActivity);
 
@@ -289,34 +327,40 @@ export default function ActivityDetailScreen() {
 
       setActivity(fullActivity);
 
-      // Fetch pagination info - use path_day_id from already-fetched activityData
-      console.log('[Activity] Checking pagination - path_day_id:', activityData.path_day_id, 'enrollmentId:', enrollmentId);
+      // Pagination — use cache if available, otherwise fetch
+      if (enrollmentId) {
+        const cachedAll = getCachedDayActivities(enrollmentId);
+        if (cachedAll && cachedAll.length > 0) {
+          console.log('[Activity] Pagination from cache');
+          const dayActivities = cachedAll.map(a => ({ id: a.id, display_order: a.display_order }));
+          const currentIndex = dayActivities.findIndex(a => a.id === activityId);
+          setAutoCurrentPage(currentIndex >= 0 ? currentIndex : 0);
+          setAutoTotalPages(dayActivities.length);
+          setDayActivitiesCount(dayActivities.length);
+          setDayActivitiesList(dayActivities);
+        } else if (fullActivity.path_day_id) {
+          try {
+            const { data: dayActivities, error: activitiesError } = await supabase
+              .from("path_activities")
+              .select("id, display_order")
+              .eq("path_day_id", fullActivity.path_day_id)
+              .eq("is_draft", false)
+              .order("display_order", { ascending: true });
 
-      if (enrollmentId && activityData.path_day_id) {
-        try {
-          // Use path_day_id from already-fetched activityData (no extra query needed)
-          const { data: dayActivities, error: activitiesError } = await supabase
-            .from("path_activities")
-            .select("id, display_order")
-            .eq("path_day_id", activityData.path_day_id)
-            .eq("is_draft", false)
-            .order("display_order", { ascending: true });
+            if (activitiesError) {
+              console.error('[Activity] Error fetching day activities:', activitiesError);
+            }
 
-          if (activitiesError) {
-            console.error('[Activity] Error fetching day activities:', activitiesError);
+            if (dayActivities && dayActivities.length > 0) {
+              const currentIndex = dayActivities.findIndex(a => a.id === activityId);
+              setAutoCurrentPage(currentIndex >= 0 ? currentIndex : 0);
+              setAutoTotalPages(dayActivities.length);
+              setDayActivitiesCount(dayActivities.length);
+              setDayActivitiesList(dayActivities);
+            }
+          } catch (err) {
+            console.error('[Activity] Error fetching pagination:', err);
           }
-
-          if (dayActivities && dayActivities.length > 0) {
-            const currentIndex = dayActivities.findIndex(a => a.id === activityId);
-            setAutoCurrentPage(currentIndex >= 0 ? currentIndex : 0);
-            setAutoTotalPages(dayActivities.length);
-            setDayActivitiesCount(dayActivities.length);
-            setDayActivitiesList(dayActivities);
-          } else {
-            console.warn('[Activity] No activities found for path_day_id:', activityData.path_day_id);
-          }
-        } catch (err) {
-          console.error('[Activity] Error fetching pagination:', err);
         }
       }
 
@@ -447,42 +491,81 @@ export default function ActivityDetailScreen() {
   const initNPCDialogue = async (activity: ActivityWithContent) => {
     try {
       console.log("[NPC] Initializing NPC dialogue...");
-      console.log("[NPC] Activity content:", activity.path_content);
 
       const npcContent = activity.path_content.find(c => c.content_type === "npc_chat");
       if (!npcContent) {
         const errorMsg = "No NPC content found in activity";
         console.error("[NPC]", errorMsg);
-        console.error("[NPC] Content types available:", activity.path_content.map(c => c.content_type));
         setNpcError(errorMsg);
         return;
       }
 
-      console.log("[NPC] NPC content found:", npcContent);
-      const metadata = npcContent.metadata as NPCChatMetadata;
-      console.log("[NPC] Metadata:", metadata);
+      // Parse conversation tree from content_body
+      console.log("[NPC DEBUG] content_body type:", typeof npcContent.content_body);
+      console.log("[NPC DEBUG] content_body length:", npcContent.content_body?.length);
+      console.log("[NPC DEBUG] content_body first 200 chars:", npcContent.content_body?.substring(0, 200));
+      console.log("[NPC DEBUG] content_body last 100 chars:", npcContent.content_body?.substring((npcContent.content_body?.length || 0) - 100));
+      console.log("[NPC DEBUG] metadata:", JSON.stringify(npcContent.metadata));
+      console.log("[NPC DEBUG] full npcContent row:", JSON.stringify({ id: npcContent.id, content_type: npcContent.content_type, content_title: npcContent.content_title, display_order: npcContent.display_order }));
 
-      if (!metadata?.conversation_id) {
-        const errorMsg = "No conversation_id in metadata";
+      if (!npcContent.content_body) {
+        const errorMsg = "NPC content not yet available — check back soon";
         console.error("[NPC]", errorMsg);
         setNpcError(errorMsg);
         return;
       }
 
-      setNpcConversationId(metadata.conversation_id);
+      let tree: {
+        root_node_id: string;
+        nodes: Record<string, NPCNode>;
+        choices: Record<string, NPCChoice[]>;
+        npc_name?: string;
+        npc_svg_data?: string;
+        summary?: string;
+        conversation_id?: string;
+      } | null = null;
 
-      // Load summary from metadata
-      if (metadata.summary) {
-        console.log("[NPC] Summary loaded from metadata:", metadata.summary);
-        setNpcSummary(metadata.summary);
+      try {
+        const parsed = JSON.parse(npcContent.content_body);
+        if (parsed && typeof parsed === "object" && parsed.root_node_id && parsed.nodes) {
+          tree = parsed;
+        }
+      } catch (e) {
+        console.error("[NPC] Failed to parse content_body:", e);
       }
+
+      if (!tree) {
+        const errorMsg = "NPC content not yet available — check back soon";
+        console.error("[NPC]", errorMsg);
+        setNpcError(errorMsg);
+        return;
+      }
+
+      // Store tree in ref for use during navigation
+      npcTreeRef.current = { nodes: tree.nodes, choices: tree.choices || {} };
+
+      // Load avatar from tree if present
+      if (tree.npc_name) {
+        setNpcSeedAvatar({
+          id: "inline",
+          name: tree.npc_name,
+          svg_data: tree.npc_svg_data || "",
+        });
+      }
+
+      if (tree.summary) {
+        setNpcSummary(tree.summary);
+      }
+
+      const conversationId = tree.conversation_id || npcContent.id;
+      setNpcConversationId(conversationId);
 
       // Check if there's existing progress
       if (activity.progress?.id) {
         console.log("[NPC] Checking existing progress for:", activity.progress.id);
         const { data: npcProgress, error: progressError } = await supabase
           .from("path_npc_conversation_progress")
-          .select("*, current_node:path_npc_conversation_nodes(*)")
+          .select("*")
           .eq("progress_id", activity.progress.id)
           .maybeSingle();
 
@@ -490,154 +573,59 @@ export default function ActivityDetailScreen() {
 
         if (npcProgress) {
           setNpcProgressId(npcProgress.id);
-          setNpcConversationId(npcProgress.conversation_id);
-
-          // Fetch the NPC avatar for this conversation's seed
-          const { data: conv } = await supabase
-            .from("path_npc_conversations")
-            .select("seed_id")
-            .eq("id", npcProgress.conversation_id)
-            .single();
-
-          if (conv?.seed_id) {
-            const { data: avatarData } = await supabase
-              .from("seed_npc_avatars")
-              .select("id, name, svg_data")
-              .eq("seed_id", conv.seed_id)
-              .maybeSingle();
-
-            if (avatarData) {
-              setNpcSeedAvatar(avatarData);
-              console.log("[NPC] Loaded seed avatar for resume:", { name: avatarData.name, has_svg: !!avatarData.svg_data });
-            }
-          }
 
           if (npcProgress.is_completed) {
             console.log("[NPC] Conversation already completed");
             setNpcCompleted(true);
             return;
           }
-          if (npcProgress.current_node) {
-            console.log("[NPC] Resuming from current node:", npcProgress.current_node.id);
-            setNpcCurrentNode(npcProgress.current_node);
-            // Choices will be loaded after typing animation completes
-            // Timer will start after typing completes
-            return;
+
+          if (npcProgress.current_node_id) {
+            const resumeNode = tree.nodes[npcProgress.current_node_id];
+            if (resumeNode) {
+              console.log("[NPC] Resuming from current node:", resumeNode.id);
+              setNpcCurrentNode(resumeNode);
+              return;
+            }
           }
         }
       }
 
-      // Start new conversation - get root node and seed's NPC avatar
-      console.log("[NPC] Fetching conversation:", metadata.conversation_id);
-      const { data: conversation, error: convError } = await supabase
-        .from("path_npc_conversations")
-        .select("root_node_id, seed_id")
-        .eq("id", metadata.conversation_id)
-        .maybeSingle();
-
-      console.log("[NPC] Conversation data:", JSON.stringify(conversation, null, 2));
-      console.log("[NPC] Conversation error:", convError);
-
-      if (convError) {
-        const errorMsg = `Failed to load conversation: ${convError.message}`;
-        console.error("[NPC]", errorMsg, "- Details:", convError);
-        setNpcError(errorMsg);
-        return;
-      }
-
-      if (!conversation) {
-        const errorMsg = `No conversation found with ID: ${metadata.conversation_id}`;
+      // Start new conversation from root node
+      const rootNode = tree.nodes[tree.root_node_id];
+      if (!rootNode) {
+        const errorMsg = `Root node ${tree.root_node_id} not found in tree`;
         console.error("[NPC]", errorMsg);
         setNpcError(errorMsg);
         return;
       }
 
-      if (!conversation.root_node_id) {
-        const errorMsg = `Conversation ${metadata.conversation_id} has no root_node_id. Data: ${JSON.stringify(conversation)}`;
-        console.error("[NPC]", errorMsg);
-        setNpcError(errorMsg);
-        return;
-      }
+      console.log("[NPC] Starting from root node:", rootNode.id);
+      setNpcCurrentNode(rootNode);
 
-      // Fetch the NPC avatar for this seed
-      if (conversation.seed_id) {
-        const { data: avatarData } = await supabase
-          .from("seed_npc_avatars")
-          .select("id, name, svg_data")
-          .eq("seed_id", conversation.seed_id)
-          .maybeSingle();
+      // Create progress record if we have activity progress
+      if (activity.progress?.id) {
+        const { data: user } = await supabase.auth.getUser();
+        const { data: newProgress, error: progressError } = await supabase
+          .from("path_npc_conversation_progress")
+          .insert({
+            progress_id: activity.progress.id,
+            conversation_id: conversationId,
+            user_id: user?.user?.id,
+            current_node_id: rootNode.id,
+            visited_node_ids: [rootNode.id],
+            choice_history: [],
+            is_completed: false,
+          })
+          .select()
+          .single();
 
-        if (avatarData) {
-          setNpcSeedAvatar(avatarData);
-          console.log("[NPC] Seed NPC avatar loaded:", { name: avatarData.name, has_svg: !!avatarData.svg_data });
-        } else {
-          console.log("[NPC] No NPC avatar found for this seed");
+        if (progressError) {
+          console.error("[NPC] Error creating progress record:", progressError);
+        } else if (newProgress) {
+          console.log("[NPC] Progress record created:", newProgress.id);
+          setNpcProgressId(newProgress.id);
         }
-      }
-
-      console.log("[NPC] Fetching root node:", conversation.root_node_id);
-      const { data: rootNode, error: nodeError } = await supabase
-        .from("path_npc_conversation_nodes")
-        .select("*")
-        .eq("id", conversation.root_node_id)
-        .single();
-
-      console.log("[NPC] Root node data:", JSON.stringify(rootNode, null, 2));
-      console.log("[NPC] Root node error:", nodeError);
-
-      if (nodeError) {
-        const errorMsg = `Failed to load root node: ${nodeError.message}`;
-        console.error("[NPC]", errorMsg);
-        setNpcError(errorMsg);
-        return;
-      }
-
-      if (rootNode) {
-        console.log("[NPC] Setting current node:", rootNode);
-        console.log("[NPC] About to load choices for node ID:", rootNode.id);
-
-        setNpcCurrentNode(rootNode);
-        // Choices will be loaded after typing animation completes
-        // Timer will start after typing completes
-
-        // Create progress record if we have activity progress
-        if (activity.progress?.id) {
-          console.log("[NPC] Creating NPC conversation progress record...");
-          console.log("[NPC] Activity progress ID:", activity.progress.id);
-
-          const { data: user } = await supabase.auth.getUser();
-          console.log("[NPC] User ID:", user?.user?.id);
-
-          const { data: newProgress, error: progressError } = await supabase
-            .from("path_npc_conversation_progress")
-            .insert({
-              progress_id: activity.progress.id,
-              conversation_id: metadata.conversation_id,
-              user_id: user?.user?.id,
-              current_node_id: rootNode.id,
-              visited_node_ids: [rootNode.id],
-              choice_history: [],
-              is_completed: false,
-            })
-            .select()
-            .single();
-
-          if (progressError) {
-            console.error("[NPC] Error creating progress record:", progressError);
-            console.error("[NPC] Progress error details:", JSON.stringify(progressError, null, 2));
-          } else if (newProgress) {
-            console.log("[NPC] Progress record created:", newProgress.id);
-            setNpcProgressId(newProgress.id);
-          } else {
-            console.error("[NPC] No progress record returned and no error!");
-          }
-        } else {
-          console.warn("[NPC] No activity.progress.id - cannot create NPC progress record");
-        }
-      } else {
-        const errorMsg = "Root node not found in database";
-        console.error("[NPC]", errorMsg);
-        setNpcError(errorMsg);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error loading NPC dialogue";
@@ -648,20 +636,9 @@ export default function ActivityDetailScreen() {
 
   const loadNPCChoices = async (nodeId: string) => {
     console.log("[NPC] Loading choices for node:", nodeId);
-    const { data: choices, error: choicesError } = await supabase
-      .from("path_npc_conversation_choices")
-      .select("*")
-      .eq("from_node_id", nodeId)
-      .order("display_order", { ascending: true });
-
-    console.log("[NPC] Choices loaded:", choices, "Error:", choicesError);
-    console.log("[NPC] Number of choices:", choices?.length || 0);
-    if (choices && choices.length > 0) {
-      console.log("[NPC] First choice:", JSON.stringify(choices[0], null, 2));
-    }
-
-    // Don't show choices immediately - wait for typing animation to complete
-    return choices || [];
+    const choices = npcTreeRef.current?.choices[nodeId] || [];
+    console.log("[NPC] Choices from tree:", choices.length);
+    return choices;
   };
 
   // Typing animation effect - triggered when npcCurrentNode changes
@@ -1057,12 +1034,8 @@ export default function ActivityDetailScreen() {
         return;
       }
 
-      // Load next node
-      const { data: nextNode } = await supabase
-        .from("path_npc_conversation_nodes")
-        .select("*")
-        .eq("id", choice.to_node_id)
-        .single();
+      // Load next node from in-memory tree
+      const nextNode = choice.to_node_id ? npcTreeRef.current?.nodes[choice.to_node_id] : null;
 
       console.log("[NPC] Next node loaded:", nextNode?.id);
 
@@ -1137,6 +1110,9 @@ export default function ActivityDetailScreen() {
         status: "completed",
       });
 
+      // Invalidate cache so path screen re-fetches fresh progress
+      invalidateActivityCache();
+
       // Navigate to the next activity or back to path screen
       router.replace(`/path/${enrollmentId}`);
     } catch (error) {
@@ -1172,6 +1148,7 @@ export default function ActivityDetailScreen() {
       router.replace(`/activity/${nextActivity.id}?enrollmentId=${enrollmentId}&pageIndex=${nextIndex}&totalPages=${dayActivitiesList.length}`);
     } else {
       // No more activities, go back to path screen
+      invalidateActivityCache();
       router.replace(`/path/${enrollmentId}`);
     }
   };
@@ -1498,12 +1475,10 @@ export default function ActivityDetailScreen() {
                   {/* Timer Bar - Below speech bubble */}
                   {timeRemainingPrecise !== null && timeRemainingPrecise > 0 && npcCurrentNode && (
                     <View style={styles.timerBarBelowBubble}>
-                      {/* Grey background (consumed) */}
                       <View style={[
                         styles.timerBarGreyFull,
                         timeRemaining !== null && timeRemaining <= 5 && styles.timerBarGreyUrgent,
                       ]} />
-                      {/* Green bar (remaining time) - shrinks from right to left */}
                       <View
                         style={[
                           styles.timerBarGreenRemaining,
@@ -1715,9 +1690,19 @@ export default function ActivityDetailScreen() {
           {/* Regular Content Items */}
           {activityType !== "ai_chat" &&
             activityType !== "npc_chat" &&
+            activityType !== "unknown" &&
             activity.path_content.map((item) => (
               <ContentItem key={item.id} content={item} />
             ))}
+
+          {/* Fallback for activities with no content configured */}
+          {activityType === "unknown" && (
+            <View style={{ padding: 32, alignItems: "center" }}>
+              <Text style={[styles.instructionText, { textAlign: "center", color: "#666" }]}>
+                This activity's content isn't available yet.
+              </Text>
+            </View>
+          )}
 
         {/* Assessment */}
         {activity.path_assessment && (
@@ -2619,7 +2604,44 @@ const styles = StyleSheet.create({
     color: ThemeText.primary,
   },
 
-  // Full-body Character Display
+  // Flex-based NPC layout (replaces absolute positioning)
+  npcFlexLayout: {
+    flex: 1,
+    flexDirection: "column",
+  },
+  npcAvatarSection: {
+    alignItems: "center",
+    paddingTop: 60,
+    paddingBottom: 8,
+  },
+  npcBottomSection: {
+    flex: 1,
+  },
+  npcBottomContent: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 20,
+    gap: 16,
+  },
+  choicesInline: {
+    gap: 12,
+    marginTop: 4,
+  },
+  npcNameTagInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    gap: 8,
+    borderWidth: 2,
+    borderColor: "rgba(191, 255, 0, 0.8)",
+    marginTop: 10,
+    ...Shadow.card,
+  },
+
+  // Legacy / kept for reference — no longer used in NPC layout
   npcFullBodyContainer: {
     position: "absolute",
     top: 80,
@@ -2635,8 +2657,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   npcAvatarPlaceholderLarge: {
-    width: 280,
-    height: 420,
+    width: 200,
+    height: 200,
     backgroundColor: "rgba(0, 0, 0, 0.02)",
     borderRadius: 20,
     justifyContent: "center",
@@ -2645,7 +2667,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(191, 255, 0, 0.3)",
   },
   npcAvatarEmojiLarge: {
-    fontSize: 120,
+    fontSize: 80,
   },
   npcNameTag: {
     position: "absolute",

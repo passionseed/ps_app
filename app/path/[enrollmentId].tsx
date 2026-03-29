@@ -11,9 +11,9 @@ import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import {
-  getPathDay,
   getPathDayActivities,
   updateActivityProgress,
+  setCachedActivities,
 } from "../../lib/pathlab";
 import type { PathDay, PathEnrollment } from "../../types/pathlab";
 import type { PathActivityWithContent } from "../../types/pathlab-content";
@@ -57,7 +57,10 @@ export default function DailyPathScreen() {
     setError(null);
 
     try {
-      // Get enrollment with path info
+      const _t0 = Date.now();
+      console.log(`[PERF] loadData START enrollmentId=${enrollmentId}`);
+
+      // Fetch enrollment + path + today's path_day in one round trip
       const { data: enrollmentData, error: enrollError } = await supabase
         .from("path_enrollments")
         .select(`
@@ -65,7 +68,8 @@ export default function DailyPathScreen() {
           path:paths(
             id,
             total_days,
-            seed:seeds(id, title)
+            seed:seeds(id, title),
+            path_days(*)
           )
         `)
         .eq("id", enrollmentId)
@@ -83,6 +87,7 @@ export default function DailyPathScreen() {
         return;
       }
 
+      console.log(`[PERF] enrollment+path+days query: ${Date.now() - _t0}ms`);
       console.log("✅ Enrollment loaded:", {
         id: enrollmentData.id,
         path_id: enrollmentData.path_id,
@@ -92,7 +97,6 @@ export default function DailyPathScreen() {
 
       setEnrollment(enrollmentData as EnrollmentWithPath);
 
-      // Validate required fields for path day lookup
       if (!enrollmentData.path_id) {
         console.error("❌ Enrollment missing path_id:", enrollmentData);
         setError("Enrollment is missing path information");
@@ -105,18 +109,11 @@ export default function DailyPathScreen() {
         return;
       }
 
-      // Get today's path day
-      console.log("📅 Fetching path day for:", {
-        path_id: enrollmentData.path_id,
-        current_day: enrollmentData.current_day,
-      });
+      // Extract today's path day from the joined data
+      const pathDays: PathDay[] = (enrollmentData as any).path?.path_days || [];
+      const dayData = pathDays.find((d: PathDay) => d.day_number === enrollmentData.current_day) ?? null;
 
-      const dayData = await getPathDay(
-        enrollmentData.path_id,
-        enrollmentData.current_day
-      );
-
-      console.log("📦 Path day data received:", JSON.stringify(dayData, null, 2));
+      console.log("📦 Path day data:", dayData?.id);
 
       if (!dayData) {
         console.error("❌ NO PATH DAY FOUND for path_id:", enrollmentData.path_id, "day:", enrollmentData.current_day);
@@ -129,12 +126,18 @@ export default function DailyPathScreen() {
 
       // Get activities for today's path day
       console.log("📚 Fetching activities for path_day_id:", dayData.id);
+      const _t1 = Date.now();
       const activitiesData = await getPathDayActivities(dayData.id, enrollmentId);
+      console.log(`[PERF] getPathDayActivities wall time: ${Date.now() - _t1}ms`);
+      console.log(`[PERF] loadData TOTAL: ${Date.now() - _t0}ms`);
       console.log("✅ Activities received:", activitiesData.length, "activities");
 
       if (activitiesData.length === 0) {
         console.warn("⚠️ No activities found for this day");
       }
+
+      // Cache so the activity page can skip re-fetching content/assessments/progress
+      setCachedActivities(dayData.id, enrollmentId, activitiesData);
 
       setActivities(activitiesData);
 
