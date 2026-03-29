@@ -15,6 +15,7 @@ import {
 import { WebView } from "react-native-webview";
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
+import Markdown from 'react-native-markdown-display';
 import * as DocumentPicker from 'expo-document-picker';
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -1827,11 +1828,29 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
+const markdownStyles = {
+  body: { fontFamily: "Orbit_400Regular", fontSize: 14, color: "#4B5563", lineHeight: 22 },
+  heading1: { fontFamily: "Orbit_400Regular", fontSize: 20, fontWeight: "700", color: "#111827", marginTop: 12, marginBottom: 4 },
+  heading2: { fontFamily: "Orbit_400Regular", fontSize: 17, fontWeight: "700", color: "#111827", marginTop: 10, marginBottom: 4 },
+  heading3: { fontFamily: "Orbit_400Regular", fontSize: 15, fontWeight: "700", color: "#111827", marginTop: 8, marginBottom: 4 },
+  strong: { fontFamily: "Orbit_400Regular", fontWeight: "700", color: "#111827" },
+  em: { fontFamily: "Orbit_400Regular", fontStyle: "italic" },
+  code_inline: { fontFamily: "Orbit_400Regular", backgroundColor: "#F3F4F6", color: "#111827", paddingHorizontal: 4, borderRadius: 4 },
+  code_block: { fontFamily: "Orbit_400Regular", backgroundColor: "#F3F4F6", color: "#111827", padding: 12, borderRadius: 8 },
+  fence: { fontFamily: "Orbit_400Regular", backgroundColor: "#F3F4F6", color: "#111827", padding: 12, borderRadius: 8 },
+  bullet_list: { marginVertical: 4 },
+  ordered_list: { marginVertical: 4 },
+  list_item: { marginVertical: 2 },
+  blockquote: { borderLeftWidth: 3, borderLeftColor: "#BFFF00", paddingLeft: 12, marginVertical: 8 },
+  link: { color: "#9FE800" },
+  hr: { backgroundColor: "#E5E7EB", height: 1, marginVertical: 12 },
+};
+
 function ContentItem({ content }: { content: PathContent }) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   // containerWidth = windowWidth - scrollPadding(40) - cardPadding(32)
   const containerWidth = windowWidth - 72;
-  const [imageHeight, setImageHeight] = useState<number>(300);
+  const [imageHeight, setImageHeight] = useState<number>(windowWidth * 0.75);
 
   const renderContent = () => {
     switch (content.content_type) {
@@ -1842,7 +1861,7 @@ function ContentItem({ content }: { content: PathContent }) {
               <AppText variant="bold" style={styles.contentTitle}>{content.content_title}</AppText>
             )}
             {content.content_body && (
-              <AppText style={styles.contentBody}>{content.content_body}</AppText>
+              <Markdown style={markdownStyles}>{content.content_body}</Markdown>
             )}
           </GlassCard>
         );
@@ -1951,6 +1970,7 @@ function ContentItem({ content }: { content: PathContent }) {
                   source={content.content_url}
                   style={[styles.fullWidthContentImage, { width: windowWidth, height: imageHeight }]}
                   contentFit="contain"
+                  cachePolicy="memory-disk"
                   onLoad={(e) => {
                     const { width, height } = e.source;
                     if (width && height) {
