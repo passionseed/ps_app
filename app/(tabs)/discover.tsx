@@ -813,13 +813,6 @@ function CompactSeedCard({
           <Text variant="bold" style={styles.compactTitle} numberOfLines={2}>
             {seed.title}
           </Text>
-          <View style={styles.reasonChipRow}>
-            {seed.reasons.slice(0, 2).map((reason) => (
-              <View key={`${seed.id}-${reason.code}`} style={styles.reasonChip}>
-                <Text style={styles.reasonChipText}>{reason.label}</Text>
-              </View>
-            ))}
-          </View>
           {seed.slogan && (
             <Text style={styles.compactSlogan} numberOfLines={1}>
               {seed.slogan}
@@ -1119,22 +1112,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "rgba(255, 255, 255, 0.85)",
     lineHeight: 14,
-  },
-  reasonChipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Space.xs,
-  },
-  reasonChip: {
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
-    borderRadius: Radius.full,
-    paddingHorizontal: Space.sm,
-    paddingVertical: 3,
-    alignSelf: "flex-start",
-  },
-  reasonChipText: {
-    fontSize: 10,
-    color: "#FFFFFF",
   },
   compactCardWrapper: {
     width: 140,
