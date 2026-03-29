@@ -6,6 +6,7 @@ import {
   TextStyle,
   ActivityIndicator,
   Animated,
+  StyleProp,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Shadow, Radius, Text as ThemeText } from "../../lib/theme";
@@ -23,7 +24,7 @@ interface GlassButtonProps {
   loading?: boolean;
   fullWidth?: boolean;
   icon?: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function GlassButton({

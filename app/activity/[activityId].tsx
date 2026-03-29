@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Pressable,
@@ -22,7 +21,11 @@ import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { SvgXml } from "react-native-svg";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { supabase } from "../../lib/supabase";
-import { updateActivityProgress } from "../../lib/pathlab";
+import { ensureActivityProgress, updateActivityProgress } from "../../lib/pathlab";
+import {
+  getCachedActivityPayload,
+  updateCachedActivityProgress,
+} from "../../lib/pathlabSession";
 import {
   initializeSounds,
   playNPCSpeakSound,
@@ -45,7 +48,13 @@ import {
   Shadow,
   Radius,
   Accent,
+  Space,
+  Type,
+  StepThemes,
 } from "../../lib/theme";
+import { AppText } from "../../components/AppText";
+import { GlassCard } from "../../components/Glass/GlassCard";
+import { GlassButton } from "../../components/Glass/GlassButton";
 
 interface ActivityWithContent extends PathActivity {
   path_content: PathContent[];
@@ -158,7 +167,7 @@ export default function ActivityDetailScreen() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [timeRemainingPrecise, setTimeRemainingPrecise] = useState<number | null>(null);
   const [showTimeoutRestart, setShowTimeoutRestart] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const totalTimeRef = useRef<number>(30);
 
@@ -186,31 +195,73 @@ export default function ActivityDetailScreen() {
     setLoadingProgress(true);
 
     try {
+      const cachedActivity =
+        enrollmentId ? getCachedActivityPayload(enrollmentId, activityId) : null;
+
+      if (cachedActivity) {
+        console.log("[Activity] Using cached activity payload");
+
+        setLoadingActivity(false);
+        setLoadingContent(false);
+        setLoadingAssessment(false);
+        setLoadingProgress(!cachedActivity.activity.progress);
+
+        setActivity(cachedActivity.activity as ActivityWithContent);
+        setAutoCurrentPage(cachedActivity.currentPage);
+        setAutoTotalPages(cachedActivity.totalPages);
+        setDayActivitiesCount(cachedActivity.totalPages);
+        setDayActivitiesList(cachedActivity.dayActivitiesList);
+        setLoading(false);
+
+        const activityType = getActivityType(cachedActivity.activity);
+        if (activityType === "ai_chat") {
+          console.log("[Activity] Initializing AI chat from cache...");
+          await initAIChat(cachedActivity.activity as ActivityWithContent);
+        } else if (activityType === "npc_chat") {
+          console.log("[Activity] Initializing NPC dialogue from cache...");
+          await initNPCDialogue(cachedActivity.activity as ActivityWithContent);
+        } else {
+          console.log("[Activity] Regular activity type:", activityType);
+        }
+
+        if (enrollmentId && !cachedActivity.activity.progress) {
+          const progress = await ensureActivityProgress(enrollmentId, activityId);
+          const nextActivity = {
+            ...cachedActivity.activity,
+            progress,
+          } as ActivityWithContent;
+
+          setActivity(nextActivity);
+          updateCachedActivityProgress(enrollmentId, activityId, (activity) => ({
+            ...activity,
+            progress,
+          }));
+        }
+
+        setLoadingProgress(false);
+        return;
+      }
+
       // PARALLEL: Fetch activity, content, assessments, and progress simultaneously
       const [
         activityResult,
         contentResult,
         assessmentsResult,
-        progressResult,
       ] = await Promise.all([
         supabase.from("path_activities").select("*").eq("id", activityId).single(),
         supabase.from("path_content").select("*").eq("activity_id", activityId).order("display_order", { ascending: true }),
         supabase.from("path_assessments").select("*").eq("activity_id", activityId),
-        enrollmentId
-          ? supabase.from("path_activity_progress").select("*").eq("enrollment_id", enrollmentId).eq("activity_id", activityId).maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
       ]);
 
       const { data: activityData, error: activityError } = activityResult;
       const { data: contentData } = contentResult;
       const { data: assessmentsData } = assessmentsResult;
-      const { data: progressData } = progressResult;
 
       // Update granular loading states as data arrives
       setLoadingActivity(false);
       setLoadingContent(false);
       setLoadingAssessment(false);
-      setLoadingProgress(!enrollmentId ? false : !progressData);
+      setLoadingProgress(!!enrollmentId);
 
       console.log("[Activity] Activity data:", activityData);
       console.log("[Activity] Content data:", contentData);
@@ -220,32 +271,15 @@ export default function ActivityDetailScreen() {
 
       // PARALLEL: Fetch quiz questions and create progress if needed
       let quizQuestions: PathQuizQuestion[] = [];
-      let progress: PathActivityProgress | undefined = progressData || undefined;
 
-      const [questionsResult, newProgressResult] = await Promise.all([
+      const questionsResult = await (
         // Fetch quiz questions if assessments exist
         assessmentsData && assessmentsData.length > 0
           ? supabase.from("path_quiz_questions").select("*").in("assessment_id", assessmentsData.map((a) => a.id))
-          : Promise.resolve({ data: null, error: null }),
-        // Create progress if not found and enrollmentId exists
-        !progressData && enrollmentId
-          ? supabase.from("path_activity_progress").insert({
-              enrollment_id: enrollmentId,
-              activity_id: activityId,
-              status: "in_progress",
-              started_at: new Date().toISOString(),
-            }).select().single()
-          : Promise.resolve({ data: null, error: null }),
-      ]);
+          : Promise.resolve({ data: null, error: null })
+      );
 
       quizQuestions = questionsResult.data || [];
-      if (newProgressResult.data) {
-        console.log("[Activity] Created new progress:", newProgressResult.data.id);
-        progress = newProgressResult.data;
-      } else if (progress) {
-        console.log("[Activity] Found existing progress:", progress.id);
-      }
-      setLoadingProgress(false);
 
       // Build path_assessment object (single assessment or null)
       let pathAssessment: (PathAssessment & { quiz_questions?: PathQuizQuestion[] }) | null = null;
@@ -262,7 +296,6 @@ export default function ActivityDetailScreen() {
         ...activityData,
         path_content: contentData || [],
         path_assessment: pathAssessment,
-        progress,
       };
 
       const activityType = getActivityType(fullActivity);
@@ -288,6 +321,7 @@ export default function ActivityDetailScreen() {
       }
 
       setActivity(fullActivity);
+      setLoading(false);
 
       // Fetch pagination info - use path_day_id from already-fetched activityData
       console.log('[Activity] Checking pagination - path_day_id:', activityData.path_day_id, 'enrollmentId:', enrollmentId);
@@ -330,6 +364,14 @@ export default function ActivityDetailScreen() {
       } else {
         console.log("[Activity] Regular activity type:", activityType);
       }
+
+      if (enrollmentId) {
+        const progress = await ensureActivityProgress(enrollmentId, activityId);
+        console.log("[Activity] Ensured progress:", progress.id);
+
+        setActivity((prev) => (prev ? { ...prev, progress } : prev));
+      }
+      setLoadingProgress(false);
     } catch (error) {
       console.error("Error loading activity:", error);
     } finally {
@@ -909,6 +951,7 @@ export default function ActivityDetailScreen() {
             activityId,
             status: "completed",
           });
+          markActivityCompletedInCache();
         }, 1000);
       }
 
@@ -1053,6 +1096,7 @@ export default function ActivityDetailScreen() {
             activityId,
             status: "completed",
           });
+          markActivityCompletedInCache();
         }
         return;
       }
@@ -1088,6 +1132,7 @@ export default function ActivityDetailScreen() {
               activityId,
               status: "completed",
             });
+            markActivityCompletedInCache();
           }
         }
         // For non-end nodes, typing animation effect will handle loading choices
@@ -1123,6 +1168,33 @@ export default function ActivityDetailScreen() {
     return true;
   };
 
+  const markActivityCompletedInCache = () => {
+    if (!enrollmentId || !activityId) return;
+
+    const completedAt = new Date().toISOString();
+    updateCachedActivityProgress(enrollmentId, activityId, (cachedActivity) => ({
+      ...cachedActivity,
+      progress: cachedActivity.progress
+        ? {
+            ...cachedActivity.progress,
+            status: "completed",
+            completed_at: completedAt,
+            updated_at: completedAt,
+          }
+        : {
+            id: `local-${activityId}`,
+            enrollment_id: enrollmentId,
+            activity_id: activityId,
+            status: "completed",
+            started_at: completedAt,
+            completed_at: completedAt,
+            time_spent_seconds: null,
+            created_at: completedAt,
+            updated_at: completedAt,
+          },
+    }));
+  };
+
   const handleComplete = async () => {
     if (!enrollmentId || !activityId || !canComplete()) return;
 
@@ -1136,6 +1208,7 @@ export default function ActivityDetailScreen() {
         activityId,
         status: "completed",
       });
+      markActivityCompletedInCache();
 
       // Navigate to the next activity or back to path screen
       router.replace(`/path/${enrollmentId}`);
@@ -1161,6 +1234,7 @@ export default function ActivityDetailScreen() {
           activityId,
           status: "completed",
         });
+        markActivityCompletedInCache();
       } catch (error) {
         console.error("Error completing activity:", error);
       }
@@ -1331,9 +1405,9 @@ export default function ActivityDetailScreen() {
   if (!activity) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Activity not found</Text>
+        <AppText style={styles.errorText}>Activity not found</AppText>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Go Back</Text>
+          <AppText style={styles.backBtnText}>Go Back</AppText>
         </Pressable>
       </View>
     );
@@ -1352,11 +1426,11 @@ export default function ActivityDetailScreen() {
         <>
           <View style={styles.header}>
             <Pressable onPress={() => router.back()}>
-              <Text style={styles.backText}>← Back</Text>
+              <AppText style={styles.backText}>← Back</AppText>
             </Pressable>
-            <Text style={styles.headerTitle} numberOfLines={1}>
+            <AppText style={styles.headerTitle} numberOfLines={1}>
               {activity.title}
-            </Text>
+            </AppText>
             <View style={{ width: 60 }} />
           </View>
 
@@ -1385,7 +1459,7 @@ export default function ActivityDetailScreen() {
             style={styles.backButtonOverlay}
             onPress={() => router.back()}
           >
-            <Text style={styles.backButtonOverlayText}>✕</Text>
+            <AppText style={styles.backButtonOverlayText}>✕</AppText>
           </Pressable>
 
           {/* NPC Dialogue - Full Screen Cinematic */}
@@ -1407,9 +1481,9 @@ export default function ActivityDetailScreen() {
 
             {npcError ? (
               <View style={styles.npcErrorCard}>
-                <Text style={styles.npcErrorIcon}>⚠️</Text>
-                <Text style={styles.npcErrorTitle}>Failed to load conversation</Text>
-                <Text style={styles.npcErrorText}>{npcError}</Text>
+                <AppText style={styles.npcErrorIcon}>⚠️</AppText>
+                <AppText style={styles.npcErrorTitle}>Failed to load conversation</AppText>
+                <AppText style={styles.npcErrorText}>{npcError}</AppText>
                 <Pressable
                   style={styles.npcRetryButton}
                   onPress={() => {
@@ -1417,47 +1491,47 @@ export default function ActivityDetailScreen() {
                     if (activity) initNPCDialogue(activity);
                   }}
                 >
-                  <Text style={styles.npcRetryText}>Retry</Text>
+                  <AppText style={styles.npcRetryText}>Retry</AppText>
                 </Pressable>
               </View>
             ) : !npcCurrentNode && !npcCompleted ? (
               <View style={styles.npcLoadingCard}>
                 <ActivityIndicator size="large" color={Accent.yellow} />
-                <Text style={styles.npcLoadingText}>
+                <AppText style={styles.npcLoadingText}>
                   Connecting...
-                </Text>
+                </AppText>
               </View>
             ) : showTimeoutRestart ? (
               <View style={styles.timeoutOverlay}>
-                <Text style={styles.timeoutTitle}>Time's Up!</Text>
-                <Text style={styles.timeoutMessage}>
+                <AppText style={styles.timeoutTitle}>Time's Up!</AppText>
+                <AppText style={styles.timeoutMessage}>
                   You didn't respond in time. Let's try again.
-                </Text>
+                </AppText>
                 <Pressable
                   style={styles.restartButton}
                   onPress={restartConversation}
                 >
-                  <Text style={styles.restartButtonText}>Restart Conversation</Text>
+                  <AppText style={styles.restartButtonText}>Restart Conversation</AppText>
                 </Pressable>
               </View>
             ) : npcCompleted ? (
               // Show summary overlay when conversation is completed
               <View style={styles.npcSummaryOverlay} {...panResponder.panHandlers}>
                 <View style={styles.npcSummaryBox}>
-                  <Text style={styles.npcSummaryTitle}>Conversation Summary</Text>
-                  <Text style={styles.npcSummaryText}>
+                  <AppText style={styles.npcSummaryTitle}>Conversation Summary</AppText>
+                  <AppText style={styles.npcSummaryText}>
                     {npcSummary || activity.instructions || "You have completed this conversation."}
-                  </Text>
+                  </AppText>
                 </View>
                 {currentPage < dayActivitiesList.length - 1 ? (
                   <>
-                    <Text style={styles.swipeHint}>↓</Text>
-                    <Text style={styles.swipeText}>Swipe down for next activity</Text>
+                    <AppText style={styles.swipeHint}>↓</AppText>
+                    <AppText style={styles.swipeText}>Swipe down for next activity</AppText>
                   </>
                 ) : (
                   <>
-                    <Text style={styles.swipeHint}>↓</Text>
-                    <Text style={styles.swipeText}>Swipe down to finish day</Text>
+                    <AppText style={styles.swipeHint}>↓</AppText>
+                    <AppText style={styles.swipeText}>Swipe down to finish day</AppText>
                   </>
                 )}
               </View>
@@ -1481,7 +1555,7 @@ export default function ActivityDetailScreen() {
                     </View>
                   ) : (
                     <View style={styles.npcAvatarPlaceholderLarge}>
-                      <Text style={styles.npcAvatarEmojiLarge}>👤</Text>
+                      <AppText style={styles.npcAvatarEmojiLarge}>👤</AppText>
                     </View>
                   )}
                 </Animated.View>
@@ -1489,10 +1563,10 @@ export default function ActivityDetailScreen() {
                 {/* Speech Bubble and Timer Bar */}
                 <View style={styles.speechBubbleContainer}>
                   <View style={styles.speechBubble}>
-                    <Text style={styles.speechBubbleText}>
+                    <AppText style={styles.speechBubbleText}>
                       {displayedText}
-                      {isTyping && <Text style={styles.typingCursor}>|</Text>}
-                    </Text>
+                      {isTyping && <AppText style={styles.typingCursor}>|</AppText>}
+                    </AppText>
                   </View>
 
                   {/* Timer Bar - Below speech bubble */}
@@ -1520,9 +1594,9 @@ export default function ActivityDetailScreen() {
                 {npcSeedAvatar?.name && (
                   <View style={styles.npcNameTag}>
                     <View style={styles.npcOnlineIndicator} />
-                    <Text style={styles.npcNameTagText}>
+                    <AppText style={styles.npcNameTagText}>
                       {npcSeedAvatar.name}
-                    </Text>
+                    </AppText>
                   </View>
                 )}
 
@@ -1541,12 +1615,12 @@ export default function ActivityDetailScreen() {
                         onPress={() => handleNPCChoice(choice)}
                       >
                         <View style={styles.choiceOptionContent}>
-                          <Text style={styles.choiceOptionLabel}>
+                          <AppText style={styles.choiceOptionLabel}>
                             {String.fromCharCode(65 + index)}
-                          </Text>
-                          <Text style={styles.choiceOptionText}>
+                          </AppText>
+                          <AppText style={styles.choiceOptionText}>
                             {choice.choice_text}
-                          </Text>
+                          </AppText>
                         </View>
                       </Pressable>
                     ))}
@@ -1581,7 +1655,7 @@ export default function ActivityDetailScreen() {
           {/* Instructions */}
           {activity.instructions && (
             <View style={styles.instructionsCard}>
-              <Text style={styles.instructionsText}>{activity.instructions}</Text>
+              <AppText style={styles.instructionsText}>{activity.instructions}</AppText>
             </View>
           )}
 
@@ -1604,15 +1678,15 @@ export default function ActivityDetailScreen() {
                   </View>
                 ) : (
                   <View style={styles.messengerAvatar}>
-                    <Text style={styles.messengerAvatarText}>AI</Text>
+                    <AppText style={styles.messengerAvatarText}>AI</AppText>
                     <View style={styles.messengerOnlineDot} />
                   </View>
                 )}
                 <View style={styles.messengerHeaderInfo}>
-                  <Text style={styles.messengerHeaderName}>
+                  <AppText style={styles.messengerHeaderName}>
                     {npcSeedAvatar?.name || "AI Assistant"}
-                  </Text>
-                  <Text style={styles.messengerHeaderStatus}>Online</Text>
+                  </AppText>
+                  <AppText style={styles.messengerHeaderStatus}>Online</AppText>
                 </View>
               </View>
 
@@ -1627,9 +1701,9 @@ export default function ActivityDetailScreen() {
                       ]}
                     />
                   </View>
-                  <Text style={styles.aiProgressText}>
+                  <AppText style={styles.aiProgressText}>
                     {Math.min(Math.round((aiMessages.length / aiMaxMessages) * 100), 100)}%
-                  </Text>
+                  </AppText>
                 </View>
               )}
 
@@ -1668,13 +1742,13 @@ export default function ActivityDetailScreen() {
                             : styles.messengerBubbleAI,
                         ]}
                       >
-                        <Text style={[
+                        <AppText style={[
                           styles.messengerBubbleText,
                           msg.role === "user" && styles.messengerBubbleTextUser
                         ]}>
                           {msg.content}
-                        </Text>
-                        <Text style={[
+                        </AppText>
+                        <AppText style={[
                           styles.messengerTime,
                           msg.role === "user" && styles.messengerTimeUser
                         ]}>
@@ -1682,7 +1756,7 @@ export default function ActivityDetailScreen() {
                             hour: '2-digit',
                             minute: '2-digit'
                           })}
-                        </Text>
+                        </AppText>
                       </View>
                     </View>
                   </View>
@@ -1693,8 +1767,8 @@ export default function ActivityDetailScreen() {
                     <View style={styles.messengerBubbleAI}>
                       <View style={styles.typingIndicator}>
                         <View style={styles.typingDot} />
-                        <View style={[styles.typingDot, { animationDelay: '0.2s' }]} />
-                        <View style={[styles.typingDot, { animationDelay: '0.4s' }]} />
+                        <View style={[styles.typingDot, { opacity: 0.6 }]} />
+                        <View style={[styles.typingDot, { opacity: 0.3 }]} />
                       </View>
                     </View>
                   </View>
@@ -1702,10 +1776,10 @@ export default function ActivityDetailScreen() {
 
                 {aiObjectiveMet && (
                   <View style={styles.messengerCompletedCard}>
-                    <Text style={styles.messengerCompletedIcon}>✓</Text>
-                    <Text style={styles.messengerCompletedText}>
+                    <AppText style={styles.messengerCompletedIcon}>✓</AppText>
+                    <AppText style={styles.messengerCompletedText}>
                       Conversation objective completed!
-                    </Text>
+                    </AppText>
                   </View>
                 )}
               </ScrollView>
@@ -1727,12 +1801,12 @@ export default function ActivityDetailScreen() {
           {/* Swipe hint for swipeable content */}
           {canSwipe() && (
             <View style={styles.swipeHintContainer}>
-              <Text style={styles.swipeHintArrow}>↓</Text>
-              <Text style={styles.swipeHintText}>
+              <AppText style={styles.swipeHintArrow}>↓</AppText>
+              <AppText style={styles.swipeHintText}>
                 {currentPage < dayActivitiesList.length - 1
                   ? "Swipe down for next activity"
                   : "Swipe down to finish day"}
-              </Text>
+              </AppText>
             </View>
           )}
 
@@ -1761,9 +1835,9 @@ export default function ActivityDetailScreen() {
               onPress={handleAISendMessage}
               disabled={aiSending || !aiInput.trim()}
             >
-              <Text style={styles.messengerSendIcon}>
+              <AppText style={styles.messengerSendIcon}>
                 {aiSending ? "⋯" : "➤"}
-              </Text>
+              </AppText>
             </Pressable>
           </View>
         </View>
@@ -1772,19 +1846,14 @@ export default function ActivityDetailScreen() {
       {/* Complete Button - Only show when can complete */}
       {canComplete() && (
         <View style={styles.ctaContainer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.ctaButton,
-              pressed && styles.ctaButtonPressed,
-              completing && styles.ctaButtonDisabled,
-            ]}
+          <GlassButton
+            variant="primary"
+            fullWidth
             onPress={handleComplete}
             disabled={completing}
           >
-            <Text style={styles.ctaText}>
-              {completing ? "Completing..." : "Mark as Complete"}
-            </Text>
-          </Pressable>
+            {completing ? "Completing..." : "Mark as Complete"}
+          </GlassButton>
         </View>
       )}
     </View>
@@ -1839,14 +1908,14 @@ function ContentItem({ content }: { content: PathContent }) {
     switch (content.content_type) {
       case "text":
         return (
-          <View style={styles.contentCard}>
+          <GlassCard style={styles.contentCard}>
             {content.content_title && (
-              <Text style={styles.contentTitle}>{content.content_title}</Text>
+              <AppText variant="bold" style={styles.contentTitle}>{content.content_title}</AppText>
             )}
             {content.content_body && (
-              <Text style={styles.contentBody}>{content.content_body}</Text>
+              <AppText style={styles.contentBody}>{content.content_body}</AppText>
             )}
-          </View>
+          </GlassCard>
         );
 
       case "video":
@@ -1868,9 +1937,9 @@ function ContentItem({ content }: { content: PathContent }) {
         }
 
         return (
-          <View style={isShort ? styles.shortVideoWrapper : styles.contentCard}>
+          <View style={styles.shortVideoWrapper}>
             {content.content_title && !isShort && (
-              <Text style={styles.contentTitle}>{content.content_title}</Text>
+              <AppText variant="bold" style={styles.contentTitle}>{content.content_title}</AppText>
             )}
             {isYouTube ? (
               <View style={isShort ? styles.videoContainerShort : styles.videoContainer}>
@@ -1883,12 +1952,14 @@ function ContentItem({ content }: { content: PathContent }) {
                     androidLayerType: "hardware",
                   }}
                 />
-                <Pressable
+                <GlassButton
+                  variant="secondary"
+                  size="small"
                   style={styles.openInYouTubeButton}
                   onPress={() => Linking.openURL(content.content_url || "")}
                 >
-                  <Text style={styles.openInYouTubeText}>🎬 Open in YouTube</Text>
-                </Pressable>
+                  🎬 Open in YouTube
+                </GlassButton>
               </View>
             ) : content.content_url ? (
               <View style={isShort ? styles.videoContainerShort : styles.videoContainer}>
@@ -1922,7 +1993,9 @@ function ContentItem({ content }: { content: PathContent }) {
               </View>
             ) : null}
             {content.content_body && !isShort && (
-              <Text style={styles.contentBody}>{content.content_body}</Text>
+              <GlassCard style={styles.contentCard}>
+                <AppText style={styles.contentBody}>{content.content_body}</AppText>
+              </GlassCard>
             )}
           </View>
         );
@@ -1933,14 +2006,14 @@ function ContentItem({ content }: { content: PathContent }) {
           <>
             {/* Title and description in card */}
             {(content.content_title || content.content_body) && (
-              <View style={styles.contentCard}>
+              <GlassCard style={styles.contentCard}>
                 {content.content_title && (
-                  <Text style={styles.contentTitle}>{content.content_title}</Text>
+                  <AppText variant="bold" style={styles.contentTitle}>{content.content_title}</AppText>
                 )}
                 {content.content_body && (
-                  <Text style={styles.contentBody}>{content.content_body}</Text>
+                  <AppText style={styles.contentBody}>{content.content_body}</AppText>
                 )}
-              </View>
+              </GlassCard>
             )}
 
             {/* Full-width image outside card */}
@@ -1955,34 +2028,34 @@ function ContentItem({ content }: { content: PathContent }) {
                 />
               </View>
             ) : (
-              <View style={styles.contentCard}>
-                <Text style={styles.contentBody}>No image URL provided</Text>
-              </View>
+              <GlassCard style={styles.contentCard}>
+                <AppText style={styles.contentBody}>No image URL provided</AppText>
+              </GlassCard>
             )}
           </>
         );
 
       case "resource_link":
         return (
-          <View style={styles.contentCard}>
-            <Text style={styles.contentIcon}>🔗</Text>
+          <GlassCard style={styles.contentCard}>
+            <AppText style={styles.contentIcon}>🔗</AppText>
             {content.content_title && (
-              <Text style={styles.contentTitle}>{content.content_title}</Text>
+              <AppText variant="bold" style={styles.contentTitle}>{content.content_title}</AppText>
             )}
             {content.content_url && (
-              <Text style={styles.contentUrl}>{content.content_url}</Text>
+              <AppText style={styles.contentUrl}>{content.content_url}</AppText>
             )}
-          </View>
+          </GlassCard>
         );
 
       case "daily_prompt":
         return (
-          <View style={[styles.contentCard, styles.promptCard]}>
-            <Text style={styles.contentIcon}>💡</Text>
+          <GlassCard style={[styles.contentCard, styles.promptCard]}>
+            <AppText style={styles.contentIcon}>💡</AppText>
             {content.content_body && (
-              <Text style={styles.promptText}>{content.content_body}</Text>
+              <AppText style={styles.promptText}>{content.content_body}</AppText>
             )}
-          </View>
+          </GlassCard>
         );
 
       default:
@@ -2095,26 +2168,26 @@ function AssessmentItem({
 
   return (
     <>
-      <View style={styles.assessmentCard}>
-        <Text style={styles.assessmentType}>
+      <GlassCard style={styles.assessmentCard}>
+        <AppText variant="bold" style={styles.assessmentType}>
           {assessment.assessment_type.replace(/_/g, " ").toUpperCase()}
-        </Text>
+        </AppText>
 
         {assessment.quiz_questions && assessment.quiz_questions.length > 0 && (
           <View style={styles.quizContainer}>
             {assessment.quiz_questions.map((question, index) => (
               <View key={question.id} style={styles.questionCard}>
-                <Text style={styles.questionText}>
+                <AppText style={styles.questionText}>
                   {index + 1}. {question.question_text}
-                </Text>
+                </AppText>
                 {question.options &&
                   Array.isArray(question.options) &&
                   question.options.map((opt: any, optIndex: number) => (
                     <View key={optIndex} style={styles.optionRow}>
                       <View style={styles.optionCircle} />
-                      <Text style={styles.optionText}>
+                      <AppText style={styles.optionText}>
                         {typeof opt === "string" ? opt : opt.text || opt.option}
-                      </Text>
+                      </AppText>
                     </View>
                   ))}
               </View>
@@ -2133,23 +2206,22 @@ function AssessmentItem({
               multiline
               textAlignVertical="top"
             />
-            <Text style={styles.characterCount}>{textAnswer.length} characters</Text>
+            <AppText style={styles.characterCount}>{textAnswer.length} characters</AppText>
           </View>
         )}
 
         {assessment.assessment_type === "file_upload" && (
           <View style={styles.uploadContainer}>
-            <Pressable style={styles.uploadButton} onPress={handlePickFile}>
-              <Text style={styles.uploadButtonIcon}>📎</Text>
-              <Text style={styles.uploadButtonText}>Choose File</Text>
-            </Pressable>
+            <GlassButton variant="secondary" style={styles.uploadButton} onPress={handlePickFile}>
+              📎 Choose File
+            </GlassButton>
             {selectedFile && (
-              <View style={styles.selectedFileCard}>
-                <Text style={styles.selectedFileName}>📄 {selectedFile.name}</Text>
+              <GlassCard style={styles.selectedFileCard}>
+                <AppText style={styles.selectedFileName}>📄 {selectedFile.name}</AppText>
                 <Pressable onPress={() => setSelectedFile(null)}>
-                  <Text style={styles.removeFileText}>✕</Text>
+                  <AppText style={styles.removeFileText}>✕</AppText>
                 </Pressable>
-              </View>
+              </GlassCard>
             )}
           </View>
         )}
@@ -2157,18 +2229,16 @@ function AssessmentItem({
         {assessment.assessment_type === "image_upload" && (
           <View style={styles.uploadContainer}>
             <View style={styles.imageUploadButtons}>
-              <Pressable style={styles.cameraButton} onPress={handleTakePhoto}>
-                <Text style={styles.uploadButtonIcon}>📷</Text>
-                <Text style={styles.uploadButtonText}>Take Photo</Text>
-              </Pressable>
-              <Pressable style={styles.uploadButton} onPress={handlePickImage}>
-                <Text style={styles.uploadButtonIcon}>🖼️</Text>
-                <Text style={styles.uploadButtonText}>Choose Photo</Text>
-              </Pressable>
+              <GlassButton variant="secondary" style={styles.cameraButton} onPress={handleTakePhoto}>
+                📷 Take Photo
+              </GlassButton>
+              <GlassButton variant="secondary" style={styles.uploadButton} onPress={handlePickImage}>
+                🖼️ Choose Photo
+              </GlassButton>
             </View>
           </View>
         )}
-      </View>
+      </GlassCard>
 
       {/* Full-width image display OUTSIDE of assessmentCard */}
       {assessment.assessment_type === "image_upload" && selectedImage && (() => {
@@ -2192,7 +2262,7 @@ function AssessmentItem({
               />
             </ScrollView>
             <Pressable style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
-              <Text style={styles.removeFileText}>✕</Text>
+              <AppText style={styles.removeFileText}>✕</AppText>
             </Pressable>
           </View>
         );
@@ -2221,7 +2291,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     color: ThemeText.tertiary,
     marginBottom: 24,
   },
@@ -2233,7 +2302,6 @@ const styles = StyleSheet.create({
   },
   backBtnText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: ThemeText.primary,
   },
@@ -2247,14 +2315,12 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     color: ThemeText.tertiary,
     width: 60,
   },
   headerTitle: {
     flex: 1,
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: ThemeText.primary,
     textAlign: "center",
@@ -2275,7 +2341,6 @@ const styles = StyleSheet.create({
   },
   instructionsText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     color: "#333",
     lineHeight: 22,
   },
@@ -2319,7 +2384,6 @@ const styles = StyleSheet.create({
   },
   messengerAvatarText: {
     fontSize: 18,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: "#fff",
   },
@@ -2339,14 +2403,12 @@ const styles = StyleSheet.create({
   },
   messengerHeaderName: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#1a1a1a",
     marginBottom: 2,
   },
   messengerHeaderStatus: {
     fontSize: 13,
-    fontFamily: "Orbit_400Regular",
     color: "#10b981",
   },
 
@@ -2377,7 +2439,6 @@ const styles = StyleSheet.create({
   },
   aiProgressText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: ThemeText.primary,
     minWidth: 40,
@@ -2414,7 +2475,6 @@ const styles = StyleSheet.create({
   },
   messengerBubbleText: {
     fontSize: 15,
-    fontFamily: "Orbit_400Regular",
     color: "#1a1a1a",
     lineHeight: 22,
     marginBottom: 4,
@@ -2424,7 +2484,6 @@ const styles = StyleSheet.create({
   },
   messengerTime: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
     color: "rgba(0, 0, 0, 0.4)",
   },
   messengerTimeUser: {
@@ -2458,7 +2517,6 @@ const styles = StyleSheet.create({
   },
   messengerCompletedText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: "#065f46",
   },
@@ -2482,7 +2540,6 @@ const styles = StyleSheet.create({
   messengerInput: {
     flex: 1,
     fontSize: 15,
-    fontFamily: "Orbit_400Regular",
     color: "#1a1a1a",
     maxHeight: 100,
     paddingVertical: 10,
@@ -2576,7 +2633,6 @@ const styles = StyleSheet.create({
   },
   npcLoadingText: {
     fontSize: 18,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#111",
     letterSpacing: 1,
@@ -2595,13 +2651,11 @@ const styles = StyleSheet.create({
   },
   npcErrorTitle: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#721c24",
   },
   npcErrorText: {
     fontSize: 13,
-    fontFamily: "Orbit_400Regular",
     color: "#721c24",
     textAlign: "center",
   },
@@ -2614,7 +2668,6 @@ const styles = StyleSheet.create({
   },
   npcRetryText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: ThemeText.primary,
   },
@@ -2671,7 +2724,6 @@ const styles = StyleSheet.create({
   },
   npcNameTagText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#111",
     letterSpacing: 0.5,
@@ -2709,7 +2761,6 @@ const styles = StyleSheet.create({
   },
   speechBubbleText: {
     fontSize: 17,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: "#111",
     lineHeight: 26,
@@ -2760,7 +2811,6 @@ const styles = StyleSheet.create({
   },
   timerNumberBelow: {
     fontSize: 18,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: Accent.yellow,
     backgroundColor: "rgba(0, 0, 0, 0.7)",
@@ -2831,7 +2881,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: "#111",
     textAlign: "center",
@@ -2840,7 +2889,6 @@ const styles = StyleSheet.create({
   choiceOptionText: {
     flex: 1,
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: "#111",
     lineHeight: 24,
@@ -2856,14 +2904,12 @@ const styles = StyleSheet.create({
   },
   timeoutTitle: {
     fontSize: 48,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: "#ff3333",
     textAlign: "center",
   },
   timeoutMessage: {
     fontSize: 18,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: "#111",
     textAlign: "center",
@@ -2878,7 +2924,6 @@ const styles = StyleSheet.create({
   },
   restartButtonText: {
     fontSize: 18,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: "#000",
   },
@@ -2896,7 +2941,6 @@ const styles = StyleSheet.create({
   },
   completionText: {
     fontSize: 24,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#111",
     marginBottom: 16,
@@ -2919,7 +2963,6 @@ const styles = StyleSheet.create({
   },
   npcSummaryTitle: {
     fontSize: 20,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: ThemeText.primary,
     marginBottom: 12,
@@ -2927,7 +2970,6 @@ const styles = StyleSheet.create({
   },
   npcSummaryText: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "400",
     color: ThemeText.secondary,
     lineHeight: 24,
@@ -2940,7 +2982,6 @@ const styles = StyleSheet.create({
   },
   swipeText: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: ThemeText.secondary,
     marginTop: 8,
@@ -2956,7 +2997,6 @@ const styles = StyleSheet.create({
   },
   swipeHintText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: ThemeText.secondary,
     marginTop: 8,
@@ -2971,18 +3011,12 @@ const styles = StyleSheet.create({
   },
   objectiveMetText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: "#155724",
   },
 
   contentCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: Radius.md,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
+    marginBottom: Space.lg,
   },
   shortVideoWrapper: {
     marginBottom: 12,
@@ -3038,7 +3072,6 @@ const styles = StyleSheet.create({
   },
   openInYouTubeText: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: "#fff",
   },
@@ -3048,7 +3081,6 @@ const styles = StyleSheet.create({
   },
   contentType: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: ThemeText.muted,
     textTransform: "uppercase",
@@ -3056,14 +3088,12 @@ const styles = StyleSheet.create({
   },
   contentTitle: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: ThemeText.primary,
     marginBottom: 8,
   },
   contentBody: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     color: ThemeText.secondary,
     lineHeight: 22,
   },
@@ -3083,7 +3113,6 @@ const styles = StyleSheet.create({
   },
   contentUrl: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
     color: Accent.yellowDark,
     marginBottom: 8,
   },
@@ -3093,20 +3122,15 @@ const styles = StyleSheet.create({
   },
   promptText: {
     fontSize: 15,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: ThemeText.primary,
     lineHeight: 24,
   },
   assessmentCard: {
-    backgroundColor: "#f0f0f0",
-    padding: 16,
-    borderRadius: Radius.md,
-    marginBottom: 12,
+    marginBottom: Space.lg,
   },
   assessmentType: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: ThemeText.muted,
     marginBottom: 12,
@@ -3121,7 +3145,6 @@ const styles = StyleSheet.create({
   },
   questionText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "500",
     color: ThemeText.primary,
     marginBottom: 12,
@@ -3141,7 +3164,6 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 13,
-    fontFamily: "Orbit_400Regular",
     color: ThemeText.secondary,
   },
   textAnswerContainer: {
@@ -3153,14 +3175,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     minHeight: 120,
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     color: ThemeText.primary,
     borderWidth: 1,
     borderColor: Border.default,
   },
   characterCount: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
     color: ThemeText.muted,
     textAlign: "right",
     marginTop: 8,
@@ -3169,27 +3189,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   uploadButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#fff",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: Radius.md,
-    borderWidth: 2,
-    borderColor: Accent.yellow,
-    borderStyle: "dashed",
+    flex: 1,
   },
   cameraButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Accent.yellow,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: Radius.md,
     flex: 1,
   },
   uploadButtonIcon: {
@@ -3197,7 +3199,6 @@ const styles = StyleSheet.create({
   },
   uploadButtonText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: ThemeText.primary,
   },
@@ -3209,16 +3210,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: Radius.md,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: Border.default,
+    marginTop: Space.md,
   },
   selectedFileName: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
     color: ThemeText.primary,
     flex: 1,
   },
@@ -3286,7 +3281,6 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
     fontWeight: "600",
     color: ThemeText.primary,
   },
