@@ -178,6 +178,22 @@ export default function RootLayout() {
           name="portfolio/index"
           options={{ presentation: "card" }}
         />
+        <Stack.Screen
+          name="hackathon-program/index"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen
+          name="hackathon-program/phase/[phaseId]"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen
+          name="hackathon-program/module/[moduleId]"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen
+          name="hackathon-program/reflection/[phaseId]"
+          options={{ presentation: "card" }}
+        />
         <Stack.Screen name="fit/index" options={{ presentation: "card" }} />
         <Stack.Screen name="career/[name]" options={{ presentation: "card" }} />
         {/* Super Planner screens */}
@@ -187,6 +203,18 @@ export default function RootLayout() {
         <Stack.Screen name="plans/index" options={{ presentation: "card" }} />
         <Stack.Screen name="plans/[planId]" options={{ presentation: "card" }} />
         <Stack.Screen name="plans/create" options={{ presentation: "card" }} />
+        <Stack.Screen
+          name="hackathon-program/index"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen
+          name="hackathon-program/phase/[phaseId]"
+          options={{ presentation: "card" }}
+        />
+        <Stack.Screen
+          name="hackathon-program/module/[moduleId]"
+          options={{ presentation: "card" }}
+        />
       </Stack>
     );
   }
