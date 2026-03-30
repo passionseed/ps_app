@@ -113,7 +113,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                 { width: `${100 / state.routes.length}%` },
               ]}
             >
-              {state.routes.map((route, i) => {
+              {state.routes.map((route: { key: string; name: string; params?: object }, i: number) => {
                 const theme =
                   TAB_THEMES[route.name as TabRoute] || TAB_THEMES["my-paths"];
                 const activeOpacityStyle = useAnimatedStyle(() => {
@@ -149,7 +149,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               })}
             </Animated.View>
 
-            {state.routes.map((route, index) => {
+            {state.routes.map((route: { key: string; name: string; params?: object }, index: number) => {
               const isFocused = state.index === index;
               const routeName = route.name as TabRoute;
               const theme = TAB_THEMES[routeName] || TAB_THEMES["my-paths"];
@@ -249,7 +249,7 @@ export default function TabsLayout() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
-        tabBar={(props) => <CustomTabBar {...props} />}
+        tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} />}
         screenOptions={{
           headerShown: false,
           sceneStyle: { backgroundColor: PageBg.default },

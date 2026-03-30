@@ -1,8 +1,8 @@
-import { Audio } from 'expo-audio';
+import { useAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 // Sound instances
-let npcSpeakSound: Audio.Sound | null = null;
-let activityCompleteSound: Audio.Sound | null = null;
+let npcSpeakSound: AudioPlayer | null = null;
+let activityCompleteSound: AudioPlayer | null = null;
 
 /**
  * Initialize audio system and preload sounds
@@ -11,17 +11,13 @@ export async function initializeSounds() {
   try {
     // Preload sounds - handle missing files gracefully
     try {
-      npcSpeakSound = await Audio.Sound.createAsync(
-        require('../assets/sounds/npc-speak.mp3')
-      );
+      npcSpeakSound = useAudioPlayer(require('../assets/sounds/npc-speak.mp3'));
     } catch (error) {
       console.warn('[Sounds] npc-speak.mp3 not found - see assets/sounds/README.md');
     }
 
     try {
-      activityCompleteSound = await Audio.Sound.createAsync(
-        require('../assets/sounds/activity-complete.mp3')
-      );
+      activityCompleteSound = useAudioPlayer(require('../assets/sounds/activity-complete.mp3'));
     } catch (error) {
       console.warn('[Sounds] activity-complete.mp3 not found - see assets/sounds/README.md');
     }
@@ -38,7 +34,7 @@ export async function initializeSounds() {
 export async function playNPCSpeakSound() {
   try {
     if (npcSpeakSound) {
-      await npcSpeakSound.replayAsync();
+      await npcSpeakSound.play();
     }
   } catch (error) {
     console.error('[Sounds] Failed to play NPC speak sound:', error);
@@ -51,7 +47,7 @@ export async function playNPCSpeakSound() {
 export async function playActivityCompleteSound() {
   try {
     if (activityCompleteSound) {
-      await activityCompleteSound.replayAsync();
+      await activityCompleteSound.play();
     }
   } catch (error) {
     console.error('[Sounds] Failed to play activity complete sound:', error);
@@ -64,11 +60,11 @@ export async function playActivityCompleteSound() {
 export async function cleanupSounds() {
   try {
     if (npcSpeakSound) {
-      await npcSpeakSound.unloadAsync();
+      npcSpeakSound.remove();
       npcSpeakSound = null;
     }
     if (activityCompleteSound) {
-      await activityCompleteSound.unloadAsync();
+      activityCompleteSound.remove();
       activityCompleteSound = null;
     }
     console.log('[Sounds] Cleaned up successfully');

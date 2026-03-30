@@ -12,6 +12,7 @@ import Reanimated, {
   withRepeat,
   withTiming,
   withSequence,
+  type SharedValue,
 } from "react-native-reanimated";
 import Svg, { Defs, RadialGradient, Stop, Rect } from "react-native-svg";
 import { AppText as Text } from "../AppText";
@@ -29,7 +30,7 @@ const CinematicGlow = ({
 }: {
   color: string;
   size: number;
-  animationVal: Reanimated.SharedValue<number>;
+  animationVal: SharedValue<number>;
   xRange: [number, number];
   yRange: [number, number];
   baseX: number;
