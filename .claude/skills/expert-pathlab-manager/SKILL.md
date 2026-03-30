@@ -43,7 +43,7 @@ path_activity_progress → path_assessment_submissions
 | `paths` | `id`, `seed_id`, `total_days`, `created_by` | One path per seed |
 | `path_days` | `id`, `path_id`, `day_number`, `title` (nullable), `context_text`, `reflection_prompts` (JSONB array), `node_ids` (UUID[]), `migrated_from_nodes` (bool), `activity_count` (int, auto-maintained by trigger) | reflection_prompts is JSONB not TEXT[] |
 | `path_activities` | `id`, `path_day_id`, `title`, `instructions`, `display_order`, `estimated_minutes`, `is_required`, `is_draft`, `draft_reason` | NO activity_type column — type determined by path_content.content_type or path_assessments.assessment_type |
-| `path_content` | `id`, `activity_id`, `content_type`, `content_title`, `content_url`, `content_body`, `display_order`, `metadata` (JSONB) | See content_type enum below |
+| `path_content` | `id`, `activity_id`, `content_type`, `content_title`, `content_url`, `content_body`, `display_order`, `metadata` (JSONB) | **CRITICAL:** For video/short_video, YouTube URLs go in `content_url` (not `content_body`). The app's YoutubePlayer only reads `content_url`. |
 | `path_assessments` | `id`, `activity_id`, `assessment_type`, `points_possible`, `is_graded`, `metadata` (JSONB) | One per activity (UNIQUE constraint); see assessment_type enum below |
 | `path_quiz_questions` | `id`, `assessment_id`, `question_text`, `options` (JSONB), `correct_option` | |
 | `map_nodes` | `id`, `map_id`, `title`, `node_type`, `metadata` | Legacy node system |
@@ -276,6 +276,21 @@ const { data: content } = await supabase
   })
   .select()
   .single();
+
+// For VIDEO content — URL MUST go in content_url, not content_body
+const { data: videoContent } = await supabase
+  .from('path_content')
+  .insert({
+    activity_id: activity.id,
+    content_type: 'video',  // or 'short_video'
+    content_title: 'YC: How to Get Startup Ideas',
+    content_url: 'https://www.youtube.com/watch?v=DGU0wXMKqf4',  // ← REQUIRED for YouTube
+    content_body: null,  // Optional description text
+    display_order: 0,
+    metadata: {}
+  })
+  .select()
+  .single();
 ```
 
 ### Update Expert Interview Data
@@ -365,6 +380,7 @@ await supabase
 | Using removed content types (resource_link, order_code, daily_prompt, reflection_card, emotion_check, progress_snapshot) | Full enum is now: video/short_video/canva_slide/text/image/pdf/ai_chat/npc_chat |
 | Using removed assessment types (quiz, checklist, daily_reflection, interest_rating, energy_check) | Full enum is now: text_answer/file_upload/image_upload |
 | Not setting `visibility` on seeds | Defaults to `hidden` — set to `visible` or `featured` to show in app |
+| Putting video URLs in `content_body` instead of `content_url` | For video/short_video content, YouTube URLs MUST go in `content_url` field — the app's YoutubePlayer only reads from `content_url`, not `content_body` |
 
 ## Required Fields Summary
 
@@ -374,7 +390,7 @@ await supabase
 | `paths` | `seed_id`, `created_by` |
 | `path_days` | `path_id`, `day_number`, `context_text` |
 | `path_activities` | `path_day_id`, `title` |
-| `path_content` | `activity_id`, `content_type` |
+| `path_content` | `activity_id`, `content_type` — **For video/short_video: `content_url` is required** |
 | `path_assessments` | `activity_id`, `assessment_type` |
 | `expert_pathlabs` | `expert_profile_id` |
 | `seed_npc_avatars` | `seed_id`, `name`, `svg_data` |
