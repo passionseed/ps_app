@@ -25,6 +25,7 @@ interface GlassButtonProps {
   fullWidth?: boolean;
   icon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 export function GlassButton({
@@ -37,6 +38,7 @@ export function GlassButton({
   fullWidth = false,
   icon,
   style,
+  textStyle,
 }: GlassButtonProps) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const glowAnim = React.useRef(new Animated.Value(0)).current;
@@ -114,7 +116,10 @@ export function GlassButton({
           ) : (
             <>
               {icon && <Animated.View style={styles.icon}>{icon}</Animated.View>}
-              <AppText variant="bold" style={[sizeStyles.text, variantStyles.text, styles.primaryText]}>
+              <AppText
+                variant="bold"
+                style={[sizeStyles.text, variantStyles.text, styles.primaryText, textStyle]}
+              >
                 {children}
               </AppText>
             </>
@@ -151,7 +156,7 @@ export function GlassButton({
         ) : (
           <>
             {icon && <Animated.View style={styles.icon}>{icon}</Animated.View>}
-            <AppText variant="bold" style={[sizeStyles.text, variantStyles.text]}>
+            <AppText variant="bold" style={[sizeStyles.text, variantStyles.text, textStyle]}>
               {children}
             </AppText>
           </>

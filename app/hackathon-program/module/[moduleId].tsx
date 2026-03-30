@@ -18,6 +18,7 @@ import {
   buildModuleProgressSnapshot,
   getHackathonModuleDetail,
 } from "../../../lib/hackathonProgram";
+import { getPreviewModuleDetail } from "../../../lib/hackathonProgramPreview";
 import {
   buildPainPointFeedbackInput,
   getPainPointFeedbackVerdictLabel,
@@ -33,6 +34,72 @@ import {
   Text as ThemeText,
   Type,
 } from "../../../lib/theme";
+import type { PathActivityScope } from "../../../types/pathlab-content";
+
+function getResponsibilityCopy(scope: PathActivityScope) {
+  switch (scope) {
+    case "team":
+      return {
+        label: "Team synthesis required",
+        detail:
+          "This module is owned by the team. Individual evidence should feed the shared output before submission.",
+      };
+    case "hybrid":
+      return {
+        label: "Individual work unlocks team work",
+        detail:
+          "Each member contributes evidence first, then the team consolidates it into one shared submission.",
+      };
+    default:
+      return {
+        label: "Each member completes this activity",
+        detail:
+          "This step is individually owned so every participant builds real customer discovery skill, not just the loudest teammate.",
+      };
+  }
+}
+
+function getGateCardCopy(params: {
+  gateStatus: string;
+  gateRule: string;
+  reviewMode: string;
+  requiredMemberCount: number | null;
+}) {
+  const requiredCount = params.requiredMemberCount ?? 3;
+
+  switch (params.gateStatus) {
+    case "passed":
+      return {
+        title: "Gate passed",
+        status: "passed",
+        body: "This module has enough evidence to move forward. Keep refining the team artifact before the next handoff.",
+      };
+    case "revision_required":
+      return {
+        title: "Revision required",
+        status: "revise",
+        body: "At least one submission needs another pass. Tighten the evidence and resubmit before proceeding.",
+      };
+    case "ready_for_team":
+      return {
+        title: "Ready for team synthesis",
+        status: "ready",
+        body:
+          params.gateRule === "all_members_complete"
+            ? "Every required member has completed the prerequisite work. The team can now consolidate this into the shared output."
+            : `At least ${requiredCount} members have enough progress. The team can open the shared submission and push it toward ${params.reviewMode}.`,
+      };
+    default:
+      return {
+        title: "Progress gate",
+        status: "blocked",
+        body:
+          params.gateRule === "all_members_complete"
+            ? "Every member must finish their part before the team can move on."
+            : `This module needs more individual evidence before the team can advance. Target at least ${requiredCount} members with usable progress.`,
+      };
+  }
+}
 
 export default function HackathonModuleScreen() {
   const insets = useSafeAreaInsets();
@@ -58,13 +125,20 @@ export default function HackathonModuleScreen() {
       try {
         const result = await getHackathonModuleDetail(moduleId);
         if (!cancelled) {
-          setModule(result);
-          setError(result ? null : "Module not found");
+          const fallback = result ?? getPreviewModuleDetail(moduleId);
+          setModule(fallback);
+          setError(fallback ? null : "Module not found");
         }
       } catch (err) {
         if (!cancelled) {
+          const fallback = getPreviewModuleDetail(moduleId);
+          setModule(fallback);
           setError(
-            err instanceof Error ? err.message : "Unable to load module",
+            fallback
+              ? null
+              : err instanceof Error
+                ? err.message
+                : "Unable to load module",
           );
         }
       } finally {
@@ -97,6 +171,16 @@ export default function HackathonModuleScreen() {
       teamSubmissionStatus: "not_started",
     });
   }, [module]);
+
+  const responsibilityCopy = getResponsibilityCopy(
+    module?.workflow_scope ?? "individual",
+  );
+  const gateCopy = getGateCardCopy({
+    gateStatus: moduleSnapshot?.gate_status ?? "blocked",
+    gateRule: module?.gate_rule ?? "complete",
+    reviewMode: module?.review_mode ?? "auto",
+    requiredMemberCount: module?.required_member_count ?? null,
+  });
 
   const isPainPointModule = Boolean(
     module?.slug?.includes("pain-point") ||
@@ -156,7 +240,10 @@ export default function HackathonModuleScreen() {
           </AppText>
         </View>
 
-        <ResponsibilityBanner scope={module?.workflow_scope ?? "individual"} />
+        <ResponsibilityBanner
+          label={responsibilityCopy.label}
+          detail={responsibilityCopy.detail}
+        />
 
         <View style={styles.metaGrid}>
           <MetaPill
@@ -174,10 +261,9 @@ export default function HackathonModuleScreen() {
         {moduleSnapshot ? (
           <>
             <ProgressGateCard
-              gateStatus={moduleSnapshot.gate_status}
-              gateRule={module?.gate_rule ?? "complete"}
-              reviewMode={module?.review_mode ?? "auto"}
-              requiredMemberCount={module?.required_member_count ?? null}
+              title={gateCopy.title}
+              body={gateCopy.body}
+              status={gateCopy.status}
             />
             <GlassCard style={styles.snapshotCard}>
               <AppText style={styles.sectionLabel}>Gate snapshot</AppText>
@@ -193,31 +279,58 @@ export default function HackathonModuleScreen() {
           <>
             <TeamWorkspaceSection
               title="Problem statement"
-              prompt="Draft the team’s pain point clearly. Then use the feedback loop to sharpen it before submission."
-              value={problemStatement}
-              onChangeText={setProblemStatement}
-              onSubmit={handleFeedback}
-              submitLabel="Get Feedback"
-              loading={feedbackLoading}
+              description="Draft the team’s pain point clearly. Then use the feedback loop to sharpen it before submission."
+              fields={[
+                {
+                  key: "problem-statement",
+                  label: "Pain point draft",
+                  placeholder: "Describe the specific healthcare problem your team observed.",
+                  value: problemStatement,
+                  onChangeText: setProblemStatement,
+                  multiline: true,
+                },
+              ]}
             />
             <TeamWorkspaceSection
               title="Target customer"
-              prompt="Name the exact healthcare user segment this pain belongs to."
-              value={customer}
-              onChangeText={setCustomer}
-              onSubmit={handleFeedback}
-              submitLabel="Refresh Feedback"
-              loading={feedbackLoading}
+              description="Name the exact healthcare user segment this pain belongs to."
+              fields={[
+                {
+                  key: "target-customer",
+                  label: "Customer segment",
+                  placeholder: "Example: outpatient clinic managers handling insurance denials",
+                  value: customer,
+                  onChangeText: setCustomer,
+                },
+              ]}
             />
             <TeamWorkspaceSection
               title="Evidence bullets"
-              prompt="Paste one interview fact per line. Use observed details, counts, or exact moments from interviews."
-              value={evidenceText}
-              onChangeText={setEvidenceText}
-              onSubmit={handleFeedback}
-              submitLabel="Refresh Feedback"
-              loading={feedbackLoading}
+              description="Paste one interview fact per line. Use observed details, counts, or exact moments from interviews."
+              fields={[
+                {
+                  key: "evidence-bullets",
+                  label: "Interview evidence",
+                  placeholder: "One interview observation per line",
+                  value: evidenceText,
+                  onChangeText: setEvidenceText,
+                  multiline: true,
+                },
+              ]}
             />
+
+            <Pressable
+              onPress={handleFeedback}
+              disabled={feedbackLoading}
+              style={[
+                styles.feedbackButton,
+                feedbackLoading ? styles.feedbackButtonDisabled : null,
+              ]}
+            >
+              <AppText variant="bold" style={styles.feedbackButtonText}>
+                {feedbackLoading ? "Generating feedback..." : "Get AI feedback"}
+              </AppText>
+            </Pressable>
 
             {feedbackError ? (
               <AppText style={styles.errorText}>{feedbackError}</AppText>
@@ -342,6 +455,21 @@ const styles = StyleSheet.create({
   },
   feedbackResult: {
     gap: Space.sm,
+  },
+  feedbackButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: Radius.lg,
+    backgroundColor: Accent.yellow,
+    paddingHorizontal: Space.lg,
+    paddingVertical: Space.md,
+  },
+  feedbackButtonDisabled: {
+    opacity: 0.7,
+  },
+  feedbackButtonText: {
+    color: "#101418",
+    fontSize: 15,
   },
   resultTitle: {
     fontSize: 17,

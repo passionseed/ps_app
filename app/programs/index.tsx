@@ -14,7 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { AppText as Text } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
 import { createPlanWithPrograms, getPlanCount, MAX_PLANS_PER_USER } from "../../lib/admissionPlans";
-import { getProfile, getTcasProfile } from "../../lib/onboarding";
+import { getTcasProfile } from "../../lib/onboarding";
 import { getSavedProgramIds, toggleSaveProgram } from "../../lib/savedPrograms";
 import { buildProgramPlannerSections, searchPrograms } from "../../lib/tcas";
 import type { ProgramPlannerCandidate } from "../../types/tcas";
@@ -45,12 +45,12 @@ export default function ProgramsBrowserScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedRound, setSelectedRound] = useState(0);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  const [isThai, setIsThai] = useState(false);
   const [userGpax, setUserGpax] = useState<number | null>(null);
   const [busyProgramId, setBusyProgramId] = useState<string | null>(null);
 
-  const { user, isGuest, guestLanguage } = useAuth();
+  const { appLanguage, user, isGuest } = useAuth();
   const insets = useSafeAreaInsets();
+  const isThai = appLanguage === "th";
 
   const loadSavedIds = useCallback(async () => {
     try {
@@ -66,7 +66,6 @@ export default function ProgramsBrowserScreen() {
     async function loadContext() {
       if (isGuest) {
         if (!cancelled) {
-          setIsThai(guestLanguage === "th");
           setUserGpax(null);
         }
         return;
@@ -75,13 +74,9 @@ export default function ProgramsBrowserScreen() {
       if (!user?.id) return;
 
       try {
-        const [profile, tcasProfile] = await Promise.all([
-          getProfile(user.id),
-          getTcasProfile(user.id).catch(() => null),
-        ]);
+        const tcasProfile = await getTcasProfile(user.id).catch(() => null);
 
         if (cancelled) return;
-        setIsThai(profile?.preferred_language === "th");
         setUserGpax(tcasProfile?.gpax ?? null);
       } catch (error) {
         console.error("Failed to load planner context:", error);
@@ -94,7 +89,7 @@ export default function ProgramsBrowserScreen() {
     return () => {
       cancelled = true;
     };
-  }, [guestLanguage, isGuest, loadSavedIds, user?.id]);
+  }, [isGuest, loadSavedIds, user?.id]);
 
   useFocusEffect(
     useCallback(() => {

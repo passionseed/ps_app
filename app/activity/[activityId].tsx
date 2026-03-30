@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, type ComponentProps } from "react";
 import {
   View,
   StyleSheet,
@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  Linking,
   useWindowDimensions,
   Animated,
   PanResponder,
@@ -19,6 +18,7 @@ import Markdown from 'react-native-markdown-display';
 import * as DocumentPicker from 'expo-document-picker';
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgXml } from "react-native-svg";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { supabase } from "../../lib/supabase";
@@ -54,7 +54,7 @@ import {
   Type,
   StepThemes,
 } from "../../lib/theme";
-import { AppText } from "../../components/AppText";
+import { AppText as BaseAppText } from "../../components/AppText";
 import { GlassCard } from "../../components/Glass/GlassCard";
 import { GlassButton } from "../../components/Glass/GlassButton";
 
@@ -100,6 +100,40 @@ interface NPCChoice {
   to_node_id: string | null;
 }
 
+type ActivityTextProps = ComponentProps<typeof BaseAppText>;
+
+function AppText({ style, variant = "regular", ...props }: ActivityTextProps) {
+  return (
+    <BaseAppText
+      {...props}
+      variant={variant}
+      style={[variant === "bold" ? styles.baiBoldText : styles.baiRegularText, style]}
+    />
+  );
+}
+
+function getActivityTypeLabel(activityType: string) {
+  switch (activityType) {
+    case "video":
+    case "short_video":
+      return "Video lesson";
+    case "text":
+      return "Reading activity";
+    case "image":
+      return "Visual walkthrough";
+    case "resource_link":
+      return "Resource link";
+    case "reflection_prompt":
+      return "Reflection prompt";
+    case "ai_chat":
+      return "Interactive chat";
+    case "npc_chat":
+      return "Conversation simulation";
+    default:
+      return "Activity";
+  }
+}
+
 export default function ActivityDetailScreen() {
   const { activityId, enrollmentId, pageIndex, totalPages } = useLocalSearchParams<{
     activityId: string;
@@ -109,6 +143,7 @@ export default function ActivityDetailScreen() {
   }>();
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [activity, setActivity] = useState<ActivityWithContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1356,6 +1391,14 @@ export default function ActivityDetailScreen() {
   const activityType = getActivityType(activity);
   const isInteractive = activityType === "ai_chat" || activityType === "npc_chat";
   const isNpcChat = activityType === "npc_chat";
+  const activityPosition = total > 0 ? Math.min(currentPage + 1, total) : 1;
+  const activityCount = dayActivitiesCount || total;
+  const headerChipLabel =
+    activityCount > 0 ? `Activity ${activityPosition} of ${activityCount}` : "Activity";
+  const headerSubtitle =
+    activityCount > 1
+      ? `${getActivityTypeLabel(activityType)} in a ${activityCount}-step day`
+      : getActivityTypeLabel(activityType);
 
   return (
     <View style={styles.container}>
@@ -1364,14 +1407,26 @@ export default function ActivityDetailScreen() {
       {/* Header - Hidden for NPC chat full screen */}
       {!isNpcChat && (
         <>
-          <View style={styles.header}>
-            <Pressable onPress={() => router.back()}>
-              <AppText style={styles.backText}>← Back</AppText>
-            </Pressable>
-            <AppText style={styles.headerTitle} numberOfLines={1}>
-              {activity.title}
-            </AppText>
-            <View style={{ width: 60 }} />
+          <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+            <View style={styles.headerTopRow}>
+              <Pressable style={styles.headerBackButton} onPress={() => router.back()}>
+                <AppText style={styles.headerBackIcon}>←</AppText>
+              </Pressable>
+              <View style={styles.headerTopSpacer} />
+            </View>
+            <View style={styles.headerHero}>
+              <View style={styles.headerChipRow}>
+                <View style={styles.headerChip}>
+                  <AppText style={styles.headerChipText}>{headerChipLabel}</AppText>
+                </View>
+              </View>
+              <AppText variant="bold" style={styles.headerTitle}>
+                {activity.title}
+              </AppText>
+              <AppText style={styles.headerSubtitle}>
+                {headerSubtitle}
+              </AppText>
+            </View>
           </View>
 
           {/* Page Indicator Dots - Vertical on right side */}
@@ -1735,9 +1790,9 @@ export default function ActivityDetailScreen() {
           {/* Fallback for activities with no content configured */}
           {activityType === "unknown" && (
             <View style={{ padding: 32, alignItems: "center" }}>
-              <Text style={[styles.instructionText, { textAlign: "center", color: "#666" }]}>
+              <AppText style={[styles.instructionsText, { textAlign: "center", color: ThemeText.tertiary }]}>
                 This activity's content isn't available yet.
-              </Text>
+              </AppText>
             </View>
           )}
 
@@ -1797,6 +1852,7 @@ export default function ActivityDetailScreen() {
           <GlassButton
             variant="primary"
             fullWidth
+            textStyle={styles.glassButtonText}
             onPress={handleComplete}
             disabled={completing}
           >
@@ -1829,21 +1885,21 @@ function extractYouTubeId(url: string): string | null {
 }
 
 const markdownStyles = {
-  body: { fontFamily: "Orbit_400Regular", fontSize: 14, color: "#4B5563", lineHeight: 22 },
-  heading1: { fontFamily: "Orbit_400Regular", fontSize: 20, fontWeight: "700", color: "#111827", marginTop: 12, marginBottom: 4 },
-  heading2: { fontFamily: "Orbit_400Regular", fontSize: 17, fontWeight: "700", color: "#111827", marginTop: 10, marginBottom: 4 },
-  heading3: { fontFamily: "Orbit_400Regular", fontSize: 15, fontWeight: "700", color: "#111827", marginTop: 8, marginBottom: 4 },
-  strong: { fontFamily: "Orbit_400Regular", fontWeight: "700", color: "#111827" },
-  em: { fontFamily: "Orbit_400Regular", fontStyle: "italic" },
-  code_inline: { fontFamily: "Orbit_400Regular", backgroundColor: "#F3F4F6", color: "#111827", paddingHorizontal: 4, borderRadius: 4 },
-  code_block: { fontFamily: "Orbit_400Regular", backgroundColor: "#F3F4F6", color: "#111827", padding: 12, borderRadius: 8 },
-  fence: { fontFamily: "Orbit_400Regular", backgroundColor: "#F3F4F6", color: "#111827", padding: 12, borderRadius: 8 },
+  body: { fontFamily: "BaiJamjuree_400Regular", fontSize: 14, color: ThemeText.secondary, lineHeight: 22 },
+  heading1: { fontFamily: "BaiJamjuree_700Bold", fontSize: 20, color: ThemeText.primary, marginTop: 12, marginBottom: 4 },
+  heading2: { fontFamily: "BaiJamjuree_700Bold", fontSize: 17, color: ThemeText.primary, marginTop: 10, marginBottom: 4 },
+  heading3: { fontFamily: "BaiJamjuree_700Bold", fontSize: 15, color: ThemeText.primary, marginTop: 8, marginBottom: 4 },
+  strong: { fontFamily: "BaiJamjuree_700Bold", color: ThemeText.primary },
+  em: { fontFamily: "BaiJamjuree_400Regular", fontStyle: "italic" as const },
+  code_inline: { fontFamily: "BaiJamjuree_400Regular", backgroundColor: PageBg.offWhite, color: ThemeText.primary, paddingHorizontal: 4, borderRadius: 4 },
+  code_block: { fontFamily: "BaiJamjuree_400Regular", backgroundColor: PageBg.offWhite, color: ThemeText.primary, padding: 12, borderRadius: 8 },
+  fence: { fontFamily: "BaiJamjuree_400Regular", backgroundColor: PageBg.offWhite, color: ThemeText.primary, padding: 12, borderRadius: 8 },
   bullet_list: { marginVertical: 4 },
   ordered_list: { marginVertical: 4 },
   list_item: { marginVertical: 2 },
-  blockquote: { borderLeftWidth: 3, borderLeftColor: "#BFFF00", paddingLeft: 12, marginVertical: 8 },
-  link: { color: "#9FE800" },
-  hr: { backgroundColor: "#E5E7EB", height: 1, marginVertical: 12 },
+  blockquote: { borderLeftWidth: 3, borderLeftColor: Accent.yellow, paddingLeft: 12, marginVertical: 8 },
+  link: { color: Accent.yellowDark },
+  hr: { backgroundColor: "rgba(0,0,0,0.08)", height: 1, marginVertical: 12 },
 };
 
 function ContentItem({ content }: { content: PathContent }) {
@@ -1875,13 +1931,11 @@ function ContentItem({ content }: { content: PathContent }) {
         const isShort = content.content_url?.includes("/shorts/") || content.content_type === "short_video";
 
         // Calculate player dimensions for YouTube
-        let playerWidth = containerWidth;
         let playerHeight = containerWidth * (9 / 16);
 
         if (isShort) {
           // For short videos, make them much larger - fill most of the screen height
           playerHeight = windowHeight * 0.7; // 70% of screen height
-          playerWidth = playerHeight * (9 / 16); // Maintain 9:16 aspect ratio for vertical video
         }
 
         return (
@@ -1900,14 +1954,6 @@ function ContentItem({ content }: { content: PathContent }) {
                     androidLayerType: "hardware",
                   }}
                 />
-                <GlassButton
-                  variant="secondary"
-                  size="small"
-                  style={styles.openInYouTubeButton}
-                  onPress={() => Linking.openURL(content.content_url || "")}
-                >
-                  🎬 Open in YouTube
-                </GlassButton>
               </View>
             ) : content.content_url ? (
               <View style={isShort ? styles.videoContainerShort : styles.videoContainer}>
@@ -2150,7 +2196,12 @@ function AssessmentItem({
 
         {assessment.assessment_type === "file_upload" && (
           <View style={styles.uploadContainer}>
-            <GlassButton variant="secondary" style={styles.uploadButton} onPress={handlePickFile}>
+            <GlassButton
+              variant="secondary"
+              style={styles.uploadButton}
+              textStyle={styles.glassButtonText}
+              onPress={handlePickFile}
+            >
               📎 Choose File
             </GlassButton>
             {selectedFile && (
@@ -2167,10 +2218,20 @@ function AssessmentItem({
         {assessment.assessment_type === "image_upload" && (
           <View style={styles.uploadContainer}>
             <View style={styles.imageUploadButtons}>
-              <GlassButton variant="secondary" style={styles.cameraButton} onPress={handleTakePhoto}>
+              <GlassButton
+                variant="secondary"
+                style={styles.cameraButton}
+                textStyle={styles.glassButtonText}
+                onPress={handleTakePhoto}
+              >
                 📷 Take Photo
               </GlassButton>
-              <GlassButton variant="secondary" style={styles.uploadButton} onPress={handlePickImage}>
+              <GlassButton
+                variant="secondary"
+                style={styles.uploadButton}
+                textStyle={styles.glassButtonText}
+                onPress={handlePickImage}
+              >
                 🖼️ Choose Photo
               </GlassButton>
             </View>
@@ -2196,6 +2257,12 @@ function AssessmentItem({
 }
 
 const styles = StyleSheet.create({
+  baiRegularText: {
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  baiBoldText: {
+    fontFamily: "BaiJamjuree_700Bold",
+  },
   container: {
     flex: 1,
     backgroundColor: PageBg.default,
@@ -2222,7 +2289,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     backgroundColor: Accent.yellow,
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
+    ...Shadow.card,
   },
   backBtnText: {
     fontSize: 14,
@@ -2230,23 +2298,66 @@ const styles = StyleSheet.create({
     color: ThemeText.primary,
   },
   header: {
+    paddingHorizontal: 20,
+    paddingBottom: 18,
+  },
+  headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    marginBottom: 18,
   },
-  backText: {
-    fontSize: 14,
-    color: ThemeText.tertiary,
-    width: 60,
+  headerBackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    ...Shadow.card,
+  },
+  headerBackIcon: {
+    fontSize: 20,
+    color: "#111827",
+    lineHeight: 24,
+  },
+  headerTopSpacer: {
+    width: 38,
+    height: 38,
+  },
+  headerHero: {
+    alignItems: "center",
+    gap: 8,
+  },
+  headerChipRow: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerChip: {
+    alignSelf: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    backgroundColor: "rgba(59,130,246,0.1)",
+  },
+  headerChipText: {
+    fontSize: 12,
+    color: "#3B82F6",
+    textAlign: "center",
+    includeFontPadding: false,
   },
   headerTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "600",
+    width: "100%",
+    fontSize: 30,
+    lineHeight: 36,
     color: ThemeText.primary,
+    textAlign: "center",
+  },
+  headerSubtitle: {
+    width: "100%",
+    fontSize: 14,
+    lineHeight: 21,
+    color: ThemeText.secondary,
     textAlign: "center",
   },
   scroll: {
@@ -2258,30 +2369,34 @@ const styles = StyleSheet.create({
     overflow: "visible", // Allow children to break out
   },
   instructionsCard: {
-    backgroundColor: "#e8f5e0",
+    backgroundColor: PageBg.offWhite,
     padding: 16,
     borderRadius: Radius.md,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+    ...Shadow.card,
   },
   instructionsText: {
     fontSize: 14,
-    color: "#333",
+    color: ThemeText.secondary,
     lineHeight: 22,
   },
 
   // AI Chat - Messenger Style
   messengerContainer: {
     flex: 1,
-    backgroundColor: "#f0f4f8",
+    backgroundColor: PageBg.offWhite,
   },
   messengerHeader: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.05)",
+    borderBottomColor: "rgba(0, 0, 0, 0.04)",
     gap: 12,
+    ...Shadow.card,
   },
   messengerAvatarContainer: {
     position: "relative",
@@ -2291,20 +2406,22 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     overflow: "hidden",
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.08)",
     justifyContent: "center",
     alignItems: "center",
+    ...Shadow.neutral,
   },
   messengerAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#667eea",
+    backgroundColor: Accent.purple,
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
+    ...Shadow.neutral,
   },
   messengerAvatarText: {
     fontSize: 18,
@@ -2318,9 +2435,9 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#10b981",
+    backgroundColor: Accent.green,
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
   },
   messengerHeaderInfo: {
     flex: 1,
@@ -2328,12 +2445,12 @@ const styles = StyleSheet.create({
   messengerHeaderName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1a1a1a",
+    color: ThemeText.primary,
     marginBottom: 2,
   },
   messengerHeaderStatus: {
     fontSize: 13,
-    color: "#10b981",
+    color: Accent.green,
   },
 
   // AI Chat Progress
@@ -2343,14 +2460,14 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: Border.light,
+    borderBottomColor: "rgba(0,0,0,0.04)",
   },
   aiProgressBar: {
     flex: 1,
     height: 8,
-    backgroundColor: "rgba(191, 255, 0, 0.2)",
+    backgroundColor: Accent.yellowLight,
     borderRadius: 4,
     overflow: "hidden",
     borderWidth: 1,
@@ -2389,17 +2506,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   messengerBubbleAI: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
     ...Shadow.card,
   },
   messengerBubbleUser: {
-    backgroundColor: "#667eea",
+    backgroundColor: Accent.purple,
     borderBottomRightRadius: 4,
+    ...Shadow.card,
   },
   messengerBubbleText: {
     fontSize: 15,
-    color: "#1a1a1a",
+    color: ThemeText.primary,
     lineHeight: 22,
     marginBottom: 4,
   },
@@ -2408,7 +2528,7 @@ const styles = StyleSheet.create({
   },
   messengerTime: {
     fontSize: 11,
-    color: "rgba(0, 0, 0, 0.4)",
+    color: ThemeText.tertiary,
   },
   messengerTimeUser: {
     color: "rgba(255, 255, 255, 0.7)",
@@ -2422,49 +2542,55 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#cbd5e0",
+    backgroundColor: ThemeText.muted,
   },
   messengerCompletedCard: {
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#d1fae5",
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
     gap: 8,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
   },
   messengerCompletedIcon: {
     fontSize: 18,
-    color: "#10b981",
+    color: Accent.green,
   },
   messengerCompletedText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#065f46",
+    color: Accent.green,
   },
   messengerInputContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.05)",
+    borderTopColor: "rgba(0,0,0,0.04)",
+    ...Shadow.floating,
   },
   messengerInputWrapper: {
     flexDirection: "row",
     alignItems: "flex-end",
-    backgroundColor: "#f7fafc",
+    backgroundColor: PageBg.offWhite,
     borderRadius: 24,
     paddingLeft: 16,
     paddingRight: 4,
     paddingVertical: 4,
     gap: 8,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
   },
   messengerInput: {
     flex: 1,
     fontSize: 15,
-    color: "#1a1a1a",
+    fontFamily: "BaiJamjuree_400Regular",
+    color: ThemeText.primary,
     maxHeight: 100,
     paddingVertical: 10,
     lineHeight: 22,
@@ -2473,12 +2599,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#667eea",
+    backgroundColor: Accent.purple,
     justifyContent: "center",
     alignItems: "center",
+    ...Shadow.neutral,
   },
   messengerSendButtonDisabled: {
-    backgroundColor: "#cbd5e0",
+    backgroundColor: ThemeText.muted,
   },
   messengerSendIcon: {
     fontSize: 20,
@@ -2492,18 +2619,19 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "rgba(0,0,0,0.06)",
     marginRight: 8,
     justifyContent: "center",
     alignItems: "center",
+    ...Shadow.neutral,
   },
 
   // NPC Dialogue styles - Cinematic Full Screen
   npcFullscreenWrapper: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: PageBg.offWhite,
   },
   backButtonOverlay: {
     position: "absolute",
@@ -2513,20 +2641,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.2)",
+    borderColor: "rgba(0,0,0,0.06)",
+    ...Shadow.card,
   },
   backButtonOverlayText: {
     fontSize: 24,
-    color: "#111",
+    color: ThemeText.primary,
     fontWeight: "600",
   },
   npcFullscreenContainer: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: PageBg.offWhite,
     position: "relative",
   },
   npcProgressDotsVertical: {
@@ -2558,17 +2687,18 @@ const styles = StyleSheet.create({
   npcLoadingText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111",
+    color: ThemeText.primary,
     letterSpacing: 1,
   },
   npcErrorCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     padding: 24,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: "#f5c6cb",
+    borderColor: "rgba(239, 68, 68, 0.2)",
     alignItems: "center",
     gap: 12,
+    ...Shadow.card,
   },
   npcErrorIcon: {
     fontSize: 48,
@@ -2576,19 +2706,20 @@ const styles = StyleSheet.create({
   npcErrorTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#721c24",
+    color: Accent.red,
   },
   npcErrorText: {
     fontSize: 13,
-    color: "#721c24",
+    color: Accent.red,
     textAlign: "center",
   },
   npcRetryButton: {
     backgroundColor: Accent.yellow,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: Radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: Radius.full,
     marginTop: 8,
+    ...Shadow.card,
   },
   npcRetryText: {
     fontSize: 14,
@@ -2651,12 +2782,13 @@ const styles = StyleSheet.create({
   npcAvatarPlaceholderLarge: {
     width: 200,
     height: 200,
-    backgroundColor: "rgba(0, 0, 0, 0.02)",
-    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderRadius: Radius.xl,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: "rgba(191, 255, 0, 0.3)",
+    ...Shadow.card,
   },
   npcAvatarEmojiLarge: {
     fontSize: 80,
@@ -2667,13 +2799,13 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: Radius.full,
     gap: 8,
-    borderWidth: 2,
-    borderColor: "rgba(191, 255, 0, 0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(191, 255, 0, 0.5)",
     ...Shadow.card,
     zIndex: 3,
   },
@@ -2681,12 +2813,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#00ff88",
+    backgroundColor: Accent.green,
   },
   npcNameTagText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#111",
+    color: ThemeText.primary,
     letterSpacing: 0.5,
   },
 
@@ -2713,17 +2845,17 @@ const styles = StyleSheet.create({
     borderBottomColor: "#fff",
   },
   speechBubble: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.xl,
     padding: 24,
-    borderWidth: 2,
-    borderColor: "rgba(191, 255, 0, 0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(191, 255, 0, 0.5)",
     ...Shadow.card,
   },
   speechBubbleText: {
     fontSize: 17,
     fontWeight: "500",
-    color: "#111",
+    color: ThemeText.primary,
     lineHeight: 26,
     textAlign: "center",
     letterSpacing: 0.3,
@@ -2748,7 +2880,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     height: 8,
-    backgroundColor: "#3a3a45",
+    backgroundColor: ThemeText.secondary,
     borderRadius: 4,
   },
   timerBarGreenRemaining: {
@@ -2760,7 +2892,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   timerBarGreyUrgent: {
-    backgroundColor: "#8a1a1a",
+    backgroundColor: Accent.red,
   },
   timerNumberBelowContainer: {
     position: "absolute",
@@ -2774,18 +2906,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: Accent.yellow,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(17, 24, 39, 0.9)",
     paddingHorizontal: 10,
     paddingVertical: 3,
-    borderRadius: 10,
-    borderWidth: 2,
+    borderRadius: Radius.md,
+    borderWidth: 1,
     borderColor: Accent.yellow,
     overflow: "hidden",
   },
   timerNumberBelowUrgent: {
-    color: "#ff3333",
-    borderColor: "#ff3333",
-    backgroundColor: "rgba(138, 26, 26, 0.7)",
+    color: Accent.red,
+    borderColor: Accent.red,
+    backgroundColor: "rgba(239, 68, 68, 0.2)",
   },
 
   // Choices Overlay
@@ -2808,22 +2940,22 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   choiceOptionButton: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.lg,
     marginBottom: 12,
-    borderWidth: 2,
-    borderColor: "rgba(191, 255, 0, 0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(191, 255, 0, 0.5)",
     overflow: "hidden",
     ...Shadow.card,
   },
   choiceOptionButtonPressed: {
-    backgroundColor: "rgba(191, 255, 0, 0.3)",
+    backgroundColor: Accent.yellowLight,
     borderColor: Accent.yellow,
     transform: [{ scale: 0.98 }],
   },
   choiceOptionButtonUrgent: {
-    borderColor: "#ff3333",
-    backgroundColor: "rgba(255, 50, 50, 0.05)",
+    borderColor: Accent.red,
+    backgroundColor: "rgba(239, 68, 68, 0.05)",
   },
   choiceOptionContent: {
     flexDirection: "row",
@@ -2837,13 +2969,12 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: Accent.yellow,
-    borderWidth: 2,
-    borderColor: Accent.yellow,
+    borderWidth: 0,
     justifyContent: "center",
     alignItems: "center",
     fontSize: 16,
     fontWeight: "700",
-    color: "#111",
+    color: ThemeText.primary,
     textAlign: "center",
     lineHeight: 32,
   },
@@ -2851,7 +2982,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: "500",
-    color: "#111",
+    color: ThemeText.primary,
     lineHeight: 24,
   },
 
@@ -2866,13 +2997,13 @@ const styles = StyleSheet.create({
   timeoutTitle: {
     fontSize: 48,
     fontWeight: "700",
-    color: "#ff3333",
+    color: Accent.red,
     textAlign: "center",
   },
   timeoutMessage: {
     fontSize: 18,
     fontWeight: "500",
-    color: "#111",
+    color: ThemeText.primary,
     textAlign: "center",
     lineHeight: 28,
   },
@@ -2880,13 +3011,14 @@ const styles = StyleSheet.create({
     backgroundColor: Accent.yellow,
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 30,
+    borderRadius: Radius.full,
     marginTop: 16,
+    ...Shadow.card,
   },
   restartButtonText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#000",
+    color: ThemeText.primary,
   },
 
   // Completion
@@ -2914,11 +3046,11 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   npcSummaryBox: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderRadius: Radius.lg,
     padding: 24,
-    borderWidth: 2,
-    borderColor: Accent.yellow,
+    borderWidth: 1,
+    borderColor: "rgba(191, 255, 0, 0.5)",
     maxWidth: 400,
     ...Shadow.card,
   },
@@ -2964,16 +3096,16 @@ const styles = StyleSheet.create({
   },
 
   objectiveMetCard: {
-    backgroundColor: "#d4edda",
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
     padding: 16,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: "#c3e6cb",
+    borderColor: "rgba(16, 185, 129, 0.2)",
   },
   objectiveMetText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#155724",
+    color: Accent.green,
   },
 
   contentCard: {
@@ -2989,23 +3121,25 @@ const styles = StyleSheet.create({
   videoContainer: {
     width: "100%",
     aspectRatio: 16 / 9,
-    borderRadius: Radius.md,
+    borderRadius: 0,
     overflow: "hidden",
-    backgroundColor: "#000",
+    backgroundColor: "#000000",
     marginBottom: 8,
     position: "relative",
+    ...Shadow.card,
   },
   videoContainerShort: {
     width: "100%",
     aspectRatio: 9 / 16,
     maxHeight: 700,
     alignSelf: "center",
-    borderRadius: Radius.lg,
+    borderRadius: 0,
     overflow: "hidden",
-    backgroundColor: "#000",
+    backgroundColor: "#000000",
     marginBottom: 16,
     marginTop: 8,
     position: "relative",
+    ...Shadow.card,
   },
   video: {
     flex: 1,
@@ -3019,22 +3153,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#000",
-  },
-  openInYouTubeButton: {
-    position: "absolute",
-    bottom: 12,
-    right: 12,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(191, 255, 0, 0.5)",
-  },
-  openInYouTubeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#fff",
   },
   uploadedVideo: {
     width: "100%",
@@ -3063,14 +3181,14 @@ const styles = StyleSheet.create({
     height: 300,
     borderRadius: Radius.md,
     marginVertical: 12,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: PageBg.offWhite,
   },
   fullWidthContentImageContainer: {
-    backgroundColor: "#000",
+    backgroundColor: "#000000",
     marginVertical: 12,
   },
   fullWidthContentImage: {
-    backgroundColor: "#000",
+    backgroundColor: "#000000",
   },
   contentUrl: {
     fontSize: 12,
@@ -3078,8 +3196,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   promptCard: {
-    backgroundColor: "#fff8e1",
-    borderColor: Accent.yellow,
+    backgroundColor: "rgba(191, 255, 0, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(191, 255, 0, 0.3)",
   },
   promptText: {
     fontSize: 15,
@@ -3100,9 +3219,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   questionCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     padding: 12,
     borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+    ...Shadow.neutral,
   },
   questionText: {
     fontSize: 14,
@@ -3120,7 +3242,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: "#ddd",
+    borderColor: ThemeText.muted,
     marginRight: 12,
   },
   optionText: {
@@ -3131,14 +3253,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   textAnswerInput: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     padding: 16,
     borderRadius: Radius.md,
     minHeight: 120,
     fontSize: 14,
+    fontFamily: "BaiJamjuree_400Regular",
     color: ThemeText.primary,
     borderWidth: 1,
-    borderColor: Border.default,
+    borderColor: "rgba(0,0,0,0.08)",
+    ...Shadow.neutral,
   },
   characterCount: {
     fontSize: 12,
@@ -3154,6 +3278,9 @@ const styles = StyleSheet.create({
   },
   cameraButton: {
     flex: 1,
+  },
+  glassButtonText: {
+    fontFamily: "BaiJamjuree_700Bold",
   },
   uploadButtonIcon: {
     fontSize: 20,
@@ -3187,7 +3314,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     position: "relative",
     maxHeight: 500,
-    backgroundColor: "#000",
+    backgroundColor: "#000000",
     alignSelf: "center",
   },
   selectedImageCard: {
@@ -3195,7 +3322,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     overflow: "hidden",
     position: "relative",
-    maxHeight: 500, // Maximum height before scrolling
+    maxHeight: 500,
+    ...Shadow.card,
   },
   imageScrollContainer: {
     maxHeight: 500,
@@ -3225,7 +3353,8 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: PageBg.default,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
+    borderTopColor: "rgba(0,0,0,0.04)",
+    ...Shadow.floating,
   },
   ctaButton: {
     backgroundColor: Accent.yellow,
@@ -3260,10 +3389,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: ThemeText.tertiary,
   },
   dotVerticalActive: {
-    backgroundColor: "#BFFF00",
+    backgroundColor: Accent.yellow,
     height: 24,
   },
   // NPC Dots (for fullscreen NPC chat)
@@ -3283,10 +3412,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    backgroundColor: ThemeText.tertiary,
   },
   npcDotActive: {
-    backgroundColor: "#BFFF00",
+    backgroundColor: Accent.yellow,
     width: 24,
   },
 });

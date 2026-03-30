@@ -1,21 +1,20 @@
 /**
- * Shared design tokens for the "Career Simulator" glass & glow system.
- * Source of truth extracted from my-paths.tsx, CareerPathCard, PathStepCard,
- * and docs/design_guidelines.md
+ * Shared design tokens for the "Career Simulator" design system.
+ * Source of truth extracted from docs/design_guidelines.md
  */
 
 // Page Backgrounds
 export const PageBg = {
-  default: "#F3F4F6", // cool grey used by my-paths
-  offWhite: "#FDFFF5", // legacy, prefer default
+  default: "#F8F9FA", // Clean off-white/light grey
+  offWhite: "#F3F4F6", // Slightly cooler alternative
 };
 
 // Text Colors
 export const Text = {
   primary: "#111827", // Deep Obsidian Slate - headers/titles
   secondary: "#4B5563", // Cool Mid-Grey - subtitles
-  tertiary: "#6B7280", // Details/tertiary
-  muted: "#9CA3AF", // Disabled/hints
+  tertiary: "#9CA3AF", // Details/tertiary, icons
+  muted: "#D1D5DB", // Disabled/hints
 };
 
 // Semantic Accent Colors
@@ -29,53 +28,54 @@ export const Accent = {
   orange: "#F97316", // Passion metric
   red: "#EF4444", // Error/low confidence
   amber: "#F59E0B", // Warning/in-progress
+  black: "#111827", // Action Pills
 };
 
-// Gradients
+// Gradients (Deprecated - keeping flat for cleaner look, but leaving constants to not break builds)
 export const Gradient = {
-  // Master card gradient (white -> purple tint -> blue tint)
-  masterCard: ["#FFFFFF", "#F9F5FF", "#EEF2FF"] as const,
+  // Master card gradient
+  masterCard: ["#FFFFFF", "#FFFFFF", "#FFFFFF"] as const,
   // Semantic step gradients
-  education: ["#FFFFFF", "#FDFCFF"] as const, // ultra light purple
-  experience: ["#FFFFFF", "#FCFDFF"] as const, // ultra light blue
-  destination: ["#FFFFFF", "#FCFEFD"] as const, // ultra light green
+  education: ["#FFFFFF", "#FFFFFF"] as const,
+  experience: ["#FFFFFF", "#FFFFFF"] as const,
+  destination: ["#FFFFFF", "#FFFFFF"] as const,
   // CTA gradient
-  primaryCta: ["#BFFF00", "#A3E600"] as const,
+  primaryCta: ["#BFFF00", "#BFFF00"] as const,
 };
 
 // Semantic step themes (used by PathStepCard)
 export const StepThemes = {
   university: {
     bgStart: "#FFFFFF",
-    bgEnd: "#FDFCFF",
-    border: "rgba(139, 92, 246, 0.15)",
+    bgEnd: "#FFFFFF",
+    border: "transparent",
     accent: "#8B5CF6",
-    accentLight: "rgba(139, 92, 246, 0.08)",
-    shadow: "rgba(139, 92, 246, 0.25)",
+    accentLight: "rgba(139, 92, 246, 0.1)",
+    shadow: "transparent",
   },
   internship: {
     bgStart: "#FFFFFF",
-    bgEnd: "#FCFDFF",
-    border: "rgba(59, 130, 246, 0.15)",
+    bgEnd: "#FFFFFF",
+    border: "transparent",
     accent: "#3B82F6",
-    accentLight: "rgba(59, 130, 246, 0.08)",
-    shadow: "rgba(59, 130, 246, 0.25)",
+    accentLight: "rgba(59, 130, 246, 0.1)",
+    shadow: "transparent",
   },
   job: {
     bgStart: "#FFFFFF",
-    bgEnd: "#FCFEFD",
-    border: "rgba(16, 185, 129, 0.15)",
+    bgEnd: "#FFFFFF",
+    border: "transparent",
     accent: "#10B981",
-    accentLight: "rgba(16, 185, 129, 0.08)",
-    shadow: "rgba(16, 185, 129, 0.25)",
+    accentLight: "rgba(16, 185, 129, 0.1)",
+    shadow: "transparent",
   },
 } as const;
 
 // Border Colors
 export const Border = {
-  default: "rgb(206, 206, 206)",
-  light: "rgba(0,0,0,0.06)",
-  subtle: "rgba(0,0,0,0.05)",
+  default: "transparent",
+  light: "transparent",
+  subtle: "transparent",
 };
 
 // Border Radius
@@ -90,21 +90,21 @@ export const Radius = {
 
 // Shadows
 export const Shadow = {
-  // Neutral card shadow (subtle)
+  // Neutral card shadow (soft)
   neutral: {
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
   // Card with depth
   card: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   // Floating element (tab bar, modals)
   floating: {
@@ -114,21 +114,21 @@ export const Shadow = {
     shadowRadius: 16,
     elevation: 8,
   },
-  // Accent glow shadows (semantic)
+  // Accent glow shadows (semantic) - removed colored glows for flatter design
   glow: (color: string) => ({
-    shadowColor: color,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 3,
+    elevation: 2,
   }),
-  // CTA glow
+  // CTA glow - removed for flatter design
   ctaGlow: {
-    shadowColor: "#BFFF00",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
 };
 
@@ -186,7 +186,7 @@ export const Type = {
   },
 };
 
-// Helper to create glass card style
+// Helper to create glass card style (renamed conceptually but kept for compatibility)
 export const glassCard = ({
   radius = Radius.xl,
   padding = Space.xl,
@@ -194,20 +194,19 @@ export const glassCard = ({
   backgroundColor: "#fff",
   borderRadius: radius,
   padding,
-  borderWidth: 1,
-  borderColor: Border.default,
+  borderWidth: 0,
   ...Shadow.card,
 });
 
-// Helper to create master card gradient wrapper style
+// Helper to create master card wrapper style
 export const masterCard = ({
   radius = Radius["2xl"],
   padding = Space["2xl"],
 }: { radius?: number; padding?: number } = {}) => ({
+  backgroundColor: "#fff",
   borderRadius: radius,
   padding,
-  borderWidth: 1,
-  borderColor: Border.default,
+  borderWidth: 0,
   marginRight: Space.sm,
   ...Shadow.neutral,
 });

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, StyleSheet, ViewStyle, StyleProp } from "react-native";
+import { Radius } from "../../lib/theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { Shadow, Radius } from "../../lib/theme";
 
 type CardVariant = "master" | "education" | "experience" | "destination" | "neutral";
 type CardSize = "small" | "medium" | "large";
@@ -15,6 +15,7 @@ interface GlassCardProps {
   noShadow?: boolean;
 }
 
+// Renamed internally but keeping component name GlassCard for compatibility
 export function GlassCard({
   children,
   variant = "neutral",
@@ -31,7 +32,7 @@ export function GlassCard({
       style={[
         styles.card,
         sizeStyles.container,
-        !noShadow && variantStyles.shadow,
+        !noShadow && styles.softShadow,
         style,
       ]}
     >
@@ -54,23 +55,20 @@ export function GlassCard({
           />
         ) : null}
 
-        {/* Top highlight reflection */}
-        <View style={styles.topHighlight} />
-
         {/* Content */}
         <View style={[!noPadding && sizeStyles.padding, styles.content]}>
           {children}
         </View>
       </View>
-
-      {/* Border */}
+      
+      {/* Subtle border to frame the gradient slightly */}
       <View
         style={[
           styles.borderOverlay,
           {
             borderRadius: sizeStyles.container.borderRadius,
-            borderWidth: variantStyles.borderWidth,
-            borderColor: variantStyles.borderColor,
+            borderWidth: variantStyles.borderWidth || 0,
+            borderColor: variantStyles.borderColor || "transparent",
           },
         ]}
         pointerEvents="none"
@@ -85,52 +83,26 @@ function getVariantStyles(variant: CardVariant) {
       return {
         gradient: ["#FFFFFF", "#F9F5FF", "#EEF2FF"] as const,
         borderWidth: 1,
-        borderColor: "rgb(206, 206, 206)",
-        shadow: Shadow.card,
+        borderColor: "rgba(0,0,0,0.04)",
       };
-
     case "education":
       return {
         gradient: ["#FFFFFF", "#FDFCFF"] as const,
         borderWidth: 1,
         borderColor: "rgba(139, 92, 246, 0.15)",
-        shadow: {
-          shadowColor: "rgba(139, 92, 246, 0.25)",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 1,
-          shadowRadius: 12,
-          elevation: 4,
-        },
       };
-
     case "experience":
       return {
         gradient: ["#FFFFFF", "#FCFDFF"] as const,
         borderWidth: 1,
         borderColor: "rgba(59, 130, 246, 0.15)",
-        shadow: {
-          shadowColor: "rgba(59, 130, 246, 0.25)",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 1,
-          shadowRadius: 12,
-          elevation: 4,
-        },
       };
-
     case "destination":
       return {
         gradient: ["#FFFFFF", "#FCFEFD"] as const,
         borderWidth: 1,
         borderColor: "rgba(16, 185, 129, 0.15)",
-        shadow: {
-          shadowColor: "rgba(16, 185, 129, 0.25)",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 1,
-          shadowRadius: 12,
-          elevation: 4,
-        },
       };
-
     case "neutral":
     default:
       return {
@@ -138,8 +110,7 @@ function getVariantStyles(variant: CardVariant) {
           backgroundColor: "#FFFFFF",
         } as ViewStyle,
         borderWidth: 1,
-        borderColor: "rgb(206, 206, 206)",
-        shadow: Shadow.card,
+        borderColor: "rgba(0,0,0,0.04)",
       };
   }
 }
@@ -149,7 +120,7 @@ function getSizeStyles(size: CardSize) {
     case "small":
       return {
         container: {
-          borderRadius: Radius.lg,
+          borderRadius: 16,
         } as ViewStyle,
         padding: {
           padding: 16,
@@ -159,7 +130,7 @@ function getSizeStyles(size: CardSize) {
     case "medium":
       return {
         container: {
-          borderRadius: Radius.xl,
+          borderRadius: 24,
         } as ViewStyle,
         padding: {
           padding: 24,
@@ -169,7 +140,7 @@ function getSizeStyles(size: CardSize) {
     case "large":
       return {
         container: {
-          borderRadius: Radius["2xl"],
+          borderRadius: 32,
         } as ViewStyle,
         padding: {
           padding: 32,
@@ -182,10 +153,12 @@ const styles = StyleSheet.create({
   card: {
     position: "relative",
     overflow: "visible",
+    backgroundColor: "#FFFFFF",
   },
   surface: {
     position: "relative",
     overflow: "hidden",
+    backgroundColor: "#FFFFFF",
   },
   content: {
     position: "relative",
@@ -194,13 +167,11 @@ const styles = StyleSheet.create({
   borderOverlay: {
     ...StyleSheet.absoluteFillObject,
   },
-  topHighlight: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    zIndex: 2,
+  softShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
 });

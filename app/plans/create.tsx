@@ -17,7 +17,6 @@ import { AppText as Text } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
 import { createPlanWithPrograms, getPlanCount, MAX_PLANS_PER_USER } from "../../lib/admissionPlans";
 import { getSavedPrograms } from "../../lib/savedPrograms";
-import { getProfile } from "../../lib/onboarding";
 import type { SavedProgram } from "../../lib/savedPrograms";
 import {
   PageBg,
@@ -45,19 +44,11 @@ export default function CreatePlanScreen() {
   const [selectedPrograms, setSelectedPrograms] = useState<Record<number, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isThai, setIsThai] = useState(false);
   const [canCreate, setCanCreate] = useState(true);
 
-  const { user } = useAuth();
+  const { appLanguage } = useAuth();
   const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (user?.id) {
-      getProfile(user.id).then((p) => {
-        setIsThai(p?.preferred_language === "th");
-      });
-    }
-  }, [user?.id]);
+  const isThai = appLanguage === "th";
 
   useEffect(() => {
     const loadData = async () => {

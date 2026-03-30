@@ -2,8 +2,8 @@ import React from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { AppText as Text } from "../AppText";
 import type { PathStep, StepType } from "../../types/journey";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 
 const STEP_THEMES: Record<
   StepType,
@@ -18,27 +18,27 @@ const STEP_THEMES: Record<
 > = {
   university: {
     bgStart: "#ffffff",
-    bgEnd: "#fdfcff", // ultra light purple tint
+    bgEnd: "#fdfcff",
     border: "rgba(139, 92, 246, 0.15)",
     accent: "#8B5CF6",
-    accentLight: "rgba(139, 92, 246, 0.08)",
-    shadow: "rgba(139, 92, 246, 0.25)",
+    accentLight: "rgba(139, 92, 246, 0.1)",
+    shadow: "#000",
   },
   internship: {
     bgStart: "#ffffff",
-    bgEnd: "#fcfdff", // ultra light blue tint
+    bgEnd: "#fcfdff",
     border: "rgba(59, 130, 246, 0.15)",
     accent: "#3B82F6",
-    accentLight: "rgba(59, 130, 246, 0.08)",
-    shadow: "rgba(59, 130, 246, 0.25)",
+    accentLight: "rgba(59, 130, 246, 0.1)",
+    shadow: "#000",
   },
   job: {
     bgStart: "#ffffff",
-    bgEnd: "#fcfefd", // ultra light green tint
+    bgEnd: "#fcfefd",
     border: "rgba(16, 185, 129, 0.15)",
     accent: "#10B981",
-    accentLight: "rgba(16, 185, 129, 0.08)",
-    shadow: "rgba(16, 185, 129, 0.25)",
+    accentLight: "rgba(16, 185, 129, 0.1)",
+    shadow: "#000",
   },
 };
 
@@ -99,9 +99,6 @@ export function PathStepCard({
         },
       ]}
     >
-      {/* Inner highlight edge */}
-      <View style={styles.innerHighlight} />
-
       {/* Step type badge */}
       <View style={styles.cardHeader}>
         <View
@@ -160,7 +157,7 @@ export function PathStepCard({
         </View>
         {!isLast && (
           <View
-            style={[styles.line, { backgroundColor: theme.accent + "20" }]}
+            style={[styles.line, { backgroundColor: "#E5E7EB" }]}
           />
         )}
       </View>
@@ -170,7 +167,6 @@ export function PathStepCard({
         <Pressable
           style={({ pressed }) => [
             styles.cardOuter,
-            { shadowColor: theme.shadow },
             pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
           ]}
           onPress={handleUniversityPress}
@@ -178,7 +174,7 @@ export function PathStepCard({
           {cardContent}
         </Pressable>
       ) : (
-        <View style={[styles.cardOuter, { shadowColor: theme.shadow }]}>
+        <View style={styles.cardOuter}>
           {cardContent}
         </View>
       )}
@@ -189,7 +185,7 @@ export function PathStepCard({
 const styles = StyleSheet.create({
   stepRow: {
     flexDirection: "row",
-    gap: 12, // tighter professional spacing
+    gap: 16,
   },
   timelineColumn: {
     alignItems: "center",
@@ -201,13 +197,13 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2, // slightly thicker nice border
+    borderWidth: 1.5,
   },
   dotIcon: {
     fontSize: 16,
   },
   line: {
-    width: 2,
+    width: 1.5,
     flex: 1,
     minHeight: 16,
     borderRadius: 1,
@@ -215,45 +211,38 @@ const styles = StyleSheet.create({
   },
   cardOuter: {
     flex: 1,
-    marginBottom: 12, // tightened breathing room
-    borderRadius: 20, // super crisp rounded corners
-    // Innovative glowing shadow
+    marginBottom: 16,
+    borderRadius: 24,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 3,
+    elevation: 2,
+    backgroundColor: "#fff",
   },
   card: {
-    borderRadius: 20,
-    padding: 14, // refined interior padding
+    borderRadius: 24,
+    padding: 20,
     borderWidth: 1,
     overflow: "hidden",
     position: "relative",
-  },
-  innerHighlight: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.7)", // crisp white glass reflection
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   typeBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 999,
   },
   typeBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
   statusDot: {
     width: 8,
@@ -261,7 +250,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statusCompleted: {
-    backgroundColor: "#10B981", // subtle success
+    backgroundColor: "#10B981",
   },
   statusInProgress: {
     backgroundColor: "#F59E0B",
@@ -270,24 +259,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#E5E7EB",
   },
   cardTitle: {
-    fontSize: 18, // slightly larger, confident typography
+    fontSize: 18,
     fontWeight: "800",
-    color: "#111827", // bold deep gray
+    color: "#111827",
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4B5563", // cool gray
+    color: "#4B5563",
     marginBottom: 8,
   },
   detailRow: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   cardDetail: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#6B7280",
-    lineHeight: 18, // professional line-height
+    lineHeight: 22,
   },
   durationRow: {
     flexDirection: "row",
@@ -297,7 +286,7 @@ const styles = StyleSheet.create({
   durationPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   duration: {
     fontSize: 12,
@@ -305,18 +294,17 @@ const styles = StyleSheet.create({
     color: "#4B5563",
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
     color: "#9CA3AF",
   },
   exploreHint: {
-    marginTop: 8,
+    marginTop: 12,
     alignItems: "flex-end",
   },
   exploreHintText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: "#8B5CF6",
-    letterSpacing: 0.3,
   },
 });
