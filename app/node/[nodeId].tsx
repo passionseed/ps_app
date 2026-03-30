@@ -99,7 +99,7 @@ export default function NodeDetailScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={styles.backText}>‹ Back</Text>
         </Pressable>
         <Text style={styles.nodeType}>{getTypeLabel(node.node_type)}</Text>
         <View style={{ width: 50 }} />

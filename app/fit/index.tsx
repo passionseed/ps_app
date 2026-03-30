@@ -171,7 +171,7 @@ export default function FitBrowserScreen() {
         style={s.hero}
       >
         <Pressable onPress={() => router.back()} style={s.back}>
-          <Text style={s.backText}>← กลับ</Text>
+          <Text style={s.backText}>‹ กลับ</Text>
         </Pressable>
         <Text style={s.heroTitle}>ความเหมาะสมของโปรแกรม</Text>
         <Text style={s.heroSubtitle}>รอบ 1 Portfolio</Text>

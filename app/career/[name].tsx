@@ -119,7 +119,7 @@ export default function CareerDetailScreen() {
         style={s.hero}
       >
         <Pressable onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backBtnText}>← Back</Text>
+          <Text style={s.backBtnText}>‹ Back</Text>
         </Pressable>
         <Text style={s.heroTitle}>{careerName}</Text>
         <Text style={s.heroSub}>People · Companies · News</Text>

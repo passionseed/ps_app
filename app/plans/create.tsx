@@ -147,7 +147,7 @@ export default function CreatePlanScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Text style={styles.backButtonText}>‹ Back</Text>
           </Pressable>
         </View>
       </View>
