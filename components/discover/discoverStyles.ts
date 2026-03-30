@@ -247,6 +247,7 @@ export const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
+    marginBottom: -16,
   },
   hackathonMetaText: {
     fontSize: 11,

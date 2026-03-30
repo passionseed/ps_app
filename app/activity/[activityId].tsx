@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   Animated,
   PanResponder,
+  RefreshControl,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import * as ImagePicker from 'expo-image-picker';
@@ -1377,6 +1378,8 @@ export default function ActivityDetailScreen() {
   };
 
   const resetNextSwipeIndicator = (animated = true) => {
+    if (nextSwipeProgressRef.current === 0 && !nextSwipeThresholdReachedRef.current) return;
+    
     nextSwipeThresholdReachedRef.current = false;
     nextSwipeProgressRef.current = 0;
 
@@ -1403,6 +1406,11 @@ export default function ActivityDetailScreen() {
 
   const updateNextSwipeIndicator = (gestureDy: number) => {
     const progress = Math.max(0, Math.min(Math.abs(gestureDy) / SWIPE_NEXT_THRESHOLD, 1));
+    
+    // Prevent redundant updates - wait for at least 2% change (reduces bridge traffic significantly)
+    // If progress is 0 or 1, we force it to ensure limits are respected
+    if (progress > 0 && progress < 1 && Math.abs(nextSwipeProgressRef.current - progress) < 0.02) return;
+    
     nextSwipeProgressRef.current = progress;
     nextSwipeProgress.setValue(progress);
 
@@ -1433,88 +1441,19 @@ export default function ActivityDetailScreen() {
     }
   };
 
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onStartShouldSetPanResponderCapture: () => false,
+  const npcPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (_, gestureState) => {
       const isVerticalSwipe = Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 2;
-      const isSignificant = Math.abs(gestureState.dy) > 30;
-      return isVerticalSwipe && isSignificant && (canSwipe() || canSwipeUp());
-    },
-    onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-      const isVerticalSwipe = Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 2;
-      const isSignificant = Math.abs(gestureState.dy) > 30;
-
-      const activityType = getActivityType(activity!);
-      const isNpcChat = activityType === "npc_chat";
-
-      // For NPC chat, allow swipe anytime (no scroll involved)
-      if (isNpcChat) {
-        if (gestureState.dy > 30 && canSwipeUp()) {
-          return true;
-        }
-        if (gestureState.dy < -30 && npcCompleted) {
-          return true;
-        }
-        return false;
-      }
-
-      // For regular content, only swipe at scroll edges
-      // Swipe DOWN (positive dy) = go to previous (only if at top of scroll)
-      if (gestureState.dy > 30 && canSwipeUp() && isAtTopRef.current) {
-        return true;
-      }
-
-      // Swipe UP (negative dy) = go to next (only if at bottom of scroll)
-      if (gestureState.dy < -30 && canSwipe() && isAtBottomRef.current) {
-        return true;
-      }
-
-      return false;
-    },
-    onPanResponderMove: (_, gestureState) => {
-      const activityType = getActivityType(activity!);
-      const isNpcChat = activityType === "npc_chat";
-
-      if (isNpcChat) {
-        return;
-      }
-
-      if (gestureState.dy < 0 && canSwipe() && isAtBottomRef.current) {
-        updateNextSwipeIndicator(gestureState.dy);
-        return;
-      }
-
-      if (nextSwipeProgressRef.current > 0) {
-        resetNextSwipeIndicator(false);
-      }
+      return isVerticalSwipe && Math.abs(gestureState.dy) > 30;
     },
     onPanResponderRelease: (_, gestureState) => {
-      const activityType = getActivityType(activity!);
-      const isNpcChat = activityType === "npc_chat";
-
-      if (isNpcChat) {
-        // NPC: swipe anytime
-        if (gestureState.dy > 100 && canSwipeUp()) {
-          handleSwipeToPrevious();
-        } else if (gestureState.dy < -100 && npcCompleted) {
-          handleSwipeToNext();
-        }
-      } else {
-        // Regular content: only at scroll edges
-        if (gestureState.dy > 100 && canSwipeUp() && isAtTopRef.current) {
-          resetNextSwipeIndicator(false);
-          handleSwipeToPrevious();
-        } else if (gestureState.dy < -100 && canSwipe() && isAtBottomRef.current) {
-          handleSwipeToNext();
-        } else {
-          resetNextSwipeIndicator();
-        }
+      if (gestureState.dy > 100 && canSwipeUp()) {
+        handleSwipeToPrevious();
+      } else if (gestureState.dy < -100 && npcCompleted) {
+        handleSwipeToNext();
       }
-    },
-    onPanResponderTerminate: () => {
-      resetNextSwipeIndicator();
-    },
+    }
   });
 
   // Skeleton component for loading states
@@ -1613,27 +1552,7 @@ export default function ActivityDetailScreen() {
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
-  const headerPaddingTop = headerScrollY.interpolate({
-    inputRange: [0, HEADER_COLLAPSE_DISTANCE],
-    outputRange: [insets.top + 8, insets.top + 6],
-    extrapolate: "clamp",
-  });
-  const headerPaddingBottom = headerScrollY.interpolate({
-    inputRange: [0, HEADER_COLLAPSE_DISTANCE],
-    outputRange: [16, 10],
-    extrapolate: "clamp",
-  });
-  const headerTopRowMarginBottom = headerScrollY.interpolate({
-    inputRange: [0, HEADER_COLLAPSE_DISTANCE * 0.55],
-    outputRange: [14, 0],
-    extrapolate: "clamp",
-  });
-  /** Fades + collapses layout height — faster than hero opacity so we don’t leave empty gap. */
-  const expandedHeroMaxHeight = headerScrollY.interpolate({
-    inputRange: [0, HEADER_COLLAPSE_DISTANCE * 0.78],
-    outputRange: [HEADER_HERO_MAX_EXPANDED, 0],
-    extrapolate: "clamp",
-  });
+  // Removed layout interpolations to fix 15fps jumpiness
   const expandedHeroOpacity = headerScrollY.interpolate({
     inputRange: [0, HEADER_COLLAPSE_DISTANCE * 0.62],
     outputRange: [1, 0],
@@ -1663,16 +1582,17 @@ export default function ActivityDetailScreen() {
       {/* Header - Hidden for NPC chat full screen */}
       {!isNpcChat && (
         <>
-          <Animated.View
+          <View
             style={[
               styles.header,
               {
-                paddingTop: headerPaddingTop,
-                paddingBottom: headerPaddingBottom,
+                paddingTop: insets.top + 8,
+                paddingBottom: 10,
+                zIndex: 10,
               },
             ]}
           >
-            <Animated.View style={[styles.headerTopRow, { marginBottom: headerTopRowMarginBottom }]}>
+            <View style={[styles.headerTopRow, { marginBottom: 4 }]}>
               <Pressable style={styles.headerBackButton} onPress={() => router.back()}>
                 <AppText style={styles.headerBackIcon}>‹</AppText>
               </Pressable>
@@ -1692,28 +1612,8 @@ export default function ActivityDetailScreen() {
                 </Animated.View>
               </View>
               <View style={styles.headerTopSpacer} />
-            </Animated.View>
-            <Animated.View
-              style={[
-                styles.headerHero,
-                {
-                  opacity: expandedHeroOpacity,
-                  maxHeight: expandedHeroMaxHeight,
-                  transform: [{ translateY: expandedHeroTranslateY }],
-                },
-              ]}
-            >
-              <View style={styles.headerChipRow}>
-                <View style={styles.headerChip}>
-                  <AppText style={styles.headerChipText}>{headerChipLabel}</AppText>
-                </View>
-              </View>
-              <AppText variant="bold" style={styles.headerTitle}>
-                {activity.title}
-              </AppText>
-              <AppText style={styles.headerSubtitle}>{headerSubtitle}</AppText>
-            </Animated.View>
-          </Animated.View>
+            </View>
+          </View>
 
           {/* Page Indicator Dots - Vertical on right side */}
           {showPagination && (
@@ -1797,7 +1697,7 @@ export default function ActivityDetailScreen() {
               </View>
             ) : npcCompleted ? (
               // Show summary overlay when conversation is completed
-              <View style={styles.npcSummaryOverlay} {...panResponder.panHandlers}>
+              <View style={styles.npcSummaryOverlay} {...npcPanResponder.panHandlers}>
                 <View style={styles.npcSummaryBox}>
                   <AppText style={styles.npcSummaryTitle}>Conversation Summary</AppText>
                   <AppText style={styles.npcSummaryText}>
@@ -1915,12 +1815,19 @@ export default function ActivityDetailScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          {...panResponder.panHandlers}
+          refreshControl={
+            canSwipeUp() ? (
+              <RefreshControl
+                refreshing={false}
+                onRefresh={handleSwipeToPrevious}
+                tintColor={Accent.yellow}
+              />
+            ) : undefined
+          }
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: headerScrollY } } }],
             {
-              // Layout props (padding, maxHeight) on the header require JS-driven updates.
-              useNativeDriver: false,
+              useNativeDriver: true,
               listener: (event: {
                 nativeEvent: {
                   contentOffset: { y: number };
@@ -1930,23 +1837,79 @@ export default function ActivityDetailScreen() {
               }) => {
                 const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
                 const scrollY = contentOffset.y;
-                const scrollViewHeight = layoutMeasurement.height;
-                const contentHeight = contentSize.height;
                 const atTop = scrollY <= 5;
-                const reachedBottom = scrollY + scrollViewHeight >= contentHeight - 5;
+                if (isAtTopRef.current !== atTop) isAtTopRef.current = atTop;
 
-                isAtTopRef.current = atTop;
-                isAtBottomRef.current = reachedBottom;
-                bottomReadyProgress.setValue(reachedBottom ? 1 : 0);
+                if (!canSwipe()) return;
 
-                if (!reachedBottom && nextSwipeProgressRef.current > 0) {
+                const normalMaxScroll = Math.max(0, contentSize.height - SWIPE_NEXT_THRESHOLD - layoutMeasurement.height);
+                const reachedBottom = scrollY >= normalMaxScroll - 5;
+
+                if (isAtBottomRef.current !== reachedBottom) {
+                  isAtBottomRef.current = reachedBottom;
+                  bottomReadyProgress.setValue(reachedBottom ? 1 : 0);
+                }
+
+                if (scrollY > normalMaxScroll) {
+                  updateNextSwipeIndicator(scrollY - normalMaxScroll);
+                } else if (nextSwipeProgressRef.current > 0) {
                   resetNextSwipeIndicator(false);
                 }
               },
             },
           )}
+          onScrollEndDrag={(e) => {
+            if (!canSwipe()) return;
+            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+            const scrollY = contentOffset.y;
+            const normalMaxScroll = Math.max(0, contentSize.height - SWIPE_NEXT_THRESHOLD - layoutMeasurement.height);
+            
+            if (scrollY > normalMaxScroll) {
+              const pullDistance = scrollY - normalMaxScroll;
+              if (pullDistance > SWIPE_NEXT_THRESHOLD * 0.6) {
+                handleSwipeToNext();
+              }
+            }
+          }}
+          onMomentumScrollEnd={(e) => {
+            if (!canSwipe()) return;
+            const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+            const scrollY = contentOffset.y;
+            const normalMaxScroll = Math.max(0, contentSize.height - SWIPE_NEXT_THRESHOLD - layoutMeasurement.height);
+            
+            if (scrollY > normalMaxScroll && scrollY < normalMaxScroll + SWIPE_NEXT_THRESHOLD * 0.6) {
+              // Only snap back when momentum finishes
+              scrollViewRef.current?.scrollTo({ y: normalMaxScroll, animated: true });
+            }
+          }}
+          decelerationRate="normal"
           scrollEventThrottle={16}
         >
+          {/* Moved Header Hero into ScrollView for native scrolling performance */}
+          {!isNpcChat && (
+            <Animated.View
+              style={[
+                styles.headerHero,
+                {
+                  opacity: expandedHeroOpacity,
+                  transform: [{ translateY: expandedHeroTranslateY }],
+                  marginBottom: 16,
+                  marginTop: -10, // Adjust for removed padding
+                },
+              ]}
+            >
+              <View style={styles.headerChipRow}>
+                <View style={styles.headerChip}>
+                  <AppText style={styles.headerChipText}>{headerChipLabel}</AppText>
+                </View>
+              </View>
+              <AppText variant="bold" style={styles.headerTitle}>
+                {activity.title}
+              </AppText>
+              <AppText style={styles.headerSubtitle}>{headerSubtitle}</AppText>
+            </Animated.View>
+          )}
+
           {/* Instructions */}
           {activity.instructions && (
             <View style={styles.instructionsCard}>
@@ -2109,16 +2072,18 @@ export default function ActivityDetailScreen() {
         )}
 
           {/* Swipe hint for swipeable content */}
-          {canSwipe() && (
-            <SwipeProgressDonut
-              progress={nextSwipeProgress}
-              readyProgress={bottomReadyProgress}
-              label={nextSwipeLabel}
-              pulseScale={nextSwipePulse}
-            />
+          {canSwipe() ? (
+            <View style={{ height: SWIPE_NEXT_THRESHOLD, justifyContent: 'flex-start', paddingTop: 20 }}>
+              <SwipeProgressDonut
+                progress={nextSwipeProgress}
+                readyProgress={bottomReadyProgress}
+                label={nextSwipeLabel}
+                pulseScale={nextSwipePulse}
+              />
+            </View>
+          ) : (
+            <View style={{ height: 120 }} />
           )}
-
-          <View style={{ height: 120 }} />
         </Animated.ScrollView>
       )}
 
