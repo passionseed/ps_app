@@ -207,20 +207,18 @@ export const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   hackathonLogo: {
-    height: 56,
-    width: 56 * 2.5, // 140 width - matches the native 4096x1636 aspect ratio exactly so it aligns left natively
-    opacity: 0.9,
-    marginBottom: Space.xs,
+    height: 110,
+    width: "100%", // Switch to percentage width to allow it to max out cleanly
+    opacity: 0.95,
   },
   hackathonSubtitle: {
-    fontSize: 12,
-    color: "#00F0FF",
-    fontWeight: "700",
-    letterSpacing: 4,
-    textTransform: "uppercase",
-    textShadowColor: "rgba(0,240,255,0.5)",
+    fontSize: 28, // Mimicking the large reenie-beanie feel
+    color: "#FFFFFF", // Reverting from neon cyan to clean white
+    fontFamily: "LibreFranklin_700Bold", // Reenie Beanie usually isn't pre-loaded on RN, use our bold font
+    textShadowColor: "rgba(145,196,227,0.4)",
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+    textShadowRadius: 15,
+    marginTop: -8, // Pull slightly up to sit closer to logo
   },
   hackathonBody: {
     fontSize: 15,

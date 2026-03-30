@@ -82,7 +82,8 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
   const wave2 = useSharedValue(0);
 
   const press = useSharedValue(0);
-  const entrance = useSharedValue(0);
+  const logoAnim = useSharedValue(0);
+  const subtitleAnim = useSharedValue(0);
   const arrowPulse = useSharedValue(0);
 
   useEffect(() => {
@@ -108,9 +109,13 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
       true
     );
 
-    entrance.value = withDelay(
-      300,
-      withTiming(1, { duration: 2000, easing: Easing.out(Easing.cubic) })
+    // 1. Logo glow-up animation (starts immediately)
+    logoAnim.value = withTiming(1, { duration: 1200, easing: Easing.out(Easing.ease) });
+
+    // 2. Subtitle handwriting wipe animation (starts after logo flash, at ~700ms)
+    subtitleAnim.value = withDelay(
+      700,
+      withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.quad) })
     );
   }, []);
 
@@ -119,12 +124,34 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
     opacity: interpolate(press.value, [0, 1], [1, 0.9]),
   }));
 
-  const contentStyle = useAnimatedStyle(() => ({
-    opacity: entrance.value,
+  // Match the titleGlowUp keyframes from CSS
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(logoAnim.value, [0, 0.5, 1], [0, 1, 1]),
     transform: [
-      { scale: interpolate(entrance.value, [0, 1], [1.05, 1]) },
-      { translateY: interpolate(entrance.value, [0, 1], [10, 0]) },
+      { scale: interpolate(logoAnim.value, [0, 0.5, 1], [0.8, 1.05, 1]) },
     ],
+  }));
+
+  const logoGlowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(logoAnim.value, [0, 0.5, 1], [0, 1, 0.6]),
+    transform: [
+      { scale: interpolate(logoAnim.value, [0, 0.5, 1], [0.8, 1.5, 1]) },
+    ],
+  }));
+
+  // Match the clipPath: inset(0 100% 0 0) wipe
+  const subtitleWipeStyle = useAnimatedStyle(() => ({
+    width: `${interpolate(subtitleAnim.value, [0, 1], [0, 100])}%`,
+    overflow: "hidden",
+    alignItems: "center",
+  }));
+
+  // Fade in the bottom content naturally after title
+  const bottomContentStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(subtitleAnim.value, [0.5, 1], [0, 1]),
+    transform: [
+      { translateY: interpolate(subtitleAnim.value, [0.5, 1], [10, 0]) }
+    ]
   }));
 
   const arrowStyle = useAnimatedStyle(() => ({
@@ -270,27 +297,43 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
             pointerEvents="none"
           />
 
-          <Reanimated.View style={[styles.hackathonHeroContent, contentStyle]}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <View style={{ flex: 1 }}>
-                <Image
-                  source={require("../../assets/HackLogo.png")}
-                  style={styles.hackathonLogo}
-                  resizeMode="contain"
-                />
-                <Text style={styles.hackathonSubtitle}>
-                  Preventive & Predictive Healthcare
-                </Text>
+          <Reanimated.View style={[styles.hackathonHeroContent]}>
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+              <View style={{ alignItems: "center", width: "100%" }}>
+                {/* Glow behind the logo to match animate-titleGlowUp / drop-shadow */}
+                <Reanimated.View style={[{
+                  position: 'absolute',
+                  width: '60%',
+                  height: 40,
+                  backgroundColor: 'rgba(145,196,227,0.3)',
+                  top: '20%',
+                  borderRadius: 100,
+                  shadowColor: 'rgba(145,196,227,1)',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowRadius: 40,
+                  elevation: 10,
+                }, logoGlowStyle]} />
+                
+                <Reanimated.View style={logoStyle}>
+                  <Image
+                    source={require("../../assets/HackLogo.png")}
+                    style={styles.hackathonLogo}
+                    resizeMode="contain"
+                  />
+                </Reanimated.View>
+                
+                <Reanimated.View style={subtitleWipeStyle}>
+                  {/* Provide a fixed width wrapper slightly larger than text so it doesn't wrap during wipe */}
+                  <View style={{ width: 300, alignItems: "center" }}>
+                    <Text style={styles.hackathonSubtitle} numberOfLines={1}>
+                      Preventive & Predictive Healthcare
+                    </Text>
+                  </View>
+                </Reanimated.View>
               </View>
-              
-              <Text style={[styles.hackathonBody, { textAlign: 'right', flex: 0.8, paddingTop: 4 }]}>
-                {isThai
-                  ? "ค้นหา Pain Point\nผ่านลูกค้าจริง"
-                  : "Real interviews.\nSharper problems."}
-              </Text>
             </View>
 
-            <View style={styles.hackathonBottomRow}>
+            <Reanimated.View style={[styles.hackathonBottomRow, bottomContentStyle]}>
               <View style={styles.hackathonMetaPill}>
                 <Text style={styles.hackathonMetaText}>
                   {isThai ? "เฟส 1 • การค้นพบ" : "PHASE 1 • DISCOVERY"}
@@ -305,7 +348,7 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
                   <Text style={styles.hackathonClickArrow}>→</Text>
                 </Reanimated.View>
               </View>
-            </View>
+            </Reanimated.View>
           </Reanimated.View>
         </Reanimated.View>
       </Pressable>
