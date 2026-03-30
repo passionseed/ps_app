@@ -11,7 +11,7 @@ import { AppText } from "../../../components/AppText";
 import { GlassCard } from "../../../components/Glass/GlassCard";
 import { getHackathonPhaseDetail } from "../../../lib/hackathonProgram";
 import { getPreviewPhaseDetail } from "../../../lib/hackathonProgramPreview";
-import { Accent, PageBg, Space } from "../../../lib/theme";
+import { Accent, PageBg, Space, Text as ThemeText } from "../../../lib/theme";
 import type { HackathonPhaseDetail } from "../../../types/hackathon-program";
 
 export default function HackathonPhaseScreen() {
@@ -114,16 +114,17 @@ const styles = StyleSheet.create({
   },
   backLink: {
     fontSize: 15,
-    opacity: 0.82,
+    color: ThemeText.secondary,
   },
   title: {
     fontSize: 30,
     lineHeight: 36,
+    color: ThemeText.primary,
   },
   subtitle: {
     fontSize: 16,
     lineHeight: 24,
-    opacity: 0.82,
+    color: ThemeText.secondary,
   },
   playlist: {
     gap: 12,
@@ -133,26 +134,28 @@ const styles = StyleSheet.create({
   },
   playlistTitle: {
     fontSize: 20,
+    color: ThemeText.primary,
   },
   playlistBody: {
     fontSize: 14,
     lineHeight: 20,
-    opacity: 0.84,
+    color: ThemeText.secondary,
   },
   moduleCard: {
     gap: 8,
   },
   moduleTitle: {
     fontSize: 18,
+    color: ThemeText.primary,
   },
   moduleBody: {
     fontSize: 14,
     lineHeight: 20,
-    opacity: 0.84,
+    color: ThemeText.secondary,
   },
   moduleMeta: {
     fontSize: 12,
-    opacity: 0.7,
+    color: ThemeText.tertiary,
     textTransform: "uppercase",
   },
 });

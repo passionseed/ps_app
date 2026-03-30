@@ -286,12 +286,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     fontSize: 15,
   },
   errorText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     fontSize: 15,
     textAlign: "center",
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   retryBtnText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 15,
     color: "#0a0514",
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   header: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 16,
     color: "#6B7280",
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   categoryBadge: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 14,
     color: "#BFFF00",
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   progressText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 13,
     color: "#9CA3AF",
     textAlign: "center",
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cardText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 18,
     color: "#111827",
     lineHeight: 28,
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   skipBtnText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 16,
     color: "#6B7280",
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   selectBtnText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 16,
     color: "#0a0514",
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   talkMoreText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 14,
     color: "#9CA3AF",
   },
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   summaryTitle: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 22,
     color: "#111827",
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   emptyText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 16,
     color: "#6B7280",
     textAlign: "center",
@@ -450,14 +450,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   summaryCategory: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 15,
     color: "#BFFF00",
     marginBottom: 8,
   },
   summaryStatement: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 14,
     color: "#4B5563",
     lineHeight: 22,
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   accentBtnText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 17,
     color: "#0a0514",
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   ghostBtnText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 15,
     color: "#6B7280",

@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Alert,
   Image,
 } from "react-native";
@@ -215,14 +214,7 @@ export default function SeedDetailScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={s.container}>
-        <StatusBar style="dark" />
-        <View style={s.center}>
-          <ActivityIndicator size="large" color="#BFFF00" />
-        </View>
-      </View>
-    );
+    return <AnimatedSplash />;
   }
 
   if (loadError) {

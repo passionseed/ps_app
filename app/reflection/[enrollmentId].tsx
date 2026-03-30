@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
   textInput: {
     backgroundColor: "transparent",
     fontSize: Type.body.fontSize,
-    fontFamily: "LibreFranklin_Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.primary,
     minHeight: 100,
     marginTop: Space.md,

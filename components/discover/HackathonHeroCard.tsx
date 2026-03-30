@@ -1,0 +1,314 @@
+import { useEffect, useCallback } from "react";
+import { View, Pressable, Image, StyleSheet, useWindowDimensions } from "react-native";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import Reanimated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+  withSequence,
+} from "react-native-reanimated";
+import Svg, { Defs, RadialGradient, Stop, Rect } from "react-native-svg";
+import { AppText as Text } from "../AppText";
+import { styles } from "./discoverStyles";
+
+const CinematicGlow = ({
+  color,
+  size,
+  animationVal,
+  xRange,
+  yRange,
+  baseX,
+  baseY,
+  scaleRange,
+}: {
+  color: string;
+  size: number;
+  animationVal: Reanimated.SharedValue<number>;
+  xRange: [number, number];
+  yRange: [number, number];
+  baseX: number;
+  baseY: number;
+  scaleRange: [number, number];
+}) => {
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      position: "absolute",
+      left: baseX,
+      top: baseY,
+      width: size,
+      height: size,
+      transform: [
+        { translateX: interpolate(animationVal.value, [0, 1], xRange) },
+        { translateY: interpolate(animationVal.value, [0, 1], yRange) },
+        { scale: interpolate(animationVal.value, [0, 1], scaleRange) },
+      ],
+      opacity: interpolate(animationVal.value, [0, 0.5, 1], [0.3, 0.7, 0.3]),
+    };
+  });
+
+  return (
+    <Reanimated.View style={animatedStyle} pointerEvents="none">
+      <Svg height="100%" width="100%">
+        <Defs>
+          <RadialGradient id="glow" cx="50%" cy="50%" rx="50%" ry="50%">
+            <Stop offset="0%" stopColor={color} stopOpacity="0.7" />
+            <Stop offset="30%" stopColor={color} stopOpacity="0.25" />
+            <Stop offset="70%" stopColor={color} stopOpacity="0.05" />
+            <Stop offset="100%" stopColor={color} stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#glow)" />
+      </Svg>
+    </Reanimated.View>
+  );
+};
+
+export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
+  const { width } = useWindowDimensions();
+  const float1 = useSharedValue(0);
+  const float2 = useSharedValue(0);
+  const float3 = useSharedValue(0);
+  
+  // Parallax elements for underwater feel
+  const dust1 = useSharedValue(0);
+  const dust2 = useSharedValue(0);
+  const wave1 = useSharedValue(0);
+  const wave2 = useSharedValue(0);
+
+  const press = useSharedValue(0);
+  const entrance = useSharedValue(0);
+  const arrowPulse = useSharedValue(0);
+
+  useEffect(() => {
+    // Complex asynchronous floating for cinematic flares
+    float1.value = withRepeat(withTiming(1, { duration: 12000, easing: Easing.inOut(Easing.ease) }), -1, true);
+    float2.value = withRepeat(withTiming(1, { duration: 15000, easing: Easing.inOut(Easing.ease) }), -1, true);
+    float3.value = withRepeat(withTiming(1, { duration: 18000, easing: Easing.inOut(Easing.ease) }), -1, true);
+
+    // Constant smooth linear shifting for underwater particles and light rays
+    dust1.value = withRepeat(withTiming(1, { duration: 25000, easing: Easing.linear }), -1, false);
+    dust2.value = withRepeat(withTiming(1, { duration: 32000, easing: Easing.linear }), -1, false);
+    
+    // Slow drifting "water surface" caustic reflections
+    wave1.value = withRepeat(withTiming(1, { duration: 14000, easing: Easing.inOut(Easing.sin) }), -1, true);
+    wave2.value = withRepeat(withTiming(1, { duration: 19000, easing: Easing.inOut(Easing.sin) }), -1, true);
+
+    arrowPulse.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 800, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+
+    entrance.value = withDelay(
+      300,
+      withTiming(1, { duration: 2000, easing: Easing.out(Easing.cubic) })
+    );
+  }, []);
+
+  const cardPressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(press.value, [0, 1], [1, 0.96]) }],
+    opacity: interpolate(press.value, [0, 1], [1, 0.9]),
+  }));
+
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: entrance.value,
+    transform: [
+      { scale: interpolate(entrance.value, [0, 1], [1.05, 1]) },
+      { translateY: interpolate(entrance.value, [0, 1], [10, 0]) },
+    ],
+  }));
+
+  const arrowStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(arrowPulse.value, [0, 1], [0, 6]) }
+    ],
+    opacity: interpolate(arrowPulse.value, [0, 1], [0.6, 1])
+  }));
+
+  // Foreground fast particles moving diagonally up
+  const particle1Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(dust1.value, [0, 1], [-width * 0.2, width * 1.2]) },
+      { translateY: interpolate(dust1.value, [0, 1], [200, -100]) },
+    ]
+  }));
+
+  // Background slow particles moving diagonally up other way
+  const particle2Style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(dust2.value, [0, 1], [width * 1.2, -width * 0.2]) },
+      { translateY: interpolate(dust2.value, [0, 1], [250, -50]) },
+    ]
+  }));
+
+  // Light rays filtering from top "surface"
+  const waveCausticStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(wave1.value, [0, 1], [0.1, 0.3]),
+    transform: [
+      { translateX: interpolate(wave1.value, [0, 1], [-30, 30]) },
+      { scaleY: interpolate(wave2.value, [0, 1], [1, 1.4]) }
+    ]
+  }));
+
+  const onHeroPress = useCallback(async () => {
+    // Heavy "dooming" haptic pattern
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 150);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid), 350);
+
+    // Wait slightly to let the user feel the dooming effect before navigating
+    setTimeout(() => {
+      router.push("/hackathon-program");
+    }, 400);
+  }, []);
+
+  return (
+    <View style={styles.hackathonHeroWrap}>
+      {/* Letterbox bars for the movie look */}
+      <View style={styles.hackathonLetterboxTop} />
+      <View style={styles.hackathonLetterboxBottom} />
+
+      <Pressable
+        onPress={onHeroPress}
+        onPressIn={() => {
+          press.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) });
+        }}
+        onPressOut={() => {
+          press.value = withTiming(0, { duration: 800, easing: Easing.out(Easing.cubic) });
+        }}
+        style={{ flex: 1 }}
+      >
+        <Reanimated.View style={[styles.hackathonHero, cardPressStyle]}>
+          <LinearGradient
+            colors={["#01040A", "#030B17", "#010814"]}
+            locations={[0, 0.5, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+
+          {/* Cinematic Soft Glows via SVG */}
+          <CinematicGlow
+            color="#00F0FF"
+            size={400}
+            animationVal={float1}
+            xRange={[-50, 50]}
+            yRange={[-20, 30]}
+            baseX={-150}
+            baseY={-100}
+            scaleRange={[0.8, 1.2]}
+          />
+          <CinematicGlow
+            color="#7B2CBF"
+            size={500}
+            animationVal={float2}
+            xRange={[40, -60]}
+            yRange={[-40, 20]}
+            baseX={width * 0.4}
+            baseY={-150}
+            scaleRange={[0.9, 1.3]}
+          />
+          <CinematicGlow
+            color="#00E5FF"
+            size={350}
+            animationVal={float3}
+            xRange={[-30, 60]}
+            yRange={[40, -40]}
+            baseX={0}
+            baseY={80}
+            scaleRange={[1, 1.4]}
+          />
+
+          {/* Underwater Ray / Caustic Effect */}
+          <Reanimated.View style={[{ position: 'absolute', top: -50, left: 0, right: 0, height: 250 }, waveCausticStyle]} pointerEvents="none">
+             <LinearGradient
+                colors={["rgba(0,240,255,0.25)", "rgba(0,102,255,0.05)", "transparent"]}
+                locations={[0, 0.4, 1]}
+                style={StyleSheet.absoluteFill}
+             />
+          </Reanimated.View>
+
+          {/* Floating Underwater Particles/Dust */}
+          <Reanimated.View style={[{ position: 'absolute', left: 0, top: 0, width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,240,255,0.9)', shadowColor: '#00F0FF', shadowOpacity: 1, shadowRadius: 6 }, particle1Style]} pointerEvents="none" />
+          <Reanimated.View style={[{ position: 'absolute', left: 50, top: 40, width: 3, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(0,255,204,0.9)', shadowColor: '#00FFCC', shadowOpacity: 1, shadowRadius: 5 }, particle1Style]} pointerEvents="none" />
+          <Reanimated.View style={[{ position: 'absolute', left: -20, top: 80, width: 5, height: 5, borderRadius: 2.5, backgroundColor: 'rgba(123,44,191,0.8)', shadowColor: '#7B2CBF', shadowOpacity: 1, shadowRadius: 8 }, particle2Style]} pointerEvents="none" />
+          <Reanimated.View style={[{ position: 'absolute', left: 80, top: 120, width: 2, height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.8)', shadowColor: '#fff', shadowOpacity: 1, shadowRadius: 4 }, particle2Style]} pointerEvents="none" />
+
+          {/* Heavy Vignette */}
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,6,15,0.4)', zIndex: 1 }]} pointerEvents="none" />
+          <LinearGradient
+            colors={[
+              "rgba(0,0,0,0.95)",
+              "rgba(0,0,0,0.4)",
+              "transparent",
+              "rgba(0,0,0,0.4)",
+              "rgba(0,0,0,0.95)",
+            ]}
+            locations={[0, 0.25, 0.5, 0.75, 1]}
+            style={styles.hackathonVignette}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={[
+              "rgba(0,0,0,0.9)",
+              "rgba(0,0,0,0.2)",
+              "transparent",
+              "rgba(0,0,0,0.2)",
+              "rgba(0,0,0,0.9)",
+            ]}
+            locations={[0, 0.2, 0.5, 0.8, 1]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={[styles.hackathonVignette, { zIndex: 1 }]}
+            pointerEvents="none"
+          />
+
+          <Reanimated.View style={[styles.hackathonHeroContent, contentStyle]}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <View style={{ flex: 1 }}>
+                <Image
+                  source={require("../../assets/HackLogo.png")}
+                  style={styles.hackathonLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.hackathonSubtitle}>
+                  Preventive & Predictive Healthcare
+                </Text>
+              </View>
+              
+              <Text style={[styles.hackathonBody, { textAlign: 'right', flex: 0.8, paddingTop: 4 }]}>
+                {isThai
+                  ? "ค้นหา Pain Point\nผ่านลูกค้าจริง"
+                  : "Real interviews.\nSharper problems."}
+              </Text>
+            </View>
+
+            <View style={styles.hackathonBottomRow}>
+              <View style={styles.hackathonMetaPill}>
+                <Text style={styles.hackathonMetaText}>
+                  {isThai ? "เฟส 1 • การค้นพบ" : "PHASE 1 • DISCOVERY"}
+                </Text>
+              </View>
+
+              <View style={styles.hackathonClickHint}>
+                <Text style={styles.hackathonClickText}>
+                  {isThai ? "ดูรายละเอียด" : "DISCOVER"}
+                </Text>
+                <Reanimated.View style={arrowStyle}>
+                  <Text style={styles.hackathonClickArrow}>→</Text>
+                </Reanimated.View>
+              </View>
+            </View>
+          </Reanimated.View>
+        </Reanimated.View>
+      </Pressable>
+    </View>
+  );
+}
