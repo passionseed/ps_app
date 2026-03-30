@@ -111,7 +111,7 @@ export default function DiscoverScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingBottom: Math.max(insets.bottom, 24) + 88,
+            paddingBottom: Math.max(insets.bottom, 24) + 120,
           },
         ]}
         showsVerticalScrollIndicator={false}
