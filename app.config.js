@@ -83,7 +83,7 @@ module.exports = {
       },
     },
     autolinking: {
-      exclude: ["expo-glass-effect"],
+      exclude: ["expo-glass-effect", "expo-apple-authentication"],
     },
     runtimeVersion: {
       policy: "appVersion",
