@@ -34,55 +34,38 @@ type EnrollmentData = {
   };
 };
 
-function RatingBar({
+function EmojiRatingBar({
   value,
   onChange,
-  lowLabel,
-  highLabel,
-  lowEmoji,
-  highEmoji,
+  options,
 }: {
   value: number | null;
   onChange: (v: number) => void;
-  lowLabel: string;
-  highLabel: string;
-  lowEmoji: string;
-  highEmoji: string;
+  options: { value: number; emoji: string; label: string }[];
 }) {
   return (
     <View style={ratingStyles.container}>
-      <View style={ratingStyles.trackRow}>
-        <AppText style={ratingStyles.emoji}>{lowEmoji}</AppText>
-        <View style={ratingStyles.track}>
-          <View style={ratingStyles.line} />
-          <View
-            style={[
-              ratingStyles.lineFilled,
-              { width: value !== null ? `${((value - 1) / 9) * 100}%` as any : "0%" },
-            ]}
-          />
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
-            const active = value !== null && value >= val;
-            const selected = value === val;
-            return (
-              <Pressable
-                key={val}
-                hitSlop={6}
-                style={[
-                  ratingStyles.dot,
-                  active && ratingStyles.dotActive,
-                  selected && ratingStyles.dotSelected,
-                ]}
-                onPress={() => onChange(val)}
-              />
-            );
-          })}
-        </View>
-        <AppText style={ratingStyles.emoji}>{highEmoji}</AppText>
-      </View>
-      <View style={ratingStyles.labels}>
-        <AppText style={ratingStyles.labelText}>{lowLabel}</AppText>
-        <AppText style={[ratingStyles.labelText, ratingStyles.labelRight]}>{highLabel}</AppText>
+      <View style={ratingStyles.emojiRow}>
+        {options.map((opt) => {
+          const selected = value === opt.value;
+          return (
+            <Pressable
+              key={opt.value}
+              style={[
+                ratingStyles.emojiButton,
+                selected && ratingStyles.emojiButtonSelected,
+              ]}
+              onPress={() => onChange(opt.value)}
+            >
+              <AppText style={[ratingStyles.emoji, selected && ratingStyles.emojiSelected]}>
+                {opt.emoji}
+              </AppText>
+              <AppText style={[ratingStyles.emojiLabel, selected && ratingStyles.emojiLabelSelected]} numberOfLines={1}>
+                {opt.label}
+              </AppText>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -92,71 +75,36 @@ const ratingStyles = StyleSheet.create({
   container: {
     marginTop: Space.md,
   },
-  trackRow: {
+  emojiRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  emojiButton: {
     alignItems: "center",
-    gap: Space.sm,
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    borderRadius: Radius.md,
+    flex: 1,
+  },
+  emojiButtonSelected: {
+    backgroundColor: "rgba(191, 255, 0, 0.15)", // Light lime tint
   },
   emoji: {
-    fontSize: 22,
-    width: 30,
-    textAlign: "center",
+    fontSize: 28,
+    opacity: 0.4,
   },
-  track: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    height: 32,
-    position: "relative",
+  emojiSelected: {
+    opacity: 1,
   },
-  line: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: "#E5E7EB",
-    borderRadius: 2,
-  },
-  lineFilled: {
-    position: "absolute",
-    left: 0,
-    height: 3,
-    backgroundColor: Accent.yellow,
-    borderRadius: 2,
-  },
-  dot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#E5E7EB",
-    zIndex: 1,
-  },
-  dotActive: {
-    backgroundColor: Accent.yellow,
-  },
-  dotSelected: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    shadowColor: Accent.yellow,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  labels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 6,
-    paddingHorizontal: 38,
-  },
-  labelText: {
+  emojiLabel: {
     fontSize: 11,
     color: ThemeText.tertiary,
+    textAlign: "center",
   },
-  labelRight: {
-    textAlign: "right",
+  emojiLabelSelected: {
+    color: ThemeText.primary,
   },
 });
 
@@ -327,13 +275,16 @@ export default function ReflectionScreen() {
                 <AppText style={styles.requiredLabel}>Required</AppText>
               )}
             </View>
-            <RatingBar
+            <EmojiRatingBar
               value={energyLevel}
               onChange={setEnergyLevel}
-              lowEmoji="😴"
-              highEmoji="⚡"
-              lowLabel="Drained"
-              highLabel="Energized"
+              options={[
+                { value: 2, emoji: "😫", label: "Drained" },
+                { value: 4, emoji: "🥱", label: "Low" },
+                { value: 6, emoji: "😐", label: "Okay" },
+                { value: 8, emoji: "🙂", label: "Good" },
+                { value: 10, emoji: "⚡", label: "High" },
+              ]}
             />
           </GlassCard>
 
@@ -348,13 +299,16 @@ export default function ReflectionScreen() {
                 <AppText style={styles.requiredLabel}>Required</AppText>
               )}
             </View>
-            <RatingBar
+            <EmojiRatingBar
               value={confusionLevel}
               onChange={setConfusionLevel}
-              lowEmoji="😕"
-              highEmoji="💡"
-              lowLabel="Very confused"
-              highLabel="Crystal clear"
+              options={[
+                { value: 2, emoji: "😵", label: "Lost" },
+                { value: 4, emoji: "😕", label: "Hazy" },
+                { value: 6, emoji: "😐", label: "Okay" },
+                { value: 8, emoji: "💡", label: "Clear" },
+                { value: 10, emoji: "🔮", label: "Aha!" },
+              ]}
             />
           </GlassCard>
 
@@ -369,13 +323,16 @@ export default function ReflectionScreen() {
                 <AppText style={styles.requiredLabel}>Required</AppText>
               )}
             </View>
-            <RatingBar
+            <EmojiRatingBar
               value={interestLevel}
               onChange={setInterestLevel}
-              lowEmoji="😐"
-              highEmoji="🤩"
-              lowLabel="Not for me"
-              highLabel="Obsessed"
+              options={[
+                { value: 2, emoji: "😴", label: "Boring" },
+                { value: 4, emoji: "🥱", label: "Meh" },
+                { value: 6, emoji: "😐", label: "Okay" },
+                { value: 8, emoji: "🙂", label: "Fun" },
+                { value: 10, emoji: "🤩", label: "Love" },
+              ]}
             />
           </GlassCard>
 
