@@ -1,5 +1,6 @@
 // PathLab API functions for mobile app
 import { supabase } from "./supabase";
+import { getResetTimestamp, clearResetTimestamp } from "./pathlabSession";
 
 // ============ Activity Cache ============
 // Short-lived cache so navigating from path screen → activity screen
@@ -528,7 +529,31 @@ export async function getPathDayActivities(
     if (assessmentsError) throw assessmentsError;
     if (progressError) throw progressError;
 
-    const progress: PathActivityProgress[] = progressData || [];
+    let progress: PathActivityProgress[] = progressData || [];
+    console.log("[getPathDayActivities] Raw progress from DB:", progress.map(p => ({ id: p.id, activity_id: p.activity_id, status: p.status })));
+
+    // If a reset happened recently, discard any progress rows that predate the reset
+    if (enrollmentId) {
+      const resetAt = getResetTimestamp(enrollmentId);
+      if (resetAt) {
+        const before = progress.length;
+        progress = progress.filter(p => new Date(p.updated_at).getTime() > resetAt);
+        console.log(`[getPathDayActivities] Reset filter: ${before} -> ${progress.length} rows`);
+        // Keep the timestamp for 30s to handle repeated fetches from PostgREST cache
+        if (Date.now() - resetAt > 30_000) clearResetTimestamp(enrollmentId);
+      }
+    }
+
+    // Fetch assessment submissions for completed activities
+    let submissions: PathAssessmentSubmission[] = [];
+    const completedProgressIds = progress.filter(p => p.status === "completed").map(p => p.id);
+    if (completedProgressIds.length > 0) {
+      const { data: submissionData } = await supabase
+        .from("path_assessment_submissions")
+        .select("*")
+        .in("progress_id", completedProgressIds);
+      submissions = submissionData || [];
+    }
 
     // Only fetch quiz questions for quiz-type assessments
     let quizQuestions: PathQuizQuestion[] = [];
@@ -556,11 +581,17 @@ export async function getPathDayActivities(
         };
       }
 
+      const activityProgress = progress.find(p => p.activity_id === activity.id);
+      const activitySubmission = activityProgress
+        ? submissions.find(s => s.progress_id === activityProgress.id) ?? null
+        : null;
+
       return {
         ...activity,
         path_content: activityContent,
         path_assessment: pathAssessment,
-        progress: progress.find(p => p.activity_id === activity.id),
+        progress: activityProgress,
+        submission: activitySubmission,
       };
     });
   }, "Unable to load day activities");
@@ -639,6 +670,51 @@ export async function updateActivityProgress(params: {
     });
 
   if (error) throw new Error(error.message);
+}
+
+// Reset enrollment progress (for testing)
+export async function resetEnrollment(enrollmentId: string): Promise<void> {
+  const { data: progressRows, error: fetchError } = await supabase
+    .from("path_activity_progress")
+    .select("id")
+    .eq("enrollment_id", enrollmentId);
+
+  console.log("[Reset] Progress rows to delete:", progressRows?.length, fetchError?.message);
+
+  // Delete assessment submissions first (FK constraint)
+  if (progressRows && progressRows.length > 0) {
+    const progressIds = progressRows.map(r => r.id);
+    const { error: subError } = await supabase
+      .from("path_assessment_submissions")
+      .delete()
+      .in("progress_id", progressIds);
+    console.log("[Reset] Submissions delete error:", subError?.message ?? "none");
+  }
+
+  const { error: progressError } = await supabase
+    .from("path_activity_progress")
+    .delete()
+    .eq("enrollment_id", enrollmentId);
+  console.log("[Reset] Progress delete error:", progressError?.message ?? "none");
+
+  await supabase
+    .from("path_reflections")
+    .delete()
+    .eq("enrollment_id", enrollmentId);
+
+  const { error } = await supabase
+    .from("path_enrollments")
+    .update({ current_day: 1, status: "active" })
+    .eq("id", enrollmentId);
+
+  console.log("[Reset] Enrollment update error:", error?.message ?? "none");
+  if (error) throw new Error(error.message);
+
+  // Bust PostgREST cache with a no-op update touch on the enrollment
+  await supabase
+    .from("path_enrollments")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", enrollmentId);
 }
 
 // NEW: Submit assessment
