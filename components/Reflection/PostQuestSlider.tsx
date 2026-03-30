@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     marginBottom: 16,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     textAlign: "center",
   },
   questionText: {
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 24,
     textAlign: "center",
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   sliderMockContainer: {
     flexDirection: "row",
@@ -122,12 +122,12 @@ const styles = StyleSheet.create({
   stepIndicator: {
     fontSize: 12,
     color: "#9CA3AF",
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   dismissText: {
     fontSize: 14,
     color: "#6B7280",
     textDecorationLine: "underline",
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
 });

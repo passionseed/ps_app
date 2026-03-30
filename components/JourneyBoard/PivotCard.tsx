@@ -72,14 +72,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: ThemeText.primary,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   description: {
     fontSize: 14,
     color: ThemeText.secondary,
     lineHeight: 20,
     marginBottom: 16,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   alternativesContainer: {
     gap: 8,
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: ThemeText.primary,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   dismissButton: {
     alignItems: "center",
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   dismissText: {
     fontSize: 12,
     color: ThemeText.tertiary,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     textDecorationLine: "underline",
   },
 });

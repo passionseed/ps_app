@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import * as Sentry from "@sentry/react-native";
 import { AnimatedSplash } from "./components/AnimatedSplash";
 
 function ConfigErrorScreen({ message }: { message: string }) {
@@ -32,7 +33,7 @@ function ConfigErrorScreen({ message }: { message: string }) {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const { initializeSentry } = require("../lib/sentry") as typeof import("../lib/sentry");
   initializeSentry();
 
@@ -44,6 +45,10 @@ export default function RootLayout() {
     BaiJamjuree_500Medium,
     BaiJamjuree_700Bold,
   } = require("@expo-google-fonts/bai-jamjuree") as typeof import("@expo-google-fonts/bai-jamjuree");
+  const {
+    LibreFranklin_400Regular,
+    LibreFranklin_700Bold,
+  } = require("@expo-google-fonts/libre-franklin") as typeof import("@expo-google-fonts/libre-franklin");
   const SplashScreen = require("expo-splash-screen") as typeof import("expo-splash-screen");
   const { AuthProvider, useAuth } = require("../lib/auth") as typeof import("../lib/auth");
   const { getProfile } = require("../lib/onboarding") as typeof import("../lib/onboarding");
@@ -211,7 +216,8 @@ export default function RootLayout() {
     BaiJamjuree_400Regular,
     BaiJamjuree_500Medium,
     BaiJamjuree_700Bold,
-    Orbit_400Regular: require("../assets/Orbit_400Regular.ttf"),
+    LibreFranklin_400Regular,
+    LibreFranklin_700Bold,
   });
   const [isReady, setIsReady] = useState(false);
   const configError = getSupabaseConfigErrorMessage();
@@ -258,6 +264,8 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);
 
 
 const styles = StyleSheet.create({

@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: Type.body.fontSize,
     color: ThemeText.primary,
     paddingVertical: Space.md,

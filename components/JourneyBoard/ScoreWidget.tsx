@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.primary,
   },
   emptyText: {

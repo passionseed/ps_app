@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   simulationLabel: {
     fontSize: 20,
     fontWeight: "700",
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#111",
     marginBottom: 12,
   },
@@ -152,19 +152,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#666",
     marginBottom: 8,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: "600",
     color: "#111",
     marginBottom: 4,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   cardSubtitle: {
     fontSize: 14,
     color: "#666",
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   jobCard: {
     backgroundColor: StepThemes.job.bgEnd,
