@@ -12,6 +12,19 @@ interface CachedActivityPayload {
 
 const dayBundleCache = new Map<string, PathDayBundle>();
 const activityCache = new Map<string, CachedActivityPayload>();
+const resetTimestamps = new Map<string, number>();
+
+export function markEnrollmentReset(enrollmentId: string) {
+  resetTimestamps.set(enrollmentId, Date.now());
+}
+
+export function getResetTimestamp(enrollmentId: string): number | null {
+  return resetTimestamps.get(enrollmentId) ?? null;
+}
+
+export function clearResetTimestamp(enrollmentId: string) {
+  resetTimestamps.delete(enrollmentId);
+}
 
 function getActivityCacheKey(enrollmentId: string, activityId: string) {
   return `${enrollmentId}:${activityId}`;
@@ -54,6 +67,15 @@ export function getCachedPathDayBundle(enrollmentId: string) {
 
 export function getCachedActivityPayload(enrollmentId: string, activityId: string) {
   return activityCache.get(getActivityCacheKey(enrollmentId, activityId)) ?? null;
+}
+
+export function clearEnrollmentCache(enrollmentId: string) {
+  dayBundleCache.delete(enrollmentId);
+  for (const key of activityCache.keys()) {
+    if (key.startsWith(`${enrollmentId}:`)) {
+      activityCache.delete(key);
+    }
+  }
 }
 
 export function updateCachedActivityProgress(
