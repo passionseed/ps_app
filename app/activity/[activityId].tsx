@@ -1306,8 +1306,14 @@ export default function ActivityDetailScreen() {
         });
       }
 
-      // Navigate to the next activity or back to path screen
-      router.replace(`/path/${enrollmentId}`);
+      // Navigate to the next activity or to reflection when last activity is done
+      const nextIndex = currentPage + 1;
+      if (nextIndex < dayActivitiesList.length) {
+        const nextActivity = dayActivitiesList[nextIndex];
+        router.replace(`/activity/${nextActivity.id}?enrollmentId=${enrollmentId}&pageIndex=${nextIndex}&totalPages=${dayActivitiesList.length}`);
+      } else {
+        router.replace(`/reflection/${enrollmentId}`);
+      }
     } catch (error) {
       console.error("Error completing activity:", error);
       Alert.alert("Error", "Failed to complete activity. Please try again.");
@@ -1341,8 +1347,8 @@ export default function ActivityDetailScreen() {
       const nextActivity = dayActivitiesList[nextIndex];
       router.replace(`/activity/${nextActivity.id}?enrollmentId=${enrollmentId}&pageIndex=${nextIndex}&totalPages=${dayActivitiesList.length}`);
     } else {
-      // No more activities, go back to path screen
-      router.replace(`/path/${enrollmentId}`);
+      // No more activities — go to daily reflection
+      router.replace(`/reflection/${enrollmentId}`);
     }
   };
 
@@ -1607,7 +1613,7 @@ export default function ActivityDetailScreen() {
   const nextSwipeLabel =
     currentPage < dayActivitiesList.length - 1
       ? "Swipe up for next activity"
-      : "Swipe up to finish day";
+      : "Swipe up to reflect on your day";
   const headerCollapseProgress = headerScrollY.interpolate({
     inputRange: [0, HEADER_COLLAPSE_DISTANCE],
     outputRange: [0, 1],
@@ -1812,7 +1818,7 @@ export default function ActivityDetailScreen() {
                 ) : (
                   <>
                     <AppText style={styles.swipeHint}>↓</AppText>
-                    <AppText style={styles.swipeText}>Swipe up to finish day</AppText>
+                    <AppText style={styles.swipeText}>Swipe up to reflect on your day</AppText>
                   </>
                 )}
               </View>

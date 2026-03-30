@@ -471,16 +471,16 @@ export async function getEnrollmentDayBundle(
   }
 }
 
-export async function getPathDays(pathId: string): Promise<Pick<PathDay, "day_number" | "title">[]> {
+export async function getPathDays(pathId: string): Promise<Pick<PathDay, "id" | "day_number" | "title">[]> {
   return withSupabaseRetry(async () => {
     const { data, error } = await supabase
       .from("path_days")
-      .select("day_number, title")
+      .select("id, day_number, title")
       .eq("path_id", pathId)
       .order("day_number", { ascending: true });
 
     if (error) throw error;
-    return (data || []) as Pick<PathDay, "day_number" | "title">[];
+    return (data || []) as Pick<PathDay, "id" | "day_number" | "title">[];
   }, "Unable to load the path outline");
 }
 
