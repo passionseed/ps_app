@@ -8,7 +8,7 @@
  *   npx tsx scripts/apply-migration.ts
  */
 
-import { Client } from "pg";
+import type { Client } from "pg";
 import * as dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });

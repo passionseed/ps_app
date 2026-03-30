@@ -1,8 +1,8 @@
 import { ValidationIssue, LearningOutput, ObjectiveOutput, EvidenceOutput, ResearchOutput, ExpertProfile } from './types';
-import { agent1Objectives } from './agents/agent1-objectives';
-import { agent2Evidence } from './agents/agent2-evidence';
-import { agent3Research } from './agents/agent3-research';
-import { agent4Learning } from './agents/agent4-learning';
+import { agent1_extractObjectives } from './agents/agent1-objectives';
+import { agent2_designEvidence } from './agents/agent2-evidence';
+import { agent3_research } from './agents/agent3-research';
+import { agent4_designLearning } from './agents/agent4-learning';
 
 export interface RepairInput {
   expertProfile: ExpertProfile;
@@ -55,58 +55,55 @@ export async function repairPathLab(input: RepairInput): Promise<RepairOutput> {
       switch (agent) {
         case 1:
           // Regenerate objectives for this day
-          const objResult = await agent1Objectives({
-            expertProfile: input.expertProfile,
-            existingObjectives: objectives
-          });
-          const dayObj = objResult.objectives.find(o => o.dayNumber === dayNumber);
+          const objResult = await agent1_extractObjectives(input.expertProfile);
+          const dayObj = objResult.find((o: ObjectiveOutput) => o.dayNumber === dayNumber);
           if (dayObj) {
-            objectives = objectives.map(o => o.dayNumber === dayNumber ? dayObj : o);
+            objectives = objectives.map((o: ObjectiveOutput) => o.dayNumber === dayNumber ? dayObj : o);
           }
           break;
 
         case 2:
           // Regenerate evidence for this day
-          const evResult = await agent2Evidence({
+          const evResult = await agent2_designEvidence({
             objectives: objectives,
             dayNumber: dayNumber
           });
-          const dayEv = evResult.find(e => e.dayNumber === dayNumber);
+          const dayEv = evResult.find((e: EvidenceOutput) => e.dayNumber === dayNumber);
           if (dayEv) {
-            evidence = evidence.map(e => e.dayNumber === dayNumber ? dayEv : e);
+            evidence = evidence.map((e: EvidenceOutput) => e.dayNumber === dayNumber ? dayEv : e);
           }
           break;
 
         case 3:
           // Regenerate research for this day
-          const dayObjective = objectives.find(o => o.dayNumber === dayNumber);
+          const dayObjective = objectives.find((o: ObjectiveOutput) => o.dayNumber === dayNumber);
           if (dayObjective) {
-            const resResult = await agent3Research({
+            const resResult = await agent3_research({
               objectives: [dayObjective],
               expertProfile: input.expertProfile
             });
-            const dayRes = resResult.find(r => r.dayNumber === dayNumber);
+            const dayRes = resResult.find((r: ResearchOutput) => r.dayNumber === dayNumber);
             if (dayRes) {
-              research = research.map(r => r.dayNumber === dayNumber ? dayRes : r);
+              research = research.map((r: ResearchOutput) => r.dayNumber === dayNumber ? dayRes : r);
             }
           }
           break;
 
         case 4:
           // Regenerate learning for this day
-          const dayObj4 = objectives.find(o => o.dayNumber === dayNumber);
-          const dayEv4 = evidence.find(e => e.dayNumber === dayNumber);
-          const dayRes4 = research.find(r => r.dayNumber === dayNumber);
+          const dayObj4 = objectives.find((o: ObjectiveOutput) => o.dayNumber === dayNumber);
+          const dayEv4 = evidence.find((e: EvidenceOutput) => e.dayNumber === dayNumber);
+          const dayRes4 = research.find((r: ResearchOutput) => r.dayNumber === dayNumber);
           if (dayObj4 && dayEv4 && dayRes4) {
-            const learnResult = await agent4Learning({
+            const learnResult = await agent4_designLearning({
               objectives: [dayObj4],
               evidence: [dayEv4],
               research: [dayRes4],
               expertProfile: input.expertProfile
             });
-            const dayLearn = learnResult.find(l => l.dayNumber === dayNumber);
+            const dayLearn = learnResult.find((l: LearningOutput) => l.dayNumber === dayNumber);
             if (dayLearn) {
-              learning = learning.map(l => l.dayNumber === dayNumber ? dayLearn : l);
+              learning = learning.map((l: LearningOutput) => l.dayNumber === dayNumber ? dayLearn : l);
             }
           }
           break;

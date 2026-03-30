@@ -1,4 +1,4 @@
-import { ValidationInput, ValidationIssue } from '../index';
+import { ValidationInput, ValidationIssue } from '../../types';
 
 /**
  * Check that activities align with learning objectives.

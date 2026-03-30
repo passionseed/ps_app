@@ -1,4 +1,4 @@
-import { ValidationInput, ValidationIssue } from '../index';
+import { ValidationInput, ValidationIssue } from '../../types';
 
 const PLACEHOLDER_PATTERNS = [
   /\[insert\s+[^\]]+\]/i,

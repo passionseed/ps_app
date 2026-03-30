@@ -80,6 +80,7 @@ export default function SeedDetailScreen() {
   const [recommendation, setRecommendation] = useState<SeedRecommendation | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const guestCopy =
     appLanguage === "th"
@@ -237,6 +238,7 @@ export default function SeedDetailScreen() {
         style: "destructive",
         onPress: async () => {
           console.log("[SeedDetail] Resetting enrollment:", enrollment.id);
+          setResetting(true);
           try {
             // Reset DB first, then navigate
             markEnrollmentReset(enrollment.id);
@@ -247,6 +249,7 @@ export default function SeedDetailScreen() {
             await navigateToCurrentActivity(enrollment.id);
           } catch (error) {
             console.error("[SeedDetail] Reset failed:", error);
+            setResetting(false);
             Alert.alert("Error", "Failed to reset progress.");
           }
         },
@@ -685,6 +688,12 @@ export default function SeedDetailScreen() {
       </Animated.View>
 
       {enrolling && (
+        <View style={s.loadingOverlay}>
+          <AnimatedSplash />
+        </View>
+      )}
+
+      {resetting && (
         <View style={s.loadingOverlay}>
           <AnimatedSplash />
         </View>
