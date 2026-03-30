@@ -151,7 +151,7 @@ export default function CompareScreen() {
         style={[s.hero, { paddingTop: insets.top + 12 }]}
       >
         <Pressable onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backBtnText}>← กลับ</Text>
+          <Text style={s.backBtnText}>‹ กลับ</Text>
         </Pressable>
         <Text style={s.heroTitle}>เปรียบเทียบ</Text>
         <Text style={s.heroSub}>เลือก 2 มหาวิทยาลัยเพื่อเปรียบเทียบ</Text>
@@ -382,7 +382,7 @@ function UniPicker({
                     }}
                   >
                     <Text style={s.dropdownBackText}>
-                      ← {pickedUni.university_name}
+                      ‹ {pickedUni.university_name}
                     </Text>
                   </Pressable>
                   {loadingPrograms ? (

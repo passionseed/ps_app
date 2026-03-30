@@ -66,7 +66,7 @@ export default function FitDetailScreen() {
         style={s.hero}
       >
         <Pressable onPress={() => router.back()} style={s.back}>
-          <Text style={s.backText}>← กลับ</Text>
+          <Text style={s.backText}>‹ กลับ</Text>
         </Pressable>
 
         {loading ? (

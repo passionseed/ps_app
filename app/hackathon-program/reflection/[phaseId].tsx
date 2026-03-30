@@ -14,7 +14,7 @@ export default function HackathonPhaseReflectionScreen() {
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <Pressable onPress={() => router.back()}>
-        <AppText style={styles.backLink}>← Back</AppText>
+        <AppText style={styles.backLink}>‹ Back</AppText>
       </Pressable>
 
       <AppText variant="bold" style={styles.title}>

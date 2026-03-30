@@ -121,7 +121,7 @@ export default function IkigaiScreen() {
         style={[styles.hero, { paddingTop: insets.top + 12 }]}
       >
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← {isThai ? "กลับ" : "Back"}</Text>
+          <Text style={styles.backText}>‹ {isThai ? "กลับ" : "Back"}</Text>
         </Pressable>
 
         <Text style={styles.heroTitle}>

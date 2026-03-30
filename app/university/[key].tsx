@@ -137,7 +137,7 @@ export default function UniversityDetailScreen() {
         style={[s.hero, { paddingTop: insets.top + 12 }]}
       >
         <Pressable onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backBtnText}>← กลับ</Text>
+          <Text style={s.backBtnText}>‹ กลับ</Text>
         </Pressable>
         <Text style={s.heroTitle}>{universityName}</Text>
         <Text style={s.heroFaculty}>{facultyName}</Text>

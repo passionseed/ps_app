@@ -228,7 +228,7 @@ export default function HackathonModuleScreen() {
       >
         <View style={styles.header}>
           <Pressable onPress={() => router.back()}>
-            <AppText style={styles.backText}>← Back</AppText>
+            <AppText style={styles.backText}>‹ Back</AppText>
           </Pressable>
           <AppText variant="bold" style={styles.title}>
             {module?.title ?? "Module"}

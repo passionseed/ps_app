@@ -84,7 +84,7 @@ export default function PortfolioScreen() {
       {/* Header */}
       <View style={s.header}>
         <Pressable onPress={() => router.back()} style={s.back}>
-          <Text style={s.backText}>← กลับ</Text>
+          <Text style={s.backText}>‹ กลับ</Text>
         </Pressable>
         <Text style={s.title}>พอร์ตโฟลิโอของฉัน</Text>
         <Pressable

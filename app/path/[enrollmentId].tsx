@@ -185,7 +185,7 @@ export default function DailyPathScreen() {
       {/* Header with Back Button */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
-          <AppText style={styles.backText}>←</AppText>
+          <AppText style={styles.backText}>‹</AppText>
         </Pressable>
         <View style={styles.headerCenter}>
           <AppText variant="bold" style={styles.dayLabel}>Day {enrollment.current_day}</AppText>

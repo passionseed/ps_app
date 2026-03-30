@@ -82,7 +82,7 @@ export default function AddPortfolioItemScreen() {
         {/* Header */}
         <View style={s.header}>
           <Pressable onPress={() => router.back()} style={s.back}>
-            <Text style={s.backText}>← ยกเลิก</Text>
+            <Text style={s.backText}>‹ ยกเลิก</Text>
           </Pressable>
           <Text style={s.headerTitle}>เพิ่มผลงาน</Text>
           <Pressable

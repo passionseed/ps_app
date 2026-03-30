@@ -1657,7 +1657,7 @@ export default function ActivityDetailScreen() {
           >
             <Animated.View style={[styles.headerTopRow, { marginBottom: headerTopRowMarginBottom }]}>
               <Pressable style={styles.headerBackButton} onPress={() => router.back()}>
-                <AppText style={styles.headerBackIcon}>←</AppText>
+                <AppText style={styles.headerBackIcon}>‹</AppText>
               </Pressable>
               <View
                 style={[

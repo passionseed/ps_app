@@ -6,15 +6,18 @@ import {
   Pressable,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 import { getPathDay, submitDailyReflection } from "../../lib/pathlab";
 import { formatPathDayCompletionLabel } from "../../lib/pathlab-day-label";
 import { VoiceAIReflection } from "../../components/Reflection";
 import type { PathReflectionDecision } from "../../types/pathlab";
-import { Radius, Border, Shadow, Text as ThemeText, Space, Type, Accent } from "../../lib/theme";
+import { Radius, PageBg, Text as ThemeText, Space, Type, Accent } from "../../lib/theme";
 import { AppText } from "../../components/AppText";
 import { GlassCard } from "../../components/Glass/GlassCard";
 import { GlassButton } from "../../components/Glass/GlassButton";
@@ -31,8 +34,135 @@ type EnrollmentData = {
   };
 };
 
+function RatingBar({
+  value,
+  onChange,
+  lowLabel,
+  highLabel,
+  lowEmoji,
+  highEmoji,
+}: {
+  value: number | null;
+  onChange: (v: number) => void;
+  lowLabel: string;
+  highLabel: string;
+  lowEmoji: string;
+  highEmoji: string;
+}) {
+  return (
+    <View style={ratingStyles.container}>
+      <View style={ratingStyles.trackRow}>
+        <AppText style={ratingStyles.emoji}>{lowEmoji}</AppText>
+        <View style={ratingStyles.track}>
+          <View style={ratingStyles.line} />
+          <View
+            style={[
+              ratingStyles.lineFilled,
+              { width: value !== null ? `${((value - 1) / 9) * 100}%` as any : "0%" },
+            ]}
+          />
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
+            const active = value !== null && value >= val;
+            const selected = value === val;
+            return (
+              <Pressable
+                key={val}
+                hitSlop={6}
+                style={[
+                  ratingStyles.dot,
+                  active && ratingStyles.dotActive,
+                  selected && ratingStyles.dotSelected,
+                ]}
+                onPress={() => onChange(val)}
+              />
+            );
+          })}
+        </View>
+        <AppText style={ratingStyles.emoji}>{highEmoji}</AppText>
+      </View>
+      <View style={ratingStyles.labels}>
+        <AppText style={ratingStyles.labelText}>{lowLabel}</AppText>
+        <AppText style={[ratingStyles.labelText, ratingStyles.labelRight]}>{highLabel}</AppText>
+      </View>
+    </View>
+  );
+}
+
+const ratingStyles = StyleSheet.create({
+  container: {
+    marginTop: Space.md,
+  },
+  trackRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  emoji: {
+    fontSize: 22,
+    width: 30,
+    textAlign: "center",
+  },
+  track: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: 32,
+    position: "relative",
+  },
+  line: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 2,
+  },
+  lineFilled: {
+    position: "absolute",
+    left: 0,
+    height: 3,
+    backgroundColor: Accent.yellow,
+    borderRadius: 2,
+  },
+  dot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#E5E7EB",
+    zIndex: 1,
+  },
+  dotActive: {
+    backgroundColor: Accent.yellow,
+  },
+  dotSelected: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    shadowColor: Accent.yellow,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  labels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 6,
+    paddingHorizontal: 38,
+  },
+  labelText: {
+    fontSize: 11,
+    color: ThemeText.tertiary,
+  },
+  labelRight: {
+    textAlign: "right",
+  },
+});
+
 export default function ReflectionScreen() {
   const { enrollmentId } = useLocalSearchParams<{ enrollmentId: string }>();
+  const insets = useSafeAreaInsets();
   const [enrollment, setEnrollment] = useState<EnrollmentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -40,55 +170,34 @@ export default function ReflectionScreen() {
   const [scoreError, setScoreError] = useState<string | null>(null);
   const [dayTitle, setDayTitle] = useState<string | null>(null);
 
-  // Reflection state
-  const [energyLevel, setEnergyLevel] = useState(5);
-  const [confusionLevel, setConfusionLevel] = useState(5);
-  const [interestLevel, setInterestLevel] = useState(5);
+  const [energyLevel, setEnergyLevel] = useState<number | null>(null);
+  const [confusionLevel, setConfusionLevel] = useState<number | null>(null);
+  const [interestLevel, setInterestLevel] = useState<number | null>(null);
   const [openResponse, setOpenResponse] = useState("");
   const [showVoiceAI, setShowVoiceAI] = useState(false);
+
+  const allRatingsSet = energyLevel !== null && confusionLevel !== null && interestLevel !== null;
 
   useEffect(() => {
     async function load() {
       if (!enrollmentId) return;
-
       try {
         const { data, error } = await supabase
           .from("path_enrollments")
           .select(
-            `
-            id,
-            current_day,
-            path:paths(
-              id,
-              total_days,
-              seed:seeds(title)
-            )
-          `,
+            `id, current_day, path:paths(id, total_days, seed:seeds(title))`,
           )
           .eq("id", enrollmentId)
           .single();
 
-        console.log('[Reflection] Enrollment data:', JSON.stringify(data, null, 2));
-        console.log('[Reflection] Error:', error);
+        if (error) throw error;
 
-        if (error) {
-          throw error;
-        }
-
-        const normalizedPath = Array.isArray(data?.path)
-          ? data.path[0]
-          : data?.path;
+        const normalizedPath = Array.isArray(data?.path) ? data.path[0] : data?.path;
         const normalizedSeed = Array.isArray(normalizedPath?.seed)
           ? normalizedPath.seed[0]
           : normalizedPath?.seed;
         const normalizedEnrollment = data && normalizedPath
-          ? {
-              ...data,
-              path: {
-                ...normalizedPath,
-                seed: normalizedSeed,
-              },
-            }
+          ? { ...data, path: { ...normalizedPath, seed: normalizedSeed } }
           : null;
 
         setEnrollment(normalizedEnrollment as EnrollmentData | null);
@@ -98,7 +207,7 @@ export default function ReflectionScreen() {
           setDayTitle(currentDay?.title ?? null);
         }
       } catch (error) {
-        console.error("[Reflection] Failed to load reflection data:", error);
+        console.error("[Reflection] Failed to load:", error);
       } finally {
         setLoading(false);
       }
@@ -107,17 +216,7 @@ export default function ReflectionScreen() {
   }, [enrollmentId]);
 
   const handleSubmit = async (decision: PathReflectionDecision) => {
-    if (!enrollment) return;
-
-    console.log('[Reflection] Starting submission with:', {
-      enrollmentId: enrollment.id,
-      dayNumber: enrollment.current_day,
-      energyLevel,
-      confusionLevel,
-      interestLevel,
-      openResponse,
-      decision,
-    });
+    if (!enrollment || !allRatingsSet) return;
 
     setSubmitting(true);
     setScoreError(null);
@@ -125,62 +224,41 @@ export default function ReflectionScreen() {
       const result = await submitDailyReflection({
         enrollmentId: enrollment.id,
         dayNumber: enrollment.current_day,
-        energyLevel,
-        confusionLevel,
-        interestLevel,
+        energyLevel: energyLevel!,
+        confusionLevel: confusionLevel!,
+        interestLevel: interestLevel!,
         openResponse: openResponse || undefined,
         decision,
       });
 
-      console.log('[Reflection] Submission result:', result);
-      console.log('[Reflection] Submission successful!');
-
-      // Trigger Score Engine after reflection submission succeeds
       setScoring(true);
       try {
-        console.log('[Reflection] Triggering Score Engine for reflection:', result.id);
-        const { data: scoreData, error: scoreError } = await supabase.functions.invoke(
-          "score-engine/ingest",
-          {
-            body: {
-              reflectionId: result.id,
-              enrollmentId: enrollment.id,
-              reflectionData: {
-                energyLevel,
-                confusionLevel,
-                interestLevel,
-                openResponse: openResponse || undefined,
-                dayNumber: enrollment.current_day,
-              },
+        await supabase.functions.invoke("score-engine/ingest", {
+          body: {
+            reflectionId: result.id,
+            enrollmentId: enrollment.id,
+            reflectionData: {
+              energyLevel,
+              confusionLevel,
+              interestLevel,
+              openResponse: openResponse || undefined,
+              dayNumber: enrollment.current_day,
             },
-          }
-        );
-
-        if (scoreError) {
-          console.error('[Reflection] Score Engine error:', scoreError);
-          setScoreError('Failed to update scores, but your reflection was saved.');
-        } else {
-          console.log('[Reflection] Score Engine response:', scoreData);
-        }
-      } catch (err) {
-        console.error('[Reflection] Score Engine exception:', err);
-        setScoreError('Failed to update scores, but your reflection was saved.');
+          },
+        });
+      } catch {
+        setScoreError("Scores couldn't be updated, but your reflection was saved.");
       } finally {
         setScoring(false);
       }
 
-      console.log('[Reflection] Navigating based on decision:', decision);
-
-      // Navigate based on decision
       if (decision === "continue_now") {
         router.replace(`/path/${enrollment.id}`);
-      } else if (decision === "final_reflection") {
-        router.replace("/(tabs)/my-paths");
       } else {
         router.replace("/(tabs)/my-paths");
       }
     } catch (error) {
-      console.error("[Reflection] Failed to submit reflection:", error);
+      console.error("[Reflection] Failed to submit:", error);
     } finally {
       setSubmitting(false);
     }
@@ -188,22 +266,16 @@ export default function ReflectionScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#BFFF00" />
+      <View style={[styles.center, { backgroundColor: PageBg.default }]}>
+        <ActivityIndicator size="large" color={Accent.yellow} />
       </View>
     );
   }
 
-  if (!enrollment || !enrollment.path || !enrollment.path.seed) {
-    console.log('[Reflection] Validation failed:', {
-      hasEnrollment: !!enrollment,
-      hasPath: !!enrollment?.path,
-      hasSeed: !!enrollment?.path?.seed,
-      fullData: JSON.stringify(enrollment, null, 2)
-    });
+  if (!enrollment?.path?.seed) {
     return (
-      <View style={styles.errorContainer}>
-        <AppText style={styles.errorText}>Something went wrong</AppText>
+      <View style={[styles.center, { backgroundColor: PageBg.default }]}>
+        <AppText style={{ color: ThemeText.secondary, marginBottom: 16 }}>Something went wrong</AppText>
         <GlassButton variant="secondary" onPress={() => router.back()}>
           Go Back
         </GlassButton>
@@ -213,354 +285,325 @@ export default function ReflectionScreen() {
 
   const isLastDay = enrollment.current_day >= (enrollment.path.total_days ?? Infinity);
   const seedTitle = enrollment.path.seed.title || "Unknown Path";
+  const dayLabel = formatPathDayCompletionLabel(enrollment.current_day, dayTitle);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <StatusBar style="dark" />
+      <View style={[styles.root, { backgroundColor: PageBg.default }]}>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <AppText style={styles.closeText}>✕</AppText>
-        </Pressable>
-        <AppText variant="bold" style={styles.headerTitle}>Daily Reflection</AppText>
-        <View style={{ width: 30 }} />
-      </View>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Day info */}
-        <View style={styles.dayInfo}>
-          <AppText variant="bold" style={styles.dayBadge}>
-            {formatPathDayCompletionLabel(enrollment.current_day, dayTitle)}
-          </AppText>
-          <AppText style={styles.seedName}>
-            {seedTitle}
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: insets.top + Space.lg }]}>
+          <View style={styles.headerMeta}>
+            <View style={styles.dayPill}>
+              <AppText variant="bold" style={styles.dayPillText}>{dayLabel}</AppText>
+            </View>
+            <AppText style={styles.seedTitle} numberOfLines={1}>{seedTitle}</AppText>
+          </View>
+          <AppText variant="bold" style={styles.pageTitle}>How did it go?</AppText>
+          <AppText style={styles.pageSubtitle}>
+            Rate all three areas to unlock your next step
           </AppText>
         </View>
 
-        {/* Prompts intro */}
-        <AppText style={styles.intro}>
-          Take a moment to reflect on today's experience
-        </AppText>
-
-        {/* Energy Level */}
-        <GlassCard style={styles.sliderSection}>
-          <AppText variant="bold" style={styles.sliderLabel}>How energized do you feel?</AppText>
-          <View style={styles.sliderRow}>
-            <AppText style={styles.sliderEmoji}>😴</AppText>
-            <View style={styles.sliderTrack}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
-                <Pressable
-                  key={val}
-                  style={[
-                    styles.sliderDot,
-                    energyLevel >= val && styles.sliderDotActive,
-                  ]}
-                  onPress={() => setEnergyLevel(val)}
-                />
-              ))}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Rating cards */}
+          <GlassCard style={styles.ratingCard}>
+            <View style={styles.ratingHeader}>
+              <AppText variant="bold" style={styles.ratingTitle}>Energy</AppText>
+              {energyLevel !== null ? (
+                <View style={styles.valueBadge}>
+                  <AppText variant="bold" style={styles.valueBadgeText}>{energyLevel}</AppText>
+                </View>
+              ) : (
+                <AppText style={styles.requiredLabel}>Required</AppText>
+              )}
             </View>
-            <AppText style={styles.sliderEmoji}>⚡</AppText>
-          </View>
-        </GlassCard>
-
-        {/* Confusion Level */}
-        <GlassCard style={styles.sliderSection}>
-          <AppText variant="bold" style={styles.sliderLabel}>How clear was everything?</AppText>
-          <View style={styles.sliderRow}>
-            <AppText style={styles.sliderEmoji}>😕</AppText>
-            <View style={styles.sliderTrack}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
-                <Pressable
-                  key={val}
-                  style={[
-                    styles.sliderDot,
-                    confusionLevel >= val && styles.sliderDotActive,
-                  ]}
-                  onPress={() => setConfusionLevel(val)}
-                />
-              ))}
-            </View>
-            <AppText style={styles.sliderEmoji}>💡</AppText>
-          </View>
-          <AppText style={styles.sliderHint}>
-            (Low = confusing, High = crystal clear)
-          </AppText>
-        </GlassCard>
-
-        {/* Interest Level */}
-        <GlassCard style={styles.sliderSection}>
-          <AppText variant="bold" style={styles.sliderLabel}>
-            How interested are you in this path?
-          </AppText>
-          <View style={styles.sliderRow}>
-            <AppText style={styles.sliderEmoji}>😐</AppText>
-            <View style={styles.sliderTrack}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
-                <Pressable
-                  key={val}
-                  style={[
-                    styles.sliderDot,
-                    interestLevel >= val && styles.sliderDotActive,
-                  ]}
-                  onPress={() => setInterestLevel(val)}
-                />
-              ))}
-            </View>
-            <AppText style={styles.sliderEmoji}>🤩</AppText>
-          </View>
-        </GlassCard>
-
-        {/* Open response */}
-        {showVoiceAI ? (
-          <View style={{ marginBottom: 32 }}>
-            <VoiceAIReflection
-              onSave={(transcript) => {
-                setOpenResponse(transcript);
-                setShowVoiceAI(false);
-              }}
-              onDismiss={() => setShowVoiceAI(false)}
+            <RatingBar
+              value={energyLevel}
+              onChange={setEnergyLevel}
+              lowEmoji="😴"
+              highEmoji="⚡"
+              lowLabel="Drained"
+              highLabel="Energized"
             />
-          </View>
-        ) : (
-          <View style={{ alignItems: "center", marginBottom: 16 }}>
-            <Pressable
-              style={{
-                backgroundColor: "#F3F4F6",
-                padding: 12,
-                borderRadius: 8,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-              onPress={() => setShowVoiceAI(true)}
-            >
-              <AppText style={{ fontSize: 16 }}>🎙️</AppText>
-              <AppText
-                style={{
-                  fontSize: 14,
-                  color: "#4B5563",
+          </GlassCard>
+
+          <GlassCard style={styles.ratingCard}>
+            <View style={styles.ratingHeader}>
+              <AppText variant="bold" style={styles.ratingTitle}>Clarity</AppText>
+              {confusionLevel !== null ? (
+                <View style={styles.valueBadge}>
+                  <AppText variant="bold" style={styles.valueBadgeText}>{confusionLevel}</AppText>
+                </View>
+              ) : (
+                <AppText style={styles.requiredLabel}>Required</AppText>
+              )}
+            </View>
+            <RatingBar
+              value={confusionLevel}
+              onChange={setConfusionLevel}
+              lowEmoji="😕"
+              highEmoji="💡"
+              lowLabel="Very confused"
+              highLabel="Crystal clear"
+            />
+          </GlassCard>
+
+          <GlassCard style={styles.ratingCard}>
+            <View style={styles.ratingHeader}>
+              <AppText variant="bold" style={styles.ratingTitle}>Interest</AppText>
+              {interestLevel !== null ? (
+                <View style={styles.valueBadge}>
+                  <AppText variant="bold" style={styles.valueBadgeText}>{interestLevel}</AppText>
+                </View>
+              ) : (
+                <AppText style={styles.requiredLabel}>Required</AppText>
+              )}
+            </View>
+            <RatingBar
+              value={interestLevel}
+              onChange={setInterestLevel}
+              lowEmoji="😐"
+              highEmoji="🤩"
+              lowLabel="Not for me"
+              highLabel="Obsessed"
+            />
+          </GlassCard>
+
+          {/* Thoughts */}
+          <View style={styles.thoughtsSection}>
+            <View style={styles.thoughtsLabelRow}>
+              <AppText variant="bold" style={styles.ratingTitle}>Thoughts</AppText>
+              <AppText style={styles.optionalLabel}>optional</AppText>
+            </View>
+
+            {showVoiceAI ? (
+              <VoiceAIReflection
+                onSave={(transcript) => {
+                  setOpenResponse(transcript);
+                  setShowVoiceAI(false);
                 }}
-              >
-                Reflect with Voice AI
-              </AppText>
-            </Pressable>
+                onDismiss={() => setShowVoiceAI(false)}
+              />
+            ) : (
+              <GlassCard style={styles.textCard}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="What stood out today? Any surprises?"
+                  placeholderTextColor="#9CA3AF"
+                  value={openResponse}
+                  onChangeText={setOpenResponse}
+                  multiline
+                  numberOfLines={4}
+                />
+                {!openResponse && (
+                  <Pressable style={styles.voiceButton} onPress={() => setShowVoiceAI(true)}>
+                    <AppText style={styles.voiceIcon}>🎙️</AppText>
+                    <AppText style={styles.voiceText}>Reflect with Voice AI</AppText>
+                  </Pressable>
+                )}
+              </GlassCard>
+            )}
           </View>
-        )}
 
-        <GlassCard style={styles.textSection}>
-          <AppText variant="bold" style={styles.sliderLabel}>Any thoughts or insights?</AppText>
-          <TextInput
-            style={styles.textInput}
-            placeholder="What stood out today? What surprised you?"
-            placeholderTextColor="#999"
-            value={openResponse}
-            onChangeText={setOpenResponse}
-            multiline
-            numberOfLines={4}
-          />
-        </GlassCard>
+          {/* Decision section */}
+          <View style={styles.decisionSection}>
+            <AppText variant="bold" style={styles.decisionTitle}>What's next?</AppText>
 
-        {/* Decision buttons */}
-        <View style={styles.decisionSection}>
-          <AppText variant="bold" style={styles.decisionTitle}>What's next?</AppText>
+            {!allRatingsSet && (
+              <View style={styles.nudge}>
+                <AppText style={styles.nudgeText}>
+                  Complete all three ratings above to continue
+                </AppText>
+              </View>
+            )}
 
-          {isLastDay ? (
-            // Last day - show final reflection option
-            <>
-              <GlassButton
-                variant="primary"
-                fullWidth
-                onPress={() => handleSubmit("final_reflection")}
-                disabled={submitting || scoring}
-              >
-                🎓 Complete Path & See Report
-              </GlassButton>
-            </>
-          ) : (
-            // Not last day - show continue/pause/quit options
-            <>
-              <GlassButton
-                variant="primary"
-                fullWidth
-                onPress={() => handleSubmit("continue_tomorrow")}
-                disabled={submitting || scoring}
-              >
-                ✓ Done for today, continue tomorrow
-              </GlassButton>
+            <View style={{ opacity: allRatingsSet ? 1 : 0.35 }}>
+              {isLastDay ? (
+                <GlassButton
+                  variant="primary"
+                  fullWidth
+                  size="large"
+                  onPress={() => handleSubmit("final_reflection")}
+                  disabled={submitting || scoring || !allRatingsSet}
+                >
+                  Complete Path & See Report
+                </GlassButton>
+              ) : (
+                <>
+                  <GlassButton
+                    variant="primary"
+                    fullWidth
+                    size="large"
+                    onPress={() => handleSubmit("continue_tomorrow")}
+                    disabled={submitting || scoring || !allRatingsSet}
+                  >
+                    Done for Today
+                  </GlassButton>
 
-              <GlassButton
-                variant="secondary"
-                fullWidth
-                onPress={() => handleSubmit("continue_now")}
-                disabled={submitting || scoring}
-              >
-                {`🚀 I'm on fire! Start Day ${enrollment.current_day + 1}`}
-              </GlassButton>
+                  <View style={{ height: Space.md }} />
 
-              <GlassButton
-                variant="ghost"
-                fullWidth
-                onPress={() => handleSubmit("pause")}
-                disabled={submitting || scoring}
-              >
-                ⏸️ Pause for now
-              </GlassButton>
+                  <GlassButton
+                    variant="secondary"
+                    fullWidth
+                    size="large"
+                    onPress={() => handleSubmit("continue_now")}
+                    disabled={submitting || scoring || !allRatingsSet}
+                  >
+                    {`Continue to Day ${enrollment.current_day + 1}`}
+                  </GlassButton>
 
-              <GlassButton
-                variant="danger"
-                fullWidth
-                onPress={() => handleSubmit("quit")}
-                disabled={submitting || scoring}
-              >
-                This isn't for me
-              </GlassButton>
-            </>
-          )}
-        </View>
+                  <View style={styles.secondaryRow}>
+                    <GlassButton
+                      variant="ghost"
+                      fullWidth
+                      onPress={() => handleSubmit("pause")}
+                      disabled={submitting || scoring || !allRatingsSet}
+                    >
+                      Pause
+                    </GlassButton>
+                    <GlassButton
+                      variant="danger"
+                      fullWidth
+                      onPress={() => handleSubmit("quit")}
+                      disabled={submitting || scoring || !allRatingsSet}
+                    >
+                      Quit Path
+                    </GlassButton>
+                  </View>
+                </>
+              )}
+            </View>
 
-        {submitting && (
-          <View style={styles.submittingOverlay}>
-            <ActivityIndicator size="small" color="#BFFF00" />
-            <AppText style={styles.submittingText}>Saving reflection...</AppText>
+            {(submitting || scoring) && (
+              <View style={styles.statusRow}>
+                <ActivityIndicator size="small" color={Accent.yellow} />
+                <AppText style={styles.statusText}>
+                  {scoring ? "Calculating scores..." : "Saving reflection..."}
+                </AppText>
+              </View>
+            )}
+
+            {scoreError && (
+              <View style={styles.scoreError}>
+                <AppText style={styles.scoreErrorText}>{scoreError}</AppText>
+              </View>
+            )}
           </View>
-        )}
-
-        {scoring && (
-          <View style={styles.scoringOverlay}>
-            <ActivityIndicator size="small" color="#BFFF00" />
-            <AppText style={styles.scoringText}>Calculating your scores...</AppText>
-          </View>
-        )}
-
-        {scoreError && (
-          <View style={styles.scoreErrorContainer}>
-            <AppText style={styles.scoreErrorText}>⚠️ {scoreError}</AppText>
-          </View>
-        )}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
   },
-  loadingContainer: {
+  center: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
     gap: 16,
   },
-  errorText: {
-    fontSize: Type.body.fontSize,
-    color: "#666",
-  },
-  backText: {
-    fontSize: Type.body.fontSize,
-    color: Accent.yellow,
-  },
   header: {
+    paddingHorizontal: Space["2xl"],
+    paddingBottom: Space.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.06)",
+    backgroundColor: PageBg.default,
+  },
+  headerMeta: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: Space["5xl"],
-    paddingHorizontal: Space.xl,
-    paddingBottom: Space.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Border.light,
+    gap: Space.sm,
+    marginBottom: Space.md,
   },
-  closeText: {
-    fontSize: 20,
-    color: "#666",
+  dayPill: {
+    backgroundColor: Accent.yellow,
+    borderRadius: Radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
-  headerTitle: {
-    fontSize: Type.subtitle.fontSize,
-    fontWeight: Type.subtitle.fontWeight,
+  dayPillText: {
+    fontSize: 12,
+    color: "#111",
+  },
+  seedTitle: {
+    fontSize: 13,
+    color: ThemeText.secondary,
+    flex: 1,
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: "800",
     color: ThemeText.primary,
+    marginBottom: 4,
+  },
+  pageSubtitle: {
+    fontSize: Type.body.fontSize,
+    color: ThemeText.secondary,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     padding: Space["2xl"],
-  },
-  dayInfo: {
-    alignItems: "center",
-    marginBottom: Space["2xl"],
-  },
-  dayBadge: {
-    fontSize: Type.title.fontSize,
-    fontWeight: Type.title.fontWeight,
-    color: ThemeText.primary,
-    marginBottom: 4,
-  },
-  seedName: {
-    fontSize: Type.body.fontSize,
-    color: ThemeText.secondary,
-  },
-  intro: {
-    fontSize: Type.body.fontSize,
-    color: ThemeText.secondary,
-    textAlign: "center",
-    marginBottom: Space["3xl"],
-  },
-  sliderSection: {
-    marginBottom: Space.xl,
-    padding: Space.xl,
-  },
-  sliderLabel: {
-    fontSize: Type.body.fontSize,
-    color: ThemeText.primary,
-    marginBottom: Space.md,
-  },
-  sliderRow: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: Space.md,
   },
-  sliderEmoji: {
-    fontSize: 20,
+  ratingCard: {
+    padding: Space.xl,
   },
-  sliderTrack: {
-    flex: 1,
+  ratingHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 2,
   },
-  sliderDot: {
-    width: 24,
-    height: 24,
-    borderRadius: Radius.full,
-    backgroundColor: "#eee",
+  ratingTitle: {
+    fontSize: Type.subtitle.fontSize,
+    color: ThemeText.primary,
   },
-  sliderDotActive: {
+  valueBadge: {
     backgroundColor: Accent.yellow,
-    ...Shadow.ctaGlow,
+    borderRadius: Radius.full,
+    width: 32,
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  sliderHint: {
-    fontSize: Type.caption.fontSize,
-    color: ThemeText.muted,
-    marginTop: 6,
-    textAlign: "center",
+  valueBadgeText: {
+    fontSize: 14,
+    color: "#111",
   },
-  textSection: {
-    marginBottom: Space["3xl"],
+  requiredLabel: {
+    fontSize: 12,
+    color: ThemeText.tertiary,
+  },
+  thoughtsSection: {
+    gap: Space.md,
+    marginTop: Space.sm,
+  },
+  thoughtsLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  optionalLabel: {
+    fontSize: 12,
+    color: ThemeText.tertiary,
+    fontStyle: "italic",
+  },
+  textCard: {
     padding: Space.xl,
   },
   textInput: {
@@ -568,55 +611,68 @@ const styles = StyleSheet.create({
     fontSize: Type.body.fontSize,
     fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.primary,
-    minHeight: 100,
-    marginTop: Space.md,
+    minHeight: 90,
     textAlignVertical: "top",
   },
+  voiceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+    marginTop: Space.md,
+    paddingTop: Space.md,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.06)",
+  },
+  voiceIcon: {
+    fontSize: 18,
+  },
+  voiceText: {
+    fontSize: 14,
+    color: ThemeText.secondary,
+  },
   decisionSection: {
-    gap: Space.lg,
+    gap: Space.md,
+    marginTop: Space.lg,
   },
   decisionTitle: {
     fontSize: Type.subtitle.fontSize,
-    fontWeight: Type.subtitle.fontWeight,
     color: ThemeText.primary,
-    marginBottom: 4,
     textAlign: "center",
   },
-  submittingOverlay: {
-    flexDirection: "row",
+  nudge: {
+    backgroundColor: "#FFFBEB",
+    borderRadius: Radius.md,
+    padding: Space.md,
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: Space.lg,
   },
-  submittingText: {
+  nudgeText: {
+    fontSize: 13,
+    color: "#92400E",
+    textAlign: "center",
+  },
+  secondaryRow: {
+    flexDirection: "row",
+    gap: Space.md,
+    marginTop: Space.md,
+  },
+  statusRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: Space.sm,
+  },
+  statusText: {
     fontSize: Type.caption.fontSize,
     color: ThemeText.secondary,
   },
-  scoringOverlay: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: Space.md,
-    paddingVertical: 8,
-    paddingHorizontal: Space.lg,
-    backgroundColor: "#F0F9FF",
-    borderRadius: Radius.md,
-  },
-  scoringText: {
-    fontSize: Type.caption.fontSize,
-    color: "#0369A1",
-  },
-  scoreErrorContainer: {
-    marginTop: Space.md,
-    paddingVertical: 8,
-    paddingHorizontal: Space.lg,
+  scoreError: {
     backgroundColor: "#FEF3C7",
     borderRadius: Radius.md,
+    padding: Space.md,
   },
   scoreErrorText: {
-    fontSize: Type.caption.fontSize,
+    fontSize: 13,
     color: "#92400E",
     textAlign: "center",
   },

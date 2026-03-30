@@ -103,7 +103,7 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>← Back</Text>
+          <Text style={styles.backBtnText}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title}>Settings</Text>
         {saving && (

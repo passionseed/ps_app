@@ -2,14 +2,24 @@ import { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
-  ScrollView,
   Pressable,
   Alert,
   Image,
 } from "react-native";
+import Animated, {
+  Extrapolation,
+  FadeIn,
+  FadeInDown,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
 import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Haptics from "expo-haptics";
 import { AppText } from "../../components/AppText";
 import { GlassButton } from "../../components/Glass";
 import { AnimatedSplash } from "../components/AnimatedSplash";
@@ -30,6 +40,12 @@ import { formatPathDayLabel } from "../../lib/pathlab-day-label";
 import type { Seed } from "../../types/seeds";
 import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
 import type { SeedRecommendation } from "../../lib/seedRecommendations";
+
+/** Fixed hero cover height; scroll spacer = this minus overlap so the card sits under the image. */
+const COVER_IMAGE_HEIGHT = 300;
+const HERO_CARD_OVERLAP = 32;
+/** Taller than clip so parallax / pull-scale does not show gaps */
+const COVER_PARALLAX_HEIGHT = COVER_IMAGE_HEIGHT * 1.22;
 
 export default function SeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -213,6 +229,51 @@ export default function SeedDetailScreen() {
     }
   };
 
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y;
+    },
+  });
+
+  const coverParallaxStyle = useAnimatedStyle(() => {
+    const y = scrollY.value;
+    const pull = y < 0 ? y : 0;
+    const down = Math.max(0, y);
+    const translateY = pull * 0.48 - down * 0.42;
+    const scale = interpolate(pull, [-160, 0], [1.12, 1], Extrapolation.CLAMP);
+    return {
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  const topFadeStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 100, 220], [1, 0.5, 0.28], Extrapolation.CLAMP),
+  }));
+
+  const headerBarStyle = useAnimatedStyle(() => {
+    const o = interpolate(scrollY.value, [0, 48, 130], [0, 0.92, 1], Extrapolation.CLAMP);
+    return {
+      backgroundColor: `rgba(248, 249, 250, ${o})`,
+      borderBottomWidth: o > 0.14 ? 1 : 0,
+      borderBottomColor: "rgba(0,0,0,0.07)",
+    };
+  });
+
+  /** Compact title — fades in as the hero title scrolls away */
+  const headerTitleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [64, 128], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      {
+        translateY: interpolate(scrollY.value, [64, 128], [6, 0], Extrapolation.CLAMP),
+      },
+    ],
+  }));
+
+  const heroTitleVisibilityStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [40, 110], [1, 0], Extrapolation.CLAMP),
+  }));
+
   if (loading) {
     return <AnimatedSplash />;
   }
@@ -223,7 +284,7 @@ export default function SeedDetailScreen() {
         <StatusBar style="dark" />
         <View style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 12 }]}>
           <Pressable style={s.backBtn} onPress={() => router.back()}>
-            <AppText style={s.backBtnIcon}>←</AppText>
+            <AppText style={s.backBtnIcon}>‹</AppText>
           </Pressable>
         </View>
         <View style={s.center}>
@@ -263,7 +324,7 @@ export default function SeedDetailScreen() {
         {/* Header */}
         <View style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 12 }]}>
           <Pressable style={s.backBtn} onPress={() => router.back()}>
-            <AppText style={s.backBtnIcon}>←</AppText>
+            <AppText style={s.backBtnIcon}>‹</AppText>
           </Pressable>
         </View>
         <View style={s.center}>
@@ -298,67 +359,123 @@ export default function SeedDetailScreen() {
 
   return (
     <View style={s.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
-      {/* Sticky Header */}
-      <View style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 12 }]}>
-        <Pressable style={s.backBtn} onPress={() => router.back()}>
-          <AppText style={s.backBtnIcon}>←</AppText>
-        </Pressable>
+      {/* Cover — clipped; inner layer parallax-scrolls */}
+      <View style={s.coverClip}>
+        <Animated.View style={[s.coverParallaxInner, coverParallaxStyle]}>
+          {seed.cover_image_url ? (
+            <Image
+              source={
+                typeof seed.cover_image_url === "string"
+                  ? { uri: seed.cover_image_url }
+                  : seed.cover_image_url
+              }
+              style={s.coverImageFill}
+              resizeMode="cover"
+            />
+          ) : (
+            <LinearGradient
+              colors={["#EEF6E3", "#FDFFF5", "#E8F0E0"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={s.coverImageFill}
+            />
+          )}
+        </Animated.View>
       </View>
 
-      <ScrollView
+      <Animated.View
+        style={[s.coverTopFade, { height: insets.top + 72 }, topFadeStyle]}
+        pointerEvents="none"
+      >
+        <LinearGradient
+          colors={["rgba(0,0,0,0.45)", "rgba(0,0,0,0.12)", "transparent"]}
+          locations={[0, 0.35, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+
+      {/* Header — scrim + compact title when scrolled */}
+      <Animated.View
+        style={[
+          s.header,
+          { paddingTop: insets.top + 12, paddingBottom: 12 },
+          headerBarStyle,
+        ]}
+      >
+        <View style={s.headerRow}>
+          <Pressable
+            style={s.backBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}
+          >
+            <AppText style={s.backBtnIcon}>‹</AppText>
+          </Pressable>
+          <Animated.View style={[s.headerTitleWrap, headerTitleStyle]} pointerEvents="none">
+            <AppText variant="bold" style={s.headerTitleText} numberOfLines={1}>
+              {seed.title}
+            </AppText>
+          </Animated.View>
+          <View style={s.headerTitleBalance} />
+        </View>
+      </Animated.View>
+
+      <Animated.ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[s.scrollContent, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
         bounces={true}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
-        {/* Header with cover image */}
-        <View style={s.heroSection}>
-          {seed.cover_image_url && (
-            <View style={s.coverImageWrapper}>
-              <Image
-                source={
-                  typeof seed.cover_image_url === "string"
-                    ? { uri: seed.cover_image_url }
-                    : seed.cover_image_url
-                }
-                style={s.coverImage}
-                resizeMode="cover"
-              />
-            </View>
-          )}
-          <View style={s.heroContent}>
+        {/* Spacer height + hero negative margin = start of card at (cover height − overlap) */}
+        <View style={[s.coverSpacer, { height: COVER_IMAGE_HEIGHT }]} />
+
+        {/* Content card with title */}
+        <Animated.View
+          entering={FadeInDown.springify().damping(22).stiffness(180).delay(40)}
+          style={s.heroContentCard}
+        >
+          <Animated.View style={heroTitleVisibilityStyle}>
             <AppText variant="bold" style={s.seedTitle}>
               {seed.title}
             </AppText>
-            {expert && (
-              <View style={s.expertRow}>
-                <AppText style={s.expertLabel}>โดย </AppText>
-                <AppText variant="bold" style={s.expertName}>{expert.name}</AppText>
-                {expert.title && (
-                  <AppText style={s.expertTitle}> • {expert.title}</AppText>
-                )}
-              </View>
-            )}
-            {seed.slogan && (
-              <AppText style={s.seedSlogan}>{seed.slogan}</AppText>
-            )}
-          </View>
-        </View>
+          </Animated.View>
+          {expert && (
+            <View style={s.expertRow}>
+              <AppText style={s.expertLabel}>โดย </AppText>
+              <AppText variant="bold" style={s.expertName}>{expert.name}</AppText>
+              {expert.title && (
+                <AppText style={s.expertTitle}> • {expert.title}</AppText>
+              )}
+            </View>
+          )}
+          {seed.slogan && (
+            <AppText style={s.seedSlogan}>{seed.slogan}</AppText>
+          )}
+        </Animated.View>
 
         {/* Description */}
         {seed.description && (
-          <View style={s.card}>
+          <Animated.View
+            entering={FadeInDown.springify().damping(24).stiffness(200).delay(110)}
+            style={s.card}
+          >
             <AppText variant="bold" style={s.cardTitle}>
               {guestCopy.about}
             </AppText>
             <AppText style={s.descriptionText}>{seed.description}</AppText>
-          </View>
+          </Animated.View>
         )}
 
         {recommendation && recommendation.reasons.length > 0 && (
-          <View style={s.card}>
+          <Animated.View
+            entering={FadeInDown.springify().damping(24).stiffness(200).delay(180)}
+            style={s.card}
+          >
             <AppText variant="bold" style={s.cardTitle}>
               {appLanguage === "th"
                 ? "🌟 ทำไมเส้นทางนี้ถึงแนะนำ"
@@ -386,12 +503,15 @@ export default function SeedDetailScreen() {
                 </View>
               ))}
             </View>
-          </View>
+          </Animated.View>
         )}
 
         {/* Path Days */}
         {pathDays.length > 0 && (
-          <View style={s.card}>
+          <Animated.View
+            entering={FadeInDown.springify().damping(24).stiffness(200).delay(250)}
+            style={s.card}
+          >
             <AppText variant="bold" style={s.cardTitle}>
               {guestCopy.days(path.total_days)}
             </AppText>
@@ -454,14 +574,17 @@ export default function SeedDetailScreen() {
                 </View>
               );
             })}
-          </View>
+          </Animated.View>
         )}
 
         <View style={{ height: 40 }} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* CTA */}
-      <View style={[s.ctaBar, { paddingBottom: insets.bottom + 20 }]}>
+      <Animated.View
+        entering={FadeIn.delay(300).duration(420)}
+        style={[s.ctaBar, { paddingBottom: insets.bottom + 20 }]}
+      >
         <View style={s.ctaGradient} />
         <GlassButton
           variant="primary"
@@ -475,7 +598,7 @@ export default function SeedDetailScreen() {
             ? guestCopy.startCurrentDay(currentDay)
             : guestCopy.startPath}
         </GlassButton>
-      </View>
+      </Animated.View>
 
       {enrolling && (
         <View style={s.loadingOverlay}>
@@ -498,24 +621,75 @@ const s = StyleSheet.create({
     paddingHorizontal: 32,
   },
 
-  // Header
+  coverClip: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: COVER_IMAGE_HEIGHT,
+    overflow: "hidden",
+    zIndex: 0,
+  },
+  coverParallaxInner: {
+    width: "100%",
+    height: COVER_PARALLAX_HEIGHT,
+  },
+  coverImageFill: {
+    width: "100%",
+    height: "100%",
+  },
+  coverTopFade: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  coverSpacer: {
+    // Spacer in scroll content to push content below cover image
+  },
+
+  // Header - overlays cover image
   header: {
-    backgroundColor: "#F8F9FA",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "transparent",
     paddingHorizontal: 20,
+    zIndex: 10,
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 38,
+  },
+  headerTitleWrap: {
+    flex: 1,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+  },
+  headerTitleText: {
+    fontSize: 17,
+    color: "#111827",
+    textAlign: "center",
+  },
+  /** Same width as back button so the title stays visually centered */
+  headerTitleBalance: {
+    width: 38,
+    height: 38,
   },
   backBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,0.9)",
     borderWidth: 0,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 2,
   },
@@ -529,24 +703,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 0,
   },
 
-  heroSection: {
+  // Hero content card - white card below cover image
+  heroContentCard: {
+    backgroundColor: "#F8F9FA",
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
-  },
-  coverImageWrapper: {
-    width: "100%",
-    height: 200,
-    borderRadius: 32,
-    marginBottom: 20,
-    overflow: "hidden",
-  },
-  coverImage: {
-    width: "100%",
-    height: "100%",
-  },
-  heroContent: {
-    gap: 8,
+    paddingTop: 24,
+    paddingBottom: 16,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -HERO_CARD_OVERLAP,
   },
   seedTitle: {
     fontSize: 28,
@@ -580,6 +745,7 @@ const s = StyleSheet.create({
     color: "#6B7280",
     lineHeight: 22,
     fontFamily: "BaiJamjuree_400Regular",
+    marginTop: 8,
   },
 
   card: {

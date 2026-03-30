@@ -27,7 +27,6 @@ export function SeedSection({
           <CompactSeedCard
             key={seed.id || `seed-${index}`}
             seed={seed}
-            index={index}
             onPress={() => {
               router.push(`/seed/${seed.id}`);
             }}
@@ -61,7 +60,6 @@ export function ProgressSection({
           <ProgressSeedCard
             key={seed.id || `progress-${index}`}
             seed={seed}
-            index={index}
             progress={
               seed.enrollment
                 ? (seed.enrollment.current_day - 1) / (seed.path?.total_days || 5)
@@ -81,22 +79,18 @@ export function ProgressSection({
 function ProgressSeedCard({
   seed,
   progress,
-  index,
   doneToday,
   onPress,
 }: {
   seed: SeedRecommendation;
   progress: number;
-  index: number;
   doneToday?: boolean;
   onPress: () => void;
 }) {
   const totalDays = seed.path?.total_days || 5;
   const daysCompleted = seed.enrollment ? seed.enrollment.current_day - 1 : 0;
   return (
-    <View
-      style={[styles.compactCardWrapper, index === 0 && { marginLeft: 24 }]}
-    >
+    <View style={styles.compactCardWrapper}>
       <Pressable
         style={({ pressed }) => [
           styles.compactCard,
@@ -158,17 +152,13 @@ function ProgressSeedCard({
 
 function CompactSeedCard({
   seed,
-  index,
   onPress,
 }: {
   seed: SeedRecommendation;
-  index: number;
   onPress: () => void;
 }) {
   return (
-    <View
-      style={[styles.compactCardWrapper, index === 0 && { marginLeft: 24 }]}
-    >
+    <View style={styles.compactCardWrapper}>
       <Pressable
         style={({ pressed }) => [
           styles.compactCard,

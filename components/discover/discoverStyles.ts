@@ -347,11 +347,11 @@ export const styles = StyleSheet.create({
   sectionGrid: {
     flexDirection: "row",
     gap: Space.md,
-    paddingHorizontal: 0,
+    paddingLeft: Space["2xl"],
     paddingRight: Space["2xl"],
   },
   fullWidthScroll: {
-    marginHorizontal: -5,
+    marginHorizontal: 0,
   },
 
   compactTitle: {
@@ -369,18 +369,19 @@ export const styles = StyleSheet.create({
   // and corners look harsh. Inner compactCard clips image + border to the radius.
   compactCardWrapper: {
     width: 140,
+    height: 240,
     marginRight: 0,
     borderRadius: Radius.xl,
     ...Shadow.neutral,
   },
   compactCard: {
-    flex: 1,
     backgroundColor: "#FFFFFF",
     borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Border.default,
     overflow: "hidden",
     height: 240,
+    width: "100%",
     position: "relative",
   },
   compactCardPressed: {
@@ -388,11 +389,7 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   compactImageFull: {
-    width: "100%",
-    height: "100%",
-    position: "absolute",
-    top: 0,
-    left: 0,
+    ...StyleSheet.absoluteFillObject,
     borderRadius: Radius.xl,
     backgroundColor: Gradient.masterCard[1],
   },

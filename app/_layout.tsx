@@ -168,7 +168,7 @@ function RootLayout() {
         />
         <Stack.Screen
           name="reflection/[enrollmentId]"
-          options={{ presentation: "modal" }}
+          options={{ presentation: "card" }}
         />
         <Stack.Screen
           name="university/[key]"
