@@ -39,7 +39,7 @@ export const AppText: React.FC<AppTextProps> = ({
   })();
 
   let fontFamily =
-    variant === "bold" ? "LibreFranklin_Bold" : "LibreFranklin_Regular";
+    variant === "bold" ? "LibreFranklin_700Bold" : "LibreFranklin_400Regular";
   const fontSize =
     typeof resolvedStyle.fontSize === "number" ? resolvedStyle.fontSize : 16;
 

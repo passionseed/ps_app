@@ -243,7 +243,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     color: "#111",
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   inputMulti: { minHeight: 100, textAlignVertical: "top" },
   charCount: { fontSize: 11, color: "#9CA3AF", textAlign: "right" },

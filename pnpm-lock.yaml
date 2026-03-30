@@ -17,9 +17,6 @@ importers:
       '@expo-google-fonts/libre-franklin':
         specifier: ^0.4.2
         version: 0.4.2
-      '@expo-google-fonts/orbit':
-        specifier: ^0.4.0
-        version: 0.4.0
       '@react-native-async-storage/async-storage':
         specifier: ^2.2.0
         version: 2.2.0(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))
@@ -726,9 +723,6 @@ packages:
 
   '@expo-google-fonts/material-symbols@0.4.24':
     resolution: {integrity: sha512-1bJ63Yv2Bn8SN2MjrlbwLwUhnC8COOeejd15H88WjCtw5iNErqEPaBnpvmYyqciVYwudGo5drUIdY9C/5yPGbg==}
-
-  '@expo-google-fonts/orbit@0.4.0':
-    resolution: {integrity: sha512-kj4NGC9dDUMiDX3N9n8L/VPRyKFnKl+Aqm6g39yVW2Dw9vLMBD4UsL/qx2BHdEgQY4zd7Fc4wsQam5wX21vXiQ==}
 
   '@expo/cli@55.0.15':
     resolution: {integrity: sha512-Qd4aF2+wT9LtdV7G/gULbx/t8FJ/OVtwuNkLcZt1XlosQ5XX/C/3ywZXYl+/bYcHUmuO1TBD3Fg05bNlmL6vrw==}
@@ -4917,8 +4911,6 @@ snapshots:
   '@expo-google-fonts/libre-franklin@0.4.2': {}
 
   '@expo-google-fonts/material-symbols@0.4.24': {}
-
-  '@expo-google-fonts/orbit@0.4.0': {}
 
   '@expo/cli@55.0.15(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-constants@55.0.9)(expo-font@55.0.4)(expo-router@55.0.7)(expo@55.0.5)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)':
     dependencies:

@@ -39,8 +39,9 @@ Package manager: **pnpm** (not npm or yarn).
 - Background: `#FDFFF5` (off-white)
 - Text: `#111`
 - Accent: `#BFFF00` / `#9FE800` (yellow-green)
-- Font: **Orbit_400Regular** loaded from `assets/Orbit_400Regular.ttf`
-- All text uses `fontFamily: "Orbit_400Regular"` with explicit `fontWeight`
+- Latin UI: **Libre Franklin** (`LibreFranklin_400Regular` / `LibreFranklin_700Bold`), loaded via `useFonts` and `expo-font` in `app.config.js`
+- Thai: **Bai Jamjuree** when text contains Thai (see `components/AppText.tsx`)
+- Prefer `AppText` or explicit `fontFamily` with explicit `fontWeight` where needed
 
 ### Key dependencies
 - `expo-router` — navigation

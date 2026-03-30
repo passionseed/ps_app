@@ -872,7 +872,7 @@ const styles = StyleSheet.create({
   },
   guestTitle: {
     fontSize: 28,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#111827",
     marginBottom: 32,
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
   guestBenefitText: {
     flex: 1,
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#374151",
     lineHeight: 20,
   },
@@ -924,13 +924,13 @@ const styles = StyleSheet.create({
   },
   guestCtaBtnText: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#111827",
   },
   guestSecondaryText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     textAlign: "center",
   },
@@ -1018,13 +1018,13 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 28,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#111827",
   },
   heroSummary: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#4B5563",
     lineHeight: 20,
   },
@@ -1043,7 +1043,7 @@ const styles = StyleSheet.create({
   },
   metaPillText: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "500",
     color: "#475569",
   },
@@ -1069,7 +1069,7 @@ const styles = StyleSheet.create({
   },
   focusSectionLabel: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.8,
@@ -1106,7 +1106,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(139, 92, 246, 0.14)",
   },
   focusChipText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
   },
   careerChipText: {
@@ -1124,13 +1124,13 @@ const styles = StyleSheet.create({
   },
   emptyHeroTitle: {
     fontSize: 18,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#111827",
   },
   emptyHeroBody: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#4B5563",
     lineHeight: 20,
   },
@@ -1147,7 +1147,7 @@ const styles = StyleSheet.create({
   },
   inlineCtaText: {
     fontSize: 13,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     color: "#FFFFFF",
   },
@@ -1162,7 +1162,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#9CA3AF",
     marginBottom: 16,
@@ -1215,13 +1215,13 @@ const styles = StyleSheet.create({
   },
   ikigaiLabel: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#111827",
   },
   ikigaiDescription: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#9CA3AF",
     marginBottom: 6,
   },
@@ -1237,13 +1237,13 @@ const styles = StyleSheet.create({
   },
   ikigaiScore: {
     fontSize: 20,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "800",
     marginTop: 4,
   },
   ikigaiInsight: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     lineHeight: 16,
     marginTop: 6,
@@ -1254,7 +1254,7 @@ const styles = StyleSheet.create({
   },
   timelineTitle: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     color: "#6B7280",
     marginBottom: 12,
@@ -1302,7 +1302,7 @@ const styles = StyleSheet.create({
   },
   timelineDate: {
     fontSize: 9,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#9CA3AF",
   },
   timelineLegend: {
@@ -1324,7 +1324,7 @@ const styles = StyleSheet.create({
   },
   timelineLegendText: {
     fontSize: 10,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
   },
   insightCard: {
@@ -1337,7 +1337,7 @@ const styles = StyleSheet.create({
   },
   insightText: {
     fontSize: 13,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#4B5563",
     lineHeight: 20,
   },
@@ -1348,7 +1348,7 @@ const styles = StyleSheet.create({
   },
   scoresLoadingText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
   },
   emptyScoresContainer: {
@@ -1362,14 +1362,14 @@ const styles = StyleSheet.create({
   },
   emptyScoresTitle: {
     fontSize: 20,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#111827",
     marginBottom: 8,
   },
   emptyScoresText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     textAlign: "center",
     lineHeight: 20,
@@ -1387,7 +1387,7 @@ const styles = StyleSheet.create({
   },
   exploreSeedsBtnText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     color: "#111827",
   },
@@ -1416,13 +1416,13 @@ const styles = StyleSheet.create({
   },
   actionRowTitle: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     color: "#111827",
   },
   actionRowSubtitle: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#9CA3AF",
     lineHeight: 16,
   },
@@ -1454,19 +1454,19 @@ const styles = StyleSheet.create({
   },
   activityTitle: {
     fontSize: 13,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     color: "#374151",
   },
   activityDetail: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     lineHeight: 18,
   },
   activityTime: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#9CA3AF",
   },
   emptySectionState: {
@@ -1476,13 +1476,13 @@ const styles = StyleSheet.create({
   },
   emptySectionTitle: {
     fontSize: 18,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#111827",
   },
   emptySectionBody: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     lineHeight: 20,
   },
@@ -1500,7 +1500,7 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "500",
     color: "#9CA3AF",
   },
@@ -1515,7 +1515,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#D1D5DB",
     letterSpacing: 0.2,
   },

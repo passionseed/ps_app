@@ -50,7 +50,7 @@ New tables (this mission):
 - `AppText` component (`components/AppText.tsx`) for Thai/English font switching
   - Detects Thai characters, applies BaiJamjuree font for Thai, LibreFranklin for English
   - Supports `variant` prop: "regular" (default) or "bold"
-- Older screens use `fontFamily: "Orbit_400Regular"` directly — new screens should use AppText
+- Latin text uses Libre Franklin (`LibreFranklin_400Regular` / `LibreFranklin_700Bold`); prefer `AppText` for Thai-aware defaults
 - `LinearGradient` from `expo-linear-gradient` for hero sections (dark purple gradient: `["#1E0A3C", "#4C1D95"]`)
 - `useSafeAreaInsets()` from `react-native-safe-area-context` for safe area padding
 

@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { PageBg } from "../../lib/theme";
 import { useAuth } from "../../lib/auth";
+import { FloatingProgressButton } from "../../components/FloatingProgressButton";
 
 type TabRoute = "discover" | "my-paths" | "profile";
 
@@ -242,18 +243,24 @@ function TabBarButton({
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = Platform.OS === "ios" ? Math.max(insets.bottom, 24) + 44 + 24 : 24 + 44 + 24;
+
   return (
-    <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        sceneStyle: { backgroundColor: PageBg.default },
-      }}
-    >
-      <Tabs.Screen name="discover" />
-      <Tabs.Screen name="my-paths" />
-      <Tabs.Screen name="profile" />
-    </Tabs>
+    <View style={{ flex: 1 }}>
+      <Tabs
+        tabBar={(props) => <CustomTabBar {...props} />}
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: PageBg.default },
+        }}
+      >
+        <Tabs.Screen name="discover" />
+        <Tabs.Screen name="my-paths" />
+        <Tabs.Screen name="profile" />
+      </Tabs>
+      <FloatingProgressButton bottomOffset={tabBarHeight} />
+    </View>
   );
 }
 

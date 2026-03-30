@@ -282,13 +282,13 @@ const styles = StyleSheet.create({
   },
   backBtnText: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.secondary,
     fontWeight: "600",
   },
   title: {
     fontSize: 28,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: ThemeText.primary,
     flex: 1,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: ThemeText.tertiary,
     textTransform: "uppercase",
@@ -331,13 +331,13 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 15,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.primary,
     fontWeight: "500",
   },
   optionValue: {
     fontSize: 15,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.secondary,
   },
   checkmark: {

@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     marginBottom: 8,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     textAlign: "center",
   },
   prompt: {
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textAlign: "center",
     lineHeight: 20,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   recordContainer: {
     alignItems: "center",
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     color: "#9CA3AF",
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
   },
   transcriptBox: {
     backgroundColor: "#F9FAFB",

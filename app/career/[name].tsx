@@ -269,19 +269,19 @@ const s = StyleSheet.create({
   backBtn: { marginBottom: 20, alignSelf: "flex-start" },
   backBtnText: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "rgba(255,255,255,0.7)",
   },
   heroTitle: {
     fontSize: 28,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#fff",
     marginBottom: 6,
   },
   heroSub: {
     fontSize: 13,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "rgba(255,255,255,0.5)",
     letterSpacing: 1,
   },
@@ -292,14 +292,14 @@ const s = StyleSheet.create({
 
   // States
   loadingWrap: { alignItems: "center", paddingTop: 60, gap: 16 },
-  loadingText: { fontSize: 14, fontFamily: "Orbit_400Regular", color: "#666" },
+  loadingText: { fontSize: 14, fontFamily: "LibreFranklin_400Regular", color: "#666" },
   errorWrap: { alignItems: "center", paddingTop: 60, gap: 16, paddingHorizontal: 32 },
-  errorText: { fontSize: 14, fontFamily: "Orbit_400Regular", color: "#999", textAlign: "center" },
+  errorText: { fontSize: 14, fontFamily: "LibreFranklin_400Regular", color: "#999", textAlign: "center" },
   retryBtn: {
     borderWidth: 1, borderColor: "#ddd", borderRadius: 8,
     paddingHorizontal: 20, paddingVertical: 10,
   },
-  retryBtnText: { fontSize: 14, fontFamily: "Orbit_400Regular", color: "#666" },
+  retryBtnText: { fontSize: 14, fontFamily: "LibreFranklin_400Regular", color: "#666" },
 
   // Section
   section: { marginBottom: 32, paddingHorizontal: 24 },
@@ -307,7 +307,7 @@ const s = StyleSheet.create({
   sectionAccent: { width: 3, height: 16, backgroundColor: "#BFFF00", borderRadius: 2 },
   sectionTitle: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#111",
     letterSpacing: 1.5,
@@ -339,20 +339,20 @@ const s = StyleSheet.create({
   },
   avatarText: {
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#BFFF00",
   },
   personName: {
     fontSize: 13,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     color: "#111827",
     lineHeight: 18,
   },
   personRole: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     lineHeight: 16,
     flexGrow: 1,
@@ -360,7 +360,7 @@ const s = StyleSheet.create({
   viewLink: { marginTop: 4 },
   viewLinkText: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#0040F0",
     fontWeight: "600",
   },
@@ -384,13 +384,13 @@ const s = StyleSheet.create({
   },
   companyName: {
     fontSize: 14,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     color: "#111827",
   },
   companyDomain: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
   },
 
@@ -418,32 +418,32 @@ const s = StyleSheet.create({
   },
   sourceBadgeText: {
     fontSize: 9,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: "#111827",
     letterSpacing: 0.5,
   },
   newsAgo: {
     fontSize: 11,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
   },
   newsTitle: {
     fontSize: 15,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     color: "#111827",
     lineHeight: 22,
   },
   newsSnippet: {
     fontSize: 13,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#4B5563",
     lineHeight: 19,
   },
   readLink: {
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     color: "#0040F0",
     alignSelf: "flex-end",
@@ -452,5 +452,5 @@ const s = StyleSheet.create({
   // Misc
   pressed: { opacity: 0.85, transform: [{ scale: 0.985 }] },
   emptyNote: { paddingVertical: 20, alignItems: "center" },
-  emptyNoteText: { fontSize: 13, fontFamily: "Orbit_400Regular", color: "#bbb" },
+  emptyNoteText: { fontSize: 13, fontFamily: "LibreFranklin_400Regular", color: "#bbb" },
 });

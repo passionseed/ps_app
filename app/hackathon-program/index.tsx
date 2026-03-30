@@ -16,7 +16,7 @@ import {
   getEmptyHackathonProgramHome,
 } from "../../lib/hackathonProgram";
 import { getPreviewHackathonProgramHome } from "../../lib/hackathonProgramPreview";
-import { Accent, PageBg, Space } from "../../lib/theme";
+import { Accent, PageBg, Space, Text as ThemeText } from "../../lib/theme";
 import type { HackathonProgramHome } from "../../types/hackathon-program";
 
 export default function HackathonProgramHomeScreen() {
@@ -91,7 +91,7 @@ export default function HackathonProgramHomeScreen() {
 
       {isPreview ? (
         <GlassCard variant="neutral" style={styles.previewCard}>
-          <AppText variant="bold">Preview mode</AppText>
+          <AppText variant="bold" style={{ color: ThemeText.primary }}>Preview mode</AppText>
           <AppText style={styles.previewCopy}>
             This route uses built-in preview data because the mobile app does not yet bridge Supabase users to the custom `hackathon_participants` auth system.
           </AppText>
@@ -120,7 +120,7 @@ export default function HackathonProgramHomeScreen() {
         <AppText variant="bold" style={styles.sectionTitle}>
           Team context
         </AppText>
-        <AppText>{data.team?.name ?? data.team?.team_name ?? "Team not linked yet"}</AppText>
+        <AppText style={{ color: ThemeText.primary }}>{data.team?.name ?? data.team?.team_name ?? "Team not linked yet"}</AppText>
         <AppText style={styles.metaCopy}>
           Program: {data.program?.title ?? "Preview program"}
         </AppText>
@@ -166,18 +166,19 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: 13,
-    opacity: 0.78,
+    color: ThemeText.tertiary,
     textTransform: "uppercase",
     letterSpacing: 1,
   },
   title: {
     fontSize: 32,
     lineHeight: 38,
+    color: ThemeText.primary,
   },
   subtitle: {
     fontSize: 16,
     lineHeight: 24,
-    opacity: 0.82,
+    color: ThemeText.secondary,
   },
   previewCard: {
     gap: 8,
@@ -185,48 +186,51 @@ const styles = StyleSheet.create({
   previewCopy: {
     fontSize: 14,
     lineHeight: 20,
-    opacity: 0.84,
+    color: ThemeText.secondary,
   },
   heroCard: {
     gap: 12,
   },
   heroLabel: {
     fontSize: 12,
-    opacity: 0.72,
+    color: ThemeText.tertiary,
     textTransform: "uppercase",
     letterSpacing: 0.9,
   },
   heroTitle: {
     fontSize: 24,
     lineHeight: 30,
+    color: ThemeText.primary,
   },
   heroBody: {
     fontSize: 15,
     lineHeight: 22,
-    opacity: 0.86,
+    color: ThemeText.secondary,
   },
   teamCard: {
     gap: 6,
   },
   metaCopy: {
     fontSize: 14,
-    opacity: 0.78,
+    color: ThemeText.secondary,
   },
   section: {
     gap: 12,
   },
   sectionTitle: {
     fontSize: 18,
+    color: ThemeText.primary,
   },
   phaseCard: {
     gap: 8,
   },
   phaseTitle: {
     fontSize: 18,
+    color: ThemeText.primary,
   },
   phaseBody: {
     fontSize: 14,
     lineHeight: 20,
-    opacity: 0.82,
+    color: ThemeText.secondary,
   },
 });

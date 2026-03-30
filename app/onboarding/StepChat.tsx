@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     position: "absolute",
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 10,
     fontWeight: "700",
     color: "#111",
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   npcName: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 11,
     letterSpacing: 1.2,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   npcText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 13,
     color: "#111",
     lineHeight: 20,
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 12,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#111",
     maxHeight: 80,
   },

@@ -19,7 +19,24 @@ This project uses **Ghost** (ghost.build) as a staging/backup database environme
   ```
   postgresql://tsdbadmin:kgf1vrbzlwpvc910@avbdofkis9.ovud6z028c.tsdb.cloud.timescale.com:35761/tsdb
   ```
-- **Size**: ~250MB (grows with data)
+- **Size**: ~277MB (as of initial sync)
+- **Last Sync**: Initial clone completed
+
+### Imported Data Summary
+
+| Table | Row Count | Status |
+|-------|-----------|--------|
+| profiles | 564 | ✅ |
+| seeds | 14 | ✅ |
+| path_enrollments | 14 | ✅ |
+| paths | 11 | ✅ |
+| path_days | 40 | ✅ |
+| path_activities | 46 | ✅ |
+| path_content | 63 | ✅ |
+| path_assessments | 3 | ✅ |
+
+**Total**: 39,641 rows imported successfully across 186 tables
+**Errors**: 4,638 (mostly missing extension-dependent tables like `tcas_programs`, `learning_maps`)
 
 ## Syncing Production to Staging
 
@@ -113,6 +130,28 @@ ghost create --name passion-seed-clone
 - ❌ RLS policies (Ghost doesn't use Supabase auth)
 - ❌ Storage buckets (use Ghost's storage or S3)
 - ❌ Edge functions (deploy separately)
+- ❌ `tcas_*` tables (can be added if needed)
+
+### Vector Support ✅
+
+Ghost supports `pgvector` extension! It's already enabled:
+
+```sql
+-- Check vector extension
+SELECT * FROM pg_extension WHERE extname = 'vector';
+-- Returns: vector 0.8.2 ✅
+
+-- Add vector columns to tables
+ALTER TABLE public.profiles 
+  ADD COLUMN IF NOT EXISTS interest_embedding vector(1024);
+```
+
+### Known Limitations
+
+1. **Supabase-specific features**: Auth schema, RLS policies
+2. **Foreign key dependencies**: Some tables reference missing tables
+
+For staging purposes, the core PathLab system is fully functional.
 
 ### User Authentication
 

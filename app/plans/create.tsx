@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   nameInput: {
     padding: Space.lg,
     fontSize: 16,
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.primary,
   },
   sectionTitle: {

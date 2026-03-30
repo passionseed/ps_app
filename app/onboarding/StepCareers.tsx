@@ -211,12 +211,12 @@ export default function StepCareers({
 const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
   loadingText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     fontSize: 15,
   },
   errorText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     color: "#6B7280",
     fontSize: 15,
     textAlign: "center",
@@ -230,21 +230,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   retryBtnText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 15,
     color: "#0a0514",
   },
   scroll: { padding: 24, paddingBottom: 48 },
   title: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 24,
     color: "#111827",
     marginBottom: 8,
   },
   subtitle: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "300",
     fontSize: 14,
     color: "#6B7280",
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: "#BFFF00", borderColor: "#BFFF00" },
   chipText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "500",
     fontSize: 14,
     color: "#4B5563",
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     color: "#111827",
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 15,
     backgroundColor: "rgba(0,0,0,0.03)",
   },
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#111827", fontSize: 24 },
   hint: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 13,
     color: "#9CA3AF",
     textAlign: "center",
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.5 },
   btnText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 17,
     color: "#0a0514",

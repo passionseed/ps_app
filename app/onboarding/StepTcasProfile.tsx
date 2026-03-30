@@ -180,20 +180,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FDFFF5" },
   content: { padding: 24, paddingBottom: 48 },
   title: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 24,
     fontWeight: "700",
     color: "#111",
     marginBottom: 4,
   },
   subtitle: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 14,
     color: "#666",
     marginBottom: 24,
   },
   label: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 16,
     fontWeight: "600",
     color: "#111",
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   input: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     borderWidth: 1,
     borderColor: "#DDD",
     borderRadius: 12,
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     borderColor: "#9FE800",
   },
   chipText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 14,
     color: "#555",
   },
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: {
-    fontFamily: "Orbit_400Regular",
+    fontFamily: "LibreFranklin_400Regular",
     fontSize: 16,
     fontWeight: "700",
     color: "#111",
