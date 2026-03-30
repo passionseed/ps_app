@@ -158,7 +158,8 @@ export const styles = StyleSheet.create({
   },
 
   section: {
-    gap: Space.md,
+    overflow: "visible",
+    gap: Space.sm,
   },
   coverageCard: {
     marginHorizontal: Space["2xl"],
@@ -350,6 +351,7 @@ export const styles = StyleSheet.create({
     gap: Space.md,
     paddingLeft: Space["2xl"],
     paddingRight: Space["2xl"],
+    overflow: "visible",
   },
   fullWidthScroll: {
     marginHorizontal: 0,
@@ -369,16 +371,21 @@ export const styles = StyleSheet.create({
   // Shadow on wrapper only — do not use overflow:hidden here or iOS clips the shadow
   // and corners look harsh. Inner compactCard clips image + border to the radius.
   compactCardWrapper: {
+    // overflow: "visible",
     width: 140,
     height: 240,
     marginRight: 0,
-    borderRadius: Radius.xl,
-    ...Shadow.neutral,
+    borderRadius: Radius.full,
+    // Sparse opacity + wide blur for a soft lift (not a hard edge)
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.09,
+    shadowRadius: 20,
+    elevation: 5,
   },
   compactCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: Radius.xl,
-    borderWidth: 1,
     borderColor: Border.default,
     overflow: "hidden",
     height: 240,
@@ -408,7 +415,7 @@ export const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: Space.md,
-    paddingTop: 40,
+    paddingTop: 20,
     gap: Space.xs,
     justifyContent: "flex-end",
   },
