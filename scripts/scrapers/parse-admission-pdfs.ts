@@ -44,7 +44,8 @@ async function parsePdf(uni: typeof UNIVERSITY_PDFS[0]) {
         let note = "สกัดจากไฟล์ PDF";
 
         for (const match of matches) {
-            const val = parseInt(match[1].replace(/,/g, ""));
+            const matchVal = (match as RegExpMatchArray)[1];
+            const val = parseInt(matchVal.replace(/,/g, ""));
             if (val > 15000 && val < 150000) {
                 tuitionValue = val;
                 break;
