@@ -15,7 +15,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { AppText as Text } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
 import { getPlans, getPlanCount, MAX_PLANS_PER_USER } from "../../lib/admissionPlans";
-import { getProfile } from "../../lib/onboarding";
 import type { AdmissionPlan } from "../../lib/admissionPlans";
 import {
   PageBg,
@@ -32,10 +31,10 @@ import {
 export default function PlansListScreen() {
   const [plans, setPlans] = useState<AdmissionPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isThai, setIsThai] = useState(false);
 
-  const { user, isGuest, guestLanguage } = useAuth();
+  const { appLanguage } = useAuth();
   const insets = useSafeAreaInsets();
+  const isThai = appLanguage === "th";
 
   const loadPlans = useCallback(async () => {
     setLoading(true);
@@ -48,18 +47,6 @@ export default function PlansListScreen() {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    if (isGuest) {
-      setIsThai(guestLanguage === "th");
-      return;
-    }
-    if (user?.id) {
-      getProfile(user.id).then((p) => {
-        setIsThai(p?.preferred_language === "th");
-      });
-    }
-  }, [guestLanguage, isGuest, user?.id]);
 
   useFocusEffect(
     useCallback(() => {

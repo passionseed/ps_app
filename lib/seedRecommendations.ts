@@ -174,6 +174,32 @@ export function buildSeedRecommendationSections(
   );
 }
 
+export function hydrateRecommendationSeedMedia(
+  payload: SeedRecommendationsPayload,
+  liveSeeds: SeedWithEnrollment[],
+): SeedRecommendationsPayload {
+  const liveSeedsById = new Map(liveSeeds.map((seed) => [seed.id, seed]));
+
+  return {
+    ...payload,
+    seeds: payload.seeds.map((seed) => {
+      const liveSeed = liveSeedsById.get(seed.id);
+
+      if (!liveSeed) return seed;
+
+      return {
+        ...seed,
+        cover_image_url: liveSeed.cover_image_url ?? seed.cover_image_url,
+        cover_image_blurhash:
+          liveSeed.cover_image_blurhash ?? seed.cover_image_blurhash,
+        cover_image_key: liveSeed.cover_image_key ?? seed.cover_image_key,
+        cover_image_updated_at:
+          liveSeed.cover_image_updated_at ?? seed.cover_image_updated_at,
+      };
+    }),
+  };
+}
+
 export function isRecommendationPayloadFresh(
   payload: SeedRecommendationsPayload,
   now = Date.now(),

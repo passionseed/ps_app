@@ -141,7 +141,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    transition: 'all 0.3s ease',
   },
   dotActive: {
     backgroundColor: Accent.yellow,

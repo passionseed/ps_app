@@ -15,7 +15,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth";
-import { getProfile } from "../../lib/onboarding";
 import { getAvailableSeeds, getRecommendedSeeds } from "../../lib/pathlab";
 import { supabase } from "../../lib/supabase";
 import type { SeedWithEnrollment } from "../../types/seeds";
@@ -23,6 +22,7 @@ import { AppText as Text } from "../../components/AppText";
 import {
   buildFallbackRecommendations,
   buildSeedRecommendationSections,
+  hydrateRecommendationSeedMedia,
   type SeedRecommendation,
   type SeedRecommendationsPayload,
 } from "../../lib/seedRecommendations";
@@ -156,9 +156,9 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const { user, isGuest, guestLanguage } = useAuth();
-  const [isThai, setIsThai] = useState(false);
+  const { appLanguage, user, isGuest } = useAuth();
   const insets = useSafeAreaInsets();
+  const isThai = appLanguage === "th";
 
   // Animated values for scroll-based animations
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -168,19 +168,6 @@ export default function DiscoverScreen() {
 
   // Inline search mode - shows search field in sticky header
   const [inlineSearchMode, setInlineSearchMode] = useState(false);
-
-  useEffect(() => {
-    if (isGuest) {
-      setIsThai(guestLanguage === "th");
-      return;
-    }
-
-    if (user?.id) {
-      getProfile(user.id).then((p) => {
-        setIsThai(p?.preferred_language === "th");
-      });
-    }
-  }, [guestLanguage, isGuest, user?.id]);
 
   const loadSeeds = useCallback(async () => {
     try {
@@ -215,7 +202,12 @@ export default function DiscoverScreen() {
 
           setSeeds(enrichedSeeds);
           if (!isGuest && user?.id) {
-            setRecommendations(await getRecommendedSeeds());
+            setRecommendations(
+              hydrateRecommendationSeedMedia(
+                await getRecommendedSeeds(),
+                enrichedSeeds,
+              ),
+            );
           } else {
             setRecommendations(buildFallbackRecommendations(enrichedSeeds));
           }
@@ -439,6 +431,8 @@ export default function DiscoverScreen() {
             </View>
           </Animated.View>
         </View>
+
+        <HackathonHeroCard isThai={isThai} />
 
         {/* Seeds Sections */}
         <CoverageSummaryCard
@@ -878,6 +872,71 @@ function CoverageSummaryCard({
   );
 }
 
+function HackathonHeroCard({ isThai }: { isThai: boolean }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.hackathonHeroWrap,
+        pressed && styles.hackathonHeroPressed,
+      ]}
+      onPress={() => router.push("/hackathon-program")}
+    >
+      <LinearGradient
+        colors={["#02050C", "#071629", "#12345B", "#2A62A0"]}
+        start={{ x: 0.05, y: 0.1 }}
+        end={{ x: 0.95, y: 1 }}
+        style={styles.hackathonHero}
+      >
+        <View style={styles.hackathonGlowTop} />
+        <View style={styles.hackathonGlowBottom} />
+        <View style={styles.hackathonGlowOrb} />
+        <View style={styles.hackathonWaveBack} />
+        <View style={styles.hackathonWaveMid} />
+        <View style={styles.hackathonWaveFront} />
+        <View style={styles.hackathonShoreLine} />
+
+        <View style={styles.hackathonHeroContent}>
+          <View style={styles.hackathonBadge}>
+            <Text style={styles.hackathonBadgeText}>
+              {isThai ? "แฮกกาธอนสด" : "live hackathon"}
+            </Text>
+          </View>
+
+          <Image
+            source={require("../../assets/HackLogo.png")}
+            style={styles.hackathonLogo}
+            resizeMode="contain"
+          />
+
+          <Text style={styles.hackathonBody}>
+            {isThai
+              ? "Playlist-based PathLab สำหรับ phase 1 ของ hackathon: customer discovery, สัมภาษณ์ลูกค้าจริง, และสังเคราะห์ pain point ของทีม"
+              : "Playlist-based PathLab for phase 1 of the hackathon: customer discovery, real interviews, and sharper team pain points."}
+          </Text>
+
+          <View style={styles.hackathonMetaRow}>
+            <View style={styles.hackathonMetaPill}>
+              <Text style={styles.hackathonMetaText}>
+                {isThai ? "เฟส 1" : "phase 1"}
+              </Text>
+            </View>
+            <View style={styles.hackathonMetaPill}>
+              <Text style={styles.hackathonMetaText}>Apr 7-26, 2026</Text>
+            </View>
+          </View>
+
+          <View style={styles.hackathonCtaRow}>
+            <Text style={styles.hackathonCtaText}>
+              {isThai ? "เข้าสู่ hackathon playlist" : "enter hackathon playlist"}
+            </Text>
+            <Text style={styles.hackathonCtaArrow}>↗</Text>
+          </View>
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1043,6 +1102,149 @@ const styles = StyleSheet.create({
     gap: Space.sm,
     ...Shadow.neutral,
   },
+  hackathonHeroWrap: {
+    marginTop: Space.sm,
+  },
+  hackathonHeroPressed: {
+    opacity: 0.96,
+  },
+  hackathonHero: {
+    overflow: "hidden",
+    minHeight: 316,
+  },
+  hackathonHeroContent: {
+    paddingHorizontal: Space["2xl"],
+    paddingTop: Space["2xl"],
+    paddingBottom: 92,
+    gap: Space.md,
+    zIndex: 2,
+  },
+  hackathonGlowTop: {
+    position: "absolute",
+    width: 340,
+    height: 240,
+    borderRadius: 999,
+    backgroundColor: "rgba(101,171,252,0.16)",
+    top: -52,
+    right: -36,
+  },
+  hackathonGlowBottom: {
+    position: "absolute",
+    width: 420,
+    height: 180,
+    borderRadius: 999,
+    backgroundColor: "rgba(145,196,227,0.14)",
+    bottom: -40,
+    left: "10%",
+  },
+  hackathonGlowOrb: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 999,
+    backgroundColor: "rgba(145,196,227,0.12)",
+    top: 56,
+    right: -18,
+  },
+  hackathonWaveBack: {
+    position: "absolute",
+    left: -56,
+    right: -56,
+    bottom: 54,
+    height: 64,
+    borderRadius: 999,
+    backgroundColor: "rgba(101,171,252,0.16)",
+    transform: [{ rotate: "-4deg" }],
+  },
+  hackathonWaveMid: {
+    position: "absolute",
+    left: -48,
+    right: -48,
+    bottom: 28,
+    height: 52,
+    borderRadius: 999,
+    backgroundColor: "rgba(101,171,252,0.26)",
+    transform: [{ rotate: "2deg" }],
+  },
+  hackathonWaveFront: {
+    position: "absolute",
+    left: -44,
+    right: -44,
+    bottom: 8,
+    height: 42,
+    borderRadius: 999,
+    backgroundColor: "rgba(145,196,227,0.34)",
+    transform: [{ rotate: "-1deg" }],
+  },
+  hackathonShoreLine: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 46,
+    height: 1,
+    backgroundColor: "rgba(145,196,227,0.76)",
+  },
+  hackathonBadge: {
+    alignSelf: "flex-start",
+    borderRadius: Radius.full,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+    paddingHorizontal: Space.md,
+    paddingVertical: Space.xs,
+  },
+  hackathonBadgeText: {
+    fontSize: 11,
+    color: "#D6E9FF",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  hackathonLogo: {
+    width: "100%",
+    height: 88,
+    marginTop: 4,
+    alignSelf: "flex-start",
+  },
+  hackathonBody: {
+    maxWidth: "82%",
+    fontSize: 15,
+    lineHeight: 22,
+    color: "rgba(241,245,249,0.9)",
+  },
+  hackathonMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Space.sm,
+  },
+  hackathonMetaPill: {
+    borderRadius: Radius.full,
+    backgroundColor: "rgba(3,5,10,0.32)",
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.18)",
+    paddingHorizontal: Space.md,
+    paddingVertical: Space.xs,
+  },
+  hackathonMetaText: {
+    fontSize: 12,
+    color: "#D6E9FF",
+  },
+  hackathonCtaRow: {
+    marginTop: Space.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  hackathonCtaText: {
+    fontSize: 15,
+    color: "#FFFFFF",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  hackathonCtaArrow: {
+    fontSize: 20,
+    color: "#91C4E3",
+  },
   coverageHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1117,6 +1319,7 @@ const styles = StyleSheet.create({
     width: 140,
     marginRight: 0,
     borderRadius: Radius.lg,
+    overflow: "hidden",
     ...Shadow.neutral,
   },
   compactCard: {

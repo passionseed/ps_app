@@ -185,7 +185,7 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
 }
 
 export default function ProfileScreen() {
-  const { user, isGuest, guestLanguage, loading: authLoading } = useAuth();
+  const { appLanguage, user, isGuest, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [interests, setInterests] = useState<InterestCategory[]>([]);
   const [careers, setCareers] = useState<CareerGoal[]>([]);
@@ -205,6 +205,8 @@ export default function ProfileScreen() {
       return;
     }
 
+    const userId = user.id;
+
     let cancelled = false;
 
     async function loadData() {
@@ -223,18 +225,18 @@ export default function ProfileScreen() {
           savedPrograms,
           eventsData,
         ] = await Promise.all([
-          getProfile(user.id),
-          supabase.from("user_interests").select("*").eq("user_id", user.id),
-          supabase.from("career_goals").select("*").eq("user_id", user.id),
+          getProfile(userId),
+          supabase.from("user_interests").select("*").eq("user_id", userId),
+          supabase.from("career_goals").select("*").eq("user_id", userId),
           getUserIkigaiScores(),
           getScoreTimeline(),
           hasUserScores(),
-          getPortfolioItems(user.id),
+          getPortfolioItems(userId),
           getSavedPrograms(),
           supabase
             .from("user_events")
             .select("id,user_id,event_type,event_data,session_id,created_at")
-            .eq("user_id", user.id)
+            .eq("user_id", userId)
             .order("created_at", { ascending: false })
             .limit(8),
         ]);
@@ -295,10 +297,10 @@ export default function ProfileScreen() {
   const primaryCareer = focusSections.find(
     (section) => section.kind === "career-goals",
   )?.items[0];
-  const isThai = profile?.preferred_language === "th";
+  const isThai = appLanguage === "th";
 
   const guestCopy =
-    guestLanguage === "th"
+    appLanguage === "th"
       ? {
           title: "เริ่มต้นเส้นทางของคุณ",
           benefits: [

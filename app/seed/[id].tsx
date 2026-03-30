@@ -27,6 +27,7 @@ import {
   type ExpertInfo,
 } from "../../lib/pathlab";
 import { warmPathDayBundle } from "../../lib/pathlabSession";
+import { formatPathDayLabel } from "../../lib/pathlab-day-label";
 import type { Seed } from "../../types/seeds";
 import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
 import type { SeedRecommendation } from "../../lib/seedRecommendations";
@@ -34,7 +35,7 @@ import type { SeedRecommendation } from "../../lib/seedRecommendations";
 export default function SeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const { isGuest, guestLanguage, session } = useAuth();
+  const { appLanguage, isGuest, session } = useAuth();
 
   const [seed, setSeed] = useState<Seed | null>(null);
   const [path, setPath] = useState<Path | null>(null);
@@ -46,7 +47,7 @@ export default function SeedDetailScreen() {
   const [enrolling, setEnrolling] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const guestCopy =
-    guestLanguage === "th"
+    appLanguage === "th"
       ? {
           signInTitle: "เข้าสู่ระบบก่อน",
           signInBody: "คุณต้องเข้าสู่ระบบก่อนเพื่อเริ่มเส้นทางนี้",
@@ -61,8 +62,6 @@ export default function SeedDetailScreen() {
           back: "กลับ",
           about: "📖 เกี่ยวกับเส้นทางนี้",
           days: (totalDays: number) => `📅 เส้นทาง ${totalDays} วัน`,
-          dayLabel: (dayNumber: number, title?: string) =>
-            `Day ${dayNumber}${title ? `: ${title}` : ""}`,
           done: "เสร็จ",
           today: "วันนี้",
           startCurrentDay: (dayNumber: number) => `เริ่มวัน ${dayNumber}`,
@@ -82,8 +81,6 @@ export default function SeedDetailScreen() {
           back: "Back",
           about: "📖 About this path",
           days: (totalDays: number) => `📅 ${totalDays}-day path`,
-          dayLabel: (dayNumber: number, title?: string) =>
-            `Day ${dayNumber}${title ? `: ${title}` : ""}`,
           done: "Done",
           today: "Today",
           startCurrentDay: (dayNumber: number) => `Start day ${dayNumber}`,
@@ -327,15 +324,17 @@ export default function SeedDetailScreen() {
         {/* Header with cover image */}
         <View style={s.heroSection}>
           {seed.cover_image_url && (
-            <Image
-              source={
-                typeof seed.cover_image_url === "string"
-                  ? { uri: seed.cover_image_url }
-                  : seed.cover_image_url
-              }
-              style={s.coverImage}
-              resizeMode="cover"
-            />
+            <View style={s.coverImageWrapper}>
+              <Image
+                source={
+                  typeof seed.cover_image_url === "string"
+                    ? { uri: seed.cover_image_url }
+                    : seed.cover_image_url
+                }
+                style={s.coverImage}
+                resizeMode="cover"
+              />
+            </View>
           )}
           <View style={s.heroContent}>
             <AppText variant="bold" style={s.seedTitle}>
@@ -369,7 +368,7 @@ export default function SeedDetailScreen() {
         {recommendation && recommendation.reasons.length > 0 && (
           <View style={s.card}>
             <AppText variant="bold" style={s.cardTitle}>
-              {guestLanguage === "th"
+              {appLanguage === "th"
                 ? "🌟 ทำไมเส้นทางนี้ถึงแนะนำ"
                 : "🌟 Why this path is recommended"}
             </AppText>
@@ -378,7 +377,7 @@ export default function SeedDetailScreen() {
                 #{recommendation.bucket === "continue" ? "Now" : Math.max(1, recommendation.recommendationScore)}
               </AppText>
               <AppText style={s.recommendationMetaText}>
-                {guestLanguage === "th"
+                {appLanguage === "th"
                   ? "อิงจากความสนใจ เป้าหมาย และการสำรวจที่ผ่านมา"
                   : "Based on your interests, goals, and exploration history"}
               </AppText>
@@ -445,7 +444,7 @@ export default function SeedDetailScreen() {
                       variant={isActive ? "bold" : "regular"}
                       style={[s.dayTitle, isDone && s.dayTitleDone]}
                     >
-                      {guestCopy.dayLabel(day.day_number, day.title ?? undefined)}
+                      {formatPathDayLabel(day.day_number, day.title)}
                     </AppText>
                   </View>
 
@@ -498,7 +497,7 @@ export default function SeedDetailScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F8F9FA",
   },
   center: {
     flex: 1,
@@ -509,7 +508,7 @@ const s = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F8F9FA",
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -519,14 +518,13 @@ const s = StyleSheet.create({
     height: 38,
     borderRadius: 19,
     backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "rgb(206,206,206)",
+    borderWidth: 0,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
   backBtnIcon: {
@@ -544,11 +542,16 @@ const s = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 24,
   },
-  coverImage: {
+  coverImageWrapper: {
     width: "100%",
     height: 200,
     borderRadius: 32,
     marginBottom: 20,
+    overflow: "hidden",
+  },
+  coverImage: {
+    width: "100%",
+    height: "100%",
   },
   heroContent: {
     gap: 8,
@@ -589,28 +592,27 @@ const s = StyleSheet.create({
 
   card: {
     backgroundColor: "#fff",
-    borderRadius: 32,
+    borderRadius: 24,
     padding: 24,
     marginHorizontal: 20,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgb(206,206,206)",
+    borderWidth: 0,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#111827",
-    marginBottom: 12,
+    marginBottom: 16,
     fontFamily: "BaiJamjuree_700Bold",
   },
   descriptionText: {
-    fontSize: 14,
-    color: "#374151",
-    lineHeight: 22,
+    fontSize: 15,
+    color: "#4B5563",
+    lineHeight: 24,
     fontFamily: "BaiJamjuree_400Regular",
   },
   recommendationMetaRow: {
@@ -621,8 +623,8 @@ const s = StyleSheet.create({
   },
   recommendationScore: {
     fontSize: 12,
-    color: "#047857",
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    color: "#10B981",
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
@@ -636,35 +638,35 @@ const s = StyleSheet.create({
     fontFamily: "BaiJamjuree_400Regular",
   },
   recommendationReasonList: {
-    gap: 10,
+    gap: 12,
   },
   recommendationReasonItem: {
-    gap: 2,
+    gap: 4,
   },
   recommendationReasonLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#111827",
     fontFamily: "BaiJamjuree_700Bold",
   },
   recommendationReasonDetail: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#4B5563",
-    lineHeight: 20,
+    lineHeight: 22,
     fontFamily: "BaiJamjuree_400Regular",
   },
 
   dayRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 12,
     position: "relative",
   },
   connectorLine: {
     position: "absolute",
-    left: 15,
-    top: -10,
-    width: 2,
-    height: 20,
+    left: 15.5,
+    top: -12,
+    width: 1,
+    height: 24,
   },
   connectorDone: { backgroundColor: "#10B981" },
   connectorPending: { backgroundColor: "#E5E7EB" },
@@ -673,12 +675,12 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#D1D5DB",
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
     backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 16,
   },
   dayCircleDone: {
     backgroundColor: "#10B981",
@@ -687,52 +689,48 @@ const s = StyleSheet.create({
   dayCircleActive: {
     backgroundColor: "#3B82F6",
     borderColor: "#3B82F6",
-    shadowColor: "rgba(59,130,246,0.4)",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
   },
   dayCheckmark: {
     fontSize: 14,
     color: "#fff",
-    fontFamily: "BaiJamjuree_400Regular",
+    fontFamily: "BaiJamjuree_700Bold",
   },
   dayNum: {
     fontSize: 13,
     color: "#9CA3AF",
-    fontFamily: "BaiJamjuree_400Regular",
+    fontFamily: "BaiJamjuree_700Bold",
   },
 
   dayLabelCol: { flex: 1 },
   dayTitle: {
-    fontSize: 14,
-    color: "#111827",
-    lineHeight: 18,
+    fontSize: 15,
+    color: "#4B5563",
+    lineHeight: 20,
     fontFamily: "BaiJamjuree_400Regular",
   },
-  dayTitleDone: { color: "#10B981" },
+  dayTitleDone: { color: "#111827" },
 
   dayDoneBadge: {
     backgroundColor: "rgba(16,185,129,0.1)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   dayDoneText: {
-    fontSize: 10,
+    fontSize: 11,
     color: "#10B981",
-    fontFamily: "BaiJamjuree_400Regular",
+    fontFamily: "BaiJamjuree_700Bold",
   },
   dayActiveBadge: {
     backgroundColor: "rgba(59,130,246,0.1)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   dayActiveText: {
-    fontSize: 10,
+    fontSize: 11,
     color: "#3B82F6",
-    fontFamily: "BaiJamjuree_400Regular",
+    fontFamily: "BaiJamjuree_700Bold",
   },
 
   ctaBar: {
@@ -749,7 +747,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F8F9FA",
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -757,17 +755,18 @@ const s = StyleSheet.create({
   },
   ctaBtn: {
     backgroundColor: "#BFFF00",
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 18,
+    borderRadius: 999,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   ctaBtnText: {
-    fontSize: 17,
-    color: "#111",
+    fontSize: 18,
+    color: "#111827",
     fontFamily: "BaiJamjuree_700Bold",
   },
 });

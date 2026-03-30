@@ -20,7 +20,6 @@ import {
   deletePlan,
   removeProgramFromRound,
 } from "../../lib/admissionPlans";
-import { getProfile } from "../../lib/onboarding";
 import type { AdmissionPlan } from "../../lib/admissionPlans";
 import {
   PageBg,
@@ -46,18 +45,10 @@ export default function PlanDetailScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>();
   const [plan, setPlan] = useState<AdmissionPlan | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isThai, setIsThai] = useState(false);
 
-  const { user } = useAuth();
+  const { appLanguage } = useAuth();
   const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (user?.id) {
-      getProfile(user.id).then((p) => {
-        setIsThai(p?.preferred_language === "th");
-      });
-    }
-  }, [user?.id]);
+  const isThai = appLanguage === "th";
 
   const loadPlan = async () => {
     if (!planId) return;

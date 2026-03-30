@@ -15,11 +15,19 @@ import { supabase } from "../lib/supabase";
 import { getProfile } from "../lib/onboarding";
 import type { Profile, MobileSettings } from "../types/onboarding";
 import { GlassCard } from "../components/Glass";
-import { PageBg, Text as ThemeText, Accent, Radius, Shadow, glassCard } from "../lib/theme";
-import * as Sentry from '@sentry/react-native';
+import {
+  PageBg,
+  Text as ThemeText,
+  Accent,
+  Radius,
+  Shadow,
+  Space,
+  glassCard,
+} from "../lib/theme";
+import * as Sentry from "@sentry/react-native";
 
 export default function SettingsScreen() {
-  const { user } = useAuth();
+  const { setUserLanguage, user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,7 +47,7 @@ export default function SettingsScreen() {
 
   const updateSetting = async <K extends keyof MobileSettings>(
     key: K,
-    value: MobileSettings[K],
+    value: MobileSettings[K]
   ) => {
     if (!user?.id || !profile) return;
 
@@ -77,6 +85,7 @@ export default function SettingsScreen() {
 
     if (!error) {
       setProfile({ ...profile, preferred_language: lang });
+      setUserLanguage(lang);
     }
     setSaving(false);
   };
@@ -162,7 +171,10 @@ export default function SettingsScreen() {
                     onValueChange={(value) =>
                       updateSetting("push_enabled", value)
                     }
-                    trackColor={{ false: "#E5E7EB", true: Accent.yellowLight }}
+                    trackColor={{
+                      false: ThemeText.muted,
+                      true: Accent.yellowLight,
+                    }}
                     thumbColor={settings.push_enabled ? Accent.yellow : "#fff"}
                   />
                 </View>
@@ -235,7 +247,9 @@ export default function SettingsScreen() {
               <GlassCard variant="neutral" size="small" noPadding>
                 <Pressable
                   style={styles.optionRow}
-                  onPress={() => Sentry.captureException(new Error('First error'))}
+                  onPress={() =>
+                    Sentry.captureException(new Error("First error"))
+                  }
                 >
                   <Text style={styles.optionText}>Test Sentry</Text>
                   <Text style={styles.chevron}>›</Text>
@@ -255,46 +269,46 @@ const styles = StyleSheet.create({
     backgroundColor: PageBg.default,
   },
   header: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 16,
+    paddingTop: Space["3xl"],
+    paddingHorizontal: Space["2xl"],
+    paddingBottom: Space.lg,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: PageBg.default,
   },
   backBtn: {
-    paddingRight: 16,
-    paddingVertical: 8,
+    paddingRight: Space.lg,
+    paddingVertical: Space.sm,
   },
   backBtnText: {
     fontSize: 16,
     fontFamily: "Orbit_400Regular",
-    color: ThemeText.tertiary,
+    color: ThemeText.secondary,
     fontWeight: "600",
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: "Orbit_400Regular",
     fontWeight: "700",
     color: ThemeText.primary,
     flex: 1,
   },
   savingIndicator: {
-    marginLeft: 8,
+    marginLeft: Space.sm,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
-    gap: 32,
+    padding: Space["2xl"],
+    gap: Space["3xl"],
   },
   loadingSection: {
-    paddingVertical: 40,
+    paddingVertical: Space["5xl"],
     alignItems: "center",
   },
   section: {
-    gap: 12,
+    gap: Space.md,
   },
   sectionTitle: {
     fontSize: 12,
@@ -302,18 +316,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: ThemeText.tertiary,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    paddingLeft: 4,
+    letterSpacing: 0.8,
+    paddingLeft: Space.xs,
   },
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: Space.xl,
+    paddingVertical: Space.lg,
   },
   optionRowSelected: {
-    backgroundColor: "rgba(191, 255, 0, 0.08)",
+    backgroundColor: Accent.yellowLight,
   },
   optionText: {
     fontSize: 15,
@@ -324,7 +338,7 @@ const styles = StyleSheet.create({
   optionValue: {
     fontSize: 15,
     fontFamily: "Orbit_400Regular",
-    color: ThemeText.tertiary,
+    color: ThemeText.secondary,
   },
   checkmark: {
     fontSize: 18,
@@ -333,12 +347,12 @@ const styles = StyleSheet.create({
   },
   chevron: {
     fontSize: 20,
-    color: ThemeText.muted,
+    color: ThemeText.tertiary,
     fontWeight: "300",
   },
   optionDivider: {
     height: 1,
     backgroundColor: "rgba(0, 0, 0, 0.05)",
-    marginHorizontal: 20,
+    marginHorizontal: Space.xl,
   },
 });

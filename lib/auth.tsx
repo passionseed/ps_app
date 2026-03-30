@@ -1,11 +1,13 @@
 import * as WebBrowser from "expo-web-browser";
 import * as AppleAuthentication from "expo-apple-authentication";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { resolveAppLanguage } from "./app-language";
 import {
   type GuestLanguage,
+  normalizeGuestLanguage,
   readGuestLanguage,
   saveGuestLanguage,
 } from "./guest-language";
@@ -88,10 +90,12 @@ type AuthContext = {
   user: User | null;
   loading: boolean;
   isGuest: boolean;
+  appLanguage: GuestLanguage;
   guestLanguage: GuestLanguage;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
   setGuestLanguage: (language: GuestLanguage) => Promise<void>;
+  setUserLanguage: (language: GuestLanguage) => void;
   enterAsGuest: () => void;
   exitGuestMode: () => void;
 };
@@ -101,10 +105,12 @@ const AuthContext = createContext<AuthContext>({
   user: null,
   loading: true,
   isGuest: false,
+  appLanguage: "th",
   guestLanguage: "th",
   signInWithGoogle: async () => {},
   signInWithApple: async () => {},
   setGuestLanguage: async () => {},
+  setUserLanguage: () => {},
   enterAsGuest: () => {},
   exitGuestMode: () => {},
 });
@@ -115,6 +121,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isGuest, setIsGuest] = useState(false);
   const [guestLanguage, setGuestLanguageState] =
     useState<GuestLanguage>("th");
+  const [profileLanguage, setProfileLanguageState] =
+    useState<GuestLanguage | null>(null);
+  const hasBootstrappedRef = useRef(false);
+  const authSyncIdRef = useRef(0);
+
+  const appLanguage = resolveAppLanguage({
+    guestLanguage,
+    profileLanguage,
+    hasSession: !!session,
+    isGuest,
+  });
+
+  async function readProfileLanguage(userId: string): Promise<GuestLanguage> {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("preferred_language")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return normalizeGuestLanguage(data?.preferred_language);
+  }
 
   useEffect(() => {
     const timeoutPromise = new Promise<null>((resolve) =>
@@ -124,25 +155,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }, 3000)
     );
 
-    Promise.all([
-      Promise.race([supabase.auth.getSession(), timeoutPromise.then(() => ({ data: { session: null } }))]),
+    let cancelled = false;
+
+    void Promise.all([
+      Promise.race([
+        supabase.auth.getSession(),
+        timeoutPromise.then(() => ({ data: { session: null } })),
+      ]),
       readGuestLanguage(),
     ])
-      .then(([{ data: { session } }, language]) => {
+      .then(async ([{ data: { session } }, language]) => {
+        if (cancelled) return;
+
         setSession(session);
         setGuestLanguageState(language);
+
+        if (!session) {
+          setProfileLanguageState(null);
+          return;
+        }
+
+        try {
+          const nextLanguage = await readProfileLanguage(session.user.id);
+          if (!cancelled) {
+            setProfileLanguageState(nextLanguage);
+          }
+        } catch (error) {
+          console.error("[Auth] Failed to load profile language:", error);
+          if (!cancelled) {
+            setProfileLanguageState(null);
+          }
+        }
       })
       .finally(() => {
-        setLoading(false);
+        if (!cancelled) {
+          hasBootstrappedRef.current = true;
+          setLoading(false);
+        }
       });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
+      (event, nextSession) => {
+        if (!hasBootstrappedRef.current && event === "INITIAL_SESSION") {
+          return;
+        }
+
+        const syncId = ++authSyncIdRef.current;
+        setLoading(true);
+        setSession(nextSession);
+
+        if (!nextSession) {
+          setProfileLanguageState(null);
+          setLoading(false);
+          return;
+        }
+
+        void readProfileLanguage(nextSession.user.id)
+          .then((language) => {
+            if (authSyncIdRef.current !== syncId) return;
+            setProfileLanguageState(language);
+          })
+          .catch((error) => {
+            if (authSyncIdRef.current !== syncId) return;
+            console.error("[Auth] Failed to sync profile language:", error);
+            setProfileLanguageState(null);
+          })
+          .finally(() => {
+            if (authSyncIdRef.current === syncId) {
+              setLoading(false);
+            }
+          });
+      },
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const enterAsGuest = () => {
@@ -152,6 +241,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setGuestLanguage = async (language: GuestLanguage) => {
     setGuestLanguageState(language);
     await saveGuestLanguage(language);
+  };
+
+  const setUserLanguage = (language: GuestLanguage) => {
+    setProfileLanguageState(language);
   };
 
   const exitGuestMode = () => {
@@ -179,11 +272,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (result && result.type === "success") {
       const { access_token, refresh_token } = extractParamsFromUrl(result.url);
       if (access_token && refresh_token) {
-        const { data: sessionData } = await supabase.auth.setSession({
+        await supabase.auth.setSession({
           access_token,
           refresh_token,
         });
-        if (sessionData.session) setSession(sessionData.session);
       }
     }
   };
@@ -256,10 +348,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: session?.user ?? null,
         loading,
         isGuest,
+        appLanguage,
         guestLanguage,
         signInWithGoogle,
         signInWithApple,
         setGuestLanguage,
+        setUserLanguage,
         enterAsGuest,
         exitGuestMode,
       }}

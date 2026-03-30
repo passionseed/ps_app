@@ -3,6 +3,7 @@ import type { SeedWithEnrollment } from "../types/seeds";
 import {
   buildSeedRecommendationSections,
   getRecommendationCacheStatus,
+  hydrateRecommendationSeedMedia,
   isRecommendationPayloadFresh,
   type SeedRecommendation,
   type SeedRecommendationsPayload,
@@ -145,5 +146,45 @@ describe("seed recommendations", () => {
       isFresh: false,
       isUsableWhileRevalidating: true,
     });
+  });
+
+  it("hydrates stale recommendation media from the live seed list", () => {
+    const payload: SeedRecommendationsPayload = {
+      version: 1,
+      computedAt: "2026-03-29T12:00:00.000Z",
+      source: "cache",
+      coverage: {
+        activeCount: 0,
+        exploredCount: 0,
+        completedCount: 0,
+        totalCount: 1,
+        completionPercent: 0,
+      },
+      seeds: [
+        makeSeed("seed-1", "Baascii Experience", 92, {
+          cover_image_url: null,
+          cover_image_key: null,
+          cover_image_updated_at: null,
+        }),
+      ],
+    };
+
+    const hydrated = hydrateRecommendationSeedMedia(payload, [
+      {
+        ...makeSeed("seed-1", "Baascii Experience", 50),
+        cover_image_url: "https://cdn.example.com/baascii.png",
+        cover_image_key: "seed-1.png",
+        cover_image_updated_at: "2026-03-29T13:00:00.000Z",
+      },
+    ]);
+
+    expect(hydrated.seeds[0].cover_image_url).toBe(
+      "https://cdn.example.com/baascii.png",
+    );
+    expect(hydrated.seeds[0].cover_image_key).toBe("seed-1.png");
+    expect(hydrated.seeds[0].cover_image_updated_at).toBe(
+      "2026-03-29T13:00:00.000Z",
+    );
+    expect(hydrated.seeds[0].recommendationScore).toBe(92);
   });
 });
