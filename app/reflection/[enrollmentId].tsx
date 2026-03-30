@@ -171,14 +171,8 @@ export default function ReflectionScreen() {
 
       console.log('[Reflection] Navigating based on decision:', decision);
 
-      // Navigate based on decision
-      if (decision === "continue_now") {
-        router.replace(`/path/${enrollment.id}`);
-      } else if (decision === "final_reflection") {
-        router.replace("/(tabs)/my-paths");
-      } else {
-        router.replace("/(tabs)/my-paths");
-      }
+      // After reflection, always go home
+      router.replace("/(tabs)/discover");
     } catch (error) {
       console.error("[Reflection] Failed to submit reflection:", error);
     } finally {
@@ -365,62 +359,28 @@ export default function ReflectionScreen() {
           />
         </GlassCard>
 
-        {/* Decision buttons */}
+        {/* Completion message */}
+        <View style={styles.completionSection}>
+          <AppText variant="bold" style={styles.completionTitle}>
+            {isLastDay ? "🎓 Path Complete!" : "✅ Day Complete!"}
+          </AppText>
+          <AppText style={styles.completionSubtitle}>
+            {isLastDay
+              ? "You've finished the full path. Great work!"
+              : `Great job today! Come back tomorrow for Day ${enrollment.current_day + 1}.`}
+          </AppText>
+        </View>
+
+        {/* Single CTA */}
         <View style={styles.decisionSection}>
-          <AppText variant="bold" style={styles.decisionTitle}>What's next?</AppText>
-
-          {isLastDay ? (
-            // Last day - show final reflection option
-            <>
-              <GlassButton
-                variant="primary"
-                fullWidth
-                onPress={() => handleSubmit("final_reflection")}
-                disabled={submitting || scoring}
-              >
-                🎓 Complete Path & See Report
-              </GlassButton>
-            </>
-          ) : (
-            // Not last day - show continue/pause/quit options
-            <>
-              <GlassButton
-                variant="primary"
-                fullWidth
-                onPress={() => handleSubmit("continue_tomorrow")}
-                disabled={submitting || scoring}
-              >
-                ✓ Done for today, continue tomorrow
-              </GlassButton>
-
-              <GlassButton
-                variant="secondary"
-                fullWidth
-                onPress={() => handleSubmit("continue_now")}
-                disabled={submitting || scoring}
-              >
-                {`🚀 I'm on fire! Start Day ${enrollment.current_day + 1}`}
-              </GlassButton>
-
-              <GlassButton
-                variant="ghost"
-                fullWidth
-                onPress={() => handleSubmit("pause")}
-                disabled={submitting || scoring}
-              >
-                ⏸️ Pause for now
-              </GlassButton>
-
-              <GlassButton
-                variant="danger"
-                fullWidth
-                onPress={() => handleSubmit("quit")}
-                disabled={submitting || scoring}
-              >
-                This isn't for me
-              </GlassButton>
-            </>
-          )}
+          <GlassButton
+            variant="primary"
+            fullWidth
+            onPress={() => handleSubmit(isLastDay ? "final_reflection" : "continue_tomorrow")}
+            disabled={submitting || scoring}
+          >
+            Back to Home
+          </GlassButton>
         </View>
 
         {submitting && (
@@ -572,15 +532,24 @@ const styles = StyleSheet.create({
     marginTop: Space.md,
     textAlignVertical: "top",
   },
+  completionSection: {
+    alignItems: "center",
+    paddingVertical: Space["2xl"],
+  },
+  completionTitle: {
+    fontSize: 24,
+    color: ThemeText.primary,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  completionSubtitle: {
+    fontSize: Type.body.fontSize,
+    color: ThemeText.secondary,
+    textAlign: "center",
+    lineHeight: 22,
+  },
   decisionSection: {
     gap: Space.lg,
-  },
-  decisionTitle: {
-    fontSize: Type.subtitle.fontSize,
-    fontWeight: Type.subtitle.fontWeight,
-    color: ThemeText.primary,
-    marginBottom: 4,
-    textAlign: "center",
   },
   submittingOverlay: {
     flexDirection: "row",
