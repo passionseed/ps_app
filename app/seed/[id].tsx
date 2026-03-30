@@ -31,6 +31,7 @@ import {
   getUserEnrollment,
   enrollInPath,
   getPathDays,
+  getPathDayActivities,
   getExpertForSeed,
   getEnrollmentDayBundle,
   resetEnrollment,
@@ -49,6 +50,22 @@ const HERO_CARD_OVERLAP = 32;
 /** Taller than clip so parallax / pull-scale does not show gaps */
 const COVER_PARALLAX_HEIGHT = COVER_IMAGE_HEIGHT * 1.22;
 
+function getActivityIcon(type: string): string {
+  switch (type) {
+    case "npc_chat": return "💬";
+    case "ai_chat": return "🤖";
+    case "video":
+    case "short_video": return "🎬";
+    case "text": return "📖";
+    case "daily_prompt": return "💡";
+    case "quiz": return "❓";
+    case "daily_reflection": return "💭";
+    case "text_answer": return "✍️";
+    case "checklist": return "✓";
+    default: return "📋";
+  }
+}
+
 export default function SeedDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -57,7 +74,8 @@ export default function SeedDetailScreen() {
   const [seed, setSeed] = useState<Seed | null>(null);
   const [path, setPath] = useState<Path | null>(null);
   const [enrollment, setEnrollment] = useState<PathEnrollment | null>(null);
-  const [pathDays, setPathDays] = useState<Pick<PathDay, "day_number" | "title">[]>([]);
+  const [pathDays, setPathDays] = useState<Pick<PathDay, "id" | "day_number" | "title">[]>([]);
+  const [dayActivities, setDayActivities] = useState<Record<string, { title: string; content_type: string }[]>>({});
   const [expert, setExpert] = useState<ExpertInfo | null>(null);
   const [recommendation, setRecommendation] = useState<SeedRecommendation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -150,6 +168,19 @@ export default function SeedDetailScreen() {
         setEnrollment(enrollmentData);
         console.log("[SeedDetail] Path days loaded:", daysData.length);
         setPathDays(daysData);
+
+        // Load activities for each day (no enrollment context needed)
+        const activitiesPerDay = await Promise.all(
+          daysData.map((day) => getPathDayActivities(day.id).catch(() => []))
+        );
+        const activitiesMap: Record<string, { title: string; content_type: string }[]> = {};
+        daysData.forEach((day, i) => {
+          activitiesMap[day.id] = activitiesPerDay[i].map((a) => ({
+            title: a.title,
+            content_type: a.path_content?.[0]?.content_type ?? a.path_assessment?.assessment_type ?? "unknown",
+          }));
+        });
+        setDayActivities(activitiesMap);
       }
     } catch (error) {
       console.error("[SeedDetail] Error loading data:", error);
@@ -213,7 +244,7 @@ export default function SeedDetailScreen() {
             console.log("[SeedDetail] Reset successful");
             invalidateActivityCache();
             clearEnrollmentCache(enrollment.id);
-            router.replace(`/path/${enrollment.id}`);
+            await navigateToCurrentActivity(enrollment.id);
           } catch (error) {
             console.error("[SeedDetail] Reset failed:", error);
             Alert.alert("Error", "Failed to reset progress.");
@@ -228,7 +259,7 @@ export default function SeedDetailScreen() {
       const dayBundle = await getEnrollmentDayBundle(enrollmentId);
 
       if (!dayBundle) {
-        router.push(`/path/${enrollmentId}`);
+        router.push(`/reflection/${enrollmentId}`);
         return;
       }
 
@@ -239,7 +270,8 @@ export default function SeedDetailScreen() {
       );
 
       if (!firstIncomplete) {
-        router.push(`/path/${enrollmentId}`);
+        // All activities done for the day — go reflect
+        router.push(`/reflection/${enrollmentId}`);
         return;
       }
 
@@ -252,7 +284,7 @@ export default function SeedDetailScreen() {
       );
     } catch (error) {
       console.error("[SeedDetail] Error preloading day bundle:", error);
-      router.push(`/path/${enrollmentId}`);
+      router.push(`/reflection/${enrollmentId}`);
     } finally {
       setEnrolling(false);
     }
@@ -579,7 +611,7 @@ export default function SeedDetailScreen() {
                     )}
                   </View>
 
-                  {/* Label */}
+                  {/* Label + activities */}
                   <View style={s.dayLabelCol}>
                     <AppText
                       variant={isActive ? "bold" : "regular"}
@@ -587,6 +619,12 @@ export default function SeedDetailScreen() {
                     >
                       {formatPathDayLabel(day.day_number, day.title)}
                     </AppText>
+                    {(dayActivities[day.id] ?? []).map((act, ai) => (
+                      <View key={ai} style={s.activityItem}>
+                        <AppText style={s.activityIcon}>{getActivityIcon(act.content_type)}</AppText>
+                        <AppText style={s.activityTitle} numberOfLines={1}>{act.title}</AppText>
+                      </View>
+                    ))}
                   </View>
 
                   {/* Status */}
@@ -966,5 +1004,20 @@ const s = StyleSheet.create({
     fontSize: 18,
     color: "#111827",
     fontFamily: "BaiJamjuree_700Bold",
+  },
+  activityItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+  },
+  activityIcon: {
+    fontSize: 12,
+  },
+  activityTitle: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontFamily: "BaiJamjuree_400Regular",
+    flex: 1,
   },
 });
