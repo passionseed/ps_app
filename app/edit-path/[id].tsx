@@ -137,14 +137,6 @@ export default function EditPathScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Wow Effect Seamless Gradient Background */}
-      <LinearGradient
-        colors={["#FFFFFF", "#F9F5FF", "#EEF2FF"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
@@ -305,6 +297,7 @@ export default function EditPathScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#F8F9FA",
   },
   header: {
     flexDirection: "row",
@@ -317,61 +310,60 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#111827",
   },
   saveButton: {
     backgroundColor: "#111",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
   },
   saveButtonText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 14,
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 16,
     paddingBottom: 80,
   },
   goalBlock: {
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.8)",
-    shadowColor: "#8B5CF6",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 0,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
     marginBottom: 24,
   },
   goalInfoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
+    gap: 16,
+    marginBottom: 20,
   },
   goalIcon: {
-    fontSize: 28,
+    fontSize: 32,
   },
   goalText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "800",
     color: "#111827",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   planLabelPill: {
     backgroundColor: "rgba(0,0,0,0.05)",
     alignSelf: "flex-start",
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 999,
   },
   planLabelText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     color: "#4B5563",
     textTransform: "uppercase",
@@ -379,22 +371,22 @@ const styles = StyleSheet.create({
   scoresRow: {
     flexDirection: "row",
     justifyContent: "space-around",
-    paddingTop: 8,
+    paddingTop: 16,
     borderTopWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
+    borderColor: "rgba(0,0,0,0.04)",
   },
   roadmapBox: {},
   timelineHeader: {
     marginBottom: 24,
   },
   timelineTitle: {
-    fontSize: 20,
+    fontSize: 24,
     color: "#111",
   },
   timelineHint: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#6B7280",
-    marginTop: 4,
+    marginTop: 6,
   },
   stepRow: {
     flexDirection: "row",

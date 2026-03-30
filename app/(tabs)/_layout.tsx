@@ -56,10 +56,10 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const animatedIndex = useSharedValue(state.index);
-  const { isGuest, guestLanguage } = useAuth();
+  const { appLanguage } = useAuth();
 
-  const guestLabels =
-    guestLanguage === "th"
+  const tabLabels =
+    appLanguage === "th"
       ? {
           discover: "ค้นหา",
           "my-paths": "เส้นทาง",
@@ -152,7 +152,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               const isFocused = state.index === index;
               const routeName = route.name as TabRoute;
               const theme = TAB_THEMES[routeName] || TAB_THEMES["my-paths"];
-              const label = isGuest ? guestLabels[routeName] : theme.label;
+              const label = tabLabels[routeName];
 
               const onPress = () => {
                 if (!isFocused) {

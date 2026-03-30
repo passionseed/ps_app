@@ -16,7 +16,6 @@ import { useAuth } from "../../lib/auth";
 import { getProgramDetail } from "../../lib/tcas";
 import { toggleSaveProgram, isProgramSaved } from "../../lib/savedPrograms";
 import { logProgramViewed } from "../../lib/eventLogger";
-import { getProfile } from "../../lib/onboarding";
 import type { TcasProgramWithRounds } from "../../types/tcas";
 import {
   PageBg,
@@ -37,22 +36,10 @@ export default function ProgramDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isThai, setIsThai] = useState(false);
 
-  const { user, isGuest, guestLanguage } = useAuth();
+  const { appLanguage } = useAuth();
   const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (isGuest) {
-      setIsThai(guestLanguage === "th");
-      return;
-    }
-    if (user?.id) {
-      getProfile(user.id).then((p) => {
-        setIsThai(p?.preferred_language === "th");
-      });
-    }
-  }, [guestLanguage, isGuest, user?.id]);
+  const isThai = appLanguage === "th";
 
   useEffect(() => {
     if (!programId) return;

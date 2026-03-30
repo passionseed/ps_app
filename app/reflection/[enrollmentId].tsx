@@ -10,7 +10,8 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
-import { submitDailyReflection } from "../../lib/pathlab";
+import { getPathDay, submitDailyReflection } from "../../lib/pathlab";
+import { formatPathDayCompletionLabel } from "../../lib/pathlab-day-label";
 import { VoiceAIReflection } from "../../components/Reflection";
 import type { PathReflectionDecision } from "../../types/pathlab";
 import { Radius, Border, Shadow, Text as ThemeText, Space, Type, Accent } from "../../lib/theme";
@@ -37,6 +38,7 @@ export default function ReflectionScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [scoreError, setScoreError] = useState<string | null>(null);
+  const [dayTitle, setDayTitle] = useState<string | null>(null);
 
   // Reflection state
   const [energyLevel, setEnergyLevel] = useState(5);
@@ -49,27 +51,57 @@ export default function ReflectionScreen() {
     async function load() {
       if (!enrollmentId) return;
 
-      const { data, error } = await supabase
-        .from("path_enrollments")
-        .select(
-          `
-          id,
-          current_day,
-          path:paths(
+      try {
+        const { data, error } = await supabase
+          .from("path_enrollments")
+          .select(
+            `
             id,
-            total_days,
-            seed:seeds(title)
+            current_day,
+            path:paths(
+              id,
+              total_days,
+              seed:seeds(title)
+            )
+          `,
           )
-        `,
-        )
-        .eq("id", enrollmentId)
-        .single();
+          .eq("id", enrollmentId)
+          .single();
 
-      console.log('[Reflection] Enrollment data:', JSON.stringify(data, null, 2));
-      console.log('[Reflection] Error:', error);
+        console.log('[Reflection] Enrollment data:', JSON.stringify(data, null, 2));
+        console.log('[Reflection] Error:', error);
 
-      setEnrollment(data as unknown as EnrollmentData);
-      setLoading(false);
+        if (error) {
+          throw error;
+        }
+
+        const normalizedPath = Array.isArray(data?.path)
+          ? data.path[0]
+          : data?.path;
+        const normalizedSeed = Array.isArray(normalizedPath?.seed)
+          ? normalizedPath.seed[0]
+          : normalizedPath?.seed;
+        const normalizedEnrollment = data && normalizedPath
+          ? {
+              ...data,
+              path: {
+                ...normalizedPath,
+                seed: normalizedSeed,
+              },
+            }
+          : null;
+
+        setEnrollment(normalizedEnrollment as EnrollmentData | null);
+
+        if (normalizedPath?.id && data.current_day) {
+          const currentDay = await getPathDay(normalizedPath.id, data.current_day);
+          setDayTitle(currentDay?.title ?? null);
+        }
+      } catch (error) {
+        console.error("[Reflection] Failed to load reflection data:", error);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [enrollmentId]);
@@ -203,7 +235,7 @@ export default function ReflectionScreen() {
         {/* Day info */}
         <View style={styles.dayInfo}>
           <AppText variant="bold" style={styles.dayBadge}>
-            Day {enrollment.current_day} Complete! 🎉
+            {formatPathDayCompletionLabel(enrollment.current_day, dayTitle)}
           </AppText>
           <AppText style={styles.seedName}>
             {seedTitle}

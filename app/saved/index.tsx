@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText as Text } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
 import { getSavedPrograms, unsaveProgram } from "../../lib/savedPrograms";
-import { getProfile } from "../../lib/onboarding";
 import type { SavedProgram } from "../../lib/savedPrograms";
 import {
   PageBg,
@@ -30,10 +29,10 @@ import {
 export default function SavedProgramsScreen() {
   const [savedPrograms, setSavedPrograms] = useState<SavedProgram[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isThai, setIsThai] = useState(false);
 
-  const { user, isGuest, guestLanguage } = useAuth();
+  const { appLanguage } = useAuth();
   const insets = useSafeAreaInsets();
+  const isThai = appLanguage === "th";
 
   const loadSavedPrograms = useCallback(async () => {
     setLoading(true);
@@ -46,18 +45,6 @@ export default function SavedProgramsScreen() {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    if (isGuest) {
-      setIsThai(guestLanguage === "th");
-      return;
-    }
-    if (user?.id) {
-      getProfile(user.id).then((p) => {
-        setIsThai(p?.preferred_language === "th");
-      });
-    }
-  }, [guestLanguage, isGuest, user?.id]);
 
   useFocusEffect(
     useCallback(() => {

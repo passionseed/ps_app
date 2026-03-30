@@ -98,7 +98,7 @@ function journeyToCareerPath(journey: StudentJourney): CareerPath {
 }
 
 export default function MyPathsScreen() {
-  const { guestLanguage, isGuest } = useAuth();
+  const { appLanguage } = useAuth();
   const [journeys, setJourneys] = useState<StudentJourney[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -122,7 +122,7 @@ export default function MyPathsScreen() {
   const scrollX = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const copy =
-    isGuest && guestLanguage === "en"
+    appLanguage === "en"
       ? {
           title: "Career Path Simulation",
           emptyTitle: "What do you want to become?",
