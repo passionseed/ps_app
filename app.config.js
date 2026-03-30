@@ -82,6 +82,9 @@ module.exports = {
         projectId: "baca732a-c7d8-4bd2-9742-48cc2a5e939f",
       },
     },
+    autolinking: {
+      exclude: ["expo-glass-effect"],
+    },
     runtimeVersion: {
       policy: "appVersion",
     },
