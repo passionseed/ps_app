@@ -36,12 +36,13 @@ import {
   getEnrollmentDayBundle,
   resetEnrollment,
   invalidateActivityCache,
+  getReflectionsForEnrollment,
   type ExpertInfo,
 } from "../../lib/pathlab";
 import { warmPathDayBundle, clearEnrollmentCache, markEnrollmentReset } from "../../lib/pathlabSession";
 import { formatPathDayLabel } from "../../lib/pathlab-day-label";
 import type { Seed } from "../../types/seeds";
-import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
+import type { Path, PathEnrollment, PathDay, PathReflection } from "../../types/pathlab";
 import type { SeedRecommendation } from "../../lib/seedRecommendations";
 
 /** Fixed hero cover height; scroll spacer = this minus overlap so the card sits under the image. */
@@ -75,7 +76,8 @@ export default function SeedDetailScreen() {
   const [path, setPath] = useState<Path | null>(null);
   const [enrollment, setEnrollment] = useState<PathEnrollment | null>(null);
   const [pathDays, setPathDays] = useState<Pick<PathDay, "id" | "day_number" | "title">[]>([]);
-  const [dayActivities, setDayActivities] = useState<Record<string, { title: string; content_type: string }[]>>({});
+  const [dayActivities, setDayActivities] = useState<Record<string, { id: string; title: string; content_type: string }[]>>({});
+  const [reflections, setReflections] = useState<Record<number, PathReflection>>({});
   const [expert, setExpert] = useState<ExpertInfo | null>(null);
   const [recommendation, setRecommendation] = useState<SeedRecommendation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,13 +172,22 @@ export default function SeedDetailScreen() {
         console.log("[SeedDetail] Path days loaded:", daysData.length);
         setPathDays(daysData);
 
+        if (enrollmentData) {
+          getReflectionsForEnrollment(enrollmentData.id).then(refs => {
+            const refsMap: Record<number, PathReflection> = {};
+            refs.forEach(r => refsMap[r.day_number] = r);
+            setReflections(refsMap);
+          }).catch(err => console.error("[SeedDetail] Error loading reflections:", err));
+        }
+
         // Load activities for each day (no enrollment context needed)
         const activitiesPerDay = await Promise.all(
           daysData.map((day) => getPathDayActivities(day.id).catch(() => []))
         );
-        const activitiesMap: Record<string, { title: string; content_type: string }[]> = {};
+        const activitiesMap: Record<string, { id: string; title: string; content_type: string }[]> = {};
         daysData.forEach((day, i) => {
           activitiesMap[day.id] = activitiesPerDay[i].map((a) => ({
+            id: a.id,
             title: a.title,
             content_type: a.path_content?.[0]?.content_type ?? a.path_assessment?.assessment_type ?? "unknown",
           }));
@@ -628,12 +639,40 @@ export default function SeedDetailScreen() {
                     >
                       {formatPathDayLabel(day.day_number, day.title)}
                     </AppText>
-                    {(dayActivities[day.id] ?? []).map((act, ai) => (
-                      <View key={ai} style={s.activityItem}>
-                        <AppText style={s.activityIcon}>{getActivityIcon(act.content_type)}</AppText>
-                        <AppText style={s.activityTitle} numberOfLines={1}>{act.title}</AppText>
+                    {(dayActivities[day.id] ?? []).map((act, ai) => {
+                      const isActClickable = isEnrolled && (isDone || isActive);
+                      return (
+                        <Pressable 
+                          key={ai} 
+                          style={({ pressed }) => [
+                            s.activityItem, 
+                            isActClickable && pressed && { opacity: 0.6 }
+                          ]}
+                          onPress={() => {
+                            if (isActClickable && enrollment) {
+                              router.push(`/activity/${act.id}?enrollmentId=${enrollment.id}&pageIndex=${ai}&totalPages=${dayActivities[day.id].length}`);
+                            }
+                          }}
+                        >
+                          <AppText style={s.activityIcon}>{getActivityIcon(act.content_type)}</AppText>
+                          <AppText style={[s.activityTitle, isActClickable && { color: "#3B82F6" }]} numberOfLines={1}>{act.title}</AppText>
+                        </Pressable>
+                      );
+                    })}
+                    
+                    {/* Reflection */}
+                    {isDone && reflections[day.day_number] && (
+                      <View style={s.reflectionCard}>
+                        <AppText style={s.reflectionTitle}>📝 {appLanguage === "th" ? "บันทึกประจำวัน" : "Reflection"}</AppText>
+                        {reflections[day.day_number].open_response ? (
+                          <AppText style={s.reflectionText}>"{reflections[day.day_number].open_response}"</AppText>
+                        ) : (
+                          <AppText style={s.reflectionText}>
+                            {appLanguage === "th" ? "พลังงาน" : "Energy"}: {reflections[day.day_number].energy_level}/5 • {appLanguage === "th" ? "ความสนใจ" : "Interest"}: {reflections[day.day_number].interest_level}/5
+                          </AppText>
+                        )}
                       </View>
-                    ))}
+                    )}
                   </View>
 
                   {/* Status */}
@@ -1051,5 +1090,26 @@ const s = StyleSheet.create({
     color: "#6B7280",
     fontFamily: "BaiJamjuree_400Regular",
     flex: 1,
+  },
+  reflectionCard: {
+    marginTop: 12,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: "#3B82F6",
+  },
+  reflectionTitle: {
+    fontSize: 12,
+    color: "#4B5563",
+    fontFamily: "BaiJamjuree_700Bold",
+    marginBottom: 4,
+  },
+  reflectionText: {
+    fontSize: 13,
+    color: "#111827",
+    fontFamily: "BaiJamjuree_400Regular",
+    fontStyle: "italic",
+    lineHeight: 18,
   },
 });
