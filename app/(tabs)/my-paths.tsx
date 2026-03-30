@@ -342,7 +342,7 @@ export default function MyPathsScreen() {
         </View>
 
         {/* Bottom padding for tab bar */}
-        <View style={{ height: 100 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
     </View>
   );

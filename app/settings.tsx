@@ -1,20 +1,21 @@
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Pressable,
   Switch,
   ActivityIndicator,
+  Animated,
 } from "react-native";
+import { AppText as Text } from "../components/AppText";
 import { useLocalSearchParams, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { getProfile } from "../lib/onboarding";
 import type { Profile, MobileSettings } from "../types/onboarding";
-import { GlassCard } from "../components/Glass";
 import {
   PageBg,
   Text as ThemeText,
@@ -22,15 +23,53 @@ import {
   Radius,
   Shadow,
   Space,
-  glassCard,
 } from "../lib/theme";
-import * as Sentry from "@sentry/react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import Constants from "expo-constants";
+import * as WebBrowser from "expo-web-browser";
 
 export default function SettingsScreen() {
-  const { setUserLanguage, user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { setUserLanguage, user, appLanguage } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const isThai = appLanguage === "th";
+  const copy = {
+    back: isThai ? "กลับ" : "Back",
+    settings: isThai ? "ตั้งค่า" : "Settings",
+    language: isThai ? "ภาษา" : "Language",
+    notifications: isThai ? "การแจ้งเตือน" : "Notifications",
+    push: isThai ? "การแจ้งเตือนแบบพุช" : "Push Notifications",
+    reminder: isThai ? "เวลาแจ้งเตือน" : "Reminder Time",
+    appearance: isThai ? "รูปลักษณ์" : "Appearance",
+    light: isThai ? "สว่าง" : "Light",
+    dark: isThai ? "มืด" : "Dark",
+    about: isThai ? "เกี่ยวกับ" : "About",
+    version: isThai ? "เวอร์ชัน" : "Version",
+    privacy: isThai ? "นโยบายความเป็นส่วนตัว" : "Privacy Policy",
+    tos: isThai ? "ข้อกำหนดการให้บริการ" : "Terms of Service",
+  };
+
+  const RadioButton = ({ selected }: { selected: boolean }) => {
+    const scale = useRef(new Animated.Value(selected ? 1 : 0)).current;
+
+    useEffect(() => {
+      Animated.spring(scale, {
+        toValue: selected ? 1 : 0,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 12,
+      }).start();
+    }, [selected, scale]);
+
+    return (
+      <View style={[styles.radioOutline, selected && styles.radioSelected]}>
+        <Animated.View style={[styles.radioInner, { transform: [{ scale }] }]} />
+      </View>
+    );
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -97,19 +136,19 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={["#FFFFFF", "#F9F5FF", "#F3EAFF"]} style={styles.container}>
       <StatusBar style="dark" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>‹ Back</Text>
+          <Text style={styles.backBtnText}>‹ {copy.back}</Text>
         </Pressable>
-        <Text style={styles.title}>Settings</Text>
+        <Text style={styles.title}>{copy.settings}</Text>
         {saving && (
           <ActivityIndicator
             size="small"
-            color={Accent.yellow}
+            color="#00E676"
             style={styles.savingIndicator}
           />
         )}
@@ -122,14 +161,14 @@ export default function SettingsScreen() {
       >
         {loading ? (
           <View style={styles.loadingSection}>
-            <ActivityIndicator color={Accent.yellow} />
+            <ActivityIndicator color="#00E676" />
           </View>
         ) : (
           <>
             {/* Language */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Language</Text>
-              <GlassCard variant="neutral" size="small" noPadding>
+              <Text style={styles.sectionTitle}>{copy.language}</Text>
+              <View style={styles.card}>
                 <Pressable
                   style={[
                     styles.optionRow,
@@ -139,9 +178,7 @@ export default function SettingsScreen() {
                   onPress={() => updateLanguage("en")}
                 >
                   <Text style={styles.optionText}>English</Text>
-                  {profile?.preferred_language === "en" && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
+                  <RadioButton selected={profile?.preferred_language === "en"} />
                 </Pressable>
                 <View style={styles.optionDivider} />
                 <Pressable
@@ -153,19 +190,17 @@ export default function SettingsScreen() {
                   onPress={() => updateLanguage("th")}
                 >
                   <Text style={styles.optionText}>ไทย (Thai)</Text>
-                  {profile?.preferred_language === "th" && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
+                  <RadioButton selected={profile?.preferred_language === "th"} />
                 </Pressable>
-              </GlassCard>
+              </View>
             </View>
 
             {/* Notifications */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Notifications</Text>
-              <GlassCard variant="neutral" size="small" noPadding>
+              <Text style={styles.sectionTitle}>{copy.notifications}</Text>
+              <View style={styles.card}>
                 <View style={styles.optionRow}>
-                  <Text style={styles.optionText}>Push Notifications</Text>
+                  <Text style={styles.optionText}>{copy.push}</Text>
                   <Switch
                     value={settings.push_enabled}
                     onValueChange={(value) =>
@@ -173,108 +208,58 @@ export default function SettingsScreen() {
                     }
                     trackColor={{
                       false: ThemeText.muted,
-                      true: Accent.yellowLight,
+                      true: "rgba(0, 230, 118, 0.4)", // green with opacity
                     }}
-                    thumbColor={settings.push_enabled ? Accent.yellow : "#fff"}
+                    thumbColor={settings.push_enabled ? "#00E676" : "#fff"}
                   />
                 </View>
                 <View style={styles.optionDivider} />
                 <Pressable style={styles.optionRow}>
-                  <Text style={styles.optionText}>Reminder Time</Text>
+                  <Text style={styles.optionText}>{copy.reminder}</Text>
                   <Text style={styles.optionValue}>
                     {settings.reminder_time}
                   </Text>
                 </Pressable>
-              </GlassCard>
-            </View>
-
-            {/* Appearance */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Appearance</Text>
-              <GlassCard variant="neutral" size="small" noPadding>
-                <Pressable
-                  style={[
-                    styles.optionRow,
-                    settings.theme === "light" && styles.optionRowSelected,
-                  ]}
-                  onPress={() => updateSetting("theme", "light")}
-                >
-                  <Text style={styles.optionText}>Light</Text>
-                  {settings.theme === "light" && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
-                </Pressable>
-                <View style={styles.optionDivider} />
-                <Pressable
-                  style={[
-                    styles.optionRow,
-                    settings.theme === "dark" && styles.optionRowSelected,
-                  ]}
-                  onPress={() => updateSetting("theme", "dark")}
-                >
-                  <Text style={styles.optionText}>Dark</Text>
-                  {settings.theme === "dark" && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
-                </Pressable>
-              </GlassCard>
+              </View>
             </View>
 
             {/* About */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About</Text>
-              <GlassCard variant="neutral" size="small" noPadding>
+              <Text style={styles.sectionTitle}>{copy.about}</Text>
+              <View style={styles.card}>
                 <View style={styles.optionRow}>
-                  <Text style={styles.optionText}>Version</Text>
-                  <Text style={styles.optionValue}>1.0.0</Text>
+                  <Text style={styles.optionText}>{copy.version}</Text>
+                  <Text style={styles.optionValue}>{Constants.expoConfig?.version ?? "1.0.0"}</Text>
                 </View>
                 <View style={styles.optionDivider} />
-                <Pressable style={styles.optionRow}>
-                  <Text style={styles.optionText}>Privacy Policy</Text>
+                <Pressable style={styles.optionRow} onPress={() => WebBrowser.openBrowserAsync('https://passionseed.org/privacy')}>
+                  <Text style={styles.optionText}>{copy.privacy}</Text>
                   <Text style={styles.chevron}>›</Text>
                 </Pressable>
                 <View style={styles.optionDivider} />
-                <Pressable style={styles.optionRow}>
-                  <Text style={styles.optionText}>Terms of Service</Text>
+                <Pressable style={styles.optionRow} onPress={() => WebBrowser.openBrowserAsync('https://passionseed.org/tos')}>
+                  <Text style={styles.optionText}>{copy.tos}</Text>
                   <Text style={styles.chevron}>›</Text>
                 </Pressable>
-              </GlassCard>
-            </View>
-
-            {/* Developer */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Developer</Text>
-              <GlassCard variant="neutral" size="small" noPadding>
-                <Pressable
-                  style={styles.optionRow}
-                  onPress={() =>
-                    Sentry.captureException(new Error("First error"))
-                  }
-                >
-                  <Text style={styles.optionText}>Test Sentry</Text>
-                  <Text style={styles.chevron}>›</Text>
-                </Pressable>
-              </GlassCard>
+              </View>
             </View>
           </>
         )}
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: PageBg.default,
   },
   header: {
-    paddingTop: Space["3xl"],
     paddingHorizontal: Space["2xl"],
     paddingBottom: Space.lg,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: PageBg.default,
+    backgroundColor: "transparent",
   },
   backBtn: {
     paddingRight: Space.lg,
@@ -282,13 +267,11 @@ const styles = StyleSheet.create({
   },
   backBtnText: {
     fontSize: 16,
-    fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.secondary,
     fontWeight: "600",
   },
   title: {
     fontSize: 28,
-    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: ThemeText.primary,
     flex: 1,
@@ -312,12 +295,19 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     color: ThemeText.tertiary,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     paddingLeft: Space.xs,
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.12)",
+    ...Shadow.neutral,
+    overflow: "hidden",
   },
   optionRow: {
     flexDirection: "row",
@@ -327,23 +317,34 @@ const styles = StyleSheet.create({
     paddingVertical: Space.lg,
   },
   optionRowSelected: {
-    backgroundColor: Accent.yellowLight,
+    backgroundColor: "rgba(0, 230, 118, 0.08)", // subtle green
   },
   optionText: {
     fontSize: 15,
-    fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.primary,
     fontWeight: "500",
   },
   optionValue: {
     fontSize: 15,
-    fontFamily: "LibreFranklin_400Regular",
     color: ThemeText.secondary,
   },
-  checkmark: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: Accent.yellow,
+  radioOutline: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: "rgba(0, 0, 0, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  radioSelected: {
+    borderColor: "#00E676",
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#00E676",
   },
   chevron: {
     fontSize: 20,
