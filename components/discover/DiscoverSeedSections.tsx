@@ -62,7 +62,8 @@ export function ProgressSection({
             seed={seed}
             progress={
               seed.enrollment
-                ? (seed.enrollment.current_day - 1) / (seed.path?.total_days || 5)
+                ? (seed.enrollment.current_day - 1) /
+                  (seed.path?.total_days || 5)
                 : 0
             }
             doneToday={seed.enrollment?.isDoneToday || false}

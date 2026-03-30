@@ -1,0 +1,47 @@
+{
+  "date": "2026-03-30",
+  "window": "7d",
+  "metrics": {
+    "commits": 34,
+    "contributors": 2,
+    "prs_merged": 0,
+    "insertions": 40702,
+    "deletions": 6481,
+    "net_loc": 34221,
+    "test_loc": 1386,
+    "test_ratio": 0.034,
+    "active_days": 6,
+    "sessions": 17,
+    "deep_sessions": 0,
+    "avg_session_minutes": 15,
+    "loc_per_session_hour": 2400,
+    "feat_pct": 0.12,
+    "fix_pct": 0,
+    "peak_hour": 22,
+    "ai_assisted_commits": 0
+  },
+  "authors": {
+    "Bunyasit Fang": { "commits": 17, "insertions": 37972, "deletions": 5416, "test_ratio": 0.034, "top_area": "app/", "sessions": 9 },
+    "Solnar": { "commits": 17, "insertions": 2730, "deletions": 1065, "test_ratio": 0, "top_area": "app/onboarding/", "sessions": 8 }
+  },
+  "version_range": ["1.0.3", "1.0.4"],
+  "streak_days": 3,
+  "personal_streak_days": 2,
+  "tweetable": "Week of Mar 23: 34 commits (2 contributors), 40.7k LOC, 3.4% tests, 17 sessions, peak: 10pm | Streak: 3d",
+  "test_health": {
+    "total_test_files": 39,
+    "tests_added_this_period": 16,
+    "regression_test_commits": 0,
+    "test_files_changed": 16
+  },
+  "skill_usage": {
+    "office-hours": 7,
+    "plan-eng-review": 2,
+    "plan-ceo-review": 2,
+    "investigate": 3,
+    "browse": 3,
+    "ship": 1,
+    "connect-chrome": 1,
+    "retro": 1
+  }
+}

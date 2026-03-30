@@ -16,8 +16,23 @@ import {
   getEmptyHackathonProgramHome,
 } from "../../lib/hackathonProgram";
 import { getPreviewHackathonProgramHome } from "../../lib/hackathonProgramPreview";
-import { Accent, PageBg, Space, Text as ThemeText } from "../../lib/theme";
+import { Accent, PageBg, Space, Text as ThemeText, Radius, Type } from "../../lib/theme";
 import type { HackathonProgramHome } from "../../types/hackathon-program";
+import { LinearGradient } from "expo-linear-gradient";
+
+// --- Subcomponents for Polish ---
+
+function Badge({ label, color, bgColor }: { label: string, color: string, bgColor: string }) {
+  return (
+    <View style={[styles.badge, { backgroundColor: bgColor }]}>
+      <AppText variant="bold" style={[styles.badgeText, { color }]}>
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
+// --------------------------------
 
 export default function HackathonProgramHomeScreen() {
   const [data, setData] = useState<HackathonProgramHome | null>(null);
@@ -76,73 +91,142 @@ export default function HackathonProgramHomeScreen() {
             setRefreshing(true);
             load();
           }}
+          tintColor={Accent.yellow}
         />
       }
     >
-      <AppText variant="bold" style={styles.eyebrow}>
-        Super Seed Hackathon
-      </AppText>
-      <AppText variant="bold" style={styles.title}>
-        Playlist-based PathLab for the full hackathon
-      </AppText>
-      <AppText style={styles.subtitle}>
-        Phase-driven learning with team checkpoints, individual evidence, and structured synthesis.
-      </AppText>
+      <View style={styles.header}>
+        <AppText variant="bold" style={styles.eyebrow}>
+          {data.program?.title ?? "Super Seed Hackathon"}
+        </AppText>
+        <AppText variant="bold" style={styles.title}>
+          Your Hackathon Journey
+        </AppText>
+        <AppText style={styles.subtitle}>
+          Track your progress, access team checkpoints, and complete structured evidence in each phase.
+        </AppText>
+      </View>
 
-      {isPreview ? (
-        <GlassCard variant="neutral" style={styles.previewCard}>
-          <AppText variant="bold" style={{ color: ThemeText.primary }}>Preview mode</AppText>
+      {isPreview && (
+        <GlassCard size="small" style={styles.previewCard}>
+          <View style={styles.previewHeader}>
+            <View style={[styles.statusDot, { backgroundColor: Accent.amber }]} />
+            <AppText variant="bold" style={styles.previewTitle}>Preview Mode</AppText>
+          </View>
           <AppText style={styles.previewCopy}>
-            This route uses built-in preview data because the mobile app does not yet bridge Supabase users to the custom `hackathon_participants` auth system.
+            You are viewing sample data. Sign in with a valid participant account to see your real progress.
           </AppText>
         </GlassCard>
-      ) : null}
+      )}
 
-      <GlassCard variant="destination" style={styles.heroCard}>
-        <AppText variant="bold" style={styles.heroLabel}>
-          Current phase
-        </AppText>
-        <AppText variant="bold" style={styles.heroTitle}>
-          {currentPhase.title}
-        </AppText>
-        <AppText style={styles.heroBody}>
-          {currentPhase.description}
-        </AppText>
-        <GlassButton
-          variant="primary"
-          onPress={() => router.push(`/hackathon-program/phase/${currentPhase.id}`)}
-        >
-          Open phase playlist
-        </GlassButton>
-      </GlassCard>
+      {/* Hero: Current Phase */}
+      <View style={styles.section}>
+        <GlassCard size="large" style={styles.heroCard}>
+          <View style={styles.cardHeader}>
+            <Badge 
+              label="CURRENT PHASE" 
+              color={Accent.purple} 
+              bgColor="rgba(139, 92, 246, 0.1)" 
+            />
+          </View>
+          <View style={styles.heroTextContainer}>
+            <AppText variant="bold" style={styles.heroTitle}>
+              {currentPhase.title}
+            </AppText>
+            <AppText style={styles.heroBody}>
+              {currentPhase.description}
+            </AppText>
+          </View>
+          
+          <GlassButton
+            variant="primary"
+            style={styles.heroCta}
+            onPress={() => router.push(`/hackathon-program/phase/${currentPhase.id}`)}
+          >
+            Enter Phase
+          </GlassButton>
+        </GlassCard>
+      </View>
 
-      <GlassCard variant="neutral" style={styles.teamCard}>
-        <AppText variant="bold" style={styles.sectionTitle}>
-          Team context
-        </AppText>
-        <AppText style={{ color: ThemeText.primary }}>{data.team?.name ?? data.team?.team_name ?? "Team not linked yet"}</AppText>
-        <AppText style={styles.metaCopy}>
-          Program: {data.program?.title ?? "Preview program"}
-        </AppText>
-      </GlassCard>
+      {/* Team Context */}
+      <View style={styles.section}>
+        <GlassCard size="medium" style={styles.teamCard}>
+          <View style={styles.cardHeader}>
+             <Badge 
+                label="TEAM" 
+                color={ThemeText.primary} 
+                bgColor={PageBg.default} 
+             />
+             <AppText style={styles.metaCopy}>
+               ID: {data.team?.id?.substring(0, 6) ?? "---"}
+             </AppText>
+          </View>
+          <AppText variant="bold" style={styles.teamName}>
+            {data.team?.name ?? data.team?.team_name ?? "Not assigned to a team yet"}
+          </AppText>
+        </GlassCard>
+      </View>
 
+      {/* Timeline of all phases */}
       <View style={styles.section}>
         <AppText variant="bold" style={styles.sectionTitle}>
-          All phases
+          Program Timeline
         </AppText>
-        {data.phases.map((phase) => (
-          <Pressable
-            key={phase.id}
-            onPress={() => router.push(`/hackathon-program/phase/${phase.id}`)}
-          >
-            <GlassCard variant="neutral" style={styles.phaseCard}>
-              <AppText variant="bold" style={styles.phaseTitle}>
-                {phase.title}
-              </AppText>
-              <AppText style={styles.phaseBody}>{phase.description}</AppText>
-            </GlassCard>
-          </Pressable>
-        ))}
+        
+        <View style={styles.timelineContainer}>
+          {data.phases.map((phase, index) => {
+            const isCurrent = phase.id === currentPhase.id;
+            const isPast = data.phases.findIndex(p => p.id === currentPhase.id) > index;
+            
+            // Determine styling based on state
+            const nodeColor = isCurrent ? Accent.purple : isPast ? Accent.green : ThemeText.muted;
+            const cardBgColor = isCurrent ? "#FFFFFF" : isPast ? "#FAFAFA" : "#FFFFFF";
+            const borderColor = isCurrent ? "rgba(139, 92, 246, 0.2)" : "rgba(0,0,0,0.05)";
+
+            return (
+              <View key={phase.id} style={styles.timelineRow}>
+                {/* Timeline visual line & node */}
+                <View style={styles.timelineVisual}>
+                  <View style={[styles.timelineNode, { backgroundColor: nodeColor, borderColor: isCurrent ? "rgba(139, 92, 246, 0.3)" : "transparent", borderWidth: isCurrent ? 4 : 0 }]} />
+                  {index < data.phases.length - 1 && (
+                    <View style={[styles.timelineLine, { backgroundColor: isPast ? Accent.green : ThemeText.muted }]} />
+                  )}
+                </View>
+
+                {/* Phase Card */}
+                <Pressable
+                  style={styles.timelineCardWrapper}
+                  onPress={() => router.push(`/hackathon-program/phase/${phase.id}`)}
+                >
+                  <View style={[
+                    styles.phaseCard, 
+                    { backgroundColor: cardBgColor, borderColor },
+                    isCurrent && styles.currentPhaseCardShadow
+                  ]}>
+                    <View style={styles.phaseCardHeader}>
+                      <AppText variant="bold" style={[
+                        styles.phaseTitle, 
+                        isCurrent && { color: Accent.purple },
+                        (!isCurrent && !isPast) && { color: ThemeText.tertiary }
+                      ]}>
+                        {phase.title}
+                      </AppText>
+                      {isPast && (
+                        <Badge label="DONE" color={Accent.green} bgColor="rgba(16, 185, 129, 0.1)" />
+                      )}
+                    </View>
+                    <AppText style={[
+                      styles.phaseBody,
+                      (!isCurrent && !isPast) && { color: ThemeText.tertiary }
+                    ]}>
+                      {phase.description}
+                    </AppText>
+                  </View>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
       </View>
     </ScrollView>
   );
@@ -151,12 +235,13 @@ export default function HackathonProgramHomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: PageBg.default,
+    backgroundColor: PageBg.default, // Standard off-white
   },
   content: {
-    padding: Space.lg,
-    gap: Space.lg,
-    paddingBottom: 96,
+    padding: Space.xl,
+    paddingTop: Space["3xl"],
+    paddingBottom: 120,
+    gap: Space["2xl"], // Large inter-card gap
   },
   loadingRoot: {
     flex: 1,
@@ -164,73 +249,194 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: PageBg.default,
   },
+  
+  // Header
+  header: {
+    gap: Space.xs,
+    paddingHorizontal: Space.xs,
+  },
   eyebrow: {
-    fontSize: 13,
-    color: ThemeText.tertiary,
+    fontSize: Type.label.fontSize,
+    color: Accent.purple, // Highlighted metric color
     textTransform: "uppercase",
-    letterSpacing: 1,
+    letterSpacing: 1.5,
+    marginBottom: Space.xs,
   },
   title: {
-    fontSize: 32,
+    fontSize: 32, // Large serif-like scale
     lineHeight: 38,
     color: ThemeText.primary,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: Type.body.fontSize,
     lineHeight: 24,
     color: ThemeText.secondary,
+    marginTop: Space.sm,
   },
+
+  // Preview Banner
   previewCard: {
-    gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderColor: Accent.amber,
+    borderWidth: 1,
+    gap: Space.sm,
+  },
+  previewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.full,
+  },
+  previewTitle: {
+    fontSize: Type.body.fontSize,
+    color: ThemeText.primary,
   },
   previewCopy: {
     fontSize: 14,
     lineHeight: 20,
     color: ThemeText.secondary,
   },
-  heroCard: {
-    gap: 12,
-  },
-  heroLabel: {
-    fontSize: 12,
-    color: ThemeText.tertiary,
-    textTransform: "uppercase",
-    letterSpacing: 0.9,
-  },
-  heroTitle: {
-    fontSize: 24,
-    lineHeight: 30,
-    color: ThemeText.primary,
-  },
-  heroBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: ThemeText.secondary,
-  },
-  teamCard: {
-    gap: 6,
-  },
-  metaCopy: {
-    fontSize: 14,
-    color: ThemeText.secondary,
-  },
+
+  // Sections
   section: {
-    gap: 12,
+    gap: Space.lg,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: Type.title.fontSize,
     color: ThemeText.primary,
+    paddingLeft: Space.xs,
+    letterSpacing: -0.5,
+    marginBottom: Space.sm,
+  },
+
+  // Cards General
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Space.sm,
+  },
+
+  // Badges
+  badge: {
+    paddingHorizontal: Space.sm,
+    paddingVertical: Space.xs,
+    borderRadius: Radius.full,
+  },
+  badgeText: {
+    fontSize: 10,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+
+  // Hero Card
+  heroCard: {
+    gap: Space.lg,
+    paddingBottom: Space["2xl"], // Extra padding for the bottom CTA
+  },
+  heroTextContainer: {
+    gap: Space.sm,
+  },
+  heroTitle: {
+    fontSize: Type.header.fontSize,
+    lineHeight: 34,
+    color: ThemeText.primary,
+    letterSpacing: -0.5,
+  },
+  heroBody: {
+    fontSize: Type.body.fontSize,
+    lineHeight: 24,
+    color: ThemeText.secondary,
+  },
+  heroCta: {
+    marginTop: Space.lg,
+    backgroundColor: Accent.yellow,
+    borderRadius: Radius.full, // Pill-shape CTA
+  },
+  heroCtaText: {
+    color: ThemeText.primary,
+    fontSize: 16,
+  },
+
+  // Team Card
+  teamCard: {
+    gap: Space.sm,
+  },
+  metaCopy: {
+    fontSize: 12,
+    color: ThemeText.tertiary,
+    fontFamily: "LibreFranklin_400Regular",
+  },
+  teamName: {
+    fontSize: Type.subtitle.fontSize,
+    color: ThemeText.primary,
+  },
+
+  // Timeline
+  timelineContainer: {
+    marginTop: Space.sm,
+  },
+  timelineRow: {
+    flexDirection: "row",
+    marginBottom: Space.md,
+  },
+  timelineVisual: {
+    width: 32,
+    alignItems: "center",
+    marginRight: Space.md,
+  },
+  timelineNode: {
+    width: 14,
+    height: 14,
+    borderRadius: Radius.full,
+    marginTop: 4,
+    zIndex: 2,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    marginTop: -10, // Overlap under node
+    marginBottom: -24, // Connect to next node
+    opacity: 0.3,
+  },
+  timelineCardWrapper: {
+    flex: 1,
+    paddingBottom: Space.xl,
   },
   phaseCard: {
-    gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.lg,
+    padding: Space.lg,
+    borderWidth: 1,
+    gap: Space.xs,
+  },
+  currentPhaseCardShadow: {
+    shadowColor: Accent.purple,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  phaseCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   phaseTitle: {
-    fontSize: 18,
+    fontSize: Type.subtitle.fontSize,
     color: ThemeText.primary,
+    flex: 1,
   },
   phaseBody: {
     fontSize: 14,
     lineHeight: 20,
     color: ThemeText.secondary,
+    marginTop: 2,
   },
 });
+
