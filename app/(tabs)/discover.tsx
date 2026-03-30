@@ -30,7 +30,6 @@ import {
   ProgressSection,
   SeedSection,
 } from "../../components/discover/DiscoverSeedSections";
-import { HackathonHeroCard } from "../../components/discover/HackathonHeroCard";
 
 export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -172,8 +171,6 @@ export default function DiscoverScreen() {
             </View>
           </Animated.View>
         </View>
-
-        <HackathonHeroCard isThai={isThai} />
 
         {sections.continue.length > 0 && (
           <ProgressSection
