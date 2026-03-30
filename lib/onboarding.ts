@@ -13,6 +13,10 @@ import type {
 // ── Profile ──────────────────────────────────────────────────────────────────
 
 export async function getProfile(userId: string): Promise<Profile | null> {
+  if (!userId || typeof userId !== 'string') {
+    console.error('[getProfile] Invalid userId — aborting query:', userId)
+    return null
+  }
   console.log('[getProfile] Starting query for userId:', userId)
   const t0 = Date.now()
   const { data, error } = await supabase

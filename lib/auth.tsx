@@ -134,6 +134,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   async function readProfileLanguage(userId: string): Promise<GuestLanguage> {
+    if (!userId || typeof userId !== "string") {
+      throw new Error(`[readProfileLanguage] Invalid userId: ${JSON.stringify(userId)}`);
+    }
     const { data, error } = await supabase
       .from("profiles")
       .select("preferred_language")
