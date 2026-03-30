@@ -38,6 +38,7 @@ import type {
   Profile,
 } from "../../types/onboarding";
 import { Accent, PageBg } from "../../lib/theme";
+import { HackathonHeroCard } from "../../components/discover/HackathonHeroCard";
 
 interface IkigaiPillar {
   score: number;
@@ -438,6 +439,8 @@ export default function ProfileScreen() {
               />
             )}
           </LinearGradient>
+
+          <HackathonHeroCard isThai={false} />
 
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Your Ikigai Compass</Text>

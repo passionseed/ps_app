@@ -519,6 +519,12 @@ export default function SeedDetailScreen() {
           )}
         </Animated.View>
 
+        {/* Scroll hint */}
+        <View style={s.scrollHint}>
+          <AppText style={s.scrollHintText}>scroll for more</AppText>
+          <AppText style={s.scrollHintArrow}>↓</AppText>
+        </View>
+
         {/* Description */}
         {seed.description && (
           <Animated.View
@@ -1004,6 +1010,23 @@ const s = StyleSheet.create({
     fontSize: 18,
     color: "#111827",
     fontFamily: "BaiJamjuree_700Bold",
+  },
+  scrollHint: {
+    alignItems: "center",
+    paddingVertical: 8,
+    marginBottom: 8,
+    opacity: 0.4,
+  },
+  scrollHintText: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontFamily: "BaiJamjuree_400Regular",
+    letterSpacing: 0.5,
+  },
+  scrollHintArrow: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 2,
   },
   activityItem: {
     flexDirection: "row",
