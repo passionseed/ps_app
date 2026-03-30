@@ -165,14 +165,15 @@ export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
   return withSupabaseRetry(async () => {
     console.log("[getAvailableSeeds] Starting query...");
 
-    const [{ data: { user } }, { data: seedsData, error: seedsError }] = await Promise.all([
-      supabase.auth.getUser(),
+    const [{ data: { session } }, { data: seedsData, error: seedsError }] = await Promise.all([
+      supabase.auth.getSession(),
       supabase
         .from("seeds")
         .select("*, paths(id, seed_id, total_days)")
         .eq("seed_type", "pathlab")
         .order("created_at", { ascending: false }),
     ]);
+    const user = session?.user ?? null;
 
     console.log("[getAvailableSeeds] Query result:", {
       count: seedsData?.length || 0,
