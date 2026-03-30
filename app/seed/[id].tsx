@@ -33,9 +33,11 @@ import {
   getPathDays,
   getExpertForSeed,
   getEnrollmentDayBundle,
+  resetEnrollment,
+  invalidateActivityCache,
   type ExpertInfo,
 } from "../../lib/pathlab";
-import { warmPathDayBundle } from "../../lib/pathlabSession";
+import { warmPathDayBundle, clearEnrollmentCache, markEnrollmentReset } from "../../lib/pathlabSession";
 import { formatPathDayLabel } from "../../lib/pathlab-day-label";
 import type { Seed } from "../../types/seeds";
 import type { Path, PathEnrollment, PathDay } from "../../types/pathlab";
@@ -192,6 +194,33 @@ export default function SeedDetailScreen() {
       setEnrolling(true);
       void navigateToCurrentActivity(enrollment.id);
     }
+  };
+
+  const handleReset = async () => {
+    console.log("[SeedDetail] handleReset called, enrollment:", enrollment?.id);
+    if (!enrollment) return;
+    Alert.alert("Reset Progress", "This will delete all activity progress and restart from Day 1.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Reset",
+        style: "destructive",
+        onPress: async () => {
+          console.log("[SeedDetail] Resetting enrollment:", enrollment.id);
+          try {
+            // Reset DB first, then navigate
+            markEnrollmentReset(enrollment.id);
+            await resetEnrollment(enrollment.id);
+            console.log("[SeedDetail] Reset successful");
+            invalidateActivityCache();
+            clearEnrollmentCache(enrollment.id);
+            router.replace(`/path/${enrollment.id}`);
+          } catch (error) {
+            console.error("[SeedDetail] Reset failed:", error);
+            Alert.alert("Error", "Failed to reset progress.");
+          }
+        },
+      },
+    ]);
   };
 
   const navigateToCurrentActivity = async (enrollmentId: string) => {
@@ -598,6 +627,17 @@ export default function SeedDetailScreen() {
             ? guestCopy.startCurrentDay(currentDay)
             : guestCopy.startPath}
         </GlassButton>
+        {isEnrolled && (
+          <GlassButton
+            variant="secondary"
+            size="small"
+            fullWidth
+            onPress={handleReset}
+            style={{ marginTop: 10 }}
+          >
+            Restart (for test only)
+          </GlassButton>
+        )}
       </Animated.View>
 
       {enrolling && (

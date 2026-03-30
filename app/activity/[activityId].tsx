@@ -23,7 +23,7 @@ import { Circle, Svg, SvgXml } from "react-native-svg";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { ensureActivityHasProgress } from "../../lib/activityProgress";
 import { supabase } from "../../lib/supabase";
-import { ensureActivityProgress, updateActivityProgress } from "../../lib/pathlab";
+import { ensureActivityProgress, updateActivityProgress, submitAssessment } from "../../lib/pathlab";
 import {
   getCachedActivityPayload,
   getCachedPathDayBundle,
@@ -43,6 +43,7 @@ import type {
   AIChatMetadata,
   NPCChatMetadata,
   PathActivityProgress,
+  PathAssessmentSubmission,
 } from "../../types/pathlab-content";
 import {
   PageBg,
@@ -65,6 +66,7 @@ interface ActivityWithContent extends PathActivity {
   path_content: PathContent[];
   path_assessment: (PathAssessment & { quiz_questions?: PathQuizQuestion[] }) | null;
   progress?: PathActivityProgress;
+  submission?: PathAssessmentSubmission | null;
 }
 
 // Helper to get activity type from content or assessment
@@ -1278,12 +1280,11 @@ export default function ActivityDetailScreen() {
     }));
   };
 
-  const handleComplete = async () => {
+  const handleComplete = async (assessmentData?: { textAnswer?: string; imageUrl?: string; fileUrl?: string }) => {
     if (!enrollmentId || !activityId || !canComplete()) return;
 
     setCompleting(true);
     try {
-      // Play completion sound
       playActivityCompleteSound();
 
       await updateActivityProgress({
@@ -1292,6 +1293,18 @@ export default function ActivityDetailScreen() {
         status: "completed",
       });
       markActivityCompletedInCache();
+
+      // Save assessment submission if data was provided
+      const progressId = activity?.progress?.id;
+      if (assessmentData && activity?.path_assessment && progressId) {
+        await submitAssessment({
+          progressId,
+          assessmentId: activity.path_assessment.id,
+          textAnswer: assessmentData.textAnswer,
+          imageUrl: assessmentData.imageUrl,
+          fileUrls: assessmentData.fileUrl ? [assessmentData.fileUrl] : undefined,
+        });
+      }
 
       // Navigate to the next activity or back to path screen
       router.replace(`/path/${enrollmentId}`);
@@ -1346,6 +1359,10 @@ export default function ActivityDetailScreen() {
   // Pan responder for edge swipe gestures (down at top = previous, up at bottom = next)
   const canSwipe = () => {
     if (!activity) return false;
+
+    // Already completed activities can always swipe
+    if (activity.progress?.status === "completed") return true;
+
     const activityType = getActivityType(activity);
     const hasAssessment = !!activity.path_assessment;
 
@@ -2083,7 +2100,12 @@ export default function ActivityDetailScreen() {
 
         {/* Assessment */}
         {activity.path_assessment && (
-          <AssessmentItem assessment={activity.path_assessment} />
+          <AssessmentItem
+            assessment={activity.path_assessment}
+            submission={activity.submission}
+            isCompleted={activity.progress?.status === "completed"}
+            onComplete={(data) => handleComplete(data)}
+          />
         )}
 
           {/* Swipe hint for swipeable content */}
@@ -2129,8 +2151,8 @@ export default function ActivityDetailScreen() {
         </View>
       )}
 
-      {/* Complete Button - Only show when can complete */}
-      {canComplete() && (
+      {/* Complete Button - Only show when can complete and no assessment */}
+      {canComplete() && !activity?.path_assessment && (
         <View style={styles.ctaContainer}>
           <GlassButton
             variant="primary"
@@ -2296,7 +2318,7 @@ function ContentItem({ content }: { content: PathContent }) {
             {content.content_url ? (
               <View style={[styles.fullWidthContentImageContainer, { width: windowWidth, height: imageHeight }]}>
                 <ExpoImage
-                  source={content.content_url}
+                  source={{ uri: content.content_url, headers: { Referer: 'https://ibb.co' } }}
                   style={[styles.fullWidthContentImage, { width: windowWidth, height: imageHeight }]}
                   contentFit="contain"
                   cachePolicy="memory-disk"
@@ -2349,14 +2371,23 @@ function ContentItem({ content }: { content: PathContent }) {
 
 function AssessmentItem({
   assessment,
+  submission,
+  isCompleted,
+  onComplete,
 }: {
   assessment: PathAssessment & { quiz_questions?: PathQuizQuestion[] };
+  submission?: PathAssessmentSubmission | null;
+  isCompleted?: boolean;
+  onComplete: (data: { textAnswer?: string; imageUrl?: string; fileUrl?: string }) => void;
 }) {
   const [textAnswer, setTextAnswer] = useState("");
   const [selectedFile, setSelectedFile] = useState<{ name: string; uri: string } | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageHeight, setImageHeight] = useState<number>(300);
+  const [submitted, setSubmitted] = useState(false);
   const { width: screenWidth } = useWindowDimensions();
+
+  const alreadyCompleted = isCompleted || submitted;
 
   const handlePickFile = async () => {
     try {
@@ -2368,6 +2399,8 @@ function AssessmentItem({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
         setSelectedFile({ name: file.name, uri: file.uri });
+        setSubmitted(true);
+        onComplete({ fileUrl: file.uri });
       }
     } catch (error) {
       console.error('Error picking file:', error);
@@ -2399,6 +2432,8 @@ function AssessmentItem({
         if (asset.width && asset.height) {
           setImageHeight(screenWidth * (asset.height / asset.width));
         }
+        setSubmitted(true);
+        onComplete({ imageUrl: asset.uri });
       }
     } catch (error: any) {
       console.error('[Camera] Error taking photo:', error);
@@ -2426,12 +2461,52 @@ function AssessmentItem({
         if (asset.width && asset.height) {
           setImageHeight(screenWidth * (asset.height / asset.width));
         }
+        setSubmitted(true);
+        onComplete({ imageUrl: asset.uri });
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
   };
+
+  if (alreadyCompleted) {
+    console.log('[Assessment] Completed state - submission:', JSON.stringify({
+      has_submission: !!submission,
+      text_answer: submission?.text_answer ?? null,
+      image_url: submission?.image_url ?? null,
+      file_urls: submission?.file_urls ?? null,
+    }));
+    return (
+      <GlassCard style={styles.assessmentCard}>
+        <AppText variant="bold" style={styles.assessmentType}>
+          {assessment.assessment_type.replace(/_/g, " ").toUpperCase()}
+        </AppText>
+
+        {/* Show what was submitted */}
+        {submission?.text_answer && (
+          <View style={styles.submittedAnswerContainer}>
+            <AppText style={styles.submittedAnswerText}>{submission.text_answer}</AppText>
+          </View>
+        )}
+        {submission?.image_url && (
+          <ExpoImage
+            source={{ uri: submission.image_url, headers: { Referer: 'https://ibb.co' } }}
+            style={[styles.submittedImage, { height: screenWidth * 0.75 }]}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+          />
+        )}
+        {submission?.file_urls && submission.file_urls.length > 0 && (
+          <View style={styles.submittedFileContainer}>
+            <AppText style={styles.selectedFileName}>📄 {submission.file_urls[0].split('/').pop()}</AppText>
+          </View>
+        )}
+
+        <AppText style={styles.assessmentSubmittedLabel}>✓ Completed</AppText>
+      </GlassCard>
+    );
+  }
 
   return (
     <>
@@ -2474,6 +2549,16 @@ function AssessmentItem({
               textAlignVertical="top"
             />
             <AppText style={styles.characterCount}>{textAnswer.length} characters</AppText>
+            <GlassButton
+              variant="primary"
+              fullWidth
+              textStyle={styles.glassButtonText}
+              style={{ marginTop: 12 }}
+              disabled={textAnswer.trim().length === 0}
+              onPress={() => { setSubmitted(true); onComplete({ textAnswer }); }}
+            >
+              Submit
+            </GlassButton>
           </View>
         )}
 
@@ -2490,9 +2575,6 @@ function AssessmentItem({
             {selectedFile && (
               <GlassCard style={styles.selectedFileCard}>
                 <AppText style={styles.selectedFileName}>📄 {selectedFile.name}</AppText>
-                <Pressable onPress={() => setSelectedFile(null)}>
-                  <AppText style={styles.removeFileText}>✕</AppText>
-                </Pressable>
               </GlassCard>
             )}
           </View>
@@ -3601,6 +3683,34 @@ const styles = StyleSheet.create({
     color: ThemeText.muted,
     textAlign: "right",
     marginTop: 8,
+  },
+  assessmentSubmittedLabel: {
+    fontSize: 13,
+    color: "#9FE800",
+    fontWeight: "600",
+    marginTop: 12,
+  },
+  submittedAnswerContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.04)",
+    borderRadius: 8,
+  },
+  submittedAnswerText: {
+    fontSize: 14,
+    color: ThemeText.primary,
+    lineHeight: 20,
+  },
+  submittedImage: {
+    width: "100%",
+    marginTop: 12,
+    borderRadius: 8,
+  },
+  submittedFileContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.04)",
+    borderRadius: 8,
   },
   uploadContainer: {
     marginTop: 12,

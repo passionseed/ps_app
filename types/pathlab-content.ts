@@ -225,6 +225,7 @@ export interface PathActivityWithContent extends PathActivity {
   path_content: PathContent[];
   path_assessment: PathAssessmentWithQuestions | null;
   progress?: PathActivityProgress;
+  submission?: PathAssessmentSubmission | null;
 }
 
 const DEFAULT_WORKFLOW_METADATA: PathWorkflowMetadata = {
