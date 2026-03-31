@@ -1,311 +1,319 @@
 // app/(hackathon)/module/[moduleId].tsx
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { AppText } from "../../../components/AppText";
-import { GlassCard } from "../../../components/Glass/GlassCard";
+import { JourneyNodeGraph } from "../../../components/Hackathon/JourneyNodeGraph";
 import { ProgressGateCard } from "../../../components/Hackathon/ProgressGateCard";
 import { ResponsibilityBanner } from "../../../components/Hackathon/ResponsibilityBanner";
-import { TeamWorkspaceSection } from "../../../components/Hackathon/TeamWorkspaceSection";
 import {
   buildModuleProgressSnapshot,
   getHackathonModuleDetail,
+  getModuleActivityProgress,
 } from "../../../lib/hackathonProgram";
 import { getPreviewModuleDetail } from "../../../lib/hackathonProgramPreview";
-import {
-  buildPainPointFeedbackInput,
-  getPainPointFeedbackVerdictLabel,
-  requestPainPointFeedback,
-  type PainPointFeedbackResult,
-} from "../../../lib/hackathonAi";
-import {
-  Accent,
-  PageBg,
-  Radius,
-  Space,
-  Text as ThemeText,
-  Type,
-} from "../../../lib/theme";
-import type { PathActivityScope } from "../../../types/pathlab-content";
+import { Radius, Space } from "../../../lib/theme";
+import { supabase } from "../../../lib/supabase";
+import type { MapNode } from "../../../types/map";
 
-function getResponsibilityCopy(scope: PathActivityScope) {
-  switch (scope) {
-    case "team":
-      return {
-        label: "Team synthesis required",
-        detail: "This module is owned by the team. Individual evidence should feed the shared output before submission.",
-      };
-    case "hybrid":
-      return {
-        label: "Individual work unlocks team work",
-        detail: "Each member contributes evidence first, then the team consolidates it into one shared submission.",
-      };
-    default:
-      return {
-        label: "Each member completes this activity",
-        detail: "This step is individually owned so every participant builds real customer discovery skill, not just the loudest teammate.",
-      };
-  }
-}
+const BG = "#010814";
+const CYAN = "#00F0FF";
+const CYAN_BORDER = "rgba(0,240,255,0.2)";
+const CYAN_BG = "rgba(0,240,255,0.06)";
+const WHITE = "#FFFFFF";
+const WHITE75 = "rgba(255,255,255,0.75)";
+const WHITE40 = "rgba(255,255,255,0.4)";
+const GREEN = "#10B981";
 
-function getGateCardCopy(params: {
-  gateStatus: string;
-  gateRule: string;
-  reviewMode: string;
-  requiredMemberCount: number | null;
-}) {
-  const requiredCount = params.requiredMemberCount ?? 3;
-  switch (params.gateStatus) {
-    case "passed":
-      return { title: "Gate passed", status: "passed", body: "This module has enough evidence to move forward." };
-    case "revision_required":
-      return { title: "Revision required", status: "revise", body: "At least one submission needs another pass before proceeding." };
-    case "ready_for_team":
-      return {
-        title: "Ready for team synthesis",
-        status: "ready",
-        body: params.gateRule === "all_members_complete"
-          ? "Every required member has completed the prerequisite work. The team can now consolidate."
-          : `At least ${requiredCount} members have enough progress. The team can open the shared submission.`,
-      };
-    default:
-      return {
-        title: "Progress gate",
-        status: "blocked",
-        body: params.gateRule === "all_members_complete"
-          ? "Every member must finish their part before the team can move on."
-          : `This module needs more individual evidence. Target at least ${requiredCount} members.`,
-      };
+const SCREEN_WIDTH = Dimensions.get("window").width;
+
+function nodeTypeLabel(nodeType: string): string {
+  switch (nodeType) {
+    case "video": return "Video";
+    case "quiz": return "Quiz";
+    case "text": return "Text";
+    case "file_upload": return "Upload";
+    case "project": return "Project";
+    case "npc_conversation": return "NPC";
+    case "assessment": return "Assessment";
+    default: return nodeType;
   }
 }
 
 export default function HackathonModuleScreen() {
-  const insets = useSafeAreaInsets();
   const { moduleId } = useLocalSearchParams<{ moduleId: string }>();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [module, setModule] = useState<Awaited<ReturnType<typeof getHackathonModuleDetail>> | null>(null);
-  const [problemStatement, setProblemStatement] = useState("");
-  const [customer, setCustomer] = useState("");
-  const [evidenceText, setEvidenceText] = useState("");
-  const [feedbackLoading, setFeedbackLoading] = useState(false);
-  const [feedback, setFeedback] = useState<PainPointFeedbackResult | null>(null);
-  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [nodes, setNodes] = useState<MapNode[]>([]);
+  const [completedNodeIds, setCompletedNodeIds] = useState<Set<string>>(new Set());
+  const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      if (!moduleId) return;
-      try {
-        const result = await getHackathonModuleDetail(moduleId);
-        if (!cancelled) {
-          const fallback = result ?? getPreviewModuleDetail(moduleId);
-          setModule(fallback);
-          setError(fallback ? null : "Module not found");
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const [mod, { data: { user } }] = await Promise.all([
+            getHackathonModuleDetail(moduleId!),
+            supabase.auth.getUser(),
+          ]);
+          const resolvedMod = mod ?? getPreviewModuleDetail(moduleId!);
+          if (cancelled) return;
+          setModule(resolvedMod);
+
+          if (user) {
+            const progress = await getModuleActivityProgress(moduleId!, user.id);
+            if (!cancelled) {
+              setNodes(progress.nodes);
+              setCompletedNodeIds(progress.completedNodeIds);
+              setCurrentNodeId(progress.currentNodeId);
+            }
+          }
+        } catch {
+          if (!cancelled) {
+            setModule(getPreviewModuleDetail(moduleId!));
+          }
+        } finally {
+          if (!cancelled) setLoading(false);
         }
-      } catch (err) {
-        if (!cancelled) {
-          const fallback = getPreviewModuleDetail(moduleId);
-          setModule(fallback);
-          setError(fallback ? null : err instanceof Error ? err.message : "Unable to load module");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [moduleId]);
-
-  const moduleSnapshot = useMemo(() => {
-    if (!module) return null;
-    return buildModuleProgressSnapshot({
-      memberStatuses: Array.from({ length: module.required_member_count ?? 3 }, () => "pending"),
-      workflow: {
-        scope: module.workflow_scope,
-        gate_rule: module.gate_rule,
-        review_mode: module.review_mode,
-        required_member_count: module.required_member_count,
-      },
-      teamSubmissionStatus: "not_started",
-    });
-  }, [module]);
-
-  const responsibilityCopy = getResponsibilityCopy(module?.workflow_scope ?? "individual");
-  const gateCopy = getGateCardCopy({
-    gateStatus: moduleSnapshot?.gate_status ?? "blocked",
-    gateRule: module?.gate_rule ?? "complete",
-    reviewMode: module?.review_mode ?? "auto",
-    requiredMemberCount: module?.required_member_count ?? null,
-  });
-
-  const isPainPointModule = Boolean(
-    module?.slug?.includes("pain-point") || module?.title?.toLowerCase().includes("pain point"),
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [moduleId]),
   );
-
-  async function handleFeedback() {
-    setFeedbackLoading(true);
-    setFeedbackError(null);
-    try {
-      const result = await requestPainPointFeedback(
-        buildPainPointFeedbackInput({ problemStatement, customer, evidenceText }),
-      );
-      setFeedback(result);
-    } catch (err) {
-      setFeedbackError(err instanceof Error ? err.message : "Unable to get feedback");
-    } finally {
-      setFeedbackLoading(false);
-    }
-  }
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Accent.yellow} />
+      <View style={styles.loadingRoot}>
+        <ActivityIndicator size="large" color={CYAN} />
       </View>
     );
   }
 
+  const graphWidth = SCREEN_WIDTH - Space["2xl"] * 2 - Space.md * 2;
+
+  const snapshot = module
+    ? buildModuleProgressSnapshot({
+        memberStatuses: Array.from(
+          { length: module.required_member_count ?? 3 },
+          () => "pending" as const,
+        ),
+        workflow: {
+          scope: module.workflow_scope,
+          gate_rule: module.gate_rule,
+          review_mode: module.review_mode,
+          required_member_count: module.required_member_count,
+        },
+        teamSubmissionStatus: "not_started",
+      })
+    : null;
+
+  const gateStatus = snapshot?.gate_status ?? "blocked";
+  const gateCopy =
+    gateStatus === "passed"
+      ? { title: "Gate passed", body: "This module has enough evidence to move forward.", status: "passed" as const }
+      : gateStatus === "revision_required"
+        ? { title: "Revision required", body: "At least one submission needs another pass.", status: "revise" as const }
+        : {
+            title: "Progress gate",
+            body: `${snapshot?.pending_members ?? 0} members still need progress.`,
+            status: "blocked" as const,
+          };
+
+  const responsibilityCopy =
+    module?.workflow_scope === "team"
+      ? { label: "Team synthesis required", detail: "This module is owned by the team." }
+      : module?.workflow_scope === "hybrid"
+        ? { label: "Individual work unlocks team work", detail: "Each member contributes evidence first, then the team consolidates." }
+        : { label: "Each member completes this activity", detail: "This step is individually owned so every participant builds real skill." };
+
   return (
-    <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Space.xl, paddingBottom: Space["4xl"] }]}
-        showsVerticalScrollIndicator={false}
+    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      <Pressable
+        onPress={() => router.back()}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <AppText style={styles.backText}>‹ Back</AppText>
-          </Pressable>
-          <AppText variant="bold" style={styles.title}>{module?.title ?? "Module"}</AppText>
-          <AppText style={styles.subtitle}>
-            {module?.summary ?? error ?? "This module trains a concrete customer discovery skill."}
-          </AppText>
+        <AppText style={styles.backLink}>‹ Back</AppText>
+      </Pressable>
+
+      <View style={styles.header}>
+        <AppText variant="bold" style={styles.eyebrow}>MODULE</AppText>
+        <AppText variant="bold" style={styles.title}>{module?.title ?? "Module"}</AppText>
+        <AppText style={styles.subtitle}>{module?.summary ?? ""}</AppText>
+      </View>
+
+      {/* Scope / gate badges */}
+      <View style={styles.badges}>
+        <View style={styles.badge}>
+          <AppText style={styles.badgeText}>{module?.workflow_scope ?? "individual"}</AppText>
         </View>
-
-        <ResponsibilityBanner label={responsibilityCopy.label} detail={responsibilityCopy.detail} />
-
-        <View style={styles.metaGrid}>
-          <MetaPill label="Scope" value={module?.workflow_scope ?? "individual"} />
-          <MetaPill label="Gate" value={module?.gate_rule ?? "complete"} />
-          <MetaPill label="Review" value={module?.review_mode ?? "auto"} />
-          <MetaPill label="Members" value={String(module?.required_member_count ?? 3)} />
+        <View style={styles.badge}>
+          <AppText style={styles.badgeText}>{module?.gate_rule ?? "complete"}</AppText>
         </View>
+      </View>
 
-        {moduleSnapshot ? (
-          <>
-            <ProgressGateCard title={gateCopy.title} body={gateCopy.body} status={gateCopy.status} />
-            <GlassCard style={styles.snapshotCard}>
-              <AppText style={styles.sectionLabel}>Gate snapshot</AppText>
-              <AppText style={styles.snapshotText}>
-                {moduleSnapshot.pending_members} members still need progress before the team can confidently move forward.
-              </AppText>
-            </GlassCard>
-          </>
-        ) : null}
+      {/* Node graph */}
+      {nodes.length > 0 && (
+        <View style={styles.graphCard}>
+          <JourneyNodeGraph
+            nodes={nodes}
+            completedNodeIds={completedNodeIds}
+            currentNodeId={currentNodeId}
+            width={graphWidth}
+            height={90}
+          />
+        </View>
+      )}
 
-        {isPainPointModule ? (
-          <>
-            <TeamWorkspaceSection
-              title="Problem statement"
-              description="Draft the team's pain point clearly. Then use the feedback loop to sharpen it before submission."
-              fields={[{ key: "problem-statement", label: "Pain point draft", placeholder: "Describe the specific healthcare problem your team observed.", value: problemStatement, onChangeText: setProblemStatement, multiline: true }]}
-            />
-            <TeamWorkspaceSection
-              title="Target customer"
-              description="Name the exact healthcare user segment this pain belongs to."
-              fields={[{ key: "target-customer", label: "Customer segment", placeholder: "Example: outpatient clinic managers handling insurance denials", value: customer, onChangeText: setCustomer }]}
-            />
-            <TeamWorkspaceSection
-              title="Evidence bullets"
-              description="Paste one interview fact per line."
-              fields={[{ key: "evidence-bullets", label: "Interview evidence", placeholder: "One interview observation per line", value: evidenceText, onChangeText: setEvidenceText, multiline: true }]}
-            />
-            <Pressable
-              onPress={handleFeedback}
-              disabled={feedbackLoading}
-              style={[styles.feedbackButton, feedbackLoading ? styles.feedbackButtonDisabled : null]}
-            >
-              <AppText variant="bold" style={styles.feedbackButtonText}>
-                {feedbackLoading ? "Generating feedback..." : "Get AI feedback"}
-              </AppText>
-            </Pressable>
-            {feedbackError ? <AppText style={styles.errorText}>{feedbackError}</AppText> : null}
-            {feedback ? (
-              <GlassCard variant="education" style={styles.feedbackResult}>
-                <AppText variant="bold" style={styles.resultTitle}>
-                  {getPainPointFeedbackVerdictLabel(feedback.verdict)}
-                </AppText>
-                <AppText style={styles.resultScores}>
-                  Specificity {feedback.specificityScore} · Evidence {feedback.evidenceScore} · Severity {feedback.severityScore} · Clarity {feedback.clarityScore}
-                </AppText>
-                <View style={styles.noteList}>
-                  {feedback.revisionNotes.map((note) => (
-                    <View key={note} style={styles.noteRow}>
-                      <View style={styles.noteDot} />
-                      <AppText style={styles.noteText}>{note}</AppText>
-                    </View>
-                  ))}
-                </View>
-              </GlassCard>
-            ) : null}
-          </>
+      {/* Responsibility banner + gate card */}
+      {module && (
+        <>
+          <ResponsibilityBanner
+            label={responsibilityCopy.label}
+            detail={responsibilityCopy.detail}
+          />
+          <ProgressGateCard
+            title={gateCopy.title}
+            body={gateCopy.body}
+            status={gateCopy.status}
+          />
+        </>
+      )}
+
+      {/* Activity list */}
+      <View style={styles.section}>
+        <AppText style={styles.sectionLabel}>ACTIVITIES</AppText>
+        {nodes.length === 0 ? (
+          <AppText style={{ color: WHITE40, fontSize: 13 }}>No activities configured yet.</AppText>
         ) : (
-          <GlassCard style={styles.placeholderCard}>
-            <AppText style={styles.sectionLabel}>Submission workspace</AppText>
-            <AppText variant="bold" style={styles.placeholderTitle}>Shared workspace contract is ready</AppText>
-            <AppText style={styles.placeholderBody}>
-              This module carries scope, gate, and review metadata. The next layer binds real submission records and mentor review states to this UI.
-            </AppText>
-          </GlassCard>
-        )}
-      </ScrollView>
-    </View>
-  );
-}
+          nodes.map((node) => {
+            const done = completedNodeIds.has(node.id);
+            const current = node.id === currentNodeId;
+            const locked = !done && !current;
 
-function MetaPill({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.metaPill}>
-      <AppText style={styles.metaLabel}>{label}</AppText>
-      <AppText variant="bold" style={styles.metaValue}>{value}</AppText>
-    </View>
+            return (
+              <Pressable
+                key={node.id}
+                onPress={() => {
+                  if (!locked) {
+                    router.push(`/(hackathon)/activity/${node.id}`);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.activityRow,
+                  done && styles.activityRowDone,
+                  current && styles.activityRowCurrent,
+                  locked && styles.activityRowLocked,
+                  pressed && !locked && { opacity: 0.8 },
+                ]}
+                disabled={locked}
+              >
+                <View style={styles.activityIcon}>
+                  {done && <AppText style={styles.iconDone}>✓</AppText>}
+                  {current && <View style={styles.iconDot} />}
+                  {locked && <AppText style={styles.iconLock}>🔒</AppText>}
+                </View>
+
+                <AppText
+                  variant="bold"
+                  style={[
+                    styles.activityTitle,
+                    done && { color: GREEN },
+                    current && { color: WHITE },
+                    locked && { color: WHITE40 },
+                  ]}
+                >
+                  {node.title}
+                </AppText>
+
+                <View style={styles.typePill}>
+                  <AppText style={styles.typePillText}>{nodeTypeLabel(node.node_type)}</AppText>
+                </View>
+
+                {current && <AppText style={styles.arrow}>→</AppText>}
+              </Pressable>
+            );
+          })
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PageBg.default },
-  loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: PageBg.default },
-  scrollContent: { paddingHorizontal: Space["2xl"], gap: Space.xl },
+  root: { flex: 1, backgroundColor: BG },
+  content: { padding: Space["2xl"], paddingBottom: 96, gap: Space.xl },
+  loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
+  backLink: { fontSize: 15, color: CYAN },
   header: { gap: Space.sm },
-  backText: { fontSize: 14, color: Accent.purple },
-  title: { fontSize: 28, color: ThemeText.primary },
-  subtitle: { fontSize: 15, lineHeight: 22, color: ThemeText.secondary },
-  sectionLabel: { fontSize: Type.label.fontSize, color: ThemeText.tertiary, textTransform: "uppercase", letterSpacing: 0.8 },
-  metaGrid: { flexDirection: "row", flexWrap: "wrap", gap: Space.sm },
-  metaPill: { minWidth: 120, borderRadius: Radius.lg, borderWidth: 1, borderColor: "rgba(0,0,0,0.10)", paddingHorizontal: Space.md, paddingVertical: Space.sm, gap: 2 },
-  metaLabel: { fontSize: 11, color: ThemeText.tertiary },
-  metaValue: { fontSize: 13, color: ThemeText.primary },
-  snapshotCard: { gap: Space.sm },
-  snapshotText: { fontSize: 14, lineHeight: 21, color: ThemeText.secondary },
-  feedbackResult: { gap: Space.sm },
-  feedbackButton: { alignItems: "center", justifyContent: "center", borderRadius: Radius.lg, backgroundColor: Accent.yellow, paddingHorizontal: Space.lg, paddingVertical: Space.md },
-  feedbackButtonDisabled: { opacity: 0.7 },
-  feedbackButtonText: { color: "#101418", fontSize: 15 },
-  resultTitle: { fontSize: 17, color: ThemeText.primary },
-  resultScores: { fontSize: 13, color: ThemeText.secondary },
-  noteList: { gap: Space.xs },
-  noteRow: { flexDirection: "row", gap: Space.sm, alignItems: "flex-start" },
-  noteDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Accent.purple, marginTop: 8 },
-  noteText: { flex: 1, fontSize: 13, lineHeight: 19, color: ThemeText.secondary },
-  errorText: { color: Accent.red, fontSize: 13 },
-  placeholderCard: { gap: Space.sm },
-  placeholderTitle: { fontSize: 18, color: ThemeText.primary },
-  placeholderBody: { fontSize: 14, lineHeight: 21, color: ThemeText.secondary },
+  eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2 },
+  title: { fontSize: 28, color: WHITE },
+  subtitle: { fontSize: 14, lineHeight: 22, color: WHITE75 },
+  badges: { flexDirection: "row", gap: Space.sm },
+  badge: {
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: CYAN_BORDER,
+    backgroundColor: CYAN_BG,
+    paddingHorizontal: Space.sm,
+    paddingVertical: 3,
+  },
+  badgeText: { fontSize: 10, color: CYAN, textTransform: "uppercase", letterSpacing: 1 },
+  graphCard: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: CYAN_BORDER,
+    backgroundColor: "rgba(0,240,255,0.03)",
+    padding: Space.md,
+  },
+  section: { gap: Space.sm },
+  sectionLabel: {
+    fontSize: 11,
+    color: CYAN,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    marginBottom: Space.xs,
+  },
+  activityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+    padding: Space.md,
+    gap: Space.sm,
+  },
+  activityRowDone: {
+    borderColor: "rgba(16,185,129,0.2)",
+    backgroundColor: "rgba(16,185,129,0.06)",
+  },
+  activityRowCurrent: {
+    borderColor: CYAN_BORDER,
+    backgroundColor: CYAN_BG,
+  },
+  activityRowLocked: { opacity: 0.4 },
+  activityIcon: { width: 24, alignItems: "center" },
+  iconDone: { fontSize: 13, color: GREEN },
+  iconDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: CYAN },
+  iconLock: { fontSize: 11 },
+  activityTitle: { flex: 1, fontSize: 14 },
+  typePill: {
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: CYAN_BORDER,
+    backgroundColor: CYAN_BG,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  typePillText: { fontSize: 9, color: CYAN, textTransform: "uppercase", letterSpacing: 1 },
+  arrow: { fontSize: 14, color: CYAN },
 });
