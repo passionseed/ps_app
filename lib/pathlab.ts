@@ -78,6 +78,7 @@ import {
   writeCachedPathDayBundle,
   writeCachedSeedRecommendations,
 } from "./seedRecommendations";
+import { computeAffinityProfile } from "./userSignals";
 
 export type EnrollmentWithPath = PathEnrollment & {
   path: {
@@ -1234,7 +1235,10 @@ export async function getRecommendedSeeds(options?: {
     const availableSeeds =
       options?.fallbackSeeds ??
       await getAvailableSeeds({ userId: resolvedUserId });
-    const fallback = buildFallbackRecommendations(availableSeeds);
+    const affinity = resolvedUserId
+      ? await computeAffinityProfile(resolvedUserId)
+      : null;
+    const fallback = buildFallbackRecommendations(availableSeeds, affinity);
     writeRecommendedSeedsMemoryCache(resolvedUserId, fallback);
     return fallback;
   }

@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { PathDayBundle } from "./pathlab";
 import type { SeedWithEnrollment } from "../types/seeds";
+import type { AffinityProfile } from "./userSignals";
 
 export const SEED_RECOMMENDATION_SCHEMA_VERSION = 1;
 export const SEED_RECOMMENDATION_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -68,6 +69,7 @@ export interface RecommendationSections {
 
 export function buildFallbackRecommendations(
   seeds: SeedWithEnrollment[],
+  affinity: AffinityProfile | null = null,
 ): SeedRecommendationsPayload {
   const recommendations = [...seeds]
     .sort((a, b) => {
@@ -82,7 +84,29 @@ export function buildFallbackRecommendations(
     .map<SeedRecommendation>((seed, index) => {
       const isActive = ["active", "paused"].includes(seed.enrollment?.status ?? "");
       const explored = Boolean(seed.enrollment);
-      const recommendationScore = Math.max(20, 100 - index * 7);
+
+      // Compute affinity boost from user event signals
+      let affinityBoost = 0;
+      const matchedReasonLabels: RecommendationReason[] = [];
+      if (affinity && seed.tags && seed.tags.length > 0) {
+        const seedTagSet = new Set(seed.tags);
+        for (const tag of affinity.tags) {
+          if (seedTagSet.has(tag)) {
+            affinityBoost += 12;
+            const reasonLabel = affinity.reasons[tag];
+            if (reasonLabel && matchedReasonLabels.length < 2) {
+              matchedReasonLabels.push({
+                code: "interest_match",
+                label: reasonLabel,
+                detail: `Your interest in ${tag} matches this path.`,
+              });
+            }
+          }
+        }
+        affinityBoost = Math.min(affinityBoost, 40);
+      }
+
+      const recommendationScore = Math.min(100, Math.max(20, 100 - index * 7) + affinityBoost);
 
       return {
         ...seed,
@@ -96,19 +120,22 @@ export function buildFallbackRecommendations(
             : recommendationScore >= 40
               ? "explore_more"
               : "deprioritized",
-        reasons: [
-          isActive
-            ? {
-                code: "active_path",
-                label: "Continue momentum",
-                detail: `You're already on day ${seed.enrollment?.current_day ?? 1}.`,
-              }
-            : {
-                code: "coverage_gap",
-                label: "Explore a new path",
-                detail: "Recommendation service unavailable, showing available paths.",
-              },
-        ],
+        reasons:
+          matchedReasonLabels.length > 0
+            ? matchedReasonLabels
+            : [
+                isActive
+                  ? {
+                      code: "active_path" as const,
+                      label: "Continue momentum",
+                      detail: `You're already on day ${seed.enrollment?.current_day ?? 1}.`,
+                    }
+                  : {
+                      code: "coverage_gap" as const,
+                      label: "Explore a new path",
+                      detail: "Based on available paths.",
+                    },
+              ],
         coverage: {
           daysCompleted: Math.max(0, (seed.enrollment?.current_day ?? 1) - 1),
           hasExplored: explored,
