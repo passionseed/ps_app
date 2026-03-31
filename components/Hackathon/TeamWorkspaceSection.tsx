@@ -1,6 +1,13 @@
 import { StyleSheet, TextInput, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { AppText } from "../AppText";
-import { GlassCard } from "../Glass/GlassCard";
+import { Radius, Space } from "../../lib/theme";
+
+const CYAN = "#00F0FF";
+const CYAN_BORDER = "rgba(0,240,255,0.2)";
+const WHITE = "#FFFFFF";
+const WHITE75 = "rgba(255,255,255,0.75)";
+const WHITE45 = "rgba(255,255,255,0.45)";
 
 export type WorkspaceField = {
   key: string;
@@ -21,7 +28,8 @@ export function TeamWorkspaceSection({
   fields: WorkspaceField[];
 }) {
   return (
-    <GlassCard variant="neutral" style={styles.card}>
+    <View style={styles.card}>
+      <LinearGradient colors={["#01040A", "#030B17"]} style={StyleSheet.absoluteFill} />
       <View style={styles.header}>
         <AppText variant="bold" style={styles.title}>
           {title}
@@ -31,54 +39,64 @@ export function TeamWorkspaceSection({
 
       {fields.map((field) => (
         <View key={field.key} style={styles.field}>
-          <AppText variant="bold" style={styles.fieldLabel}>
+          <AppText style={styles.fieldLabel}>
             {field.label}
           </AppText>
           <TextInput
             value={field.value}
             onChangeText={field.onChangeText}
             placeholder={field.placeholder}
-            placeholderTextColor="rgba(255,255,255,0.45)"
+            placeholderTextColor={WHITE45}
             multiline={field.multiline}
             textAlignVertical={field.multiline ? "top" : "center"}
             style={[styles.input, field.multiline ? styles.textarea : null]}
           />
         </View>
       ))}
-    </GlassCard>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    borderRadius: Radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: CYAN_BORDER,
+    padding: Space.lg,
     gap: 16,
   },
   header: {
-    gap: 8,
+    gap: 6,
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
+    color: WHITE,
   },
   description: {
-    fontSize: 14,
+    fontSize: 13,
     lineHeight: 20,
-    opacity: 0.84,
+    color: WHITE75,
   },
   field: {
     gap: 8,
   },
   fieldLabel: {
-    fontSize: 14,
+    fontSize: 10,
+    color: CYAN,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
   },
   input: {
-    borderRadius: 18,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(8,13,30,0.35)",
-    color: "#F8FAFC",
+    borderColor: "rgba(0,240,255,0.15)",
+    backgroundColor: "rgba(0,240,255,0.03)",
+    color: WHITE,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
+    fontFamily: "LibreFranklin_400Regular",
   },
   textarea: {
     minHeight: 124,

@@ -1,6 +1,7 @@
 const runtimeConfig = {
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
   supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
   expoProjectId: process.env.EXPO_PUBLIC_PROJECT_ID,
 } as const;
 
@@ -27,6 +28,7 @@ export function getSupabaseRuntimeConfig() {
   return {
     url: runtimeConfig.supabaseUrl?.trim() ?? "",
     publishableKey: runtimeConfig.supabasePublishableKey?.trim() ?? "",
+    anonKey: runtimeConfig.supabaseAnonKey?.trim() ?? "",
   };
 }
 
