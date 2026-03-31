@@ -47,6 +47,13 @@ const CARD_WIDTH = SCREEN_WIDTH - CARD_PADDING * 2 - PEEK_WIDTH - 32; // 32 for 
 
 type ModuleWithEnds = HackathonPhaseModule & { ends_at: string | null };
 
+const PLACEHOLDER_NODES = Array.from({ length: 6 }, (_, i) => ({
+  id: `placeholder-${i}`,
+  map_id: "placeholder",
+  title: "Activity",
+  node_type: "text" as const,
+}));
+
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -66,14 +73,14 @@ function ModuleCard({
 
   useEffect(() => {
     if (!isActive) return;
-    // No path_id means preview module — skip fetch, show empty graph
+    // No path_id means preview module — show placeholder graph dots
     if (!module.path_id) {
       setProgress({
         moduleId: module.id,
-        totalNodes: 0,
+        totalNodes: PLACEHOLDER_NODES.length,
         completedNodes: 0,
         currentNodeId: null,
-        nodes: [],
+        nodes: PLACEHOLDER_NODES,
         completedNodeIds: new Set(),
       });
       return;
@@ -88,10 +95,10 @@ function ModuleCard({
           if (!cancelled) {
             setProgress({
               moduleId: module.id,
-              totalNodes: 0,
+              totalNodes: PLACEHOLDER_NODES.length,
               completedNodes: 0,
               currentNodeId: null,
-              nodes: [],
+              nodes: PLACEHOLDER_NODES,
               completedNodeIds: new Set(),
             });
           }
