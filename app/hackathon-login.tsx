@@ -8,18 +8,19 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { AppText } from "../components/AppText";
-import { GlassButton } from "../components/Glass/GlassButton";
 import { useAuth } from "../lib/auth";
-import {
-  Accent,
-  PageBg,
-  Radius,
-  Space,
-  Text as ThemeText,
-  Type,
-} from "../lib/theme";
+import { Radius, Space } from "../lib/theme";
+
+const BG = "#010814";
+const CYAN = "#00F0FF";
+const CYAN_BORDER = "rgba(0,240,255,0.2)";
+const CYAN_BG = "rgba(0,240,255,0.06)";
+const WHITE = "#FFFFFF";
+const WHITE75 = "rgba(255,255,255,0.75)";
+const WHITE45 = "rgba(255,255,255,0.45)";
 
 export default function HackathonLoginScreen() {
   const { signInWithEmailPassword } = useAuth();
@@ -29,7 +30,7 @@ export default function HackathonLoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleLogin() {
-    if (loading) return;  // prevent double-submit
+    if (loading) return;
     if (!email.trim() || !password.trim()) {
       setError("Please enter your email and password.");
       return;
@@ -46,108 +47,168 @@ export default function HackathonLoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.content}>
-        <Pressable onPress={() => router.back()} style={styles.backRow}>
-          <AppText style={styles.backText}>‹ Back</AppText>
-        </Pressable>
+    <View style={styles.root}>
+      {/* Background glows */}
+      <View style={styles.glowTopLeft} pointerEvents="none" />
+      <View style={styles.glowBottomRight} pointerEvents="none" />
 
-        <AppText variant="bold" style={styles.title}>
-          Hackathon Login
-        </AppText>
-        <AppText style={styles.subtitle}>
-          Sign in with your registered hackathon email and password.
-        </AppText>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={styles.content}>
+          <Pressable
+            onPress={() => router.replace("/")}
+            style={styles.backRow}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          >
+            <AppText style={styles.backText}>‹ Back</AppText>
+          </Pressable>
 
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={ThemeText.muted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={ThemeText.muted}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+          <View style={styles.header}>
+            <AppText variant="bold" style={styles.eyebrow}>HACKATHON</AppText>
+            <AppText variant="bold" style={styles.title}>
+              Sign in
+            </AppText>
+            <AppText style={styles.subtitle}>
+              Use your registered hackathon email and password.
+            </AppText>
+          </View>
+
+          <View style={styles.form}>
+            <View style={styles.inputWrap}>
+              <LinearGradient colors={["#01040A", "#030B17"]} style={StyleSheet.absoluteFill} />
+              <AppText style={styles.inputLabel}>EMAIL</AppText>
+              <TextInput
+                style={styles.input}
+                placeholder="you@example.com"
+                placeholderTextColor={WHITE45}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+
+            <View style={styles.inputWrap}>
+              <LinearGradient colors={["#01040A", "#030B17"]} style={StyleSheet.absoluteFill} />
+              <AppText style={styles.inputLabel}>PASSWORD</AppText>
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor={WHITE45}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+            </View>
+          </View>
+
+          {error ? (
+            <AppText style={styles.errorText}>{error}</AppText>
+          ) : null}
+
+          <Pressable
+            onPress={handleLogin}
+            disabled={loading}
+            style={({ pressed }) => [styles.loginButton, loading && styles.loginButtonDisabled, pressed && { opacity: 0.85 }]}
+          >
+            <AppText variant="bold" style={styles.loginButtonText}>
+              {loading ? "Signing in..." : "Sign In →"}
+            </AppText>
+          </Pressable>
         </View>
-
-        {error ? (
-          <AppText style={styles.errorText}>{error}</AppText>
-        ) : null}
-
-        <GlassButton
-          variant="primary"
-          onPress={handleLogin}
-          loading={loading}
-          disabled={loading}
-          style={styles.loginButton}
-        >
-          Sign In
-        </GlassButton>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: PageBg.default,
+    backgroundColor: BG,
   },
+  glowTopLeft: {
+    position: "absolute",
+    left: -60,
+    top: -60,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "rgba(0,240,255,0.07)",
+  },
+  glowBottomRight: {
+    position: "absolute",
+    right: -60,
+    bottom: 80,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(123,44,191,0.1)",
+  },
+  keyboardView: { flex: 1 },
   content: {
     flex: 1,
     padding: Space["2xl"],
     paddingTop: Space["4xl"],
-    gap: Space.lg,
+    gap: Space.xl,
   },
   backRow: {
-    marginBottom: Space.sm,
+    alignSelf: "flex-start",
   },
   backText: {
     fontSize: 15,
-    color: ThemeText.secondary,
+    color: CYAN,
   },
+  header: { gap: Space.sm },
+  eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2 },
   title: {
-    fontSize: 30,
-    lineHeight: 36,
-    color: ThemeText.primary,
+    fontSize: 32,
+    lineHeight: 38,
+    color: WHITE,
   },
   subtitle: {
-    fontSize: Type.body.fontSize,
+    fontSize: 15,
     lineHeight: 22,
-    color: ThemeText.secondary,
+    color: WHITE75,
   },
   form: {
     gap: Space.md,
-    marginTop: Space.sm,
+  },
+  inputWrap: {
+    borderRadius: Radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: CYAN_BORDER,
+    paddingHorizontal: Space.lg,
+    paddingTop: Space.sm,
+    paddingBottom: Space.md,
+    gap: 4,
+  },
+  inputLabel: {
+    fontSize: 10,
+    color: CYAN,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
   },
   input: {
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.12)",  // Border.default is transparent — use literal for visible input border
-    borderRadius: Radius.lg,
-    paddingHorizontal: Space.lg,
-    paddingVertical: Space.md,
-    fontSize: Type.body.fontSize,
-    color: ThemeText.primary,
-    backgroundColor: "#fff",
+    fontSize: 16,
+    color: WHITE,
     fontFamily: "LibreFranklin_400Regular",
+    paddingVertical: 4,
   },
   errorText: {
-    color: Accent.red,
-    fontSize: 14,
+    color: "#F87171",
+    fontSize: 13,
   },
   loginButton: {
-    marginTop: Space.sm,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: CYAN_BORDER,
+    backgroundColor: CYAN_BG,
+    paddingVertical: Space.md,
+    alignItems: "center",
   },
+  loginButtonDisabled: { opacity: 0.5 },
+  loginButtonText: { color: CYAN, fontSize: 16, letterSpacing: 0.5 },
 });

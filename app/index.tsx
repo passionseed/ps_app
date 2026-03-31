@@ -316,13 +316,27 @@ export default function LandingPage() {
                 <AppText style={styles.hackathonDividerText}>or</AppText>
               </View>
 
-              <GlassButton
-                variant="secondary"
+              <Pressable
                 onPress={() => router.push("/hackathon-login")}
-                style={styles.hackathonButton}
+                style={({ pressed }) => [styles.hackathonButton, pressed && { opacity: 0.85 }]}
               >
-                🏆 {c.hackathonBtn}
-              </GlassButton>
+                <LinearGradient
+                  colors={["#01040A", "#030B17", "#010814"]}
+                  locations={[0, 0.5, 1]}
+                  style={StyleSheet.absoluteFill}
+                />
+                {/* Cyan glow left */}
+                <View style={styles.hackathonGlowLeft} pointerEvents="none" />
+                {/* Purple glow right */}
+                <View style={styles.hackathonGlowRight} pointerEvents="none" />
+                <Image
+                  source={require("../assets/HackLogo.png")}
+                  style={styles.hackathonBtnLogo}
+                  resizeMode="contain"
+                />
+                <AppText style={styles.hackathonBtnText}>{c.hackathonBtn}</AppText>
+                <AppText style={styles.hackathonBtnArrow}>→</AppText>
+              </Pressable>
             </View>
 
             {/* Features */}
@@ -529,7 +543,50 @@ const styles = StyleSheet.create({
     color: ThemeText.muted,
   },
   hackathonButton: {
-    borderColor: Accent.purple,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: Radius.lg,
+    overflow: "hidden",
     borderWidth: 1,
+    borderColor: "rgba(0,240,255,0.25)",
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
+    gap: Space.sm,
+  },
+  hackathonGlowLeft: {
+    position: "absolute",
+    left: -20,
+    top: -20,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(0,240,255,0.12)",
+  },
+  hackathonGlowRight: {
+    position: "absolute",
+    right: -20,
+    top: -20,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(123,44,191,0.15)",
+  },
+  hackathonBtnLogo: {
+    width: 55,
+    height: 55,
+  },
+  hackathonBtnText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#FFFFFF",
+    fontFamily: "LibreFranklin_700Bold",
+    letterSpacing: 0.5,
+  },
+  hackathonBtnArrow: {
+    fontSize: 14,
+    color: "#00F0FF",
+    textShadowColor: "rgba(0,240,255,0.8)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
   },
 });
