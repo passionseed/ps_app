@@ -19,14 +19,15 @@ VALUES (
 -- 1. SEED RECORD
 -- ============================================================================
 
-INSERT INTO public.seeds (id, map_id, title, description, seed_type, created_at)
+INSERT INTO public.seeds (id, map_id, title, description, seed_type, created_at, visibility)
 VALUES (
   'f989a28a-1c4f-42b6-929f-fe00bc77f533',
   '00000000-0000-0000-0000-000000000001',
   'Web Developer: Ship Your First Project',
   'A 5-day immersive experience to discover if web development is your career fit. Build with AI tools, ship a real project, and decide your future.',
   'pathlab',
-  NOW()
+  NOW(),
+  'visible'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================

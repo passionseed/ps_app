@@ -9,7 +9,7 @@ const pathScreenSource = readFileSync(
 describe("pathlab loading screen", () => {
   it("uses the shared animated splash instead of the green activity spinner", () => {
     expect(pathScreenSource).toContain(
-      'import { AnimatedSplash } from "../components/AnimatedSplash";',
+      'import { AnimatedSplash } from "../../components/AnimatedSplash";',
     );
     expect(pathScreenSource).toContain("if (loading) {");
     expect(pathScreenSource).toContain("return <AnimatedSplash />;");
