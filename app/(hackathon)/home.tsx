@@ -18,7 +18,10 @@ import {
   getHackathonJourneyModules,
   getModuleActivityProgress,
 } from "../../lib/hackathonProgram";
-import { getPreviewHackathonProgramHome } from "../../lib/hackathonProgramPreview";
+import {
+  getPreviewHackathonProgramHome,
+  getPreviewJourneyModules,
+} from "../../lib/hackathonProgramPreview";
 import { Radius, Space } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
 import type {
@@ -156,9 +159,15 @@ export default function HackathonHomeScreen() {
         JSON.stringify(home) === JSON.stringify(getEmptyHackathonProgramHome());
 
       if (isEmpty || !home.program || home.phases.length === 0) {
-        setData(getPreviewHackathonProgramHome());
+        const previewHome = getPreviewHackathonProgramHome();
+        setData(previewHome);
         setIsPreview(true);
-        setModules([]);
+        const previewPhase =
+          previewHome.phases.find((p) => p.id === previewHome.enrollment?.current_phase_id) ??
+          previewHome.phases[0];
+        if (previewPhase) {
+          setModules(getPreviewJourneyModules(previewPhase.id));
+        }
       } else {
         setData(home);
         setIsPreview(false);
@@ -171,9 +180,15 @@ export default function HackathonHomeScreen() {
         }
       }
     } catch {
-      setData(getPreviewHackathonProgramHome());
+      const previewHome = getPreviewHackathonProgramHome();
+      setData(previewHome);
       setIsPreview(true);
-      setModules([]);
+      const previewPhase =
+        previewHome.phases.find((p) => p.id === previewHome.enrollment?.current_phase_id) ??
+        previewHome.phases[0];
+      if (previewPhase) {
+        setModules(getPreviewJourneyModules(previewPhase.id));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
