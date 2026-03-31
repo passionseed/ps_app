@@ -271,6 +271,7 @@ export default function ProfileScreen() {
   const [activityEvents, setActivityEvents] = useState<UserEvent[]>([]);
   const [portfolioCount, setPortfolioCount] = useState(0);
   const [savedProgramsCount, setSavedProgramsCount] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     if (!user?.id) return;
 
@@ -381,6 +382,18 @@ export default function ProfileScreen() {
     await supabase.auth.signOut();
     router.replace("/");
   };
+
+  // Check if current user has admin role
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user?.id]);
 
   const handleCreateProfile = () => {
     router.replace("/");
@@ -736,6 +749,26 @@ export default function ProfileScreen() {
               />
             )}
           </View>
+
+          {isAdmin && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionRow,
+                pressed && styles.actionRowPressed,
+                { borderTopWidth: 1, borderTopColor: "#eef0f5", marginTop: 8 },
+              ]}
+              onPress={() => router.push("/admin/seeds" as any)}
+            >
+              <Text style={styles.actionRowEmoji}>⚙️</Text>
+              <View style={styles.actionRowContent}>
+                <Text style={styles.actionRowTitle}>Admin: Seed Editor</Text>
+                <Text style={styles.actionRowSubtitle}>
+                  Edit tags, visibility, and slogans
+                </Text>
+              </View>
+              <Text style={styles.actionRowArrow}>›</Text>
+            </Pressable>
+          )}
 
           <Pressable
             style={({ pressed }) => [
