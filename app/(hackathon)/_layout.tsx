@@ -38,6 +38,10 @@ export default function HackathonLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="phase/[phaseId]" options={{ href: null }} />
+      <Tabs.Screen name="module/[moduleId]" options={{ href: null }} />
+      <Tabs.Screen name="activity/[nodeId]" options={{ href: null }} />
+      <Tabs.Screen name="reflection/[phaseId]" options={{ href: null }} />
     </Tabs>
   );
 }
