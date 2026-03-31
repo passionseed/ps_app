@@ -502,7 +502,10 @@ export default function SeedDetailScreen() {
         scrollEventThrottle={16}
       >
         {/* Spacer height + hero negative margin = start of card at (cover height − overlap) */}
-        <View style={[s.coverSpacer, { height: COVER_IMAGE_HEIGHT }]} />
+        <View style={[s.coverSpacer, { height: COVER_IMAGE_HEIGHT - HERO_CARD_OVERLAP }]} />
+
+        {/* Single solid background wrapper — covers the image from the overlap point down */}
+        <View style={s.contentBackground}>
 
         {/* Content card with title */}
         <Animated.View
@@ -688,6 +691,7 @@ export default function SeedDetailScreen() {
         )}
 
         <View style={{ height: 40 }} />
+        </View>{/* end contentBackground */}
       </Animated.ScrollView>
 
       {/* CTA */}
@@ -775,6 +779,12 @@ const s = StyleSheet.create({
   coverSpacer: {
     // Spacer in scroll content to push content below cover image
   },
+  contentBackground: {
+    backgroundColor: "#F8F9FA",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    overflow: "hidden",
+  },
 
   // Header - overlays cover image
   header: {
@@ -836,9 +846,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 16,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    marginTop: -HERO_CARD_OVERLAP,
   },
   seedTitle: {
     fontSize: 28,
