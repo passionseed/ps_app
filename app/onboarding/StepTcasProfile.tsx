@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { saveTcasProfile } from "../../lib/onboarding";
 
 const BUDGET_OPTIONS = [
@@ -167,7 +167,7 @@ export default function StepTcasProfile({ userId, onComplete }: Props) {
         disabled={saving}
       >
         {saving ? (
-          <ActivityIndicator color="#111" />
+          <PathLabSkiaLoader size="tiny" />
         ) : (
           <Text style={styles.saveBtnText}>บันทึก</Text>
         )}

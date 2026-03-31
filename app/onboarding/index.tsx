@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, StyleSheet, ActivityIndicator } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../../lib/auth";
 import { getOnboardingState } from "../../lib/onboarding";
@@ -11,6 +11,7 @@ import StepCareers from "./StepCareers";
 import StepTcasProfile from "./StepTcasProfile";
 import StepSettings from "./StepSettings";
 import { PageBg, Accent } from "../../lib/theme";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 
 const BASE_STEPS: OnboardingStep[] = ['profile', 'chat', 'interests', 'careers', 'settings'];
 const HIGH_SCHOOL_STEPS: OnboardingStep[] = ['profile', 'chat', 'interests', 'careers', 'tcas_profile', 'settings'];
@@ -44,7 +45,7 @@ export default function OnboardingScreen() {
     return (
       <View style={styles.loading}>
         <StatusBar style="dark" />
-        <ActivityIndicator color={Accent.yellow} size="large" />
+        <PathLabSkiaLoader size="large" />
       </View>
     );
   }
