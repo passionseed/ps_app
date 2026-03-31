@@ -64,21 +64,26 @@ function RootLayout() {
     const [isNavReady, setIsNavReady] = useState(false);
 
     useEffect(() => {
-      console.log("[RootNavigator] Effect running:", { loading, hasSession: !!session, isGuest });
+      console.log("[RootNavigator] Effect running:", { loading, hasSession: !!session, isGuest, isHackathon });
       if (loading) return;
 
       // Log app opened event
       logAppOpened().catch(() => {});
 
-      if (!session && !isGuest) {
-        // Not logged in - show landing page
-        console.log("[RootNavigator] Not logged in, staying on index");
+      if (!session && !isGuest && !isHackathon) {
+        // Not logged in - go to landing page
+        // Only replace if already nav-ready (i.e. sign-out), not on initial load
+        // (on initial load, index is already the current route)
+        console.log("[RootNavigator] Not logged in, navigating to index");
         setProfile(null);
+        if (isNavReady) {
+          router.replace("/");
+        }
         setIsNavReady(true);
         return;
       }
 
-      if (isHackathon && session) {
+      if (isHackathon) {
         console.log("[RootNavigator] Hackathon mode, going to hackathon home");
         setProfile(null);
         router.replace("/(hackathon)/home");
@@ -158,6 +163,7 @@ function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="hackathon-login" />
         <Stack.Screen name="(hackathon)" />
+        <Stack.Screen name="(hackathon)/activity/[nodeId]" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="seed/[id]" options={{ presentation: "card" }} />
