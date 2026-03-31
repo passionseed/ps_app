@@ -66,13 +66,37 @@ function ModuleCard({
 
   useEffect(() => {
     if (!isActive) return;
+    // No path_id means preview module — skip fetch, show empty graph
+    if (!module.path_id) {
+      setProgress({
+        moduleId: module.id,
+        totalNodes: 0,
+        completedNodes: 0,
+        currentNodeId: null,
+        nodes: [],
+        completedNodeIds: new Set(),
+      });
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          if (!cancelled) {
+            setProgress({
+              moduleId: module.id,
+              totalNodes: 0,
+              completedNodes: 0,
+              currentNodeId: null,
+              nodes: [],
+              completedNodeIds: new Set(),
+            });
+          }
+          return;
+        }
         const result = await getModuleActivityProgress(module.id, user.id);
         if (!cancelled) {
           setProgress({
@@ -85,18 +109,33 @@ function ModuleCard({
           });
         }
       } catch {
-        // leave progress null — card renders without progress
+        if (!cancelled) {
+          setProgress({
+            moduleId: module.id,
+            totalNodes: 0,
+            completedNodes: 0,
+            currentNodeId: null,
+            nodes: [],
+            completedNodeIds: new Set(),
+          });
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [isActive, module.id]);
+  }, [isActive, module.id, module.path_id]);
 
   const pct =
     progress && progress.totalNodes > 0
       ? Math.round((progress.completedNodes / progress.totalNodes) * 100)
       : null;
+
+  const progressLabel = progress === null
+    ? "Loading..."
+    : progress.totalNodes === 0
+      ? "No activities yet"
+      : `${pct}% complete`;
 
   return (
     <Pressable
@@ -108,11 +147,9 @@ function ModuleCard({
           <AppText variant="bold" style={styles.cardTitle}>
             {module.title}
           </AppText>
-          {pct !== null ? (
-            <AppText style={styles.cardProgress}>{pct}% complete</AppText>
-          ) : (
-            <AppText style={[styles.cardProgress, { opacity: 0.3 }]}>Loading...</AppText>
-          )}
+          <AppText style={[styles.cardProgress, progress === null && { opacity: 0.3 }]}>
+            {progressLabel}
+          </AppText>
         </View>
         <AppText style={styles.cardDate}>{formatDate(module.ends_at)}</AppText>
       </View>
