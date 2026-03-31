@@ -42,6 +42,7 @@ const COPY = {
     googleBtn: "เข้าสู่ระบบด้วย Google",
     appleBtn: "เข้าสู่ระบบด้วย Apple",
     guestBtn: "ข้าม",
+    hackathonBtn: "เข้าสู่ระบบ Hackathon",
     features: [
       { icon: "🎯", text: "ภารกิจรายวัน", subtext: "30 นาที" },
       { icon: "📝", text: "คิดกับตัวเอง", subtext: "ทุกวัน" },
@@ -57,6 +58,7 @@ const COPY = {
     googleBtn: "Continue with Google",
     appleBtn: "Sign in with Apple",
     guestBtn: "Explore without signing in",
+    hackathonBtn: "Hackathon Login",
     features: [
       { icon: "🎯", text: "Daily Tasks", subtext: "30 min" },
       { icon: "📝", text: "Daily Reflection", subtext: "" },
@@ -309,6 +311,18 @@ export default function LandingPage() {
               >
                 {c.guestBtn}
               </GlassButton>
+
+              <View style={styles.hackathonDivider}>
+                <AppText style={styles.hackathonDividerText}>or</AppText>
+              </View>
+
+              <GlassButton
+                variant="secondary"
+                onPress={() => router.push("/hackathon-login")}
+                style={styles.hackathonButton}
+              >
+                🏆 {c.hackathonBtn}
+              </GlassButton>
             </View>
 
             {/* Features */}
@@ -505,5 +519,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 24,
     lineHeight: 16,
+  },
+  hackathonDivider: {
+    alignItems: "center",
+    marginVertical: Space.xs,
+  },
+  hackathonDividerText: {
+    fontSize: 12,
+    color: ThemeText.muted,
+  },
+  hackathonButton: {
+    borderColor: Accent.purple,
+    borderWidth: 1,
   },
 });
