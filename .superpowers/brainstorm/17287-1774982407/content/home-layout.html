@@ -1,0 +1,133 @@
+<h2>Hackathon Home — Journey Layout</h2>
+<p class="subtitle">The current phases/timeline is replaced. Which layout feels right for the journey module list?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#010814;border-radius:8px;padding:16px;font-family:sans-serif;color:#fff;min-height:320px;">
+        <!-- Header -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:9px;color:#00F0FF;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">SUPER SEED HACKATHON</div>
+          <div style="font-size:18px;font-weight:700;margin-bottom:2px;">Your Hackathon Journey</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.5);">Team: Alpha Squad · Phase 2 of 4</div>
+        </div>
+        <!-- Progress bar -->
+        <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:4px;margin-bottom:16px;">
+          <div style="background:#00F0FF;width:45%;height:4px;border-radius:4px;"></div>
+        </div>
+        <!-- Module list -->
+        <div style="font-size:9px;color:#00F0FF;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">MODULES</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#10B981;flex-shrink:0;"></div>
+            <div style="flex:1;">
+              <div style="font-size:11px;font-weight:700;color:#10B981;">Problem Discovery</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);">Completed · 3 activities</div>
+            </div>
+            <div style="font-size:11px;color:#10B981;">✓</div>
+          </div>
+          <div style="background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.2);border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#00F0FF;flex-shrink:0;"></div>
+            <div style="flex:1;">
+              <div style="font-size:11px;font-weight:700;color:#00F0FF;">Customer Interviews</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);">In progress · 2 of 4 done</div>
+            </div>
+            <div style="font-size:11px;color:#00F0FF;">→</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px;opacity:0.5;">
+            <div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.2);flex-shrink:0;"></div>
+            <div style="flex:1;">
+              <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);">Pain Point Synthesis</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.3);">Locked</div>
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.2);">🔒</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Linear Module List</h3>
+      <p>Home shows a flat list of all journey modules with progress state. Simple, scannable. Team card + progress bar at top.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#010814;border-radius:8px;padding:16px;font-family:sans-serif;color:#fff;min-height:320px;">
+        <!-- Header -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:9px;color:#00F0FF;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">SUPER SEED HACKATHON</div>
+          <div style="font-size:18px;font-weight:700;margin-bottom:2px;">Your Hackathon Journey</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.5);">Team: Alpha Squad</div>
+        </div>
+        <!-- Current module hero -->
+        <div style="background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.2);border-radius:10px;padding:14px;margin-bottom:10px;position:relative;overflow:hidden;">
+          <div style="position:absolute;left:-20px;top:-20px;width:80px;height:80px;border-radius:50%;background:rgba(0,240,255,0.08);"></div>
+          <div style="font-size:8px;color:#00F0FF;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">NOW</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:3px;">Customer Interviews</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.6);margin-bottom:8px;">2 of 4 activities done · Team scope</div>
+          <div style="background:#00F0FF;border-radius:20px;padding:5px 12px;display:inline-block;font-size:9px;font-weight:700;color:#010814;">Continue →</div>
+        </div>
+        <!-- Up next strip -->
+        <div style="font-size:8px;color:rgba(255,255,255,0.4);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">UP NEXT</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:8px;display:flex;align-items:center;gap:8px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.3);">3</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);">Pain Point Synthesis</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:8px;display:flex;align-items:center;gap:8px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.3);">4</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4);">Solution Ideation</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Current + Up Next</h3>
+      <p>Hero card shows the active module prominently with a "Continue" CTA. Below it, a compact strip of upcoming modules. Past modules collapsed/hidden.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#010814;border-radius:8px;padding:16px;font-family:sans-serif;color:#fff;min-height:320px;">
+        <!-- Header -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:9px;color:#00F0FF;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">SUPER SEED HACKATHON</div>
+          <div style="font-size:18px;font-weight:700;margin-bottom:2px;">Your Hackathon Journey</div>
+        </div>
+        <!-- Phase tabs -->
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.4);">Phase 1 ✓</div>
+          <div style="background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.3);border-radius:20px;padding:4px 10px;font-size:9px;color:#00F0FF;font-weight:700;">Phase 2</div>
+          <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:20px;padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.25);">Phase 3</div>
+          <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:20px;padding:4px 10px;font-size:9px;color:rgba(255,255,255,0.25);">Phase 4</div>
+        </div>
+        <!-- Module list for active phase -->
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:10px;display:flex;align-items:center;gap:8px;">
+            <div style="width:20px;height:20px;border-radius:50%;background:rgba(16,185,129,0.2);display:flex;align-items:center;justify-content:center;font-size:9px;color:#10B981;font-weight:700;flex-shrink:0;">✓</div>
+            <div style="font-size:10px;font-weight:700;color:#10B981;">Problem Discovery</div>
+          </div>
+          <div style="background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.25);border-radius:8px;padding:10px;display:flex;align-items:center;gap:8px;">
+            <div style="width:20px;height:20px;border-radius:50%;background:rgba(0,240,255,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;color:#00F0FF;font-weight:700;flex-shrink:0;">2</div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:#00F0FF;">Customer Interviews</div>
+              <div style="font-size:8px;color:rgba(255,255,255,0.4);">2 of 4 activities</div>
+            </div>
+          </div>
+          <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px;display:flex;align-items:center;gap:8px;opacity:0.4;">
+            <div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,0.3);flex-shrink:0;">3</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.3);">Pain Point Synthesis</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Phase Tabs + Module List</h3>
+      <p>Phases shown as horizontal pill tabs. Selected phase reveals its modules below. Keeps phase awareness while focusing on modules.</p>
+    </div>
+  </div>
+
+</div>

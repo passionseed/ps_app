@@ -1,6 +1,19 @@
 import { StyleSheet, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { AppText } from "../AppText";
-import { GlassCard } from "../Glass/GlassCard";
+import { Radius, Space } from "../../lib/theme";
+
+const CYAN = "#00F0FF";
+const CYAN_BORDER = "rgba(0,240,255,0.2)";
+const WHITE = "#FFFFFF";
+const WHITE75 = "rgba(255,255,255,0.75)";
+
+const STATUS_COLORS: Record<string, string> = {
+  passed: "#10B981",
+  ready: "#10B981",
+  revise: "#F59E0B",
+  blocked: "rgba(255,255,255,0.4)",
+};
 
 export function ProgressGateCard({
   title,
@@ -11,26 +24,34 @@ export function ProgressGateCard({
   body: string;
   status: string;
 }) {
+  const statusColor = STATUS_COLORS[status] ?? CYAN;
+
   return (
-    <GlassCard variant="neutral" style={styles.card}>
+    <View style={styles.card}>
+      <LinearGradient colors={["#01040A", "#030B17"]} style={StyleSheet.absoluteFill} />
       <View style={styles.header}>
         <AppText variant="bold" style={styles.title}>
           {title}
         </AppText>
-        <View style={styles.statusPill}>
-          <AppText variant="bold" style={styles.statusText}>
+        <View style={[styles.statusPill, { borderColor: `${statusColor}40`, backgroundColor: `${statusColor}10` }]}>
+          <AppText variant="bold" style={[styles.statusText, { color: statusColor }]}>
             {status}
           </AppText>
         </View>
       </View>
       <AppText style={styles.body}>{body}</AppText>
-    </GlassCard>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: 12,
+    borderRadius: Radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: CYAN_BORDER,
+    padding: Space.lg,
+    gap: Space.md,
   },
   header: {
     flexDirection: "row",
@@ -40,21 +61,23 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 18,
+    fontSize: 17,
+    color: WHITE,
   },
   statusPill: {
     borderRadius: 999,
-    backgroundColor: "rgba(191,255,0,0.14)",
+    borderWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 5,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 10,
     textTransform: "uppercase",
+    letterSpacing: 1,
   },
   body: {
-    fontSize: 14,
+    fontSize: 13,
     lineHeight: 20,
-    opacity: 0.86,
+    color: WHITE75,
   },
 });

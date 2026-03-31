@@ -267,3 +267,15 @@ export function getPreviewModuleDetail(
 ): HackathonPhaseModule | null {
   return previewModules.get(moduleId) ?? null;
 }
+
+export function getPreviewJourneyModules(
+  phaseId: string,
+): Array<HackathonPhaseModule & { ends_at: string | null }> {
+  const detail = previewPhaseDetails[phaseId];
+  if (!detail) return [];
+  const phase = previewPhases.find((p) => p.id === phaseId) ?? null;
+  const endsAt = phase?.ends_at ?? null;
+  return detail.playlists
+    .flatMap((playlist) => playlist.modules)
+    .map((m) => ({ ...m, ends_at: endsAt }));
+}

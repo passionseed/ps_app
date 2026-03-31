@@ -1,0 +1,106 @@
+<h2>Module Carousel — Top Card</h2>
+<p class="subtitle">Swipeable cards with chevrons, peek of next card, activity node graph inside</p>
+
+<div class="mockup">
+  <div class="mockup-header">Hackathon Home — Module Carousel</div>
+  <div class="mockup-body" style="background:#010814;padding:20px;border-radius:0 0 8px 8px;">
+
+    <!-- Page title -->
+    <div style="font-family:sans-serif;margin-bottom:16px;">
+      <div style="font-size:11px;color:#00F0FF;letter-spacing:2px;text-transform:uppercase;font-family:sans-serif;margin-bottom:4px;">SUPER SEED HACKATHON</div>
+      <div style="font-size:22px;font-weight:700;color:#fff;font-family:sans-serif;">Your Journey</div>
+    </div>
+
+    <!-- Carousel row: chevron + card + peek -->
+    <div style="display:flex;align-items:center;gap:8px;overflow:hidden;">
+
+      <!-- Left chevron -->
+      <div style="font-size:24px;color:rgba(0,240,255,0.4);flex-shrink:0;cursor:pointer;padding:4px;">‹</div>
+
+      <!-- Active card -->
+      <div style="flex:1;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.2);border-radius:14px;padding:16px;position:relative;overflow:hidden;min-width:0;">
+
+        <!-- Glow -->
+        <div style="position:absolute;left:-30px;top:-30px;width:120px;height:120px;border-radius:50%;background:rgba(0,240,255,0.07);pointer-events:none;"></div>
+
+        <!-- Card header row -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;font-family:sans-serif;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#fff;">Ideation</div>
+            <div style="font-size:10px;color:#00F0FF;margin-top:2px;">20% complete</div>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4);">12/4</div>
+        </div>
+
+        <!-- Activity node graph -->
+        <svg width="100%" height="110" viewBox="0 0 260 110" style="display:block;margin-bottom:8px;">
+          <!-- Completed path lines -->
+          <line x1="30" y1="80" x2="70" y2="45" stroke="#10B981" stroke-width="1.5" stroke-dasharray="none" opacity="0.6"/>
+          <line x1="70" y1="45" x2="110" y2="65" stroke="#10B981" stroke-width="1.5" opacity="0.6"/>
+
+          <!-- Dashed future lines -->
+          <line x1="110" y1="65" x2="150" y2="35" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-dasharray="4,4"/>
+          <line x1="150" y1="35" x2="185" y2="60" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-dasharray="4,4"/>
+          <line x1="185" y1="60" x2="220" y2="40" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-dasharray="4,4"/>
+          <line x1="185" y1="60" x2="215" y2="80" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-dasharray="4,4"/>
+
+          <!-- Node: completed (green filled) -->
+          <circle cx="30" cy="80" r="8" fill="#10B981" opacity="0.9"/>
+          <!-- team icon cross -->
+          <line x1="70" y1="38" x2="70" y2="52" stroke="#10B981" stroke-width="1.5"/>
+          <line x1="63" y1="45" x2="77" y2="45" stroke="#10B981" stroke-width="1.5"/>
+          <circle cx="70" cy="45" r="9" fill="none" stroke="#10B981" stroke-width="1.5" opacity="0.8"/>
+
+          <!-- Node: current (cyan glow) -->
+          <circle cx="110" cy="65" r="10" fill="rgba(0,240,255,0.15)" stroke="#00F0FF" stroke-width="2"/>
+          <circle cx="110" cy="65" r="4" fill="#00F0FF"/>
+
+          <!-- Counter label -->
+          <text x="22" y="98" fill="rgba(255,255,255,0.5)" font-size="9" font-family="sans-serif">2/3</text>
+
+          <!-- Future nodes (dim) -->
+          <circle cx="150" cy="35" r="8" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+          <line x1="150" y1="28" x2="150" y2="42" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
+          <line x1="143" y1="35" x2="157" y2="35" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
+
+          <circle cx="185" cy="60" r="8" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+          <line x1="185" y1="53" x2="185" y2="67" stroke="rgba(255,255,255,0.15)" stroke-width="1.2"/>
+          <line x1="178" y1="60" x2="192" y2="60" stroke="rgba(255,255,255,0.15)" stroke-width="1.2"/>
+
+          <circle cx="220" cy="40" r="7" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+          <circle cx="215" cy="80" r="7" fill="none" stroke="rgba(245,158,11,0.5)" stroke-width="1.5"/>
+          <circle cx="215" cy="80" r="3" fill="rgba(245,158,11,0.6)"/>
+        </svg>
+
+        <!-- Progress bar -->
+        <div style="background:rgba(255,255,255,0.07);border-radius:4px;height:3px;">
+          <div style="background:#00F0FF;width:20%;height:3px;border-radius:4px;"></div>
+        </div>
+      </div>
+
+      <!-- Right chevron + peek of next card -->
+      <div style="display:flex;align-items:center;gap:0;flex-shrink:0;">
+        <div style="font-size:24px;color:rgba(0,240,255,0.5);padding:4px;cursor:pointer;">›</div>
+        <!-- Peek -->
+        <div style="width:28px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;height:130px;overflow:hidden;opacity:0.6;">
+          <div style="padding:8px 6px;">
+            <div style="font-size:7px;color:rgba(255,255,255,0.3);font-family:sans-serif;font-weight:700;">INT</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Dot indicators -->
+    <div style="display:flex;justify-content:center;gap:6px;margin-top:12px;">
+      <div style="width:6px;height:6px;border-radius:50%;background:#00F0FF;"></div>
+      <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2);"></div>
+      <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2);"></div>
+      <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2);"></div>
+    </div>
+
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Each card = one module. The node graph inside shows activities and completion state. Left/right chevrons navigate. Right edge shows a peek of the next card.</p>
+<p class="subtitle">Does this match your sketch? Let me know what to adjust — node style, card content, proportions, etc.</p>

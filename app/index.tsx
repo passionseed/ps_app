@@ -42,6 +42,7 @@ const COPY = {
     googleBtn: "เข้าสู่ระบบด้วย Google",
     appleBtn: "เข้าสู่ระบบด้วย Apple",
     guestBtn: "ข้าม",
+    hackathonBtn: "เข้าสู่ระบบ Hackathon",
     features: [
       { icon: "🎯", text: "ภารกิจรายวัน", subtext: "30 นาที" },
       { icon: "📝", text: "คิดกับตัวเอง", subtext: "ทุกวัน" },
@@ -57,6 +58,7 @@ const COPY = {
     googleBtn: "Continue with Google",
     appleBtn: "Sign in with Apple",
     guestBtn: "Explore without signing in",
+    hackathonBtn: "Hackathon Login",
     features: [
       { icon: "🎯", text: "Daily Tasks", subtext: "30 min" },
       { icon: "📝", text: "Daily Reflection", subtext: "" },
@@ -309,6 +311,32 @@ export default function LandingPage() {
               >
                 {c.guestBtn}
               </GlassButton>
+
+              <View style={styles.hackathonDivider}>
+                <AppText style={styles.hackathonDividerText}>or</AppText>
+              </View>
+
+              <Pressable
+                onPress={() => router.push("/hackathon-login")}
+                style={({ pressed }) => [styles.hackathonButton, pressed && { opacity: 0.85 }]}
+              >
+                <LinearGradient
+                  colors={["#01040A", "#030B17", "#010814"]}
+                  locations={[0, 0.5, 1]}
+                  style={StyleSheet.absoluteFill}
+                />
+                {/* Cyan glow left */}
+                <View style={styles.hackathonGlowLeft} pointerEvents="none" />
+                {/* Purple glow right */}
+                <View style={styles.hackathonGlowRight} pointerEvents="none" />
+                <Image
+                  source={require("../assets/HackLogo.png")}
+                  style={styles.hackathonBtnLogo}
+                  resizeMode="contain"
+                />
+                <AppText style={styles.hackathonBtnText}>{c.hackathonBtn}</AppText>
+                <AppText style={styles.hackathonBtnArrow}>→</AppText>
+              </Pressable>
             </View>
 
             {/* Features */}
@@ -505,5 +533,60 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 24,
     lineHeight: 16,
+  },
+  hackathonDivider: {
+    alignItems: "center",
+    marginVertical: Space.xs,
+  },
+  hackathonDividerText: {
+    fontSize: 12,
+    color: ThemeText.muted,
+  },
+  hackathonButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: Radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(0,240,255,0.25)",
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
+    gap: Space.sm,
+  },
+  hackathonGlowLeft: {
+    position: "absolute",
+    left: -20,
+    top: -20,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(0,240,255,0.12)",
+  },
+  hackathonGlowRight: {
+    position: "absolute",
+    right: -20,
+    top: -20,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(123,44,191,0.15)",
+  },
+  hackathonBtnLogo: {
+    width: 55,
+    height: 55,
+  },
+  hackathonBtnText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#FFFFFF",
+    fontFamily: "LibreFranklin_700Bold",
+    letterSpacing: 0.5,
+  },
+  hackathonBtnArrow: {
+    fontSize: 14,
+    color: "#00F0FF",
+    textShadowColor: "rgba(0,240,255,0.8)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
   },
 });

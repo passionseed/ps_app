@@ -1,0 +1,5 @@
+{"type":"server-started","port":56583,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:56583","screen_dir":"/Users/pine/Documents/app_ps/ps_app/.worktrees/hackathon-mode/.superpowers/brainstorm/17287-1774982407/content","state_dir":"/Users/pine/Documents/app_ps/ps_app/.worktrees/hackathon-mode/.superpowers/brainstorm/17287-1774982407/state"}
+{"type":"screen-added","file":"/Users/pine/Documents/app_ps/ps_app/.worktrees/hackathon-mode/.superpowers/brainstorm/17287-1774982407/content/home-layout.html"}
+{"type":"screen-added","file":"/Users/pine/Documents/app_ps/ps_app/.worktrees/hackathon-mode/.superpowers/brainstorm/17287-1774982407/content/module-carousel.html"}
+{"type":"screen-added","file":"/Users/pine/Documents/app_ps/ps_app/.worktrees/hackathon-mode/.superpowers/brainstorm/17287-1774982407/content/module-detail.html"}
+{"type":"server-stopped","reason":"idle timeout"}

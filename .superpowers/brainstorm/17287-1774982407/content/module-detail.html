@@ -1,0 +1,128 @@
+<h2>Module Detail Screen</h2>
+<p class="subtitle">After tapping a carousel card — shows the activity list for that module</p>
+
+<div class="split">
+
+  <div class="mockup">
+    <div class="mockup-header">Option A — Vertical activity list</div>
+    <div class="mockup-body" style="background:#010814;padding:16px;border-radius:0 0 8px 8px;font-family:sans-serif;">
+      <!-- Back -->
+      <div style="font-size:12px;color:#00F0FF;margin-bottom:12px;">‹ Back</div>
+      <!-- Header -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:9px;color:#00F0FF;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">MODULE</div>
+        <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;">Customer Interviews</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5;">Each member conducts 3 real customer interviews and logs key insights.</div>
+      </div>
+      <!-- Scope badge -->
+      <div style="display:flex;gap:6px;margin-bottom:16px;">
+        <div style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);border-radius:20px;padding:3px 10px;font-size:9px;color:#00F0FF;">Individual</div>
+        <div style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);border-radius:20px;padding:3px 10px;font-size:9px;color:#00F0FF;">2 of 4 done</div>
+      </div>
+      <!-- Activity list -->
+      <div style="font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">ACTIVITIES</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <!-- Done -->
+        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="font-size:12px;">✓</span>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px;font-weight:700;color:#10B981;">Intro: Why interviews matter</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.4);">Video · 5 min</div>
+          </div>
+        </div>
+        <!-- Done -->
+        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="font-size:12px;">✓</span>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px;font-weight:700;color:#10B981;">Practice interview script</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.4);">NPC conversation · 10 min</div>
+          </div>
+        </div>
+        <!-- Current -->
+        <div style="background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.25);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(0,240,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#00F0FF;"></div>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px;font-weight:700;color:#fff;">Log interview evidence</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.4);">Submission · Team</div>
+          </div>
+          <div style="font-size:11px;color:#00F0FF;">→</div>
+        </div>
+        <!-- Locked -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;opacity:0.4;">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="font-size:11px;">🔒</span>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);">Synthesis quiz</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.3);">Quiz · Locked</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Option B — Node graph + list below</div>
+    <div class="mockup-body" style="background:#010814;padding:16px;border-radius:0 0 8px 8px;font-family:sans-serif;">
+      <!-- Back -->
+      <div style="font-size:12px;color:#00F0FF;margin-bottom:12px;">‹ Back</div>
+      <!-- Header -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:9px;color:#00F0FF;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">MODULE</div>
+        <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;">Customer Interviews</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);">Each member conducts 3 real interviews.</div>
+      </div>
+      <!-- Mini node graph (same as carousel card but tappable) -->
+      <div style="background:rgba(0,240,255,0.03);border:1px solid rgba(0,240,255,0.1);border-radius:12px;padding:12px;margin-bottom:14px;">
+        <svg width="100%" height="70" viewBox="0 0 240 70">
+          <line x1="25" y1="50" x2="65" y2="25" stroke="#10B981" stroke-width="1.5" opacity="0.6"/>
+          <line x1="65" y1="25" x2="110" y2="40" stroke="#10B981" stroke-width="1.5" opacity="0.6"/>
+          <line x1="110" y1="40" x2="155" y2="20" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <line x1="155" y1="20" x2="200" y2="40" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <circle cx="25" cy="50" r="7" fill="#10B981" opacity="0.9"/>
+          <circle cx="65" cy="25" r="8" fill="none" stroke="#10B981" stroke-width="1.5"/>
+          <line x1="65" y1="19" x2="65" y2="31" stroke="#10B981" stroke-width="1.5"/>
+          <line x1="59" y1="25" x2="71" y2="25" stroke="#10B981" stroke-width="1.5"/>
+          <circle cx="110" cy="40" r="9" fill="rgba(0,240,255,0.12)" stroke="#00F0FF" stroke-width="2"/>
+          <circle cx="110" cy="40" r="4" fill="#00F0FF"/>
+          <circle cx="155" cy="20" r="7" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+          <line x1="155" y1="14" x2="155" y2="26" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
+          <line x1="149" y1="20" x2="161" y2="20" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
+          <circle cx="200" cy="40" r="7" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <!-- Compact list -->
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:8px;padding:10px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:10px;color:#10B981;">✓</span>
+          <div style="flex:1;font-size:10px;font-weight:700;color:#10B981;">Intro: Why interviews matter</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.3);">Video</div>
+        </div>
+        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:8px;padding:10px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:10px;color:#10B981;">✓</span>
+          <div style="flex:1;font-size:10px;font-weight:700;color:#10B981;">Practice interview script</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.3);">NPC</div>
+        </div>
+        <div style="background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.25);border-radius:8px;padding:10px;display:flex;align-items:center;gap:8px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#00F0FF;flex-shrink:0;"></div>
+          <div style="flex:1;font-size:10px;font-weight:700;color:#fff;">Log interview evidence</div>
+          <div style="font-size:9px;color:#00F0FF;">→</div>
+        </div>
+        <div style="background:transparent;border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px;display:flex;align-items:center;gap:8px;opacity:0.35;">
+          <span style="font-size:10px;">🔒</span>
+          <div style="flex:1;font-size:10px;color:rgba(255,255,255,0.3);">Synthesis quiz</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.2);">Quiz</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Both show the same activity list. A is clean and direct. B repeats the node graph from the carousel card at the top, then lists activities below it. Which feels better?</p>
