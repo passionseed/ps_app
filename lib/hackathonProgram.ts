@@ -19,6 +19,7 @@ import type {
   PathGateRule,
   PathReviewMode,
 } from "../types/pathlab-content";
+import type { MapNode, StudentNodeProgress } from "../types/map";
 
 type CardTone = "neutral" | "education" | "destination";
 
@@ -386,4 +387,135 @@ export function getEmptyHackathonProgramHome(): HackathonProgramHome {
     program: null,
     phases: [],
   };
+}
+
+export async function getHackathonJourneyModules(
+  phaseId: string,
+): Promise<Array<HackathonPhaseModule & { ends_at: string | null }>> {
+  return withRetry(async () => {
+    const supabase = await getSupabaseClient();
+
+    const { data: phase, error: phaseError } = await supabase
+      .from("hackathon_program_phases")
+      .select("ends_at")
+      .eq("id", phaseId)
+      .maybeSingle();
+    if (phaseError) throw phaseError;
+
+    const { data: playlists, error: playlistError } = await supabase
+      .from("hackathon_phase_playlists")
+      .select("id")
+      .eq("phase_id", phaseId)
+      .order("display_order", { ascending: true });
+    if (playlistError) throw playlistError;
+
+    const playlistIds = (playlists ?? []).map((p: { id: string }) => p.id);
+    if (playlistIds.length === 0) return [];
+
+    const { data: modules, error: modulesError } = await supabase
+      .from("hackathon_phase_modules")
+      .select("*")
+      .in("playlist_id", playlistIds)
+      .order("display_order", { ascending: true });
+    if (modulesError) throw modulesError;
+
+    const endsAt = (phase as { ends_at: string | null } | null)?.ends_at ?? null;
+    return ((modules as HackathonPhaseModule[]) ?? []).map((m) => ({
+      ...m,
+      ends_at: endsAt,
+    }));
+  }, "Unable to load journey modules");
+}
+
+export async function getModuleActivityProgress(
+  moduleId: string,
+  userId: string,
+): Promise<{
+  nodes: MapNode[];
+  completedNodeIds: Set<string>;
+  currentNodeId: string | null;
+}> {
+  return withRetry(async () => {
+    const supabase = await getSupabaseClient();
+
+    const { data: module, error: moduleError } = await supabase
+      .from("hackathon_phase_modules")
+      .select("path_id")
+      .eq("id", moduleId)
+      .maybeSingle();
+    if (moduleError) throw moduleError;
+
+    const pathId = (module as { path_id: string | null } | null)?.path_id;
+    if (!pathId) {
+      return { nodes: [], completedNodeIds: new Set<string>(), currentNodeId: null };
+    }
+
+    const { data: pathDays, error: daysError } = await supabase
+      .from("path_days")
+      .select("node_ids")
+      .eq("path_id", pathId)
+      .order("day_number", { ascending: true });
+    if (daysError) throw daysError;
+
+    const nodeIds: string[] = (pathDays ?? []).flatMap(
+      (day: { node_ids: string[] }) => day.node_ids ?? [],
+    );
+    if (nodeIds.length === 0) {
+      return { nodes: [], completedNodeIds: new Set<string>(), currentNodeId: null };
+    }
+
+    const [{ data: nodesData, error: nodesError }, { data: progressData, error: progressError }] =
+      await Promise.all([
+        supabase
+          .from("map_nodes")
+          .select("*, node_content(*), node_assessments(id, assessment_type, quiz_questions(*))")
+          .in("id", nodeIds),
+        supabase
+          .from("student_node_progress")
+          .select("*")
+          .eq("user_id", userId)
+          .in("node_id", nodeIds),
+      ]);
+    if (nodesError) throw nodesError;
+    if (progressError) throw progressError;
+
+    const nodeMap = new Map<string, MapNode>(
+      ((nodesData as MapNode[]) ?? []).map((n) => [n.id, n]),
+    );
+    const orderedNodes = nodeIds
+      .map((id) => nodeMap.get(id))
+      .filter((n): n is MapNode => n !== undefined);
+
+    const completedNodeIds = new Set<string>(
+      ((progressData as StudentNodeProgress[]) ?? [])
+        .filter((p) => p.status === "passed" || p.status === "submitted")
+        .map((p) => p.node_id),
+    );
+
+    const currentNodeId =
+      orderedNodes.find((n) => !completedNodeIds.has(n.id))?.id ?? null;
+
+    return { nodes: orderedNodes, completedNodeIds, currentNodeId };
+  }, "Unable to load module activities");
+}
+
+export async function completeActivityNode(
+  nodeId: string,
+  userId: string,
+): Promise<void> {
+  return withRetry(async () => {
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase
+      .from("student_node_progress")
+      .upsert(
+        {
+          user_id: userId,
+          node_id: nodeId,
+          status: "passed",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,node_id" },
+      );
+    if (error) throw error;
+  }, "Unable to save progress");
 }
