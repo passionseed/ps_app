@@ -46,7 +46,11 @@ See `docs/design_guidelines.md` for canonical tokens and `lib/theme.ts` for the 
 - `@supabase/supabase-js` — database client
 - `expo-web-browser` — OAuth flow
 - `react-native-svg` — SVG rendering
+- `@shopify/react-native-skia` — GPU-backed Canvas, shaders, image filters (native module; run prebuild after changes)
 - `expo-sqlite` — local storage for auth persistence
+
+### Skia work
+For Canvas, shaders, Reanimated integration, and performance rules, read **`.claude/skills/react-native-skia/SKILL.md`** and the [official Skia docs](https://shopify.github.io/react-native-skia/docs/getting-started/installation) before writing code (do not guess APIs).
 
 ## Database (Shared with pseed)
 
