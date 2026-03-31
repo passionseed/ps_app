@@ -57,7 +57,7 @@ function RootLayout() {
   void SplashScreen.preventAutoHideAsync();
 
   function RootNavigator() {
-    const { session, loading, isGuest } = useAuth();
+    const { session, loading, isGuest, isHackathon } = useAuth();
     const [profile, setProfile] = useState<
       import("../types/onboarding").Profile | null | undefined
     >(undefined);
@@ -74,6 +74,14 @@ function RootLayout() {
         // Not logged in - show landing page
         console.log("[RootNavigator] Not logged in, staying on index");
         setProfile(null);
+        setIsNavReady(true);
+        return;
+      }
+
+      if (isHackathon && session) {
+        console.log("[RootNavigator] Hackathon mode, going to hackathon home");
+        setProfile(null);
+        router.replace("/(hackathon)/home");
         setIsNavReady(true);
         return;
       }
@@ -128,7 +136,7 @@ function RootLayout() {
         cancelled = true;
         clearTimeout(profileTimeout);
       };
-    }, [isGuest, loading, session]);
+    }, [isGuest, isHackathon, loading, session]);
 
     // Show animated splash while auth is loading
     // This prevents showing the landing page to logged-in users
@@ -148,6 +156,8 @@ function RootLayout() {
         }}
       >
         <Stack.Screen name="index" />
+        <Stack.Screen name="hackathon-login" />
+        <Stack.Screen name="(hackathon)" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="seed/[id]" options={{ presentation: "card" }} />
