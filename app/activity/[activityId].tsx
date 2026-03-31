@@ -8,9 +8,8 @@ import {
   Alert,
   TextInput,
   useWindowDimensions,
-  Animated,
+  Animated as RNAnimated,
   PanResponder,
-  RefreshControl,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import * as ImagePicker from 'expo-image-picker';
@@ -24,11 +23,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Svg, SvgXml } from "react-native-svg";
 import YoutubePlayer from "react-native-youtube-iframe";
 import Reanimated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
   withSpring,
-  withTiming,
 } from "react-native-reanimated";
 import { ensureActivityHasProgress } from "../../lib/activityProgress";
 import { supabase } from "../../lib/supabase";
@@ -37,6 +39,7 @@ import {
   getCachedActivityPayload,
   getCachedPathDayBundle,
   updateCachedActivityProgress,
+  type DayActivityListItem,
 } from "../../lib/pathlabSession";
 import {
   initializeSounds,
@@ -153,6 +156,8 @@ const HEADER_COLLAPSE_DISTANCE = 96;
 /** Max height for the expanded hero block (chip + large title + subtitle). */
 const HEADER_HERO_MAX_EXPANDED = 520;
 const SWIPE_NEXT_THRESHOLD = 220;
+/** Pull hints start fully off-screen above/below, then slide in with progress. */
+const PULL_HINT_SLIDE_PX = 104;
 
 export default function ActivityDetailScreen() {
   const { activityId, enrollmentId, pageIndex, totalPages } = useLocalSearchParams<{
@@ -184,35 +189,101 @@ export default function ActivityDetailScreen() {
   const [autoCurrentPage, setAutoCurrentPage] = useState(0);
   const [autoTotalPages, setAutoTotalPages] = useState(0);
   const [dayActivitiesCount, setDayActivitiesCount] = useState(0);
-  const [dayActivitiesList, setDayActivitiesList] = useState<{ id: string; display_order: number }[]>([]);
+  const [dayActivitiesList, setDayActivitiesList] = useState<DayActivityListItem[]>([]);
 
   // Track scroll position for swipe detection
   const scrollViewRef = useRef<ScrollView>(null);
-  const isAtTopRef = useRef(true);
-  const headerScrollY = useRef(new Animated.Value(0)).current;
+  const headerScrollY = useSharedValue(0);
+  /** UI-thread gates for overscroll swipe (synced from activity state). */
+  const swipePrevEnabledSV = useSharedValue(0);
+  const swipeNextEnabledSV = useSharedValue(0);
+  const lastPrevHapticMilestoneSV = useSharedValue(0);
+  const lastNextHapticMilestoneSV = useSharedValue(0);
+  const prevSwipeThresholdSV = useSharedValue(0);
+  const nextSwipeThresholdSV = useSharedValue(0);
   const nextSwipeProgress = useSharedValue(0);
   const bottomReadyProgress = useSharedValue(0);
   const nextSwipePulse = useSharedValue(1);
-  const nextSwipeThresholdReachedRef = useRef(false);
-  const nextSwipeProgressRef = useRef(0);
-  /** 0–4 milestones for pull overscroll haptics (25% / 50% / 75% / full). */
-  const lastSwipeHapticMilestoneRef = useRef(0);
 
   /** Previous-activity pull (top overscroll). */
   const prevSwipeProgress = useSharedValue(0);
   const prevReadyProgress = useSharedValue(0);
   const prevSwipePulse = useSharedValue(1);
-  const prevSwipeProgressRef = useRef(0);
-  const prevSwipeThresholdReachedRef = useRef(false);
-  const lastPrevHapticMilestoneRef = useRef(0);
   const lastPrevNavAtRef = useRef(0);
 
-  const prevPullOverlayStyle = useAnimatedStyle(() => ({
-    opacity: prevSwipeProgress.value > 0.02 ? 1 : 0,
+  /** Slide in from past the top/bottom edge + fade (UI-thread; translateY only, no scale). */
+  const prevPullOverlayStyle = useAnimatedStyle(() => {
+    const p = prevSwipeProgress.value;
+    return {
+      opacity: interpolate(p, [0, 0.04, 0.18, 1], [0, 0.88, 1, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(
+            p,
+            [0, 1],
+            [-PULL_HINT_SLIDE_PX, 0],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
+  const nextPullOverlayStyle = useAnimatedStyle(() => {
+    const p = nextSwipeProgress.value;
+    return {
+      opacity: interpolate(p, [0, 0.04, 0.18, 1], [0, 0.88, 1, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(
+            p,
+            [0, 1],
+            [PULL_HINT_SLIDE_PX, 0],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
+
+  const heroHeaderAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      headerScrollY.value,
+      [0, HEADER_COLLAPSE_DISTANCE * 0.62],
+      [1, 0],
+      Extrapolation.CLAMP,
+    ),
+    transform: [
+      {
+        translateY: interpolate(
+          headerScrollY.value,
+          [0, HEADER_COLLAPSE_DISTANCE * 0.72],
+          [0, -10],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
   }));
-  const nextPullOverlayStyle = useAnimatedStyle(() => ({
-    opacity: nextSwipeProgress.value > 0.02 ? 1 : 0,
+
+  const collapsedInlineAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      headerScrollY.value,
+      [HEADER_COLLAPSE_DISTANCE * 0.22, HEADER_COLLAPSE_DISTANCE * 0.62],
+      [0, 1],
+      Extrapolation.CLAMP,
+    ),
   }));
+
+  const pageDotsAnimatedStyle = useAnimatedStyle(() => {
+    const collapse = interpolate(
+      headerScrollY.value,
+      [0, HEADER_COLLAPSE_DISTANCE],
+      [0, 1],
+      Extrapolation.CLAMP,
+    );
+    return {
+      opacity: interpolate(collapse, [0, 1], [0.68, 1], Extrapolation.CLAMP),
+    };
+  });
 
   // Use auto-detected pagination if URL params not provided
   const currentPage = pageIndex !== undefined ? parseInt(pageIndex) : autoCurrentPage;
@@ -245,7 +316,134 @@ export default function ActivityDetailScreen() {
   const [isTyping, setIsTyping] = useState(false);
 
   // NPC bounce animation
-  const bounceAnim = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new RNAnimated.Value(0)).current;
+
+  const triggerSwipeHaptic = useCallback((milestone: number) => {
+    if (milestone <= 0) return;
+    void Haptics.impactAsync(
+      milestone >= 4
+        ? Haptics.ImpactFeedbackStyle.Medium
+        : Haptics.ImpactFeedbackStyle.Light,
+    ).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (loading || !activity) {
+      swipePrevEnabledSV.value = 0;
+      swipeNextEnabledSV.value = 0;
+      return;
+    }
+    const idx = pageIndex !== undefined ? parseInt(pageIndex, 10) : autoCurrentPage;
+    swipePrevEnabledSV.value = idx > 0 && dayActivitiesList.length > 0 ? 1 : 0;
+
+    const activityType = getActivityType(activity);
+    const hasAssessment = !!activity.path_assessment;
+    const nextOk =
+      activity.progress?.status === "completed" ||
+      npcCompleted ||
+      ((activityType === "short_video" ||
+        activityType === "video" ||
+        activityType === "text" ||
+        activityType === "image") &&
+        !hasAssessment);
+    swipeNextEnabledSV.value = nextOk ? 1 : 0;
+  }, [
+    loading,
+    activity,
+    pageIndex,
+    autoCurrentPage,
+    dayActivitiesList.length,
+    npcCompleted,
+  ]);
+
+  const onActivityScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      const scrollY = event.contentOffset.y;
+      const contentH = event.contentSize.height;
+      const viewportH = event.layoutMeasurement.height;
+      headerScrollY.value = scrollY;
+
+      const maxScrollY = Math.max(0, contentH - viewportH);
+
+      if (swipePrevEnabledSV.value === 1) {
+        const overscrollTop = scrollY < 0 ? -scrollY : 0;
+        if (overscrollTop > 0) {
+          prevReadyProgress.value = 1;
+          const p = Math.min(overscrollTop / SWIPE_NEXT_THRESHOLD, 1);
+          prevSwipeProgress.value = p;
+
+          const milestone = p >= 1 ? 4 : Math.min(3, Math.floor(p * 4));
+          if (milestone > lastPrevHapticMilestoneSV.value && milestone > 0) {
+            lastPrevHapticMilestoneSV.value = milestone;
+            runOnJS(triggerSwipeHaptic)(milestone);
+          }
+
+          if (p >= 1 && prevSwipeThresholdSV.value === 0) {
+            prevSwipeThresholdSV.value = 1;
+            prevSwipePulse.value = withSequence(
+              withSpring(1.06, { damping: 12, stiffness: 260 }),
+              withSpring(1, { damping: 14, stiffness: 200 }),
+            );
+          } else if (p < 1 && prevSwipeThresholdSV.value === 1) {
+            prevSwipeThresholdSV.value = 0;
+            prevSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+          }
+        } else {
+          prevReadyProgress.value = 0;
+          lastPrevHapticMilestoneSV.value = 0;
+          prevSwipeThresholdSV.value = 0;
+          if (prevSwipeProgress.value > 0) {
+            prevSwipeProgress.value = 0;
+            prevSwipePulse.value = 1;
+          }
+        }
+      } else {
+        prevReadyProgress.value = 0;
+        lastPrevHapticMilestoneSV.value = 0;
+        prevSwipeThresholdSV.value = 0;
+        prevSwipeProgress.value = 0;
+      }
+
+      if (swipeNextEnabledSV.value === 1) {
+        const overscrollY = scrollY - maxScrollY;
+        if (overscrollY > 0) {
+          bottomReadyProgress.value = 1;
+          const p = Math.min(overscrollY / SWIPE_NEXT_THRESHOLD, 1);
+          nextSwipeProgress.value = p;
+
+          const milestone = p >= 1 ? 4 : Math.min(3, Math.floor(p * 4));
+          if (milestone > lastNextHapticMilestoneSV.value && milestone > 0) {
+            lastNextHapticMilestoneSV.value = milestone;
+            runOnJS(triggerSwipeHaptic)(milestone);
+          }
+
+          if (p >= 1 && nextSwipeThresholdSV.value === 0) {
+            nextSwipeThresholdSV.value = 1;
+            nextSwipePulse.value = withSequence(
+              withSpring(1.06, { damping: 12, stiffness: 260 }),
+              withSpring(1, { damping: 14, stiffness: 200 }),
+            );
+          } else if (p < 1 && nextSwipeThresholdSV.value === 1) {
+            nextSwipeThresholdSV.value = 0;
+            nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+          }
+        } else {
+          bottomReadyProgress.value = 0;
+          lastNextHapticMilestoneSV.value = 0;
+          nextSwipeThresholdSV.value = 0;
+          if (nextSwipeProgress.value > 0) {
+            nextSwipeProgress.value = 0;
+            nextSwipePulse.value = 1;
+          }
+        }
+      } else {
+        bottomReadyProgress.value = 0;
+        lastNextHapticMilestoneSV.value = 0;
+        nextSwipeThresholdSV.value = 0;
+        nextSwipeProgress.value = 0;
+      }
+    },
+  });
 
   // Timer state
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -422,7 +620,11 @@ export default function ActivityDetailScreen() {
         const bundle = getCachedPathDayBundle(enrollmentId);
         if (bundle && bundle.activities.length > 0) {
           console.log('[Activity] Pagination from session cache');
-          const dayActivities = bundle.activities.map(a => ({ id: a.id, display_order: a.display_order }));
+          const dayActivities = bundle.activities.map((a) => ({
+            id: a.id,
+            display_order: a.display_order,
+            title: a.title ?? "",
+          }));
           const currentIndex = dayActivities.findIndex(a => a.id === activityId);
           setAutoCurrentPage(currentIndex >= 0 ? currentIndex : 0);
           setAutoTotalPages(dayActivities.length);
@@ -432,7 +634,7 @@ export default function ActivityDetailScreen() {
           try {
             const { data: dayActivities, error: activitiesError } = await supabase
               .from("path_activities")
-              .select("id, display_order")
+              .select("id, display_order, title")
               .eq("path_day_id", resolvedActivity.path_day_id)
               .eq("is_draft", false)
               .order("display_order", { ascending: true });
@@ -446,7 +648,13 @@ export default function ActivityDetailScreen() {
               setAutoCurrentPage(currentIndex >= 0 ? currentIndex : 0);
               setAutoTotalPages(dayActivities.length);
               setDayActivitiesCount(dayActivities.length);
-              setDayActivitiesList(dayActivities);
+              setDayActivitiesList(
+                dayActivities.map((a) => ({
+                  id: a.id,
+                  display_order: a.display_order,
+                  title: a.title ?? "",
+                })),
+              );
             }
           } catch (err) {
             console.error('[Activity] Error fetching pagination:', err);
@@ -753,14 +961,14 @@ export default function ActivityDetailScreen() {
     playNPCSpeakSound();
 
     // Start bounce animation
-    const bounceAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceAnim, {
+    const bounceAnimation = RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(bounceAnim, {
           toValue: -8,
           duration: 400,
           useNativeDriver: true,
         }),
-        Animated.timing(bounceAnim, {
+        RNAnimated.timing(bounceAnim, {
           toValue: 0,
           duration: 400,
           useNativeDriver: true,
@@ -782,7 +990,7 @@ export default function ActivityDetailScreen() {
         bounceAnimation.stop();
 
         // Reset bounce position
-        Animated.timing(bounceAnim, {
+        RNAnimated.timing(bounceAnim, {
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
@@ -1330,121 +1538,6 @@ export default function ActivityDetailScreen() {
     return currentPage > 0 && dayActivitiesList.length > 0;
   };
 
-  const resetNextSwipeIndicator = (animated = true) => {
-    if (nextSwipeProgressRef.current === 0 && !nextSwipeThresholdReachedRef.current) return;
-    
-    nextSwipeThresholdReachedRef.current = false;
-    nextSwipeProgressRef.current = 0;
-    lastSwipeHapticMilestoneRef.current = 0;
-
-    if (!animated) {
-      nextSwipePulse.value = 1;
-      nextSwipeProgress.value = 0;
-      return;
-    }
-
-    nextSwipeProgress.value = withTiming(0, { duration: 180 });
-    nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
-  };
-
-  const updateNextSwipeIndicator = (gestureDy: number) => {
-    const progress = Math.max(0, Math.min(Math.abs(gestureDy) / SWIPE_NEXT_THRESHOLD, 1));
-    
-    // Prevent redundant updates - wait for at least 2% change (reduces bridge traffic significantly)
-    // If progress is 0 or 1, we force it to ensure limits are respected
-    if (progress > 0 && progress < 1 && Math.abs(nextSwipeProgressRef.current - progress) < 0.02) return;
-    
-    nextSwipeProgressRef.current = progress;
-    nextSwipeProgress.value = progress;
-
-    const milestone =
-      progress >= 1 ? 4 : Math.min(3, Math.floor(progress * 4));
-    if (
-      milestone > lastSwipeHapticMilestoneRef.current &&
-      milestone > 0
-    ) {
-      lastSwipeHapticMilestoneRef.current = milestone;
-      void Haptics.impactAsync(
-        milestone >= 4
-          ? Haptics.ImpactFeedbackStyle.Medium
-          : Haptics.ImpactFeedbackStyle.Light,
-      ).catch(() => {});
-    }
-
-    if (progress >= 1 && !nextSwipeThresholdReachedRef.current) {
-      nextSwipeThresholdReachedRef.current = true;
-      nextSwipePulse.value = withSequence(
-        withSpring(1.06, { damping: 12, stiffness: 260 }),
-        withSpring(1, { damping: 14, stiffness: 200 }),
-      );
-    } else if (progress < 1 && nextSwipeThresholdReachedRef.current) {
-      nextSwipeThresholdReachedRef.current = false;
-      nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
-    }
-  };
-
-  const resetPrevSwipeIndicator = (animated = true) => {
-    if (
-      prevSwipeProgressRef.current === 0 &&
-      !prevSwipeThresholdReachedRef.current
-    ) {
-      return;
-    }
-
-    prevSwipeThresholdReachedRef.current = false;
-    prevSwipeProgressRef.current = 0;
-    lastPrevHapticMilestoneRef.current = 0;
-
-    if (!animated) {
-      prevSwipePulse.value = 1;
-      prevSwipeProgress.value = 0;
-      return;
-    }
-
-    prevSwipeProgress.value = withTiming(0, { duration: 180 });
-    prevSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
-  };
-
-  const updatePrevSwipeIndicator = (gestureDy: number) => {
-    const progress = Math.max(
-      0,
-      Math.min(Math.abs(gestureDy) / SWIPE_NEXT_THRESHOLD, 1),
-    );
-
-    if (
-      progress > 0 &&
-      progress < 1 &&
-      Math.abs(prevSwipeProgressRef.current - progress) < 0.02
-    ) {
-      return;
-    }
-
-    prevSwipeProgressRef.current = progress;
-    prevSwipeProgress.value = progress;
-
-    const milestone =
-      progress >= 1 ? 4 : Math.min(3, Math.floor(progress * 4));
-    if (milestone > lastPrevHapticMilestoneRef.current && milestone > 0) {
-      lastPrevHapticMilestoneRef.current = milestone;
-      void Haptics.impactAsync(
-        milestone >= 4
-          ? Haptics.ImpactFeedbackStyle.Medium
-          : Haptics.ImpactFeedbackStyle.Light,
-      ).catch(() => {});
-    }
-
-    if (progress >= 1 && !prevSwipeThresholdReachedRef.current) {
-      prevSwipeThresholdReachedRef.current = true;
-      prevSwipePulse.value = withSequence(
-        withSpring(1.06, { damping: 12, stiffness: 260 }),
-        withSpring(1, { damping: 14, stiffness: 200 }),
-      );
-    } else if (progress < 1 && prevSwipeThresholdReachedRef.current) {
-      prevSwipeThresholdReachedRef.current = false;
-      prevSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
-    }
-  };
-
   const npcPanResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (_, gestureState) => {
@@ -1551,33 +1644,16 @@ export default function ActivityDetailScreen() {
     currentPage < dayActivitiesList.length - 1
       ? "Swipe up for next activity"
       : "Swipe up to reflect on your day";
-  const headerCollapseProgress = headerScrollY.interpolate({
-    inputRange: [0, HEADER_COLLAPSE_DISTANCE],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
-  // Removed layout interpolations to fix 15fps jumpiness
-  const expandedHeroOpacity = headerScrollY.interpolate({
-    inputRange: [0, HEADER_COLLAPSE_DISTANCE * 0.62],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-  const expandedHeroTranslateY = headerScrollY.interpolate({
-    inputRange: [0, HEADER_COLLAPSE_DISTANCE * 0.72],
-    outputRange: [0, -10],
-    extrapolate: "clamp",
-  });
-  /** Inline title in the top row — fades in while the large hero fades out (iOS-style). */
-  const collapsedInlineOpacity = headerScrollY.interpolate({
-    inputRange: [HEADER_COLLAPSE_DISTANCE * 0.22, HEADER_COLLAPSE_DISTANCE * 0.62],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
-  const pageDotsOpacity = headerCollapseProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.68, 1],
-    extrapolate: "clamp",
-  });
+  const previousActivityTitle =
+    currentPage > 0 && dayActivitiesList[currentPage - 1]
+      ? (dayActivitiesList[currentPage - 1].title ?? "").trim()
+      : "";
+  const nextDestinationTitle =
+    dayActivitiesList.length === 0
+      ? ""
+      : currentPage < dayActivitiesList.length - 1
+        ? (dayActivitiesList[currentPage + 1].title ?? "").trim()
+        : "Reflect on your day";
 
   return (
     <View style={styles.container}>
@@ -1604,14 +1680,14 @@ export default function ActivityDetailScreen() {
                   showPagination && styles.headerTopRowCenterWithDots,
                 ]}
               >
-                <Animated.View
-                  style={[styles.headerCollapsedTitleWrap, { opacity: collapsedInlineOpacity }]}
+                <Reanimated.View
+                  style={[styles.headerCollapsedTitleWrap, collapsedInlineAnimatedStyle]}
                   pointerEvents="none"
                 >
                   <AppText variant="bold" numberOfLines={1} style={styles.headerTitleCollapsed}>
                     {activity.title}
                   </AppText>
-                </Animated.View>
+                </Reanimated.View>
               </View>
               <View style={styles.headerTopSpacer} />
             </View>
@@ -1619,7 +1695,7 @@ export default function ActivityDetailScreen() {
 
           {/* Page Indicator Dots - Vertical on right side */}
           {showPagination && (
-            <Animated.View style={[styles.dotsContainerVertical, { opacity: pageDotsOpacity }]}>
+            <Reanimated.View style={[styles.dotsContainerVertical, pageDotsAnimatedStyle]}>
               {Array.from({ length: total }).map((_, index) => (
                 <View
                   key={index}
@@ -1629,7 +1705,7 @@ export default function ActivityDetailScreen() {
                   ]}
                 />
               ))}
-            </Animated.View>
+            </Reanimated.View>
           )}
         </>
       )}
@@ -1721,7 +1797,7 @@ export default function ActivityDetailScreen() {
             ) : npcCurrentNode ? (
               <>
                 {/* Full-body NPC Character */}
-                <Animated.View
+                <RNAnimated.View
                   style={[
                     styles.npcFullBodyContainer,
                     { transform: [{ translateY: bounceAnim }] }
@@ -1741,7 +1817,7 @@ export default function ActivityDetailScreen() {
                       <AppText style={styles.npcAvatarEmojiLarge}>👤</AppText>
                     </View>
                   )}
-                </Animated.View>
+                </RNAnimated.View>
 
                 {/* Speech Bubble and Timer Bar */}
                 <View style={styles.speechBubbleContainer}>
@@ -1813,7 +1889,7 @@ export default function ActivityDetailScreen() {
         </View>
       ) : (
         <View style={styles.scrollWrapper}>
-        <Animated.ScrollView
+        <Reanimated.ScrollView
           ref={scrollViewRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -1821,73 +1897,8 @@ export default function ActivityDetailScreen() {
           bounces
           alwaysBounceVertical
           overScrollMode="always"
-          refreshControl={
-            canSwipeUp() ? (
-              <RefreshControl
-                refreshing={false}
-                onRefresh={handleSwipeToPrevious}
-                tintColor={Accent.yellow}
-              />
-            ) : undefined
-          }
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: headerScrollY } } }],
-            {
-              useNativeDriver: true,
-              listener: (event: {
-                nativeEvent: {
-                  contentOffset: { y: number };
-                  contentSize: { height: number };
-                  layoutMeasurement: { height: number };
-                };
-              }) => {
-                const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-                const scrollY = contentOffset.y;
-                const atTop = scrollY <= 5;
-                if (isAtTopRef.current !== atTop) isAtTopRef.current = atTop;
-
-                // Previous activity: UI only during top rubber-band (negative scrollY)
-                if (canSwipeUp()) {
-                  const overscrollTop = scrollY < 0 ? -scrollY : 0;
-                  if (overscrollTop > 0) {
-                    prevReadyProgress.value = 1;
-                    updatePrevSwipeIndicator(overscrollTop);
-                  } else {
-                    prevReadyProgress.value = 0;
-                    if (prevSwipeProgressRef.current > 0) {
-                      resetPrevSwipeIndicator(false);
-                    }
-                  }
-                } else {
-                  prevReadyProgress.value = 0;
-                  if (prevSwipeProgressRef.current > 0) {
-                    resetPrevSwipeIndicator(false);
-                  }
-                }
-
-                if (!canSwipe()) return;
-
-                const viewportH = layoutMeasurement.height;
-                const contentH = contentSize.height;
-                /** Max scroll offset — end of content without rubber-band (natural bottom). */
-                const maxScrollY = Math.max(0, contentH - viewportH);
-
-                /**
-                 * Next activity: UI only during bottom rubber-band past maxScrollY
-                 */
-                const overscrollY = scrollY - maxScrollY;
-                if (overscrollY > 0) {
-                  bottomReadyProgress.value = 1;
-                  updateNextSwipeIndicator(overscrollY);
-                } else {
-                  bottomReadyProgress.value = 0;
-                  if (nextSwipeProgressRef.current > 0) {
-                    resetNextSwipeIndicator(false);
-                  }
-                }
-              },
-            },
-          )}
+          onScroll={onActivityScroll}
+          scrollEventThrottle={16}
           onScrollEndDrag={(e) => {
             const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
             const scrollY = contentOffset.y;
@@ -1929,16 +1940,14 @@ export default function ActivityDetailScreen() {
             }
           }}
           decelerationRate="normal"
-          scrollEventThrottle={16}
         >
           {/* Moved Header Hero into ScrollView for native scrolling performance */}
           {!isNpcChat && (
-            <Animated.View
+            <Reanimated.View
               style={[
                 styles.headerHero,
+                heroHeaderAnimatedStyle,
                 {
-                  opacity: expandedHeroOpacity,
-                  transform: [{ translateY: expandedHeroTranslateY }],
                   marginBottom: 16,
                   marginTop: -10, // Adjust for removed padding
                 },
@@ -1953,7 +1962,7 @@ export default function ActivityDetailScreen() {
                 {activity.title}
               </AppText>
               <AppText style={styles.headerSubtitle}>{headerSubtitle}</AppText>
-            </Animated.View>
+            </Reanimated.View>
           )}
 
           {/* Instructions */}
@@ -2118,13 +2127,13 @@ export default function ActivityDetailScreen() {
         )}
 
           {!canSwipe() ? <View style={{ height: 120 }} /> : null}
-        </Animated.ScrollView>
+        </Reanimated.ScrollView>
 
           <Reanimated.View
             pointerEvents="none"
             style={[
               styles.pullOverlayTop,
-              { paddingTop: insets.top + 6 },
+              { paddingTop: 2 },
               prevPullOverlayStyle,
             ]}
           >
@@ -2134,7 +2143,8 @@ export default function ActivityDetailScreen() {
                 progress={prevSwipeProgress}
                 readyProgress={prevReadyProgress}
                 pulseScale={prevSwipePulse}
-                label="Pull down for previous activity"
+                label="Previous activity"
+                titleHint={previousActivityTitle}
               />
             ) : null}
           </Reanimated.View>
@@ -2143,16 +2153,18 @@ export default function ActivityDetailScreen() {
             pointerEvents="none"
             style={[
               styles.pullOverlayBottom,
-              { paddingBottom: Math.max(insets.bottom, 8) + 88 },
+              { paddingBottom: Math.max(insets.bottom, 4) + 12 },
               nextPullOverlayStyle,
             ]}
           >
             {canSwipe() ? (
               <SwipeProgressDonut
+                direction="next"
                 progress={nextSwipeProgress}
                 readyProgress={bottomReadyProgress}
                 label={nextSwipeLabel}
                 pulseScale={nextSwipePulse}
+                titleHint={nextDestinationTitle}
               />
             ) : null}
           </Reanimated.View>
@@ -2786,23 +2798,26 @@ const styles = StyleSheet.create({
   },
   scrollWrapper: {
     flex: 1,
+    overflow: "visible",
   },
   pullOverlayTop: {
     position: "absolute",
     left: 0,
     right: 0,
     top: 0,
-    zIndex: 30,
+    zIndex: 25,
     alignItems: "center",
+    overflow: "visible",
   },
   pullOverlayBottom: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 30,
+    zIndex: 25,
     alignItems: "center",
     justifyContent: "flex-end",
+    overflow: "visible",
   },
   scroll: {
     flex: 1,
