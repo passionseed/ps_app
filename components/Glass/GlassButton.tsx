@@ -4,10 +4,10 @@ import {
   StyleSheet,
   ViewStyle,
   TextStyle,
-  ActivityIndicator,
   Animated,
   StyleProp,
 } from "react-native";
+import { PathLabSkiaLoader } from "../PathLabSkiaLoader";
 import { LinearGradient } from "expo-linear-gradient";
 import { Shadow, Radius, Text as ThemeText } from "../../lib/theme";
 import { AppText } from "../AppText";
@@ -112,7 +112,7 @@ export function GlassButton({
             style={StyleSheet.absoluteFill}
           />
           {loading ? (
-            <ActivityIndicator color={variantStyles.text.color} size="small" />
+            <PathLabSkiaLoader size="tiny" />
           ) : (
             <>
               {icon && <Animated.View style={styles.icon}>{icon}</Animated.View>}
@@ -152,7 +152,7 @@ export function GlassButton({
         ]}
       >
         {loading ? (
-          <ActivityIndicator color={variantStyles.text.color} size="small" />
+          <PathLabSkiaLoader size="tiny" />
         ) : (
           <>
             {icon && <Animated.View style={styles.icon}>{icon}</Animated.View>}

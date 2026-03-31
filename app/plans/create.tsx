@@ -7,8 +7,8 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  ActivityIndicator,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { router } from "expo-router";
 import { useState, useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -130,7 +130,7 @@ export default function CreatePlanScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Accent.yellow} />
+        <PathLabSkiaLoader size="large" />
       </View>
     );
   }
@@ -274,7 +274,7 @@ export default function CreatePlanScreen() {
             style={styles.createButtonGradient}
           >
             {saving ? (
-              <ActivityIndicator color="#111" />
+              <PathLabSkiaLoader size="tiny" />
             ) : (
               <Text style={styles.createButtonText}>{copy.create}</Text>
             )}

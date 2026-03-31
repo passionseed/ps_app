@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
   RefreshControl,
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
@@ -13,6 +12,7 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import { getFitScores, getDiscoveredPrograms } from "../../lib/portfolioFit";
@@ -193,7 +193,7 @@ export default function FitBrowserScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 60 }} color="#8B5CF6" />
+        <PathLabSkiaLoader size="large" style={{ marginTop: 60 }} />
       ) : (
         <FlatList
           data={filtered}

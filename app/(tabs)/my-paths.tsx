@@ -5,9 +5,9 @@ import {
   Dimensions,
   Animated,
   ScrollView,
-  ActivityIndicator,
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
@@ -180,7 +180,7 @@ export default function MyPathsScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#BFFF00" />
+            <PathLabSkiaLoader size="large" />
           </View>
         ) : !hasSimulations ? (
           /* Empty State with Compact Placeholder Card */

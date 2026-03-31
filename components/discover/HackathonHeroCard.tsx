@@ -318,8 +318,8 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
                 
                 <Reanimated.View style={subtitleWipeStyle}>
                   {/* Provide a fixed width wrapper slightly larger than text so it doesn't wrap during wipe */}
-                  <View style={{ width: 400, alignItems: "center" }}>
-                    <Text style={[styles.hackathonSubtitle, { fontSize: 12, letterSpacing: 2 }]} numberOfLines={1}>
+                  <View style={{ width: 400, alignItems: "center", marginTop: -8 }}>
+                    <Text style={[styles.hackathonSubtitle, { fontSize: 12, letterSpacing: 2, marginTop: 0 }]} numberOfLines={1}>
                       Preventive & Predictive Healthcare
                     </Text>
                   </View>
@@ -328,25 +328,25 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
             </View>
 
             <Reanimated.View style={[styles.hackathonBottomRow, bottomContentStyle]}>
-              <Pressable onPress={onHeroPress} style={{ alignItems: "center" }}>
-                {/* Cinematic shimmer text effect */}
-                <View style={{ overflow: "hidden", borderRadius: 4 }}>
-                  <Reanimated.View style={[textShimmerStyle, { flexDirection: "row", alignItems: "center" }]}>
+              <Pressable onPress={onHeroPress} style={{ alignItems: "center", paddingVertical: 8, paddingHorizontal: 16 }}>
+                {/* Cinematic shimmer text effect - subtle background spotlight */}
+                <View style={[StyleSheet.absoluteFill, { overflow: "hidden", borderRadius: 4 }]}>
+                  <Reanimated.View style={[textShimmerStyle, { height: "100%", width: 60 }]}>
                     <LinearGradient
                       colors={[
                         "transparent",
-                        "rgba(255,255,255,0.8)",
-                        "rgba(255,255,255,1)",
-                        "rgba(255,255,255,0.8)",
+                        "rgba(255,255,255,0.05)",
+                        "rgba(255,255,255,0.15)",
+                        "rgba(255,255,255,0.05)",
                         "transparent"
                       ]}
                       start={{ x: 0, y: 0.5 }}
                       end={{ x: 1, y: 0.5 }}
-                      style={{ width: 60, height: 24 }}
+                      style={{ flex: 1 }}
                     />
                   </Reanimated.View>
                 </View>
-                <Text style={[styles.hackathonSubtitle, { fontSize: 18, color: "rgba(255,255,255,0.9)", letterSpacing: 4, textTransform: "uppercase", marginTop: -24 }]}>
+                <Text style={[styles.hackathonSubtitle, { fontSize: 18, color: "rgba(255,255,255,0.9)", letterSpacing: 4, textTransform: "uppercase", marginTop: 0 }]}>
                   {isThai ? "เข้าร่วม" : "Enter"}
                 </Text>
               </Pressable>

@@ -4,13 +4,13 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Alert,
   TextInput,
   useWindowDimensions,
   Animated as RNAnimated,
   PanResponder,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { WebView } from "react-native-webview";
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
@@ -1755,7 +1755,7 @@ export default function ActivityDetailScreen() {
               </View>
             ) : !npcCurrentNode && !npcCompleted ? (
               <View style={styles.npcLoadingCard}>
-                <ActivityIndicator size="large" color={Accent.yellow} />
+                <PathLabSkiaLoader size="large" />
                 <AppText style={styles.npcLoadingText}>
                   Connecting...
                 </AppText>

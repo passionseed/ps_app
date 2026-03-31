@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { AppText as Text } from "../../components/AppText";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -96,7 +96,9 @@ export default function PortfolioScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 60 }} color="#8B5CF6" />
+        <View style={{ marginTop: 60, alignItems: "center" }}>
+          <PathLabSkiaLoader size="large" />
+        </View>
       ) : (
         <ScrollView
           refreshControl={
@@ -140,7 +142,7 @@ export default function PortfolioScreen() {
                       disabled={deleting === item.id}
                     >
                       {deleting === item.id ? (
-                        <ActivityIndicator size="small" color="#EF4444" />
+                        <PathLabSkiaLoader size="tiny" />
                       ) : (
                         <Text style={s.deleteBtnText}>ลบ</Text>
                       )}

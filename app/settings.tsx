@@ -4,10 +4,10 @@ import {
   ScrollView,
   Pressable,
   Switch,
-  ActivityIndicator,
   Animated,
 } from "react-native";
 import { AppText as Text } from "../components/AppText";
+import { PathLabSkiaLoader } from "../components/PathLabSkiaLoader";
 import { useLocalSearchParams, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState, useRef } from "react";
@@ -146,11 +146,7 @@ export default function SettingsScreen() {
         </Pressable>
         <Text style={styles.title}>{copy.settings}</Text>
         {saving && (
-          <ActivityIndicator
-            size="small"
-            color="#00E676"
-            style={styles.savingIndicator}
-          />
+          <PathLabSkiaLoader size="tiny" />
         )}
       </View>
 
@@ -161,7 +157,7 @@ export default function SettingsScreen() {
       >
         {loading ? (
           <View style={styles.loadingSection}>
-            <ActivityIndicator color="#00E676" />
+            <PathLabSkiaLoader size="small" />
           </View>
         ) : (
           <>

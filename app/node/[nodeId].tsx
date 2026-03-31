@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   TextInput,
   Linking,
 } from "react-native";
@@ -13,6 +12,7 @@ import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { updateNodeProgress } from "../../lib/pathlab";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import type { MapNode, QuizQuestion, NodeAssessment } from "../../types/map";
 import { Text as ThemeText, Accent, Border, Radius, Shadow } from "../../lib/theme";
 
@@ -76,7 +76,7 @@ export default function NodeDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#BFFF00" />
+        <PathLabSkiaLoader size="large" />
       </View>
     );
   }
@@ -134,7 +134,7 @@ export default function NodeDetailScreen() {
           disabled={completing}
         >
           {completing ? (
-            <ActivityIndicator color="#111" />
+            <PathLabSkiaLoader size="tiny" />
           ) : (
             <Text style={styles.ctaText}>Mark as Complete</Text>
           )}

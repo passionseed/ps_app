@@ -3,7 +3,6 @@ import {
   StyleSheet,
   TextInput,
   Pressable,
-  ActivityIndicator,
   ScrollView,
 } from "react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -12,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { AppText as Text } from "../../components/AppText";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { useAuth } from "../../lib/auth";
 import { createPlanWithPrograms, getPlanCount, MAX_PLANS_PER_USER } from "../../lib/admissionPlans";
 import { getTcasProfile } from "../../lib/onboarding";
@@ -321,7 +321,7 @@ export default function ProgramsBrowserScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Accent.yellow} />
+            <PathLabSkiaLoader size="large" />
           </View>
         ) : sections.length === 0 ? (
           <View style={styles.emptyContainer}>

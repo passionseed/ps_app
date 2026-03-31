@@ -6,8 +6,8 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { useLocalSearchParams, router } from "expo-router";
 import { useState, useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -80,7 +80,7 @@ export default function ProgramDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Accent.yellow} />
+        <PathLabSkiaLoader size="large" />
       </View>
     );
   }

@@ -5,10 +5,10 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -215,7 +215,7 @@ export default function ReflectionScreen() {
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: PageBg.default }]}>
-        <ActivityIndicator size="large" color={Accent.yellow} />
+        <PathLabSkiaLoader size="large" />
       </View>
     );
   }
@@ -443,7 +443,7 @@ export default function ReflectionScreen() {
 
             {(submitting || scoring) && (
               <View style={styles.statusRow}>
-                <ActivityIndicator size="small" color={Accent.yellow} />
+                <PathLabSkiaLoader size="tiny" />
                 <AppText style={styles.statusText}>
                   {scoring ? "Calculating scores..." : "Saving reflection..."}
                 </AppText>

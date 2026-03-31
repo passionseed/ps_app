@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Linking,
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
@@ -13,6 +12,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { useAuth } from "../../lib/auth";
 import { getFitScores } from "../../lib/portfolioFit";
 import type { FitScoreResult, FitGap } from "../../types/portfolio";
@@ -70,7 +70,7 @@ export default function FitDetailScreen() {
         </Pressable>
 
         {loading ? (
-          <ActivityIndicator color="#BFFF00" />
+          <PathLabSkiaLoader size="large" />
         ) : result ? (
           <>
             <Text style={s.heroProgram}>{result.program_name}</Text>

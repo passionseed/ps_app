@@ -1,12 +1,12 @@
 import { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { router, useFocusEffect } from "expo-router";
 import { AppText } from "../../components/AppText";
 import { GlassCard } from "../../components/Glass/GlassCard";
@@ -71,7 +71,7 @@ export default function HackathonProgramHomeScreen() {
   if (loading || !data) {
     return (
       <View style={styles.loadingRoot}>
-        <ActivityIndicator size="large" color={Accent.yellow} />
+        <PathLabSkiaLoader size="large" />
       </View>
     );
   }

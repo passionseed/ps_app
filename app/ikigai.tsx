@@ -4,9 +4,9 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import { PathLabSkiaLoader } from "../components/PathLabSkiaLoader";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -101,7 +101,7 @@ export default function IkigaiScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Accent.yellow} />
+        <PathLabSkiaLoader size="large" />
         <Text style={styles.loadingText}>
           {isThai ? "กำลังโหลด Ikigai..." : "Loading your Ikigai..."}
         </Text>

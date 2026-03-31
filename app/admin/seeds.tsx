@@ -9,11 +9,11 @@ import {
   TextInput,
   Pressable,
   Alert,
-  ActivityIndicator,
   StyleSheet,
   RefreshControl,
 } from "react-native";
 import { router } from "expo-router";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { AppText as Text } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
@@ -162,7 +162,7 @@ export default function AdminSeedsScreen() {
   if (loading) {
     return (
       <View style={s.center}>
-        <ActivityIndicator color="#6366f1" size="large" />
+        <PathLabSkiaLoader size="large" />
       </View>
     );
   }
@@ -302,7 +302,7 @@ export default function AdminSeedsScreen() {
                     disabled={saving}
                   >
                     {saving ? (
-                      <ActivityIndicator size="small" color="#fff" />
+                      <PathLabSkiaLoader size="tiny" />
                     ) : (
                       <Text style={s.saveBtnText}>Save Changes</Text>
                     )}

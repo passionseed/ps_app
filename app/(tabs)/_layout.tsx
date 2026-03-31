@@ -170,6 +170,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                   animatedIndex={animatedIndex}
                   theme={{ ...theme, label }}
                   onPress={onPress}
+                  appLanguage={appLanguage}
                 />
               );
             })}
@@ -186,12 +187,15 @@ function TabBarButton({
   animatedIndex,
   theme,
   onPress,
+  appLanguage,
 }: {
   isFocused: boolean;
   index: number;
   animatedIndex: SharedValue<number>;
   theme: TabTheme;
   onPress: () => void;
+  appLanguage: string;
+  key?: string;
 }) {
   const animatedIconStyle = useAnimatedStyle(() => {
     const scale = interpolate(
@@ -233,7 +237,23 @@ function TabBarButton({
       </Animated.View>
 
       <Animated.Text
-        style={[styles.labelText, animatedTextStyle, colorStyle]}
+        style={[
+          styles.labelText,
+          {
+            fontFamily:
+              appLanguage === "th"
+                ? (isFocused ? "BaiJamjuree_700Bold" : "BaiJamjuree_400Regular")
+                : (isFocused ? "LibreFranklin_700Bold" : "LibreFranklin_400Regular"),
+            fontSize: appLanguage === "th" ? 13 : 11,
+          },
+          appLanguage === "th" && {
+            lineHeight: 20,
+            includeFontPadding: true,
+            paddingTop: Platform.OS === "android" ? 1 : 0,
+          },
+          animatedTextStyle,
+          colorStyle,
+        ]}
         numberOfLines={1}
       >
         {theme.label}
@@ -330,7 +350,6 @@ const styles = StyleSheet.create({
   },
   labelText: {
     fontSize: 11,
-    fontWeight: "600",
     color: "#6B7280", // Tertiary text
     textAlign: "center",
     overflow: "hidden",
