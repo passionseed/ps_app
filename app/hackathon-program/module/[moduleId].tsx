@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,9 +14,9 @@ import { ProgressGateCard } from "../../../components/Hackathon/ProgressGateCard
 import { ResponsibilityBanner } from "../../../components/Hackathon/ResponsibilityBanner";
 import { TeamWorkspaceSection } from "../../../components/Hackathon/TeamWorkspaceSection";
 import {
-  buildModuleProgressSnapshot,
   getHackathonModuleDetail,
 } from "../../../lib/hackathonProgram";
+import { PathLabSkiaLoader } from "../../../components/PathLabSkiaLoader";
 import { getPreviewModuleDetail } from "../../../lib/hackathonProgramPreview";
 import {
   buildPainPointFeedbackInput,
@@ -212,7 +211,7 @@ export default function HackathonModuleScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Accent.yellow} />
+        <PathLabSkiaLoader size="large" />
       </View>
     );
   }
@@ -328,7 +327,11 @@ export default function HackathonModuleScreen() {
               ]}
             >
               <AppText variant="bold" style={styles.feedbackButtonText}>
-                {feedbackLoading ? "Generating feedback..." : "Get AI feedback"}
+                {feedbackLoading ? (
+                  <PathLabSkiaLoader size="tiny" />
+                ) : (
+                  "Get AI feedback"
+                )}
               </AppText>
             </Pressable>
 

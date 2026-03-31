@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  View, Text, StyleSheet, Pressable, ActivityIndicator, Animated,
+  View, Text, StyleSheet, Pressable, Animated,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { callOnboardingChat, saveInterests } from "../../lib/onboarding";
 import { logInterestSelected } from "../../lib/eventLogger";
 import type { ChatMessage, InterestCategory } from "../../types/onboarding";
@@ -150,7 +151,7 @@ export default function StepInterests({
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#BFFF00" size="large" />
+        <PathLabSkiaLoader size="large" />
         <Text style={styles.loadingText}>Analyzing your interests...</Text>
       </View>
     );

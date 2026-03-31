@@ -6,13 +6,14 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { callOnboardingChat, saveCareers } from "../../lib/onboarding";
 import { logCareerSelected } from "../../lib/eventLogger";
 import type { InterestCategory, CareerGoal } from "../../types/onboarding";
+
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 
 type Props = {
   userId: string;
@@ -106,7 +107,7 @@ export default function StepCareers({
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#BFFF00" size="large" />
+        <PathLabSkiaLoader size="large" />
         <Text style={styles.loadingText}>Finding paths for you...</Text>
       </View>
     );
@@ -195,13 +196,13 @@ export default function StepCareers({
           onPress={handleContinue}
           disabled={saving}
         >
-          <Text style={styles.btnText}>
-            {saving
-              ? "Saving..."
-              : totalSelected === 0
-                ? "Skip →"
-                : "Continue →"}
-          </Text>
+          {saving ? (
+            <PathLabSkiaLoader size="tiny" />
+          ) : (
+            <Text style={styles.btnText}>
+              {totalSelected === 0 ? "Skip →" : "Continue →"}
+            </Text>
+          )}
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>

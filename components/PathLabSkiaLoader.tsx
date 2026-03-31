@@ -6,6 +6,8 @@ import {
   Canvas,
   Circle,
   Group,
+  useImage,
+  Image as SkiaImage,
 } from "@shopify/react-native-skia";
 import type { SharedValue } from "react-native-reanimated";
 import {
@@ -24,8 +26,9 @@ const BLUE_SOFT = "rgba(59, 130, 246, 0.28)";
 const LIME_SOFT = "rgba(191, 255, 0, 0.38)";
 
 const DIMENSIONS = {
-  large: { canvas: 108, core: 15, ringMax: 46, blur: 14 },
-  small: { canvas: 44, core: 5.5, ringMax: 16, blur: 5 },
+  large: { canvas: 108, core: 15, ringMin: 10, ringMax: 46, blur: 14 },
+  small: { canvas: 44, core: 5.5, ringMin: 6, ringMax: 16, blur: 5 },
+  tiny: { canvas: 24, core: 3, ringMin: 4, ringMax: 8, blur: 2.5 },
 } as const;
 
 export type PathLabSkiaLoaderSize = keyof typeof DIMENSIONS;
@@ -37,9 +40,11 @@ type Props = {
 
 /** PathLab-branded loading orb: same language as the splash (soft blurs, ripple rings, lime accent). */
 export function PathLabSkiaLoader({ size = "large", style }: Props) {
-  const { canvas: dim, core: coreBase, ringMax, blur } = DIMENSIONS[size];
+  const { canvas: dim, core: coreBase, ringMin, ringMax, blur } = DIMENSIONS[size];
   const cx = dim * 0.5;
   const cy = dim * 0.5;
+
+  const logo = useImage(require("../assets/passionseed-logo.png"));
 
   const breath = useSharedValue(1);
   const ring0 = useSharedValue(0);
@@ -82,17 +87,20 @@ export function PathLabSkiaLoader({ size = "large", style }: Props) {
       -1,
       false,
     );
-  }, []);
+  }, [ringMax, ringMin]);
 
   const coreR = useDerivedValue(() => coreBase * breath.value);
 
-  const r0 = useDerivedValue(() => 10 + ring0.value * ringMax);
+  const logoTransform = useDerivedValue(() => [{ scale: breath.value }]);
+  const logoSize = size === "large" ? dim * 0.45 : size === "small" ? dim * 0.5 : dim * 0.7;
+
+  const r0 = useDerivedValue(() => ringMin + ring0.value * ringMax);
   const o0 = useDerivedValue(() => 0.34 * (1 - ring0.value));
 
-  const r1 = useDerivedValue(() => 10 + ring1.value * ringMax);
+  const r1 = useDerivedValue(() => ringMin + ring1.value * ringMax);
   const o1 = useDerivedValue(() => 0.26 * (1 - ring1.value));
 
-  const r2 = useDerivedValue(() => 10 + ring2.value * ringMax);
+  const r2 = useDerivedValue(() => ringMin + ring2.value * ringMax);
   const o2 = useDerivedValue(() => 0.2 * (1 - ring2.value));
 
   const motes = useMemo(() => {
@@ -129,15 +137,51 @@ export function PathLabSkiaLoader({ size = "large", style }: Props) {
           >
             <BlurMask blur={blur * 2.6} style="normal" />
           </Circle>
-          <Circle cx={cx} cy={cy} r={coreR} color={LIME_SOFT} opacity={0.95}>
-            <BlurMask blur={blur} style="normal" />
-          </Circle>
+          {logo ? (
+            <Group>
+              <Circle cx={cx} cy={cy} r={logoSize * 0.55} color="rgba(255, 255, 255, 0.9)">
+                <BlurMask blur={blur * 1.5} style="normal" />
+              </Circle>
+              <Group origin={{ x: cx, y: cy }} transform={logoTransform}>
+                <SkiaImage
+                  image={logo}
+                  x={cx - logoSize / 2}
+                  y={cy - logoSize / 2}
+                  width={logoSize}
+                  height={logoSize}
+                  fit="contain"
+                />
+              </Group>
+            </Group>
+          ) : (
+            <Circle cx={cx} cy={cy} r={coreR} color={LIME_SOFT} opacity={0.95}>
+              <BlurMask blur={blur} style="normal" />
+            </Circle>
+          )}
         </Group>
       ) : (
         <Group>
-          <Circle cx={cx} cy={cy} r={coreR} color={LIME_SOFT} opacity={0.92}>
-            <BlurMask blur={blur} style="normal" />
-          </Circle>
+          {logo ? (
+            <Group>
+              <Circle cx={cx} cy={cy} r={logoSize * 0.55} color="rgba(255, 255, 255, 0.9)">
+                <BlurMask blur={blur * 1.5} style="normal" />
+              </Circle>
+              <Group origin={{ x: cx, y: cy }} transform={logoTransform}>
+                <SkiaImage
+                  image={logo}
+                  x={cx - logoSize / 2}
+                  y={cy - logoSize / 2}
+                  width={logoSize}
+                  height={logoSize}
+                  fit="contain"
+                />
+              </Group>
+            </Group>
+          ) : (
+            <Circle cx={cx} cy={cy} r={coreR} color={LIME_SOFT} opacity={0.92}>
+              <BlurMask blur={blur} style="normal" />
+            </Circle>
+          )}
         </Group>
       )}
 

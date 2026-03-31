@@ -4,9 +4,10 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
+  Pressable,
   Modal,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { AppText as Text } from "../../components/AppText";
 import { useLocalSearchParams, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -226,7 +227,7 @@ export default function CompareScreen() {
                   </View>
                   <View style={[s.dataCol, aWins && s.winCell]}>
                     {insightsA.loading ? (
-                      <ActivityIndicator size="small" color="#8B5CF6" />
+                      <PathLabSkiaLoader size="tiny" />
                     ) : (
                       <Text style={[s.dataVal, aWins && s.winVal]}>
                         {valA ?? "—"}
@@ -235,7 +236,7 @@ export default function CompareScreen() {
                   </View>
                   <View style={[s.dataCol, bWins && s.winCell]}>
                     {insightsB.loading ? (
-                      <ActivityIndicator size="small" color="#8B5CF6" />
+                      <PathLabSkiaLoader size="tiny" />
                     ) : (
                       <Text style={[s.dataVal, bWins && s.winVal]}>
                         {valB ?? "—"}
@@ -387,7 +388,7 @@ function UniPicker({
                   </Pressable>
                   {loadingPrograms ? (
                     <View style={s.dropdownLoading}>
-                      <ActivityIndicator size="small" color="#8B5CF6" />
+                      <PathLabSkiaLoader size="tiny" />
                     </View>
                   ) : (
                     <ScrollView style={{ maxHeight: 260 }} nestedScrollEnabled>

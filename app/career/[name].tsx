@@ -5,12 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Linking,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { supabase } from "../../lib/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ export default function CareerDetailScreen() {
       >
         {loading ? (
           <View style={s.loadingWrap}>
-            <ActivityIndicator color="#BFFF00" size="large" />
+            <PathLabSkiaLoader size="large" />
             <Text style={s.loadingText}>Researching {careerName}…</Text>
           </View>
         ) : error ? (

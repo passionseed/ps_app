@@ -4,9 +4,9 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Linking,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { AppText as Text } from "../../components/AppText";
 import { useLocalSearchParams, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -158,7 +158,7 @@ export default function UniversityDetailScreen() {
             </View>
           ) : loading ? (
             <View style={s.loadingPill}>
-              <ActivityIndicator size="small" color="#BFFF00" />
+              <PathLabSkiaLoader size="tiny" />
               <Text style={s.loadingPillText}>คำนวณ AI...</Text>
             </View>
           ) : null}
@@ -286,7 +286,9 @@ export default function UniversityDetailScreen() {
             {loading || (insights?.people?.length ?? 0) > 0 ? (
               <Section title="บุคลากร / ศิษย์เก่า">
                 {loading ? (
-                  <ActivityIndicator color="#8B5CF6" />
+                  <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                    <PathLabSkiaLoader size="small" />
+                  </View>
                 ) : (
                   <ScrollView
                     horizontal
@@ -325,7 +327,9 @@ export default function UniversityDetailScreen() {
             {loading || (insights?.news?.length ?? 0) > 0 ? (
               <Section title="ข่าวสาร">
                 {loading ? (
-                  <ActivityIndicator color="#8B5CF6" />
+                  <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                    <PathLabSkiaLoader size="small" />
+                  </View>
                 ) : (
                   <View style={s.newsList}>
                     {insights?.news.map((n, i) => (

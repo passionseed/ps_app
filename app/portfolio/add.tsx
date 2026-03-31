@@ -6,10 +6,10 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { AppText as Text } from "../../components/AppText";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -91,7 +91,7 @@ export default function AddPortfolioItemScreen() {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#111" />
+              <PathLabSkiaLoader size="tiny" />
             ) : (
               <Text style={s.saveBtnText}>บันทึก</Text>
             )}
