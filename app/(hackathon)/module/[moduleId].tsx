@@ -8,6 +8,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { AppText } from "../../../components/AppText";
 import { JourneyNodeGraph } from "../../../components/Hackathon/JourneyNodeGraph";
@@ -135,8 +136,10 @@ export default function HackathonModuleScreen() {
         ? { label: "Individual work unlocks team work", detail: "Each member contributes evidence first, then the team consolidates." }
         : { label: "Each member completes this activity", detail: "This step is individually owned so every participant builds real skill." };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.md }]}>
       <Pressable
         onPress={() => router.back()}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}

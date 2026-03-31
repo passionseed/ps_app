@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { AppText } from "../../../components/AppText";
 import { completeActivityNode } from "../../../lib/hackathonProgram";
@@ -221,11 +222,13 @@ export default function HackathonActivityScreen() {
     }
   }
 
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={styles.root}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Space.md }]}
         showsVerticalScrollIndicator={false}
       >
         <Pressable
