@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import { supabase } from "../lib/supabase";
-import { AnimatedSplash } from "./components/AnimatedSplash";
+import { AnimatedSplash } from "../components/AnimatedSplash";
 
 function extractTokens(url: string) {
   try {

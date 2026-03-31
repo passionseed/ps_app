@@ -18,10 +18,18 @@ import { Image as ExpoImage } from 'expo-image';
 import Markdown from 'react-native-markdown-display';
 import * as DocumentPicker from 'expo-document-picker';
 import { StatusBar } from "expo-status-bar";
+import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Circle, Svg, SvgXml } from "react-native-svg";
+import { Svg, SvgXml } from "react-native-svg";
 import YoutubePlayer from "react-native-youtube-iframe";
+import Reanimated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { ensureActivityHasProgress } from "../../lib/activityProgress";
 import { supabase } from "../../lib/supabase";
 import { ensureActivityProgress, updateActivityProgress, submitAssessment } from "../../lib/pathlab";
@@ -60,8 +68,8 @@ import {
 import { AppText as BaseAppText } from "../../components/AppText";
 import { GlassCard } from "../../components/Glass/GlassCard";
 import { GlassButton } from "../../components/Glass/GlassButton";
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+import { SwipeProgressDonut } from "../../components/activity/SwipeProgressDonut";
+import { SkiaBackButton } from "../../components/navigation/SkiaBackButton";
 
 interface ActivityWithContent extends PathActivity {
   path_content: PathContent[];
@@ -145,87 +153,6 @@ const HEADER_COLLAPSE_DISTANCE = 96;
 /** Max height for the expanded hero block (chip + large title + subtitle). */
 const HEADER_HERO_MAX_EXPANDED = 520;
 const SWIPE_NEXT_THRESHOLD = 220;
-const SWIPE_DONUT_SIZE = 68;
-const SWIPE_DONUT_STROKE = 6;
-
-function SwipeProgressDonut({
-  progress,
-  readyProgress,
-  label,
-  pulseScale,
-}: {
-  progress: Animated.Value;
-  readyProgress: Animated.Value;
-  label: string;
-  pulseScale: Animated.Value;
-}) {
-  const radius = (SWIPE_DONUT_SIZE - SWIPE_DONUT_STROKE) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [circumference, 0],
-    extrapolate: "clamp",
-  });
-  const donutOpacity = readyProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.42, 1],
-    extrapolate: "clamp",
-  });
-  const progressStrokeOpacity = readyProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
-
-  return (
-    <View style={styles.swipeHintContainer}>
-      {/* Outer: pulse scale uses native driver — must not share a node with JS-driven progress */}
-      <Animated.View
-        style={[styles.swipeDonutContainer, { transform: [{ scale: pulseScale }] }]}
-      >
-        <Animated.View
-          style={{
-            opacity: donutOpacity,
-            width: SWIPE_DONUT_SIZE,
-            height: SWIPE_DONUT_SIZE,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Svg width={SWIPE_DONUT_SIZE} height={SWIPE_DONUT_SIZE} style={styles.swipeDonutSvg}>
-            <AnimatedCircle
-              cx={SWIPE_DONUT_SIZE / 2}
-              cy={SWIPE_DONUT_SIZE / 2}
-              r={radius}
-              stroke="rgba(17,24,39,0.12)"
-              strokeWidth={SWIPE_DONUT_STROKE}
-              fill="transparent"
-            />
-            <AnimatedCircle
-              cx={SWIPE_DONUT_SIZE / 2}
-              cy={SWIPE_DONUT_SIZE / 2}
-              r={radius}
-              stroke={Accent.yellow}
-              strokeWidth={SWIPE_DONUT_STROKE}
-              strokeLinecap="round"
-              strokeDasharray={`${circumference} ${circumference}`}
-              strokeDashoffset={dashOffset}
-              strokeOpacity={progressStrokeOpacity}
-              fill="transparent"
-              rotation="-90"
-              origin={`${SWIPE_DONUT_SIZE / 2}, ${SWIPE_DONUT_SIZE / 2}`}
-            />
-          </Svg>
-          <View style={styles.swipeDonutCenter}>
-            <AppText style={styles.swipeDonutArrow}>↓</AppText>
-          </View>
-        </Animated.View>
-      </Animated.View>
-      <AppText style={styles.swipeHintText}>{label}</AppText>
-      <AppText style={styles.swipeHintMeta}>Pull up and watch the ring fill</AppText>
-    </View>
-  );
-}
 
 export default function ActivityDetailScreen() {
   const { activityId, enrollmentId, pageIndex, totalPages } = useLocalSearchParams<{
@@ -262,13 +189,30 @@ export default function ActivityDetailScreen() {
   // Track scroll position for swipe detection
   const scrollViewRef = useRef<ScrollView>(null);
   const isAtTopRef = useRef(true);
-  const isAtBottomRef = useRef(false);
   const headerScrollY = useRef(new Animated.Value(0)).current;
-  const nextSwipeProgress = useRef(new Animated.Value(0)).current;
-  const bottomReadyProgress = useRef(new Animated.Value(0)).current;
-  const nextSwipePulse = useRef(new Animated.Value(1)).current;
+  const nextSwipeProgress = useSharedValue(0);
+  const bottomReadyProgress = useSharedValue(0);
+  const nextSwipePulse = useSharedValue(1);
   const nextSwipeThresholdReachedRef = useRef(false);
   const nextSwipeProgressRef = useRef(0);
+  /** 0–4 milestones for pull overscroll haptics (25% / 50% / 75% / full). */
+  const lastSwipeHapticMilestoneRef = useRef(0);
+
+  /** Previous-activity pull (top overscroll). */
+  const prevSwipeProgress = useSharedValue(0);
+  const prevReadyProgress = useSharedValue(0);
+  const prevSwipePulse = useSharedValue(1);
+  const prevSwipeProgressRef = useRef(0);
+  const prevSwipeThresholdReachedRef = useRef(false);
+  const lastPrevHapticMilestoneRef = useRef(0);
+  const lastPrevNavAtRef = useRef(0);
+
+  const prevPullOverlayStyle = useAnimatedStyle(() => ({
+    opacity: prevSwipeProgress.value > 0.02 ? 1 : 0,
+  }));
+  const nextPullOverlayStyle = useAnimatedStyle(() => ({
+    opacity: nextSwipeProgress.value > 0.02 ? 1 : 0,
+  }));
 
   // Use auto-detected pagination if URL params not provided
   const currentPage = pageIndex !== undefined ? parseInt(pageIndex) : autoCurrentPage;
@@ -1355,6 +1299,9 @@ export default function ActivityDetailScreen() {
 
   const handleSwipeToPrevious = () => {
     if (!enrollmentId) return;
+    const now = Date.now();
+    if (now - lastPrevNavAtRef.current < 450) return;
+    lastPrevNavAtRef.current = now;
 
     const prevIndex = currentPage - 1;
     if (prevIndex >= 0 && dayActivitiesList.length > 0) {
@@ -1388,26 +1335,16 @@ export default function ActivityDetailScreen() {
     
     nextSwipeThresholdReachedRef.current = false;
     nextSwipeProgressRef.current = 0;
+    lastSwipeHapticMilestoneRef.current = 0;
 
     if (!animated) {
-      nextSwipePulse.setValue(1);
-      nextSwipeProgress.setValue(0);
+      nextSwipePulse.value = 1;
+      nextSwipeProgress.value = 0;
       return;
     }
 
-    Animated.parallel([
-      Animated.timing(nextSwipeProgress, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: false,
-      }),
-      Animated.spring(nextSwipePulse, {
-        toValue: 1,
-        useNativeDriver: true,
-        friction: 7,
-        tension: 120,
-      }),
-    ]).start();
+    nextSwipeProgress.value = withTiming(0, { duration: 180 });
+    nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
   };
 
   const updateNextSwipeIndicator = (gestureDy: number) => {
@@ -1418,32 +1355,93 @@ export default function ActivityDetailScreen() {
     if (progress > 0 && progress < 1 && Math.abs(nextSwipeProgressRef.current - progress) < 0.02) return;
     
     nextSwipeProgressRef.current = progress;
-    nextSwipeProgress.setValue(progress);
+    nextSwipeProgress.value = progress;
+
+    const milestone =
+      progress >= 1 ? 4 : Math.min(3, Math.floor(progress * 4));
+    if (
+      milestone > lastSwipeHapticMilestoneRef.current &&
+      milestone > 0
+    ) {
+      lastSwipeHapticMilestoneRef.current = milestone;
+      void Haptics.impactAsync(
+        milestone >= 4
+          ? Haptics.ImpactFeedbackStyle.Medium
+          : Haptics.ImpactFeedbackStyle.Light,
+      ).catch(() => {});
+    }
 
     if (progress >= 1 && !nextSwipeThresholdReachedRef.current) {
       nextSwipeThresholdReachedRef.current = true;
-      Animated.sequence([
-        Animated.spring(nextSwipePulse, {
-          toValue: 1.08,
-          useNativeDriver: true,
-          friction: 6,
-          tension: 180,
-        }),
-        Animated.spring(nextSwipePulse, {
-          toValue: 1,
-          useNativeDriver: true,
-          friction: 7,
-          tension: 140,
-        }),
-      ]).start();
+      nextSwipePulse.value = withSequence(
+        withSpring(1.06, { damping: 12, stiffness: 260 }),
+        withSpring(1, { damping: 14, stiffness: 200 }),
+      );
     } else if (progress < 1 && nextSwipeThresholdReachedRef.current) {
       nextSwipeThresholdReachedRef.current = false;
-      Animated.spring(nextSwipePulse, {
-        toValue: 1,
-        useNativeDriver: true,
-        friction: 7,
-        tension: 120,
-      }).start();
+      nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+    }
+  };
+
+  const resetPrevSwipeIndicator = (animated = true) => {
+    if (
+      prevSwipeProgressRef.current === 0 &&
+      !prevSwipeThresholdReachedRef.current
+    ) {
+      return;
+    }
+
+    prevSwipeThresholdReachedRef.current = false;
+    prevSwipeProgressRef.current = 0;
+    lastPrevHapticMilestoneRef.current = 0;
+
+    if (!animated) {
+      prevSwipePulse.value = 1;
+      prevSwipeProgress.value = 0;
+      return;
+    }
+
+    prevSwipeProgress.value = withTiming(0, { duration: 180 });
+    prevSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+  };
+
+  const updatePrevSwipeIndicator = (gestureDy: number) => {
+    const progress = Math.max(
+      0,
+      Math.min(Math.abs(gestureDy) / SWIPE_NEXT_THRESHOLD, 1),
+    );
+
+    if (
+      progress > 0 &&
+      progress < 1 &&
+      Math.abs(prevSwipeProgressRef.current - progress) < 0.02
+    ) {
+      return;
+    }
+
+    prevSwipeProgressRef.current = progress;
+    prevSwipeProgress.value = progress;
+
+    const milestone =
+      progress >= 1 ? 4 : Math.min(3, Math.floor(progress * 4));
+    if (milestone > lastPrevHapticMilestoneRef.current && milestone > 0) {
+      lastPrevHapticMilestoneRef.current = milestone;
+      void Haptics.impactAsync(
+        milestone >= 4
+          ? Haptics.ImpactFeedbackStyle.Medium
+          : Haptics.ImpactFeedbackStyle.Light,
+      ).catch(() => {});
+    }
+
+    if (progress >= 1 && !prevSwipeThresholdReachedRef.current) {
+      prevSwipeThresholdReachedRef.current = true;
+      prevSwipePulse.value = withSequence(
+        withSpring(1.06, { damping: 12, stiffness: 260 }),
+        withSpring(1, { damping: 14, stiffness: 200 }),
+      );
+    } else if (progress < 1 && prevSwipeThresholdReachedRef.current) {
+      prevSwipeThresholdReachedRef.current = false;
+      prevSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
     }
   };
 
@@ -1599,9 +1597,7 @@ export default function ActivityDetailScreen() {
             ]}
           >
             <View style={[styles.headerTopRow, { marginBottom: 4 }]}>
-              <Pressable style={styles.headerBackButton} onPress={() => router.back()}>
-                <AppText style={styles.headerBackIcon}>‹</AppText>
-              </Pressable>
+              <SkiaBackButton onPress={() => router.back()} style={styles.headerBackButton} />
               <View
                 style={[
                   styles.headerTopRowCenter,
@@ -1816,11 +1812,15 @@ export default function ActivityDetailScreen() {
           </View>
         </View>
       ) : (
+        <View style={styles.scrollWrapper}>
         <Animated.ScrollView
           ref={scrollViewRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          bounces
+          alwaysBounceVertical
+          overScrollMode="always"
           refreshControl={
             canSwipeUp() ? (
               <RefreshControl
@@ -1846,46 +1846,86 @@ export default function ActivityDetailScreen() {
                 const atTop = scrollY <= 5;
                 if (isAtTopRef.current !== atTop) isAtTopRef.current = atTop;
 
-                if (!canSwipe()) return;
-
-                const normalMaxScroll = Math.max(0, contentSize.height - SWIPE_NEXT_THRESHOLD - layoutMeasurement.height);
-                const reachedBottom = scrollY >= normalMaxScroll - 5;
-
-                if (isAtBottomRef.current !== reachedBottom) {
-                  isAtBottomRef.current = reachedBottom;
-                  bottomReadyProgress.setValue(reachedBottom ? 1 : 0);
+                // Previous activity: UI only during top rubber-band (negative scrollY)
+                if (canSwipeUp()) {
+                  const overscrollTop = scrollY < 0 ? -scrollY : 0;
+                  if (overscrollTop > 0) {
+                    prevReadyProgress.value = 1;
+                    updatePrevSwipeIndicator(overscrollTop);
+                  } else {
+                    prevReadyProgress.value = 0;
+                    if (prevSwipeProgressRef.current > 0) {
+                      resetPrevSwipeIndicator(false);
+                    }
+                  }
+                } else {
+                  prevReadyProgress.value = 0;
+                  if (prevSwipeProgressRef.current > 0) {
+                    resetPrevSwipeIndicator(false);
+                  }
                 }
 
-                if (scrollY > normalMaxScroll) {
-                  updateNextSwipeIndicator(scrollY - normalMaxScroll);
-                } else if (nextSwipeProgressRef.current > 0) {
-                  resetNextSwipeIndicator(false);
+                if (!canSwipe()) return;
+
+                const viewportH = layoutMeasurement.height;
+                const contentH = contentSize.height;
+                /** Max scroll offset — end of content without rubber-band (natural bottom). */
+                const maxScrollY = Math.max(0, contentH - viewportH);
+
+                /**
+                 * Next activity: UI only during bottom rubber-band past maxScrollY
+                 */
+                const overscrollY = scrollY - maxScrollY;
+                if (overscrollY > 0) {
+                  bottomReadyProgress.value = 1;
+                  updateNextSwipeIndicator(overscrollY);
+                } else {
+                  bottomReadyProgress.value = 0;
+                  if (nextSwipeProgressRef.current > 0) {
+                    resetNextSwipeIndicator(false);
+                  }
                 }
               },
             },
           )}
           onScrollEndDrag={(e) => {
-            if (!canSwipe()) return;
             const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
             const scrollY = contentOffset.y;
-            const normalMaxScroll = Math.max(0, contentSize.height - SWIPE_NEXT_THRESHOLD - layoutMeasurement.height);
-            
-            if (scrollY > normalMaxScroll) {
-              const pullDistance = scrollY - normalMaxScroll;
-              if (pullDistance > SWIPE_NEXT_THRESHOLD * 0.6) {
-                handleSwipeToNext();
-              }
+
+            if (
+              canSwipeUp() &&
+              scrollY < 0 &&
+              -scrollY > SWIPE_NEXT_THRESHOLD * 0.6
+            ) {
+              handleSwipeToPrevious();
+            }
+
+            if (!canSwipe()) return;
+            const maxScrollY = Math.max(0, contentSize.height - layoutMeasurement.height);
+            const overscrollY = scrollY - maxScrollY;
+
+            if (overscrollY > SWIPE_NEXT_THRESHOLD * 0.6) {
+              handleSwipeToNext();
             }
           }}
           onMomentumScrollEnd={(e) => {
-            if (!canSwipe()) return;
             const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
             const scrollY = contentOffset.y;
-            const normalMaxScroll = Math.max(0, contentSize.height - SWIPE_NEXT_THRESHOLD - layoutMeasurement.height);
-            
-            if (scrollY > normalMaxScroll && scrollY < normalMaxScroll + SWIPE_NEXT_THRESHOLD * 0.6) {
-              // Only snap back when momentum finishes
-              scrollViewRef.current?.scrollTo({ y: normalMaxScroll, animated: true });
+            const maxScrollY = Math.max(0, contentSize.height - layoutMeasurement.height);
+
+            if (
+              canSwipeUp() &&
+              scrollY < 0 &&
+              scrollY > -SWIPE_NEXT_THRESHOLD * 0.6
+            ) {
+              scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+            }
+
+            if (!canSwipe()) return;
+            const overscrollY = scrollY - maxScrollY;
+
+            if (overscrollY > 0 && overscrollY < SWIPE_NEXT_THRESHOLD * 0.6) {
+              scrollViewRef.current?.scrollTo({ y: maxScrollY, animated: true });
             }
           }}
           decelerationRate="normal"
@@ -2077,20 +2117,46 @@ export default function ActivityDetailScreen() {
           />
         )}
 
-          {/* Swipe hint for swipeable content */}
-          {canSwipe() ? (
-            <View style={{ height: SWIPE_NEXT_THRESHOLD, justifyContent: 'flex-start', paddingTop: 20 }}>
+          {!canSwipe() ? <View style={{ height: 120 }} /> : null}
+        </Animated.ScrollView>
+
+          <Reanimated.View
+            pointerEvents="none"
+            style={[
+              styles.pullOverlayTop,
+              { paddingTop: insets.top + 6 },
+              prevPullOverlayStyle,
+            ]}
+          >
+            {canSwipeUp() ? (
+              <SwipeProgressDonut
+                direction="previous"
+                progress={prevSwipeProgress}
+                readyProgress={prevReadyProgress}
+                pulseScale={prevSwipePulse}
+                label="Pull down for previous activity"
+              />
+            ) : null}
+          </Reanimated.View>
+
+          <Reanimated.View
+            pointerEvents="none"
+            style={[
+              styles.pullOverlayBottom,
+              { paddingBottom: Math.max(insets.bottom, 8) + 88 },
+              nextPullOverlayStyle,
+            ]}
+          >
+            {canSwipe() ? (
               <SwipeProgressDonut
                 progress={nextSwipeProgress}
                 readyProgress={bottomReadyProgress}
                 label={nextSwipeLabel}
                 pulseScale={nextSwipePulse}
               />
-            </View>
-          ) : (
-            <View style={{ height: 120 }} />
-          )}
-        </Animated.ScrollView>
+            ) : null}
+          </Reanimated.View>
+        </View>
       )}
 
       {/* AI Chat Input - Messenger Style */}
@@ -2717,6 +2783,26 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: ThemeText.secondary,
     textAlign: "center",
+  },
+  scrollWrapper: {
+    flex: 1,
+  },
+  pullOverlayTop: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 30,
+    alignItems: "center",
+  },
+  pullOverlayBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 30,
+    alignItems: "center",
+    justifyContent: "flex-end",
   },
   scroll: {
     flex: 1,
@@ -3436,50 +3522,10 @@ const styles = StyleSheet.create({
     color: ThemeText.secondary,
     marginTop: 8,
   },
-  swipeHintContainer: {
-    alignItems: "center",
-    paddingVertical: 32,
-    marginTop: 24,
-    gap: 10,
-  },
-  swipeDonutContainer: {
-    width: SWIPE_DONUT_SIZE,
-    height: SWIPE_DONUT_SIZE,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  swipeDonutSvg: {
-    transform: [{ rotate: "0deg" }],
-  },
-  swipeDonutCenter: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  swipeDonutArrow: {
-    fontSize: 24,
-    lineHeight: 24,
-    color: ThemeText.primary,
-  },
   swipeHintArrow: {
     fontSize: 32,
     color: Accent.yellow,
   },
-  swipeHintText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: ThemeText.secondary,
-    textAlign: "center",
-  },
-  swipeHintTextReady: {
-    color: ThemeText.primary,
-  },
-  swipeHintMeta: {
-    fontSize: 12,
-    color: ThemeText.tertiary,
-    textAlign: "center",
-  },
-
   objectiveMetCard: {
     backgroundColor: "rgba(16, 185, 129, 0.1)",
     padding: 16,

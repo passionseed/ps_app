@@ -4,7 +4,6 @@ import {
   Animated,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   RefreshControl,
   Image,
   TextInput,
@@ -19,10 +18,8 @@ import {
   buildFallbackRecommendations,
   buildSeedRecommendationSections,
 } from "../../lib/seedRecommendations";
-import type { SeedWithEnrollment } from "../../types/seeds";
 import { AppText as Text } from "../../components/AppText";
-import { Accent } from "../../lib/theme";
-import { SAMPLE_SEEDS } from "../../components/discover/constants";
+import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { getDiscoverScrollInterpolations } from "../../components/discover/scrollInterpolations";
 import { useDiscoverSeeds } from "../../components/discover/useDiscoverSeeds";
 import { styles } from "../../components/discover/discoverStyles";
@@ -33,7 +30,7 @@ import {
 
 export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState("");
-  const { appLanguage, user, isGuest } = useAuth();
+  const { appLanguage, user, isGuest, loading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
   const isThai = appLanguage === "th";
 
@@ -45,7 +42,11 @@ export default function DiscoverScreen() {
   const [inlineSearchMode, setInlineSearchMode] = useState(false);
 
   const { seeds, recommendations, loading, refreshing, onRefresh } =
-    useDiscoverSeeds({ isGuest, userId: user?.id });
+    useDiscoverSeeds({
+      isGuest,
+      userId: user?.id,
+      authLoading,
+    });
 
   const {
     titleScale,
@@ -77,9 +78,7 @@ export default function DiscoverScreen() {
     setInlineSearchMode(false);
   }, []);
 
-  const fallbackPayload = buildFallbackRecommendations(
-    seeds.length > 0 ? seeds : (SAMPLE_SEEDS as SeedWithEnrollment[]),
-  );
+  const fallbackPayload = buildFallbackRecommendations(seeds);
   const displayRecommendations = recommendations ?? fallbackPayload;
   const filteredRecommendations = displayRecommendations.seeds.filter((seed) => {
     if (!searchQuery.trim()) return true;
@@ -93,7 +92,7 @@ export default function DiscoverScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Accent.yellow} />
+        <PathLabSkiaLoader size="large" />
         <Text style={styles.loadingText}>
           {isThai ? "กำลังโหลดเส้นทาง..." : "Loading paths..."}
         </Text>

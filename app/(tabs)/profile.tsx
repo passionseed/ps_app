@@ -1,12 +1,11 @@
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Image,
 } from "react-native";
+import { AppText as Text } from "../../components/AppText";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import Constants from "expo-constants";
@@ -16,14 +15,9 @@ import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import { getProfile } from "../../lib/onboarding";
 import {
-  getScoreTimeline,
-  getUserIkigaiScores,
-  hasUserScores,
   type IkigaiScores,
   type ScoreTimelineItem,
 } from "../../lib/scoreEngine";
-import { getPortfolioItems } from "../../lib/portfolioFit";
-import { getSavedPrograms } from "../../lib/savedPrograms";
 import {
   buildFocusSections,
   buildProfileMetaPills,
@@ -49,9 +43,28 @@ interface IkigaiPillar {
   route: string;
 }
 
-function getIkigaiInsight(scores: IkigaiScores): string {
+function getIkigaiInsight(scores: IkigaiScores, isThai: boolean): string {
   const { passion, mission, profession, vocation } = scores;
   const avg = (passion + mission + profession + vocation) / 4;
+
+  if (isThai) {
+    if (passion >= 75 && mission >= 75) {
+      return "ความหลงใหลและภารกิจของคุณสอดคล้องกันอย่างมาก พัฒนาทักษะต่อไปเพื่อเปลี่ยนแนวทางนี้ให้เป็นผลงานจริง";
+    }
+    if (profession >= 75 && vocation >= 75) {
+      return "คุณมีโมเมนตัมที่แข็งแกร่งแล้วในด้านอาชีพและจุดแข็ง ตอนนี้มุ่งเน้นไปที่งานที่ทำให้คุณตื่นเต้น";
+    }
+    if (avg >= 70) {
+      return "คุณมีความสมดุลที่แข็งแกร่งในทั้งสี่มิติของ Ikigai สำรวจต่อไปเพื่อกำหนดสิ่งที่ควรทำต่อไป";
+    }
+    if (passion < 50 && profession < 50) {
+      return "คุณยังอยู่ในช่วงเริ่มต้นของการสำรวจ ลอง Seeds และการสะท้อนคิดเพิ่มเติมเพื่อเรียนรู้ว่าอะไรที่ดึงดูดความสนใจของคุณจริง ๆ";
+    }
+    if (vocation < 50) {
+      return "ทิศทางของคุณกำลังก่อตัว แต่ฐานทักษะยังต้องการการฝึกฝน การฝึกซ้อมเพิ่มเติมจะช่วยให้เส้นทางชัดเจนขึ้น";
+    }
+    return "สัญญาณเริ่มก่อตัวแล้ว สำรวจและสะท้อนคิดต่อไปเพื่อให้รูปแบบชัดเจนขึ้น";
+  }
 
   if (passion >= 75 && mission >= 75) {
     return "Your passion and mission are strongly aligned. Keep building the skills that turn that direction into real work.";
@@ -71,7 +84,56 @@ function getIkigaiInsight(scores: IkigaiScores): string {
   return "The signal is starting to form. Keep exploring and reflecting so the pattern becomes easier to trust.";
 }
 
-function getPillarInsight(dimension: string, score: number): string {
+function getPillarInsight(dimension: string, score: number, isThai: boolean): string {
+  if (isThai) {
+    if (score >= 80) {
+      switch (dimension) {
+        case "passion":
+          return "คุณใส่ใจอย่างลึกซึ้งในด้านนี้";
+        case "mission":
+          return "สิ่งนี้ผูกโยงกับผลกระทบที่มีความหมายอย่างใกล้ชิด";
+        case "profession":
+          return "ทิศทางนี้มีศักยภาพในอาชีพแล้ว";
+        case "vocation":
+          return "จุดแข็งของคุณแสดงออกมาอย่างชัดเจนที่นี่";
+      }
+    } else if (score >= 60) {
+      switch (dimension) {
+        case "passion":
+          return "ความสนใจนี้แข็งแกร่งและคุ้มค่ากับการติดตาม";
+        case "mission":
+          return "คุณกำลังสร้างความรู้สึกมีจุดมุ่งหมายที่ชัดเจนขึ้น";
+        case "profession":
+          return "สิ่งนี้มีศักยภาพในอาชีพที่น่าสนใจ";
+        case "vocation":
+          return "ความสามารถของคุณกำลังสร้างขึ้นอย่างมีนัยสำคัญ";
+      }
+    } else if (score >= 40) {
+      switch (dimension) {
+        case "passion":
+          return "มีความดึงดูดบางอย่างที่นี่ แต่ต้องการการสำรวจเพิ่มเติม";
+        case "mission":
+          return "ความรู้สึกมีส่วนร่วมของคุณยังคงพัฒนาอยู่";
+        case "profession":
+          return "สัญญาณอาชีพยังอ่อนแอแต่กำลังก่อตัว";
+        case "vocation":
+          return "ทักษะเริ่มก่อตัวขึ้น แต่ยังไม่คงที";
+      }
+    } else {
+      switch (dimension) {
+        case "passion":
+          return "คุณยังคงทดสอบว่าสิ่งนี้ทำให้คุณมีพลังจริง ๆ หรือไม่";
+        case "mission":
+          return "คุณยังคงค้นพบวิธีที่คุณต้องการมีส่วนร่วม";
+        case "profession":
+          return "ความพอดีในอาชีพยังอยู่ในระยะเริ่มต้นที่นี่";
+        case "vocation":
+          return "คุณยังคงสร้างพื้นฐานอยู่";
+      }
+    }
+    return "";
+  }
+
   if (score >= 80) {
     switch (dimension) {
       case "passion":
@@ -120,68 +182,80 @@ function getPillarInsight(dimension: string, score: number): string {
   return "";
 }
 
-function buildIkigaiData(scores: IkigaiScores): Record<string, IkigaiPillar> {
+function buildIkigaiData(scores: IkigaiScores, isThai: boolean): Record<string, IkigaiPillar> {
   return {
     passion: {
       score: scores.passion,
-      label: "Passion",
+      label: isThai ? "ความหลงใหล" : "Passion",
       emoji: "🔥",
-      description: "What you love",
-      insight: getPillarInsight("passion", scores.passion),
+      description: isThai ? "สิ่งที่คุณรัก" : "What you love",
+      insight: getPillarInsight("passion", scores.passion, isThai),
       route: "/ikigai/passion",
     },
     mission: {
       score: scores.mission,
-      label: "Mission",
+      label: isThai ? "ภารกิจ" : "Mission",
       emoji: "🎯",
-      description: "What the world needs",
-      insight: getPillarInsight("mission", scores.mission),
+      description: isThai ? "สิ่งที่โลกต้องการ" : "What the world needs",
+      insight: getPillarInsight("mission", scores.mission, isThai),
       route: "/ikigai/mission",
     },
     profession: {
       score: scores.profession,
-      label: "Profession",
+      label: isThai ? "อาชีพ" : "Profession",
       emoji: "💼",
-      description: "What you can be paid for",
-      insight: getPillarInsight("profession", scores.profession),
+      description: isThai ? "สิ่งที่คุณได้รับค่าจ้าง" : "What you can be paid for",
+      insight: getPillarInsight("profession", scores.profession, isThai),
       route: "/ikigai/profession",
     },
     vocation: {
       score: scores.vocation,
-      label: "Vocation",
+      label: isThai ? "คุณสมบัติ" : "Vocation",
       emoji: "🌍",
-      description: "What you're good at",
-      insight: getPillarInsight("vocation", scores.vocation),
+      description: isThai ? "สิ่งที่คุณเก่ง" : "What you're good at",
+      insight: getPillarInsight("vocation", scores.vocation, isThai),
       route: "/ikigai/vocation",
     },
   };
 }
 
-function formatActivityTime(isoDate: string): string {
+function formatActivityTime(isoDate: string, isThai: boolean): string {
   const diffMs = Date.now() - new Date(isoDate).getTime();
   const diffMinutes = Math.max(1, Math.floor(diffMs / (1000 * 60)));
 
   if (diffMinutes < 60) {
-    return `${diffMinutes}m ago`;
+    return isThai ? `${diffMinutes} นาทีที่แล้ว` : `${diffMinutes}m ago`;
   }
 
   const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) {
-    return `${diffHours}h ago`;
+    return isThai ? `${diffHours} ชั่วโมงที่แล้ว` : `${diffHours}h ago`;
   }
 
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) {
-    return `${diffDays}d ago`;
+    return isThai ? `${diffDays} วันที่แล้ว` : `${diffDays}d ago`;
   }
 
-  return new Date(isoDate).toLocaleDateString(undefined, {
+  const date = new Date(isoDate);
+  if (isThai) {
+    const thaiMonths = [
+      "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+      "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+    ];
+    return `${date.getDate()} ${thaiMonths[date.getMonth()]}`;
+  }
+
+  return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
   });
 }
 
-function pluralize(count: number, singular: string, plural = `${singular}s`) {
+function pluralize(count: number, singular: string, plural = `${singular}s`, isThai = false) {
+  if (isThai) {
+    return `${count} ${singular}`;
+  }
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
@@ -196,69 +270,103 @@ export default function ProfileScreen() {
   const [activityEvents, setActivityEvents] = useState<UserEvent[]>([]);
   const [portfolioCount, setPortfolioCount] = useState(0);
   const [savedProgramsCount, setSavedProgramsCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [scoresLoading, setScoresLoading] = useState(true);
-
   useEffect(() => {
-    if (!user?.id) {
-      setLoading(false);
-      setScoresLoading(false);
-      return;
-    }
+    if (!user?.id) return;
 
     const userId = user.id;
-
     let cancelled = false;
 
     async function loadData() {
-      setLoading(true);
-      setScoresLoading(true);
+      const [
+        profileData,
+        interestsData,
+        careersData,
+        journeyData,
+        scoreEventsData,
+        portfolioData,
+        savedProgramsData,
+        eventsData,
+      ] = await Promise.all([
+        getProfile(userId),
+        supabase.from("user_interests").select("*").eq("user_id", userId),
+        supabase.from("career_goals").select("*").eq("user_id", userId),
+        supabase
+          .from("student_journeys")
+          .select("*")
+          .eq("student_id", userId)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .maybeSingle(),
+        supabase
+          .from("score_events")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("student_portfolio_items")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("saved_programs")
+          .select("id,user_id,program_id,created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("user_events")
+          .select("id,user_id,event_type,event_data,session_id,created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(8),
+      ]);
 
-      try {
-        const [
-          profileData,
-          interestsData,
-          careersData,
-          scoresData,
-          timelineData,
-          hasScoresData,
-          portfolioItems,
-          savedPrograms,
-          eventsData,
-        ] = await Promise.all([
-          getProfile(userId),
-          supabase.from("user_interests").select("*").eq("user_id", userId),
-          supabase.from("career_goals").select("*").eq("user_id", userId),
-          getUserIkigaiScores(),
-          getScoreTimeline(),
-          hasUserScores(),
-          getPortfolioItems(userId),
-          getSavedPrograms(),
-          supabase
-            .from("user_events")
-            .select("id,user_id,event_type,event_data,session_id,created_at")
-            .eq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(8),
-        ]);
+      if (cancelled) return;
 
-        if (cancelled) return;
+      setProfile(profileData);
+      setInterests((interestsData.data as InterestCategory[] | null) ?? []);
+      setCareers((careersData.data as CareerGoal[] | null) ?? []);
 
-        setProfile(profileData);
-        setInterests((interestsData.data as InterestCategory[] | null) ?? []);
-        setCareers((careersData.data as CareerGoal[] | null) ?? []);
-        setIkigaiScores(scoresData);
-        setScoreTimeline(timelineData);
-        setHasScores(hasScoresData);
-        setPortfolioCount(portfolioItems.length);
-        setSavedProgramsCount(savedPrograms.length);
-        setActivityEvents((eventsData.data as UserEvent[] | null) ?? []);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-          setScoresLoading(false);
-        }
+      // Compute ikigai scores from journey
+      const journey = journeyData.data as any;
+      if (journey?.scores) {
+        const s = journey.scores;
+        const passion = s.passion || 0;
+        const mission = s.future || 0;
+        const profession = s.world || 0;
+        const vocation = Math.round((passion + mission + profession) / 3);
+        setIkigaiScores({ passion, mission, profession, vocation });
+        setHasScores(passion > 0 || mission > 0 || profession > 0);
+      } else {
+        setIkigaiScores(null);
+        setHasScores(false);
       }
+
+      // Build timeline from score events
+      const scoreEvents = (scoreEventsData.data as any[]) || [];
+      if (scoreEvents.length > 0) {
+        const eventsByDate = new Map<string, any[]>();
+        scoreEvents.forEach((event) => {
+          const date = event.created_at.split("T")[0];
+          if (!eventsByDate.has(date)) eventsByDate.set(date, []);
+          eventsByDate.get(date)!.push(event);
+        });
+        const timeline = Array.from(eventsByDate.entries()).map(([date, events]) => {
+          const meta = (events[0].metadata as Record<string, number>) || {};
+          return {
+            date,
+            passion: meta.passion || 0,
+            mission: meta.mission || 0,
+            profession: meta.profession || 0,
+            vocation: meta.vocation || 0,
+          };
+        });
+        setScoreTimeline(timeline.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      }
+
+      setPortfolioCount((portfolioData.data as any[])?.length ?? 0);
+      setSavedProgramsCount((savedProgramsData.data as any[])?.length ?? 0);
+      setActivityEvents((eventsData.data as UserEvent[] | null) ?? []);
     }
 
     loadData();
@@ -277,11 +385,13 @@ export default function ProfileScreen() {
     router.replace("/");
   };
 
+  const isThai = appLanguage === "th";
+
   const displayName =
     profile?.full_name ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
-    "Explorer";
+    (isThai ? "นักสำรวจ" : "Explorer");
   const appVersion = Constants.expoConfig?.version ?? "dev";
   const avatarSource = profile?.avatar_url
     ? { uri: profile.avatar_url }
@@ -298,7 +408,75 @@ export default function ProfileScreen() {
   const primaryCareer = focusSections.find(
     (section) => section.kind === "career-goals",
   )?.items[0];
-  const isThai = appLanguage === "th";
+
+  const t = {
+    heroSummary: {
+      workingToward: isThai
+        ? (primaryCareer: string) => `มุ่งสู่ ${primaryCareer}`
+        : (primaryCareer: string) => `Working toward ${primaryCareer}`,
+      addCareerGoal: isThai
+        ? "เพิ่มเป้าหมายอาชีพเพื่อให้โปรไฟล์สะท้อนที่คุณต้องการไป"
+        : "Add a career goal to make your profile reflect where you want to go.",
+    },
+    emptyHero: {
+      title: isThai ? "ยังไม่มีทิศทางที่บันทึกไว้" : "No direction saved yet",
+      body: isThai
+        ? "เริ่มสำรวจอาชีพเพื่อให้หน้านี้สะท้อนสิ่งที่คุณอยากเป็น"
+        : "Start exploring careers so this page can reflect what you actually want to become.",
+      cta: isThai ? "สำรวจอาชีพ" : "Explore Careers",
+    },
+    ikigaiSection: {
+      title: isThai ? "เข็มทิศ Ikigai ของคุณ" : "Your Ikigai Compass",
+      emptyTitle: isThai ? "ค้นพบ Ikigai ของคุณ" : "Discover Your Ikigai",
+      emptyBody: isThai
+        ? "ทำ Seeds และการสะท้อนคิดเพื่อเปิดเผยว่าความหลงใหล ภารกิจ อาชีพ และคุณสมบัติของคุณพัฒนาอย่างไร"
+        : "Complete Seeds and reflections to reveal how your passion, mission, profession, and vocation are developing.",
+      exploreCta: isThai ? "สำรวจ Seeds" : "Explore Seeds",
+      scoreTrend: isThai ? "แนวโน้มคะแนน" : "Score Trend",
+    },
+    portfolioSection: {
+      title: isThai ? "พอร์ตโฟลิโอและแผน" : "Portfolio & Plans",
+      myPortfolio: {
+        subtitle: (count: number) =>
+          count > 0
+            ? isThai
+              ? `${pluralize(count, "รายการ", undefined, true)} พร้อมนำเสนอ`
+              : `${pluralize(count, "item")} ready to show`
+            : isThai
+              ? "เพิ่มโครงการ รางวัล และกิจกรรมที่คุณต้องการเก็บไว้"
+              : "Add projects, awards, and activities you want to keep.",
+      },
+      savedPrograms: {
+        subtitle: (count: number) =>
+          count > 0
+            ? isThai
+              ? `${pluralize(count, "สาขา", undefined, true)} บันทึกไว้`
+              : `${pluralize(count, "program")} saved for later`
+            : isThai
+              ? "ติดตามสาขาที่คุณต้องการกลับมาดู"
+              : "Keep track of programs you want to revisit.",
+      },
+      tcasFit: {
+        subtitle: (count: number) =>
+          count > 0
+            ? isThai
+              ? "ดูว่าพอร์ตโฟลิโอของคุณสอดคล้องกับสาขารอบ Portfolio อย่างไร"
+              : "See how your portfolio aligns with Portfolio-round programs."
+            : isThai
+              ? "เพิ่มหลักฐานพอร์ตโฟลิโอเพื่อให้สัญญาณความเหมาะสมมีประโยชน์มากขึ้น"
+              : "Add portfolio evidence to make your fit signals more useful.",
+      },
+    },
+    activitySection: {
+      title: isThai ? "กิจกรรมล่าสุด" : "Recent Activity",
+      emptyTitle: isThai ? "ยังไม่มีกิจกรรมล่าสุด" : "No recent activity yet",
+      emptyBody: isThai
+        ? "เมื่อคุณเลือกความสนใจ เพิ่มรายการพอร์ตโฟลิโอ บันทึกสาขา และสร้างเส้นทาง กิจกรรมจริงของคุณจะปรากฏที่นี่"
+        : "As you choose interests, add portfolio items, save programs, and build paths, your real activity will show up here.",
+      emptyCta: isThai ? "สำรวจ" : "Explore",
+    },
+    signOut: isThai ? "ออกจากระบบ" : "Sign out",
+  };
 
   const guestCopy =
     appLanguage === "th"
@@ -335,7 +513,7 @@ export default function ProfileScreen() {
               <Text style={styles.guestIcon}>🌱</Text>
             </View>
 
-            <Text style={styles.guestTitle}>{guestCopy.title}</Text>
+            <Text variant="bold" style={styles.guestTitle}>{guestCopy.title}</Text>
 
             <View style={styles.guestBenefits}>
               {["🎯", "📊", "🏆", "📁"].map((emoji, index) => (
@@ -355,7 +533,7 @@ export default function ProfileScreen() {
               ]}
               onPress={handleCreateProfile}
             >
-              <Text style={styles.guestCtaBtnText}>{guestCopy.cta}</Text>
+              <Text variant="bold" style={styles.guestCtaBtnText}>{guestCopy.cta}</Text>
             </Pressable>
 
             <Text style={styles.guestSecondaryText}>{guestCopy.secondary}</Text>
@@ -403,11 +581,11 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.headerInfo}>
-                <Text style={styles.name}>{displayName}</Text>
+                <Text variant="bold" style={styles.name}>{displayName}</Text>
                 <Text style={styles.heroSummary}>
                   {primaryCareer
-                    ? `Working toward ${primaryCareer}`
-                    : "Add a career goal to make your profile reflect where you want to go."}
+                    ? t.heroSummary.workingToward(primaryCareer)
+                    : t.heroSummary.addCareerGoal}
                 </Text>
               </View>
             </View>
@@ -420,11 +598,7 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {loading ? (
-              <View style={styles.heroLoadingState}>
-                <ActivityIndicator color="#8B5CF6" />
-              </View>
-            ) : focusSections.length > 0 ? (
+            {focusSections.length > 0 ? (
               <View style={styles.focusStack}>
                 {focusSections.map((section) => (
                   <FocusSectionCard key={section.kind} section={section} />
@@ -433,53 +607,45 @@ export default function ProfileScreen() {
             ) : (
               <EmptyHeroState
                 onPress={() => router.push("/discover")}
-                title="No direction saved yet"
-                body="Start exploring careers so this page can reflect what you actually want to become."
-                cta="Explore Careers"
+                title={t.emptyHero.title}
+                body={t.emptyHero.body}
+                cta={t.emptyHero.cta}
               />
             )}
           </LinearGradient>
 
-          <HackathonHeroCard isThai={false} />
+          <HackathonHeroCard isThai={isThai} />
 
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Your Ikigai Compass</Text>
+            <Text variant="bold" style={styles.sectionTitle}>{t.ikigaiSection.title}</Text>
 
-            {scoresLoading ? (
-              <View style={styles.scoresLoadingContainer}>
-                <ActivityIndicator color="#8B5CF6" />
-                <Text style={styles.scoresLoadingText}>
-                  Loading your scores...
-                </Text>
-              </View>
-            ) : hasScores && ikigaiScores ? (
+            {hasScores && ikigaiScores ? (
               <>
                 <View style={styles.ikigaiGrid}>
-                  {Object.values(buildIkigaiData(ikigaiScores)).map((pillar) => (
+                  {Object.values(buildIkigaiData(ikigaiScores, isThai)).map((pillar) => (
                     <IkigaiCell key={pillar.label} pillar={pillar} />
                   ))}
                 </View>
 
                 {scoreTimeline.length > 1 && (
                   <View style={styles.timelineContainer}>
-                    <Text style={styles.timelineTitle}>Score Trend</Text>
-                    <ScoreTimeline timeline={scoreTimeline} />
+                    <Text style={styles.timelineTitle}>{t.ikigaiSection.scoreTrend}</Text>
+                    <ScoreTimeline timeline={scoreTimeline} isThai={isThai} />
                   </View>
                 )}
 
                 <View style={styles.insightCard}>
                   <Text style={styles.insightText}>
-                    💡 {getIkigaiInsight(ikigaiScores)}
+                    💡 {getIkigaiInsight(ikigaiScores, isThai)}
                   </Text>
                 </View>
               </>
             ) : (
               <View style={styles.emptyScoresContainer}>
                 <Text style={styles.emptyScoresEmoji}>🌱</Text>
-                <Text style={styles.emptyScoresTitle}>Discover Your Ikigai</Text>
+                <Text variant="bold" style={styles.emptyScoresTitle}>{t.ikigaiSection.emptyTitle}</Text>
                 <Text style={styles.emptyScoresText}>
-                  Complete Seeds and reflections to reveal how your passion,
-                  mission, profession, and vocation are developing.
+                  {t.ikigaiSection.emptyBody}
                 </Text>
                 <Pressable
                   style={({ pressed }) => [
@@ -488,14 +654,14 @@ export default function ProfileScreen() {
                   ]}
                   onPress={() => router.push("/discover")}
                 >
-                  <Text style={styles.exploreSeedsBtnText}>Explore Seeds</Text>
+                  <Text style={styles.exploreSeedsBtnText}>{t.ikigaiSection.exploreCta}</Text>
                 </Pressable>
               </View>
             )}
           </View>
 
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Portfolio & Plans</Text>
+            <Text variant="bold" style={styles.sectionTitle}>{t.portfolioSection.title}</Text>
 
             <Pressable
               style={({ pressed }) => [
@@ -510,9 +676,7 @@ export default function ProfileScreen() {
                   {isThai ? "พอร์ตโฟลิโอของฉัน" : "My Portfolio"}
                 </Text>
                 <Text style={styles.actionRowSubtitle}>
-                  {portfolioCount > 0
-                    ? `${pluralize(portfolioCount, "item")} ready to show`
-                    : "Add projects, awards, and activities you want to keep."}
+                  {t.portfolioSection.myPortfolio.subtitle(portfolioCount)}
                 </Text>
               </View>
               <Text style={styles.actionRowArrow}>›</Text>
@@ -531,9 +695,7 @@ export default function ProfileScreen() {
                   {isThai ? "สาขาที่บันทึกไว้" : "Saved Programs"}
                 </Text>
                 <Text style={styles.actionRowSubtitle}>
-                  {savedProgramsCount > 0
-                    ? `${pluralize(savedProgramsCount, "program")} saved for later`
-                    : "Keep track of programs you want to revisit."}
+                  {t.portfolioSection.savedPrograms.subtitle(savedProgramsCount)}
                 </Text>
               </View>
               <Text style={styles.actionRowArrow}>›</Text>
@@ -552,9 +714,7 @@ export default function ProfileScreen() {
                   {isThai ? "ความเหมาะสม TCAS1" : "TCAS Fit"}
                 </Text>
                 <Text style={styles.actionRowSubtitle}>
-                  {portfolioCount > 0
-                    ? "See how your portfolio aligns with Portfolio-round programs."
-                    : "Add portfolio evidence to make your fit signals more useful."}
+                  {t.portfolioSection.tcasFit.subtitle(portfolioCount)}
                 </Text>
               </View>
               <Text style={styles.actionRowArrow}>›</Text>
@@ -562,23 +722,19 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <Text variant="bold" style={styles.sectionTitle}>{t.activitySection.title}</Text>
 
-            {loading ? (
-              <View style={styles.loadingSection}>
-                <ActivityIndicator color="#8B5CF6" />
-              </View>
-            ) : activityItems.length > 0 ? (
+            {activityItems.length > 0 ? (
               <View style={styles.activityList}>
                 {activityItems.map((item) => (
-                  <ActivityCard key={item.id} item={item} />
+                  <ActivityCard key={item.id} item={item} isThai={isThai} />
                 ))}
               </View>
             ) : (
               <EmptySectionState
-                title="No recent activity yet"
-                body="As you choose interests, add portfolio items, save programs, and build paths, your real activity will show up here."
-                cta="Explore"
+                title={t.activitySection.emptyTitle}
+                body={t.activitySection.emptyBody}
+                cta={t.activitySection.emptyCta}
                 onPress={() => router.push("/discover")}
               />
             )}
@@ -598,7 +754,7 @@ export default function ProfileScreen() {
                   pressed && styles.signOutTextPressed,
                 ]}
               >
-                Sign out
+                {t.signOut}
               </Text>
             )}
           </Pressable>
@@ -612,9 +768,16 @@ export default function ProfileScreen() {
   );
 }
 
-function ScoreTimeline({ timeline }: { timeline: ScoreTimelineItem[] }) {
+function ScoreTimeline({ timeline, isThai }: { timeline: ScoreTimelineItem[]; isThai?: boolean }) {
   const recentTimeline = timeline.slice(-7);
   const maxScore = 100;
+
+  const labels = {
+    passion: isThai ? "ความหลงใหล" : "Passion",
+    mission: isThai ? "ภารกิจ" : "Mission",
+    profession: isThai ? "อาชีพ" : "Profession",
+    vocation: isThai ? "คุณสมบัติ" : "Vocation",
+  };
 
   return (
     <View style={styles.timelineWrapper}>
@@ -668,10 +831,10 @@ function ScoreTimeline({ timeline }: { timeline: ScoreTimelineItem[] }) {
         })}
       </View>
       <View style={styles.timelineLegend}>
-        <LegendDot color="#EF4444" label="Passion" />
-        <LegendDot color="#3B82F6" label="Mission" />
-        <LegendDot color="#10B981" label="Profession" />
-        <LegendDot color="#F59E0B" label="Vocation" />
+        <LegendDot color="#EF4444" label={labels.passion} />
+        <LegendDot color="#3B82F6" label={labels.mission} />
+        <LegendDot color="#10B981" label={labels.profession} />
+        <LegendDot color="#F59E0B" label={labels.vocation} />
       </View>
     </View>
   );
@@ -705,6 +868,7 @@ function FocusSectionCard({ section }: { section: ProfileFocusSection }) {
       ]}
     >
       <Text
+        variant="bold"
         style={[
           styles.focusSectionLabel,
           primary
@@ -751,7 +915,7 @@ function EmptyHeroState({
 }) {
   return (
     <View style={styles.emptyHeroState}>
-      <Text style={styles.emptyHeroTitle}>{title}</Text>
+      <Text variant="bold" style={styles.emptyHeroTitle}>{title}</Text>
       <Text style={styles.emptyHeroBody}>{body}</Text>
       <Pressable
         style={({ pressed }) => [
@@ -779,7 +943,7 @@ function EmptySectionState({
 }) {
   return (
     <View style={styles.emptySectionState}>
-      <Text style={styles.emptySectionTitle}>{title}</Text>
+      <Text variant="bold" style={styles.emptySectionTitle}>{title}</Text>
       <Text style={styles.emptySectionBody}>{body}</Text>
       <Pressable
         style={({ pressed }) => [
@@ -794,7 +958,7 @@ function EmptySectionState({
   );
 }
 
-function ActivityCard({ item }: { item: ProfileActivityItem }) {
+function ActivityCard({ item, isThai = false }: { item: ProfileActivityItem; isThai?: boolean }) {
   return (
     <View style={styles.activityCard}>
       <Text style={styles.activityIcon}>{item.icon}</Text>
@@ -804,7 +968,7 @@ function ActivityCard({ item }: { item: ProfileActivityItem }) {
           <Text style={styles.activityDetail}>{item.detail}</Text>
         )}
       </View>
-      <Text style={styles.activityTime}>{formatActivityTime(item.created_at)}</Text>
+      <Text style={styles.activityTime}>{formatActivityTime(item.created_at, isThai)}</Text>
     </View>
   );
 }
@@ -827,7 +991,7 @@ function IkigaiCell({ pillar }: { pillar: IkigaiPillar }) {
           <Text style={styles.ikigaiDeepBtnText}>›</Text>
         </Pressable>
       </View>
-      <Text style={styles.ikigaiLabel}>{pillar.label}</Text>
+      <Text variant="bold" style={styles.ikigaiLabel}>{pillar.label}</Text>
       <Text style={styles.ikigaiDescription}>{pillar.description}</Text>
       <View style={styles.ikigaiBarBg}>
         <View
@@ -837,7 +1001,7 @@ function IkigaiCell({ pillar }: { pillar: IkigaiPillar }) {
           ]}
         />
       </View>
-      <Text style={[styles.ikigaiScore, { color: fillColor }]}>{pct}</Text>
+      <Text variant="bold" style={[styles.ikigaiScore, { color: fillColor }]}>{pct}</Text>
       <Text style={styles.ikigaiInsight}>{pillar.insight}</Text>
     </View>
   );
@@ -875,8 +1039,8 @@ const styles = StyleSheet.create({
   },
   guestTitle: {
     fontSize: 28,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "700",
+    
+    
     color: "#111827",
     marginBottom: 32,
     textAlign: "center",
@@ -908,7 +1072,7 @@ const styles = StyleSheet.create({
   guestBenefitText: {
     flex: 1,
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#374151",
     lineHeight: 20,
   },
@@ -927,13 +1091,13 @@ const styles = StyleSheet.create({
   },
   guestCtaBtnText: {
     fontSize: 16,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "700",
+    
+    
     color: "#111827",
   },
   guestSecondaryText: {
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#6B7280",
     textAlign: "center",
   },
@@ -1021,13 +1185,13 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 28,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "700",
+    
+    
     color: "#111827",
   },
   heroSummary: {
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#4B5563",
     lineHeight: 20,
   },
@@ -1046,20 +1210,16 @@ const styles = StyleSheet.create({
   },
   metaPillText: {
     fontSize: 12,
-    fontFamily: "LibreFranklin_400Regular",
     fontWeight: "500",
     color: "#475569",
   },
-  heroLoadingState: {
-    paddingVertical: 20,
-    alignItems: "center",
-  },
   focusStack: {
-    gap: 12,
+    gap: 6,
   },
   focusSection: {
-    borderRadius: 22,
-    padding: 16,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
   },
   focusSectionPrimary: {
@@ -1072,8 +1232,8 @@ const styles = StyleSheet.create({
   },
   focusSectionLabel: {
     fontSize: 11,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "700",
+    
+    
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 10,
@@ -1109,7 +1269,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(139, 92, 246, 0.14)",
   },
   focusChipText: {
-    fontFamily: "LibreFranklin_400Regular",
+    
     fontWeight: "600",
   },
   careerChipText: {
@@ -1127,13 +1287,13 @@ const styles = StyleSheet.create({
   },
   emptyHeroTitle: {
     fontSize: 18,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "700",
+    
+    
     color: "#111827",
   },
   emptyHeroBody: {
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#4B5563",
     lineHeight: 20,
   },
@@ -1150,7 +1310,7 @@ const styles = StyleSheet.create({
   },
   inlineCtaText: {
     fontSize: 13,
-    fontFamily: "LibreFranklin_400Regular",
+    
     fontWeight: "600",
     color: "#FFFFFF",
   },
@@ -1165,16 +1325,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "700",
+    
+    
     color: "#9CA3AF",
     marginBottom: 16,
     textTransform: "uppercase",
     letterSpacing: 0.8,
-  },
-  loadingSection: {
-    paddingVertical: 32,
-    alignItems: "center",
   },
   ikigaiGrid: {
     flexDirection: "row",
@@ -1218,13 +1374,13 @@ const styles = StyleSheet.create({
   },
   ikigaiLabel: {
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "700",
+    
+    
     color: "#111827",
   },
   ikigaiDescription: {
     fontSize: 11,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#9CA3AF",
     marginBottom: 6,
   },
@@ -1240,13 +1396,13 @@ const styles = StyleSheet.create({
   },
   ikigaiScore: {
     fontSize: 20,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "800",
+    
+    
     marginTop: 4,
   },
   ikigaiInsight: {
     fontSize: 11,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#6B7280",
     lineHeight: 16,
     marginTop: 6,
@@ -1257,7 +1413,7 @@ const styles = StyleSheet.create({
   },
   timelineTitle: {
     fontSize: 12,
-    fontFamily: "LibreFranklin_400Regular",
+    
     fontWeight: "600",
     color: "#6B7280",
     marginBottom: 12,
@@ -1305,7 +1461,7 @@ const styles = StyleSheet.create({
   },
   timelineDate: {
     fontSize: 9,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#9CA3AF",
   },
   timelineLegend: {
@@ -1327,7 +1483,7 @@ const styles = StyleSheet.create({
   },
   timelineLegendText: {
     fontSize: 10,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#6B7280",
   },
   insightCard: {
@@ -1340,19 +1496,9 @@ const styles = StyleSheet.create({
   },
   insightText: {
     fontSize: 13,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#4B5563",
     lineHeight: 20,
-  },
-  scoresLoadingContainer: {
-    alignItems: "center",
-    paddingVertical: 40,
-    gap: 12,
-  },
-  scoresLoadingText: {
-    fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
-    color: "#6B7280",
   },
   emptyScoresContainer: {
     alignItems: "center",
@@ -1365,14 +1511,14 @@ const styles = StyleSheet.create({
   },
   emptyScoresTitle: {
     fontSize: 20,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "700",
+    
+    
     color: "#111827",
     marginBottom: 8,
   },
   emptyScoresText: {
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#6B7280",
     textAlign: "center",
     lineHeight: 20,
@@ -1390,7 +1536,7 @@ const styles = StyleSheet.create({
   },
   exploreSeedsBtnText: {
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
+    
     fontWeight: "600",
     color: "#111827",
   },
@@ -1419,13 +1565,13 @@ const styles = StyleSheet.create({
   },
   actionRowTitle: {
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
+    
     fontWeight: "600",
     color: "#111827",
   },
   actionRowSubtitle: {
     fontSize: 11,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#9CA3AF",
     lineHeight: 16,
   },
@@ -1457,19 +1603,19 @@ const styles = StyleSheet.create({
   },
   activityTitle: {
     fontSize: 13,
-    fontFamily: "LibreFranklin_400Regular",
+    
     fontWeight: "600",
     color: "#374151",
   },
   activityDetail: {
     fontSize: 12,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#6B7280",
     lineHeight: 18,
   },
   activityTime: {
     fontSize: 11,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#9CA3AF",
   },
   emptySectionState: {
@@ -1479,13 +1625,13 @@ const styles = StyleSheet.create({
   },
   emptySectionTitle: {
     fontSize: 18,
-    fontFamily: "LibreFranklin_400Regular",
-    fontWeight: "700",
+    
+    
     color: "#111827",
   },
   emptySectionBody: {
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#6B7280",
     lineHeight: 20,
   },
@@ -1503,7 +1649,7 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     fontSize: 14,
-    fontFamily: "LibreFranklin_400Regular",
+    
     fontWeight: "500",
     color: "#9CA3AF",
   },
@@ -1518,7 +1664,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    fontFamily: "LibreFranklin_400Regular",
+    
     color: "#D1D5DB",
     letterSpacing: 0.2,
   },

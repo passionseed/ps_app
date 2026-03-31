@@ -1,5 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { getAvailableSeeds, getRecommendedSeeds } from "../../lib/pathlab";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  getAvailableSeeds,
+  getCachedAvailableSeeds,
+  getCachedRecommendedSeeds,
+  getRecommendedSeeds,
+} from "../../lib/pathlab";
 import { supabase } from "../../lib/supabase";
 import {
   buildFallbackRecommendations,
@@ -11,19 +16,63 @@ import type { SeedWithEnrollment } from "../../types/seeds";
 type UseDiscoverSeedsArgs = {
   isGuest: boolean;
   userId: string | undefined;
+  /** Wait until false so `userId` matches the session used by `getAvailableSeeds` (avoids a duplicate fetch). */
+  authLoading: boolean;
 };
 
-export function useDiscoverSeeds({ isGuest, userId }: UseDiscoverSeedsArgs) {
-  const [seeds, setSeeds] = useState<SeedWithEnrollment[]>([]);
+export function useDiscoverSeeds({
+  isGuest,
+  userId,
+  authLoading,
+}: UseDiscoverSeedsArgs) {
+  const [seeds, setSeeds] = useState<SeedWithEnrollment[]>(
+    () => getCachedAvailableSeeds(userId) ?? [],
+  );
   const [recommendations, setRecommendations] =
-    useState<SeedRecommendationsPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+    useState<SeedRecommendationsPayload | null>(
+      () =>
+        getCachedRecommendedSeeds(userId) ??
+        (() => {
+          const cachedSeeds = getCachedAvailableSeeds(userId);
+          return cachedSeeds ? buildFallbackRecommendations(cachedSeeds) : null;
+        })(),
+    );
+  const [loading, setLoading] = useState(
+    () => getCachedAvailableSeeds(userId) == null,
+  );
   const [refreshing, setRefreshing] = useState(false);
+  const fetchGenerationRef = useRef(0);
+  const bootstrappedForUserRef = useRef<string | null>(null);
+  const restrictRecommendationsToSeeds = useCallback(
+    (
+      payload: SeedRecommendationsPayload,
+      allowedSeeds: SeedWithEnrollment[],
+    ): SeedRecommendationsPayload => {
+      const allowedIds = new Set(allowedSeeds.map((seed) => seed.id));
+      return {
+        ...payload,
+        seeds: payload.seeds.filter((seed) => allowedIds.has(seed.id)),
+      };
+    },
+    [],
+  );
 
-  const loadSeeds = useCallback(async () => {
+  const loadSeeds = useCallback(async (options?: {
+    forceRefresh?: boolean;
+    showLoader?: boolean;
+  }) => {
+    const generation = ++fetchGenerationRef.current;
+    const isStale = () => generation !== fetchGenerationRef.current;
     try {
+      if (options?.showLoader) {
+        setLoading(true);
+      }
       console.log("[Discover] Loading seeds...");
-      const data = await getAvailableSeeds();
+      const data = await getAvailableSeeds({
+        userId,
+        forceRefresh: options?.forceRefresh,
+      });
+      if (isStale()) return;
       console.log("[Discover] Seeds loaded:", data?.length || 0);
 
       if (userId && data) {
@@ -34,6 +83,8 @@ export function useDiscoverSeeds({ isGuest, userId }: UseDiscoverSeedsArgs) {
             .from("path_reflections")
             .select("enrollment_id, day_number, created_at")
             .in("enrollment_id", enrolledSeeds.map(s => s.enrollment!.id));
+
+          if (isStale()) return;
 
           const today = new Date().toDateString();
           const reflectionMap = new Map(
@@ -49,15 +100,22 @@ export function useDiscoverSeeds({ isGuest, userId }: UseDiscoverSeedsArgs) {
             return { ...seed, enrollment: { ...seed.enrollment, isDoneToday } };
           });
 
-          setSeeds(enrichedSeeds);
           if (!isGuest && userId) {
+            const recPayload = await getRecommendedSeeds({
+              fallbackSeeds: enrichedSeeds,
+              forceRefresh: options?.forceRefresh,
+              userId,
+            });
+            if (isStale()) return;
+            setSeeds(enrichedSeeds);
             setRecommendations(
-              hydrateRecommendationSeedMedia(
-                await getRecommendedSeeds(),
+              restrictRecommendationsToSeeds(
+                hydrateRecommendationSeedMedia(recPayload, enrichedSeeds),
                 enrichedSeeds,
               ),
             );
           } else {
+            setSeeds(enrichedSeeds);
             setRecommendations(buildFallbackRecommendations(enrichedSeeds));
           }
         } else {
@@ -70,31 +128,55 @@ export function useDiscoverSeeds({ isGuest, userId }: UseDiscoverSeedsArgs) {
       }
     } catch (error) {
       console.error("[Discover] Failed to load seeds:", error);
-      setSeeds([]);
-      setRecommendations(null);
+      if (generation === fetchGenerationRef.current) {
+        setSeeds([]);
+        setRecommendations(null);
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (generation === fetchGenerationRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [isGuest, userId]);
+  }, [isGuest, restrictRecommendationsToSeeds, userId]);
 
   useEffect(() => {
+    if (authLoading) return;
+    const userKey = userId ?? "__public__";
+    if (bootstrappedForUserRef.current === userKey) return;
+    bootstrappedForUserRef.current = userKey;
+
+    const cachedSeeds = getCachedAvailableSeeds(userId);
+    const cachedRecommendations = getCachedRecommendedSeeds(userId);
+
+    if (cachedSeeds) {
+      setSeeds(cachedSeeds);
+      setRecommendations(
+        cachedRecommendations
+          ? restrictRecommendationsToSeeds(cachedRecommendations, cachedSeeds)
+          : buildFallbackRecommendations(cachedSeeds),
+      );
+      setLoading(false);
+      // One background revalidation after hydrating from cache.
+      void loadSeeds({ showLoader: false });
+      return;
+    }
+
+    void loadSeeds({ showLoader: true });
+  }, [authLoading, loadSeeds, restrictRecommendationsToSeeds, userId]);
+
+  useEffect(() => {
+    if (authLoading || !loading) return;
     const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.log("[Discover] Loading timeout - forcing ready state");
-        setLoading(false);
-      }
+      console.log("[Discover] Loading timeout - forcing ready state");
+      setLoading(false);
     }, 3000);
     return () => clearTimeout(timeoutId);
-  }, []);
-
-  useEffect(() => {
-    loadSeeds();
-  }, [loadSeeds]);
+  }, [authLoading, loading]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadSeeds();
+    void loadSeeds({ forceRefresh: true, showLoader: seeds.length === 0 });
   }, [loadSeeds]);
 
   return {

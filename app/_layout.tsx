@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Animated, StyleSheet, Text, View } from "react-native";
 import * as Sentry from "@sentry/react-native";
-import { AnimatedSplash } from "./components/AnimatedSplash";
+import { AnimatedSplash } from "../components/AnimatedSplash";
 
 function ConfigErrorScreen({ message }: { message: string }) {
   return (

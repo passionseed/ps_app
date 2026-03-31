@@ -1,6 +1,9 @@
 // Seed types from pseed project
 import type { SeedType } from "./pathlab";
 
+/** Matches `seeds.visibility` check constraint in Supabase. */
+export type SeedVisibility = "hidden" | "visible" | "featured";
+
 export interface SeedCategory {
   id: string;
   name: string;
@@ -21,6 +24,8 @@ export interface Seed {
   category_id: string | null;
   category?: SeedCategory;
   seed_type?: SeedType;
+  /** Discover lists only `visible` and `featured`; enrolled users may still open `hidden` seeds. */
+  visibility?: SeedVisibility | null;
   path?: {
     id: string;
     total_days: number;

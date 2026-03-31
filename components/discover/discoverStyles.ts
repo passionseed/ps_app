@@ -355,6 +355,7 @@ export const styles = StyleSheet.create({
   },
   fullWidthScroll: {
     marginHorizontal: 0,
+    overflow: "visible",
   },
 
   compactTitle: {
@@ -371,9 +372,9 @@ export const styles = StyleSheet.create({
   // Shadow on wrapper only — do not use overflow:hidden here or iOS clips the shadow
   // and corners look harsh. Inner compactCard clips image + border to the radius.
   compactCardWrapper: {
-    // overflow: "visible",
-    width: 140,
-    height: 240,
+    overflow: "visible",
+    width: 152,
+    height: 256,
     marginRight: 0,
     borderRadius: Radius.full,
     // Sparse opacity + wide blur for a soft lift (not a hard edge)
@@ -388,7 +389,7 @@ export const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     borderColor: Border.default,
     overflow: "hidden",
-    height: 240,
+    height: 256,
     width: "100%",
     position: "relative",
   },
@@ -443,13 +444,13 @@ export const styles = StyleSheet.create({
     borderRadius: 2,
   },
   emptyCard: {
-    width: 140,
+    width: 152,
     backgroundColor: "transparent",
     borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: "rgba(206, 206, 206, 0.5)",
     borderStyle: "dashed",
-    height: 240,
+    height: 256,
     marginRight: 0,
   },
   doneBadge: {

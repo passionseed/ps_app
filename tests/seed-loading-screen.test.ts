@@ -9,7 +9,7 @@ const seedScreenSource = readFileSync(
 describe("seed detail loading screen", () => {
   it("uses the shared animated splash instead of the green activity spinner", () => {
     expect(seedScreenSource).toContain(
-      'import { AnimatedSplash } from "../components/AnimatedSplash";',
+      'import { AnimatedSplash } from "../../components/AnimatedSplash";',
     );
     expect(seedScreenSource).toContain("if (loading) {");
     expect(seedScreenSource).toContain("return <AnimatedSplash />;");
