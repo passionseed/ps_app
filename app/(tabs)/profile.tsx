@@ -4,6 +4,7 @@ import {
   ScrollView,
   Pressable,
   Image,
+  FlatList,
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
 import { StatusBar } from "expo-status-bar";
@@ -599,11 +600,7 @@ export default function ProfileScreen() {
             )}
 
             {focusSections.length > 0 ? (
-              <View style={styles.focusStack}>
-                {focusSections.map((section) => (
-                  <FocusSectionCard key={section.kind} section={section} />
-                ))}
-              </View>
+              <FocusSectionsCarousel sections={focusSections} />
             ) : (
               <EmptyHeroState
                 onPress={() => router.push("/discover")}
@@ -857,48 +854,58 @@ function MetaPill({ label }: { label: string }) {
   );
 }
 
-function FocusSectionCard({ section }: { section: ProfileFocusSection }) {
-  const primary = section.emphasis === "primary";
-
-  return (
-    <View
-      style={[
-        styles.focusSection,
-        primary ? styles.focusSectionPrimary : styles.focusSectionSecondary,
-      ]}
-    >
-      <Text
-        variant="bold"
+function FocusSectionsCarousel({ sections }: { sections: ProfileFocusSection[] }) {
+  const renderSection = ({ item: section }: { item: ProfileFocusSection }) => {
+    const isCareer = section.kind === "career-goals";
+    return (
+      <View
         style={[
-          styles.focusSectionLabel,
-          primary
-            ? styles.focusSectionLabelPrimary
-            : styles.focusSectionLabelSecondary,
+          styles.focusCard,
+          isCareer ? styles.careerCard : styles.interestCard,
         ]}
       >
-        {section.title}
-      </Text>
-      <View style={styles.focusChipWrap}>
-        {section.items.map((item) => (
-          <View
-            key={`${section.kind}-${item}`}
-            style={[
-              styles.focusChip,
-              primary ? styles.careerChip : styles.interestChip,
-            ]}
-          >
+        <Text
+          variant="bold"
+          style={[
+            styles.focusCardTitle,
+            isCareer ? styles.careerCardTitle : styles.interestCardTitle,
+          ]}
+        >
+          {section.title}
+        </Text>
+        <View style={styles.focusCardContent}>
+          {section.items.slice(0, 3).map((item, idx) => (
             <Text
+              key={`${section.kind}-${idx}`}
               style={[
-                styles.focusChipText,
-                primary ? styles.careerChipText : styles.interestChipText,
+                styles.focusCardItem,
+                isCareer ? styles.careerCardItem : styles.interestCardItem,
               ]}
+              numberOfLines={1}
             >
               {item}
             </Text>
-          </View>
-        ))}
+          ))}
+          {section.items.length > 3 && (
+            <Text style={styles.focusCardMore}>
+              +{section.items.length - 3} more
+            </Text>
+          )}
+        </View>
       </View>
-    </View>
+    );
+  };
+
+  return (
+    <FlatList
+      data={sections}
+      renderItem={renderSection}
+      keyExtractor={(item) => item.kind}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.focusCarouselContent}
+      ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+    />
   );
 }
 
@@ -1221,6 +1228,59 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderWidth: 1,
+  },
+  focusCarouselContent: {
+    paddingVertical: 4,
+  },
+  focusCard: {
+    width: 160,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  careerCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "rgba(16, 185, 129, 0.2)",
+  },
+  interestCard: {
+    backgroundColor: "#FAFAFA",
+    borderColor: "rgba(139, 92, 246, 0.15)",
+  },
+  focusCardTitle: {
+    fontSize: 11,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginBottom: 10,
+  },
+  careerCardTitle: {
+    color: "#059669",
+  },
+  interestCardTitle: {
+    color: "#7C3AED",
+  },
+  focusCardContent: {
+    gap: 6,
+  },
+  focusCardItem: {
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  careerCardItem: {
+    color: "#111827",
+  },
+  interestCardItem: {
+    color: "#374151",
+  },
+  focusCardMore: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginTop: 2,
   },
   focusSectionPrimary: {
     backgroundColor: "rgba(16, 185, 129, 0.08)",
