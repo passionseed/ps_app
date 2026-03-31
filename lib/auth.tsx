@@ -12,6 +12,7 @@ import {
   readGuestLanguage,
   saveGuestLanguage,
 } from "./guest-language";
+import { readHackathonMode, saveHackathonMode } from "./hackathon-mode";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -91,10 +92,12 @@ type AuthContext = {
   user: User | null;
   loading: boolean;
   isGuest: boolean;
+  isHackathon: boolean;
   appLanguage: GuestLanguage;
   guestLanguage: GuestLanguage;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   setGuestLanguage: (language: GuestLanguage) => Promise<void>;
   setUserLanguage: (language: GuestLanguage) => void;
   enterAsGuest: () => void;
@@ -106,10 +109,12 @@ const AuthContext = createContext<AuthContext>({
   user: null,
   loading: true,
   isGuest: false,
+  isHackathon: false,
   appLanguage: "th",
   guestLanguage: "th",
   signInWithGoogle: async () => {},
   signInWithApple: async () => {},
+  signInWithEmailPassword: async () => {},
   setGuestLanguage: async () => {},
   setUserLanguage: () => {},
   enterAsGuest: () => {},
@@ -120,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const [isHackathon, setIsHackathon] = useState(false);
   const [guestLanguage, setGuestLanguageState] =
     useState<GuestLanguage>("th");
   const [profileLanguage, setProfileLanguageState] =
@@ -186,8 +192,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return result;
       }),
       readGuestLanguage(),
+      readHackathonMode().catch(() => false),  // safe fallback if AsyncStorage fails
     ])
-      .then(async ([result, language]) => {
+      .then(async ([result, language, hackathonMode]) => {
         if (cancelled) return;
 
         // Handle timeout case: result.data.session is undefined
@@ -199,6 +206,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(session);
         }
         setGuestLanguageState(language);
+        // Only apply hackathon mode if we also have a session
+        const sessionFromResult = result.data?.session ?? null;
+        if (hackathonMode && sessionFromResult) {
+          setIsHackathon(true);
+        }
         void preloadDiscoverData({
           userId: session?.user.id ?? null,
           includeRecommendations: Boolean(session?.user?.id),
@@ -244,6 +256,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!nextSession) {
           setProfileLanguageState(null);
+          setIsHackathon(false);
+          void saveHackathonMode(false);
           setLoading(false);
           return;
         }
@@ -287,6 +301,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const exitGuestMode = () => {
     setIsGuest(false);
+  };
+
+  const signInWithEmailPassword = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+
+    // Verify the user is a hackathon participant
+    const userId = data.session?.user?.id;
+    if (!userId) throw new Error("Sign in succeeded but no user id returned.");
+
+    // Defer by one tick so the Supabase auth lock is fully released before querying
+    // (matches the existing pattern in onAuthStateChange — avoids Android deadlock)
+    const { data: membership, error: memberError } = await new Promise<{
+      data: { id: string } | null;
+      error: unknown;
+    }>((resolve) =>
+      setTimeout(
+        () =>
+          supabase
+            .from("hackathon_team_members")
+            .select("id")
+            .eq("user_id", userId)
+            .maybeSingle()
+            .then(resolve),
+        0,
+      ),
+    );
+
+    if (memberError) throw memberError;
+
+    if (!membership) {
+      // Not a hackathon participant — sign them back out
+      await supabase.auth.signOut();
+      throw new Error("This account is not registered for a hackathon.");
+    }
+
+    await saveHackathonMode(true);
+    setIsHackathon(true);
   };
 
   const signInWithOAuth = async (
@@ -386,10 +442,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: session?.user ?? null,
         loading,
         isGuest,
+        isHackathon,
         appLanguage,
         guestLanguage,
         signInWithGoogle,
         signInWithApple,
+        signInWithEmailPassword,
         setGuestLanguage,
         setUserLanguage,
         enterAsGuest,
