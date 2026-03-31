@@ -26,6 +26,8 @@ export interface Seed {
   seed_type?: SeedType;
   /** Discover lists only `visible` and `featured`; enrolled users may still open `hidden` seeds. */
   visibility?: SeedVisibility | null;
+  /** Keyword tags for personalization affinity matching (e.g., ['ai', 'tech', 'stem']). */
+  tags: string[];
   path?: {
     id: string;
     total_days: number;
