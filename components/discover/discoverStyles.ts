@@ -257,6 +257,28 @@ export const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: "uppercase",
   },
+  enterButton: {
+    width: "100%",
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  shimmerOverlay: {
+    position: "absolute",
+    width: 100,
+    height: "100%",
+  },
+  enterButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    letterSpacing: 1,
+  },
   hackathonClickHint: {
     flexDirection: "row",
     alignItems: "center",

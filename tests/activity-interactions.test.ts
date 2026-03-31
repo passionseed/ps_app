@@ -16,14 +16,10 @@ const swipeSource = readFileSync(
 describe("activity interaction polish", () => {
   it("animates the header based on scroll progress", () => {
     expect(activityScreenSource).toContain("const HEADER_COLLAPSE_DISTANCE =");
-    expect(activityScreenSource).toContain(
-      "const headerScrollY = useRef(new Animated.Value(0)).current;",
-    );
-    expect(activityScreenSource).toContain(
-      "const headerCollapseProgress = headerScrollY.interpolate({",
-    );
-    expect(activityScreenSource).toContain("<Animated.ScrollView");
-    expect(activityScreenSource).toContain("useNativeDriver: true,");
+    expect(activityScreenSource).toContain("const headerScrollY = useSharedValue(0);");
+    expect(activityScreenSource).toContain("heroHeaderAnimatedStyle");
+    expect(activityScreenSource).toContain("useAnimatedScrollHandler");
+    expect(activityScreenSource).toContain("<Reanimated.ScrollView");
   });
 
   it("uses a Skia donut progress indicator for the next-activity swipe", () => {
