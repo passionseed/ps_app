@@ -315,7 +315,7 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
                   elevation: 10,
                 }, logoGlowStyle]} />
                 
-                <Reanimated.View style={logoStyle}>
+                <Reanimated.View style={[logoStyle, { width: "100%", height: 110, alignItems: "center" }]}>
                   <Image
                     source={require("../../assets/HackLogo.png")}
                     style={styles.hackathonLogo}

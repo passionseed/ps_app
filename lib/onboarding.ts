@@ -24,9 +24,21 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .select('id, full_name, email, avatar_url, education_level, preferred_language, school_name, is_onboarded, onboarded_at, mobile_settings')
     .eq('id', userId)
     .single()
-  console.log('[getProfile] Query done in', Date.now() - t0, 'ms — error:', error?.message ?? null)
-
-  if (error) return null
+  if (error) {
+    const missing =
+      error.code === '42P01' ||
+      (typeof error.message === 'string' && error.message.includes('does not exist'))
+    if (missing) {
+      console.warn(
+        '[getProfile] Table missing (apply DB migrations from the pseed project, or `npx supabase db reset` there).',
+        error.message || error.code
+      )
+    } else {
+      console.log('[getProfile] Query done in', Date.now() - t0, 'ms — error:', error.message ?? error.code ?? null)
+    }
+    return null
+  }
+  console.log('[getProfile] Query done in', Date.now() - t0, 'ms — ok')
   return data as Profile
 }
 

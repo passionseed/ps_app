@@ -71,6 +71,7 @@ import type {
 } from "../types/pathlab-content";
 import {
   buildFallbackRecommendations,
+  isRecommendationPayloadFresh,
   readCachedPathDayBundle,
   readCachedSeedRecommendations,
   type SeedRecommendationsPayload,
@@ -161,50 +162,153 @@ async function withSupabaseRetry<T>(
 
 // ============ Seeds ============
 
-export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
+/** Shown on Discover; users already enrolled may still access other visibilities. */
+export function isPathlabSeedExploreVisible(
+  visibility: string | null | undefined
+): boolean {
+  return visibility === "visible" || visibility === "featured";
+}
+
+type GetAvailableSeedsOptions = {
+  userId?: string | null;
+  forceRefresh?: boolean;
+};
+
+const AVAILABLE_SEEDS_CACHE_TTL_MS = 5 * 60 * 1000;
+const availableSeedsInFlight = new Map<string, Promise<SeedWithEnrollment[]>>();
+const recommendedSeedsInFlight = new Map<string, Promise<SeedRecommendationsPayload>>();
+const availableSeedsCache = new Map<
+  string,
+  { data: SeedWithEnrollment[]; cachedAt: number }
+>();
+const recommendedSeedsCache = new Map<
+  string,
+  { data: SeedRecommendationsPayload; cachedAt: number }
+>();
+
+function getDiscoverCacheKey(userId?: string | null): string {
+  return userId ?? "__public__";
+}
+
+function isFresh(cachedAt: number, ttlMs: number): boolean {
+  return Date.now() - cachedAt <= ttlMs;
+}
+
+function readAvailableSeedsMemoryCache(
+  userId?: string | null,
+): SeedWithEnrollment[] | null {
+  const entry = availableSeedsCache.get(getDiscoverCacheKey(userId));
+  if (!entry || !isFresh(entry.cachedAt, AVAILABLE_SEEDS_CACHE_TTL_MS)) {
+    return null;
+  }
+  return entry.data;
+}
+
+function writeAvailableSeedsMemoryCache(
+  userId: string | null | undefined,
+  data: SeedWithEnrollment[],
+) {
+  availableSeedsCache.set(getDiscoverCacheKey(userId), {
+    data,
+    cachedAt: Date.now(),
+  });
+}
+
+function readRecommendedSeedsMemoryCache(
+  userId?: string | null,
+): SeedRecommendationsPayload | null {
+  const entry = recommendedSeedsCache.get(getDiscoverCacheKey(userId));
+  if (!entry || !isRecommendationPayloadFresh(entry.data)) {
+    return null;
+  }
+  return entry.data;
+}
+
+function writeRecommendedSeedsMemoryCache(
+  userId: string | null | undefined,
+  data: SeedRecommendationsPayload,
+) {
+  recommendedSeedsCache.set(getDiscoverCacheKey(userId), {
+    data,
+    cachedAt: Date.now(),
+  });
+}
+
+export function getCachedAvailableSeeds(
+  userId?: string | null,
+): SeedWithEnrollment[] | null {
+  return readAvailableSeedsMemoryCache(userId);
+}
+
+export function getCachedRecommendedSeeds(
+  userId?: string | null,
+): SeedRecommendationsPayload | null {
+  return readRecommendedSeedsMemoryCache(userId);
+}
+
+async function loadAvailableSeeds({
+  userId,
+}: GetAvailableSeedsOptions = {}): Promise<SeedWithEnrollment[]> {
+  const resolvedUserId =
+    userId ??
+    (await supabase.auth.getSession()).data.session?.user?.id ??
+    null;
+
   return withSupabaseRetry(async () => {
     console.log("[getAvailableSeeds] Starting query...");
 
-    const [{ data: { session } }, { data: seedsData, error: seedsError }] = await Promise.all([
-      supabase.auth.getSession(),
-      supabase
-        .from("seeds")
-        .select("*, paths(id, seed_id, total_days)")
-        .eq("seed_type", "pathlab")
-        .order("created_at", { ascending: false }),
-    ]);
-    const user = session?.user ?? null;
+    const seedSelect = "*, paths(id, seed_id, total_days)";
+    type SeedRow = Omit<Seed, "path"> & {
+      paths?:
+        | Array<{ id: string; seed_id: string; total_days: number }>
+        | { id: string; seed_id: string; total_days: number }
+        | null;
+    };
+    const mapSeedRow = (seed: Record<string, unknown>): Seed => {
+      const seedRow = seed as unknown as SeedRow;
+      const pathsVal = seedRow.paths;
+      return {
+        ...seedRow,
+        path: Array.isArray(pathsVal)
+          ? ((pathsVal[0] as Seed["path"]) ?? null)
+          : ((pathsVal as Seed["path"]) ?? null),
+      };
+    };
 
-    console.log("[getAvailableSeeds] Query result:", {
-      count: seedsData?.length || 0,
-      error: seedsError,
-      sampleSeed: seedsData?.[0],
-    });
+    const { data: visibleRows, error: visibleError } = await supabase
+      .from("seeds")
+      .select(seedSelect)
+      .eq("seed_type", "pathlab")
+      .in("visibility", ["visible", "featured"])
+      .order("created_at", { ascending: false });
 
-    if (seedsError) {
-      console.error("Error loading seeds:", seedsError);
-      throw seedsError;
+    if (visibleError) {
+      console.error("Error loading seeds:", visibleError);
+      throw visibleError;
     }
 
-    if (!seedsData || seedsData.length === 0) {
+    let seeds = (visibleRows ?? []).map((row) =>
+      mapSeedRow(row as Record<string, unknown>)
+    );
+
+    console.log("[getAvailableSeeds] Query result:", {
+      count: seeds.length,
+      sampleSeed: seeds[0],
+    });
+
+    if (seeds.length === 0) {
       console.log("[getAvailableSeeds] No PathLab seeds found in database");
       return [];
     }
 
-    const seeds = seedsData.map((seed: any) => ({
-      ...seed,
-      path: Array.isArray(seed.paths) ? (seed.paths[0] ?? null) : (seed.paths ?? null),
-      paths: undefined,
-    })) as Seed[];
-
-    if (user) {
+    if (resolvedUserId) {
       const pathIds = seeds.map(s => s.path?.id).filter(Boolean);
 
       if (pathIds.length > 0) {
         const { data: enrollments, error: enrollmentsError } = await supabase
           .from("path_enrollments")
           .select("id, path_id, current_day, status")
-          .eq("user_id", user.id)
+          .eq("user_id", resolvedUserId)
           .in("path_id", pathIds);
 
         if (enrollmentsError) throw enrollmentsError;
@@ -218,6 +322,41 @@ export async function getAvailableSeeds(): Promise<SeedWithEnrollment[]> {
 
     return seeds.map(s => ({ ...s, enrollment: null }));
   }, "Unable to load paths");
+}
+
+export async function getAvailableSeeds(
+  options: GetAvailableSeedsOptions = {}
+): Promise<SeedWithEnrollment[]> {
+  const resolvedUserId =
+    options.userId === undefined
+      ? (await supabase.auth.getSession()).data.session?.user?.id ?? null
+      : options.userId;
+
+  if (!options.forceRefresh) {
+    const cached = readAvailableSeedsMemoryCache(resolvedUserId);
+    if (cached) return cached;
+  }
+
+  const requestKey = getDiscoverCacheKey(resolvedUserId);
+  const inFlight = availableSeedsInFlight.get(requestKey);
+  if (inFlight) return inFlight;
+
+  const promise = loadAvailableSeeds({
+    ...options,
+    userId: resolvedUserId,
+  })
+    .then((data) => {
+      writeAvailableSeedsMemoryCache(resolvedUserId, data);
+      return data;
+    })
+    .finally(() => {
+      if (availableSeedsInFlight.get(requestKey) === promise) {
+        availableSeedsInFlight.delete(requestKey);
+      }
+    });
+
+  availableSeedsInFlight.set(requestKey, promise);
+  return promise;
 }
 
 export async function getSeedById(seedId: string): Promise<Seed | null> {
@@ -256,10 +395,27 @@ export async function getSeedById(seedId: string): Promise<Seed | null> {
 
     if (!seedData) return null;
 
-    return {
+    const seed = {
       ...seedData,
       path: pathData || null,
     } as Seed;
+
+    if (
+      seed.seed_type === "pathlab" &&
+      !isPathlabSeedExploreVisible(seed.visibility)
+    ) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id || !pathData?.id) return null;
+      const { data: enrollmentRow } = await supabase
+        .from("path_enrollments")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("path_id", pathData.id)
+        .maybeSingle();
+      if (!enrollmentRow) return null;
+    }
+
+    return seed;
   }, "Unable to load this path");
 }
 
@@ -384,6 +540,27 @@ export async function enrollInPath(params: {
 
     if (error) throw new Error(error.message);
     return data;
+  }
+
+  const { data: pathRow, error: pathLookupError } = await supabase
+    .from("paths")
+    .select("seed_id")
+    .eq("id", params.pathId)
+    .maybeSingle();
+  if (pathLookupError) throw new Error(pathLookupError.message);
+  if (!pathRow?.seed_id) throw new Error("Path not found");
+
+  const { data: seedRow, error: seedLookupError } = await supabase
+    .from("seeds")
+    .select("visibility, seed_type")
+    .eq("id", pathRow.seed_id)
+    .maybeSingle();
+  if (seedLookupError) throw new Error(seedLookupError.message);
+  if (
+    seedRow?.seed_type === "pathlab" &&
+    !isPathlabSeedExploreVisible(seedRow.visibility)
+  ) {
+    throw new Error("This path is not available to join right now.");
   }
 
   // Create new enrollment
@@ -997,30 +1174,85 @@ export async function getUserCompletedEnrollments() {
 
 export async function getRecommendedSeeds(options?: {
   forceRefresh?: boolean;
+  fallbackSeeds?: SeedWithEnrollment[];
+  userId?: string | null;
 }): Promise<SeedRecommendationsPayload> {
-  try {
-    const { data, error } = await supabase.functions.invoke("seed-recommendations", {
-      body: {
-        force_refresh: options?.forceRefresh ?? false,
-      },
-    });
+  const resolvedUserId =
+    options?.userId === undefined
+      ? (await supabase.auth.getSession()).data.session?.user?.id ?? null
+      : options.userId;
 
-    if (error) {
-      throw error;
+  try {
+    if (!options?.forceRefresh) {
+      const cached = readRecommendedSeedsMemoryCache(resolvedUserId);
+      if (cached) {
+        return cached;
+      }
     }
 
-    await writeCachedSeedRecommendations(data as SeedRecommendationsPayload);
-    return data as SeedRecommendationsPayload;
+    const requestKey = `${getDiscoverCacheKey(resolvedUserId)}:${options?.forceRefresh ? "refresh" : "default"}`;
+    const inFlight = recommendedSeedsInFlight.get(requestKey);
+    if (inFlight) {
+      return await inFlight;
+    }
+
+    const promise = (async () => {
+      const { data, error } = await supabase.functions.invoke("seed-recommendations", {
+        body: {
+          force_refresh: options?.forceRefresh ?? false,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      await writeCachedSeedRecommendations(data as SeedRecommendationsPayload);
+      writeRecommendedSeedsMemoryCache(
+        resolvedUserId,
+        data as SeedRecommendationsPayload,
+      );
+      return data as SeedRecommendationsPayload;
+    })().finally(() => {
+      if (recommendedSeedsInFlight.get(requestKey) === promise) {
+        recommendedSeedsInFlight.delete(requestKey);
+      }
+    });
+
+    recommendedSeedsInFlight.set(requestKey, promise);
+    return await promise;
   } catch (error) {
     const cached = await readCachedSeedRecommendations();
     if (cached) {
+      writeRecommendedSeedsMemoryCache(resolvedUserId, cached);
       return {
         ...cached,
         source: "cache",
       };
     }
 
-    const availableSeeds = await getAvailableSeeds();
-    return buildFallbackRecommendations(availableSeeds);
+    const availableSeeds =
+      options?.fallbackSeeds ??
+      await getAvailableSeeds({ userId: resolvedUserId });
+    const fallback = buildFallbackRecommendations(availableSeeds);
+    writeRecommendedSeedsMemoryCache(resolvedUserId, fallback);
+    return fallback;
+  }
+}
+
+export async function preloadDiscoverData(options?: {
+  userId?: string | null;
+  includeRecommendations?: boolean;
+}): Promise<void> {
+  try {
+    const seeds = await getAvailableSeeds({ userId: options?.userId });
+    if (options?.includeRecommendations) {
+      await getRecommendedSeeds({
+        userId: options?.userId,
+        fallbackSeeds: seeds,
+      });
+    }
+  } catch (error) {
+    console.warn("[preloadDiscoverData] Prefetch failed:", error);
   }
 }

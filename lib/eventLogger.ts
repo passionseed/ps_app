@@ -15,6 +15,28 @@ const SESSION_KEY = 'ps_session_id';
 const SESSION_TS_KEY = 'ps_session_timestamp';
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+/** Postgrest errors sometimes omit message; avoid logging `{}`. */
+function formatSupabaseError(error: unknown): string {
+  if (error == null) return 'unknown error';
+  if (typeof error === 'object') {
+    const e = error as {
+      message?: string;
+      code?: string;
+      details?: string;
+      hint?: string;
+    };
+    const parts = [e.message, e.code, e.details, e.hint].filter(
+      (p): p is string => typeof p === 'string' && p.length > 0
+    );
+    if (parts.length) return parts.join(' | ');
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 /**
  * Get or create a session ID with 24-hour expiry.
  * Uses AsyncStorage for React Native compatibility.
@@ -66,10 +88,10 @@ export async function logEvent<K extends keyof EventDataMap>(
     });
 
     if (error) {
-      console.error('[EventLogger] Failed to log event:', error.message);
+      console.error('[EventLogger] Failed to log event:', formatSupabaseError(error));
     }
   } catch (error) {
-    console.error('[EventLogger] Unexpected error:', error);
+    console.error('[EventLogger] Unexpected error:', formatSupabaseError(error));
     // Fail-silent: don't throw
   }
 }

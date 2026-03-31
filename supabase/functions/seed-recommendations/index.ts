@@ -209,6 +209,7 @@ Deno.serve(async (req) => {
       .from("seeds")
       .select("id, title, description, slogan, cover_image_url, cover_image_blurhash, cover_image_key, cover_image_updated_at, category_id, created_by, created_at, updated_at, paths(id, seed_id, total_days)")
       .eq("seed_type", "pathlab")
+      .in("visibility", ["visible", "featured"])
       .order("created_at", { ascending: false }),
     service
       .from("path_enrollments")

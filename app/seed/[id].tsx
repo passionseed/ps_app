@@ -22,7 +22,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../../components/AppText";
 import { GlassButton } from "../../components/Glass";
-import { AnimatedSplash } from "../components/AnimatedSplash";
+import { AnimatedSplash } from "../../components/AnimatedSplash";
+import { SkiaBackButton } from "../../components/navigation/SkiaBackButton";
 import { useAuth } from "../../lib/auth";
 import {
   getSeedById,
@@ -358,9 +359,7 @@ export default function SeedDetailScreen() {
       <View style={s.container}>
         <StatusBar style="dark" />
         <View style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 12 }]}>
-          <Pressable style={s.backBtn} onPress={() => router.back()}>
-            <AppText style={s.backBtnIcon}>‹</AppText>
-          </Pressable>
+          <SkiaBackButton onPress={() => router.back()} style={s.backBtn} />
         </View>
         <View style={s.center}>
           <AppText
@@ -398,9 +397,7 @@ export default function SeedDetailScreen() {
         <StatusBar style="dark" />
         {/* Header */}
         <View style={[s.header, { paddingTop: insets.top + 12, paddingBottom: 12 }]}>
-          <Pressable style={s.backBtn} onPress={() => router.back()}>
-            <AppText style={s.backBtnIcon}>‹</AppText>
-          </Pressable>
+          <SkiaBackButton onPress={() => router.back()} style={s.backBtn} />
         </View>
         <View style={s.center}>
           <AppText
@@ -480,15 +477,13 @@ export default function SeedDetailScreen() {
         ]}
       >
         <View style={s.headerRow}>
-          <Pressable
-            style={s.backBtn}
+          <SkiaBackButton
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.back();
             }}
-          >
-            <AppText style={s.backBtnIcon}>‹</AppText>
-          </Pressable>
+            style={s.backBtn}
+          />
           <Animated.View style={[s.headerTitleWrap, headerTitleStyle]} pointerEvents="none">
             <AppText variant="bold" style={s.headerTitleText} numberOfLines={1}>
               {seed.title}

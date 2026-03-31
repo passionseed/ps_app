@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { AnimatedSplash } from "../components/AnimatedSplash";
+import { AnimatedSplash } from "../../components/AnimatedSplash";
 import {
   getEnrollmentDayBundle,
   updateActivityProgress,
@@ -31,6 +31,7 @@ import {
 import { AppText } from "../../components/AppText";
 import { GlassCard } from "../../components/Glass/GlassCard";
 import { GlassButton } from "../../components/Glass/GlassButton";
+import { SkiaBackButton } from "../../components/navigation/SkiaBackButton";
 
 export default function DailyPathScreen() {
   const { enrollmentId } = useLocalSearchParams<{ enrollmentId: string }>();
@@ -184,9 +185,7 @@ export default function DailyPathScreen() {
 
       {/* Header with Back Button */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <AppText style={styles.backText}>‹</AppText>
-        </Pressable>
+        <SkiaBackButton onPress={() => router.back()} />
         <View style={styles.headerCenter}>
           <AppText variant="bold" style={styles.dayLabel}>Day {enrollment.current_day}</AppText>
         </View>

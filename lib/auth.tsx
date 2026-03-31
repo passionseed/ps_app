@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { resolveAppLanguage } from "./app-language";
+import { preloadDiscoverData } from "./pathlab";
 import {
   type GuestLanguage,
   normalizeGuestLanguage,
@@ -151,27 +152,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    const SESSION_TIMEOUT_MS = 10000; // 10s timeout for slower devices/storage
+
     const timeoutPromise = new Promise<null>((resolve) =>
       setTimeout(() => {
-        console.warn("[Auth] getSession timed out after 3s — proceeding without stored session");
+        console.warn(`[Auth] getSession timed out after ${SESSION_TIMEOUT_MS}ms — proceeding with current state`);
         resolve(null);
-      }, 3000)
+      }, SESSION_TIMEOUT_MS)
     );
 
     let cancelled = false;
 
     void Promise.all([
       Promise.race([
-        supabase.auth.getSession(),
-        timeoutPromise.then(() => ({ data: { session: null } })),
-      ]),
+        supabase.auth.getSession().then(result => {
+          if (!cancelled) {
+            console.log("[Auth] getSession completed successfully");
+          }
+          return result;
+        }).catch(error => {
+          console.error("[Auth] getSession failed:", error);
+          return { data: { session: null } };
+        }),
+        timeoutPromise.then(() => {
+          console.warn("[Auth] Session check timed out — will retry on next auth state change");
+          return null; // Return null to indicate timeout (not a failed session check)
+        }),
+      ]).then(result => {
+        // If timeout occurred (result is null), don't overwrite session state
+        if (result === null) {
+          return { data: { session: undefined } };
+        }
+        return result;
+      }),
       readGuestLanguage(),
     ])
-      .then(async ([{ data: { session } }, language]) => {
+      .then(async ([result, language]) => {
         if (cancelled) return;
 
-        setSession(session);
+        // Handle timeout case: result.data.session is undefined
+        // In that case, don't change the session state (keep it as null initially)
+        const session = result.data?.session ?? null;
+
+        // Only update session if we got a valid result (not a timeout)
+        if (result.data?.session !== undefined) {
+          setSession(session);
+        }
         setGuestLanguageState(language);
+        void preloadDiscoverData({
+          userId: session?.user.id ?? null,
+          includeRecommendations: Boolean(session?.user?.id),
+        });
 
         if (!session) {
           setProfileLanguageState(null);
@@ -206,6 +237,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const syncId = ++authSyncIdRef.current;
         setLoading(true);
         setSession(nextSession);
+        void preloadDiscoverData({
+          userId: nextSession?.user.id ?? null,
+          includeRecommendations: Boolean(nextSession?.user?.id),
+        });
 
         if (!nextSession) {
           setProfileLanguageState(null);
