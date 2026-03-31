@@ -152,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const SESSION_TIMEOUT_MS = 10000; // 10s timeout for slower devices/storage
+    const SESSION_TIMEOUT_MS = 3000; // 3s timeout — if SQLite takes longer, onAuthStateChange will recover
 
     const timeoutPromise = new Promise<null>((resolve) =>
       setTimeout(() => {
@@ -230,11 +230,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, nextSession) => {
+        console.log("[Auth] onAuthStateChange:", event, { hasSession: !!nextSession, bootstrapped: hasBootstrappedRef.current });
         if (!hasBootstrappedRef.current && event === "INITIAL_SESSION") {
+          console.log("[Auth] Skipping INITIAL_SESSION (not yet bootstrapped)");
           return;
         }
 
         const syncId = ++authSyncIdRef.current;
+        console.log("[Auth] Setting loading=true, syncId:", syncId);
         setLoading(true);
         setSession(nextSession);
         void preloadDiscoverData({
@@ -243,13 +246,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (!nextSession) {
+          console.log("[Auth] No session, setting loading=false");
           setProfileLanguageState(null);
           setLoading(false);
           return;
         }
 
-        void readProfileLanguage(nextSession.user.id)
-          .then((language) => {
+        console.log("[Auth] Reading profile language for user:", nextSession.user.id);
+        const languageTimeout = new Promise<null>((resolve) =>
+          setTimeout(() => {
+            console.warn("[Auth] readProfileLanguage timed out after 5s — unblocking navigation");
+            resolve(null);
+          }, 5000)
+        );
+
+        // Defer the query by one tick so the Supabase auth lock is fully released
+        // before we try to make another Supabase call (avoids deadlock on Android)
+        const deferredReadProfileLanguage = new Promise<GuestLanguage>((resolve, reject) =>
+          setTimeout(() => readProfileLanguage(nextSession.user.id).then(resolve).catch(reject), 0)
+        );
+
+        void Promise.race([
+          deferredReadProfileLanguage.then((language) => {
+            console.log("[Auth] readProfileLanguage resolved:", language);
+            return { language };
+          }),
+          languageTimeout.then(() => ({ language: null as null })),
+        ])
+          .then(({ language }) => {
             if (authSyncIdRef.current !== syncId) return;
             setProfileLanguageState(language);
           })
@@ -259,6 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfileLanguageState(null);
           })
           .finally(() => {
+            console.log("[Auth] finally: setting loading=false, syncId check:", authSyncIdRef.current === syncId);
             if (authSyncIdRef.current === syncId) {
               setLoading(false);
             }
@@ -307,14 +332,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       showInRecents: true,
     });
 
+    console.log("[Auth] Browser result:", result?.type, "url:", (result as any)?.url?.substring(0, 80));
     if (result && result.type === "success") {
       const { access_token, refresh_token } = extractParamsFromUrl(result.url);
+      console.log("[Auth] Tokens extracted — access:", !!access_token, "refresh:", !!refresh_token);
       if (access_token && refresh_token) {
+        console.log("[Auth] Calling setSession...");
         await supabase.auth.setSession({
           access_token,
           refresh_token,
         });
+        console.log("[Auth] setSession done");
+      } else {
+        console.warn("[Auth] Missing tokens from redirect URL");
       }
+    } else {
+      console.warn("[Auth] Browser result was not success:", result?.type);
     }
   };
 

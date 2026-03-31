@@ -37,10 +37,13 @@ export default function GoogleAuthCallback() {
     const { access_token, refresh_token } = extractTokens(url);
 
     if (access_token && refresh_token) {
-      supabase.auth
-        .setSession({ access_token, refresh_token })
-        .catch((err) => console.error("[GoogleAuth] setSession error:", err))
-        .finally(() => router.replace("/"));
+      // Defer setSession by one tick so the Supabase auth lock is free on Android
+      setTimeout(() => {
+        supabase.auth
+          .setSession({ access_token, refresh_token })
+          .catch((err) => console.error("[GoogleAuth] setSession error:", err))
+          .finally(() => router.replace("/"));
+      }, 0);
     } else {
       router.replace("/");
     }
