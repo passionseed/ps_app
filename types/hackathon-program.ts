@@ -3,6 +3,7 @@ import type {
   PathGateRule,
   PathReviewMode,
 } from "./pathlab-content";
+import type { MapNode } from "./map";
 
 export type HackathonSubmissionStatus =
   | "not_started"
@@ -144,4 +145,13 @@ export interface HackathonModuleProgress {
   completedIndividualCount: number;
   requiresTeamSubmission: boolean;
   teamSubmissionStatus: "missing" | "draft" | "submitted" | "passed";
+}
+
+export interface HackathonJourneyModuleProgress {
+  moduleId: string;
+  totalNodes: number;
+  completedNodes: number;
+  currentNodeId: string | null;
+  nodes: MapNode[];
+  completedNodeIds: Set<string>;
 }
