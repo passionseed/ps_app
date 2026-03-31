@@ -210,7 +210,8 @@ export default function HackathonActivityScreen() {
 
   function renderContent() {
     if (!node) return null;
-    switch (node.node_type) {
+    const type = node.node_type as string;
+    switch (type) {
       case "text": return <TextContent node={node} />;
       case "video": return <VideoContent node={node} />;
       case "quiz": return <QuizContent node={node} />;
