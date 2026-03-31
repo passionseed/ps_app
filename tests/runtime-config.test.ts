@@ -7,6 +7,7 @@ async function loadRuntimeConfigModule(env: Record<string, string | undefined>) 
     "EXPO_PUBLIC_SUPABASE_URL",
     "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
     "EXPO_PUBLIC_PROJECT_ID",
+    "EXPO_PUBLIC_ENABLE_ENROLLMENT_RESET",
   ]) {
     if (env[key] === undefined) {
       delete process.env[key];
@@ -43,5 +44,21 @@ describe("runtime config", () => {
       publishableKey: "public-anon-key",
     });
     expect(mod.getExpoProjectId()).toBe("project-id");
+  });
+
+  it("keeps enrollment reset disabled by default outside dev runtime", async () => {
+    const mod = await loadRuntimeConfigModule({
+      EXPO_PUBLIC_ENABLE_ENROLLMENT_RESET: undefined,
+    });
+
+    expect(mod.isEnrollmentResetEnabled()).toBe(false);
+  });
+
+  it("enables enrollment reset with explicit runtime flag", async () => {
+    const mod = await loadRuntimeConfigModule({
+      EXPO_PUBLIC_ENABLE_ENROLLMENT_RESET: "true",
+    });
+
+    expect(mod.isEnrollmentResetEnabled()).toBe(true);
   });
 });
