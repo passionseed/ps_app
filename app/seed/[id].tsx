@@ -28,7 +28,6 @@ import { useAuth } from "../../lib/auth";
 import {
   getSeedById,
   getPathBySeedId,
-  getRecommendedSeeds,
   getUserEnrollment,
   enrollInPath,
   getPathDays,
@@ -44,7 +43,6 @@ import { warmPathDayBundle, clearEnrollmentCache, markEnrollmentReset } from "..
 import { formatPathDayLabel } from "../../lib/pathlab-day-label";
 import type { Seed } from "../../types/seeds";
 import type { Path, PathEnrollment, PathDay, PathReflection } from "../../types/pathlab";
-import type { SeedRecommendation } from "../../lib/seedRecommendations";
 
 /** Fixed hero cover height; scroll spacer = this minus overlap so the card sits under the image. */
 const COVER_IMAGE_HEIGHT = 300;
@@ -80,7 +78,6 @@ export default function SeedDetailScreen() {
   const [dayActivities, setDayActivities] = useState<Record<string, { id: string; title: string; content_type: string }[]>>({});
   const [reflections, setReflections] = useState<Record<number, PathReflection>>({});
   const [expert, setExpert] = useState<ExpertInfo | null>(null);
-  const [recommendation, setRecommendation] = useState<SeedRecommendation | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -138,12 +135,11 @@ export default function SeedDetailScreen() {
     try {
       console.log("[SeedDetail] Loading seed:", id);
 
-      // Round 1: load seed, expert, path, and recommendation snapshot in parallel.
-      const [seedData, expertData, pathData, recommendationPayload] = await Promise.all([
+      // Round 1: load seed, expert, and path in parallel.
+      const [seedData, expertData, pathData] = await Promise.all([
         getSeedById(id),
         getExpertForSeed(id),
         getPathBySeedId(id),
-        getRecommendedSeeds().catch(() => null),
       ]);
 
       console.log("[SeedDetail] Seed loaded:", seedData?.title);
@@ -152,9 +148,6 @@ export default function SeedDetailScreen() {
       setExpert(expertData);
       console.log("[SeedDetail] Path loaded:", pathData?.id);
       setPath(pathData);
-      setRecommendation(
-        recommendationPayload?.seeds.find((item) => item.id === id) ?? null,
-      );
 
       if (!seedData) {
         setLoading(false);
@@ -550,41 +543,6 @@ export default function SeedDetailScreen() {
           </Animated.View>
         )}
 
-        {recommendation && recommendation.reasons.length > 0 && (
-          <Animated.View
-            entering={FadeInDown.springify().damping(24).stiffness(200).delay(180)}
-            style={s.card}
-          >
-            <AppText variant="bold" style={s.cardTitle}>
-              {appLanguage === "th"
-                ? "🌟 ทำไมเส้นทางนี้ถึงแนะนำ"
-                : "🌟 Why this path is recommended"}
-            </AppText>
-            <View style={s.recommendationMetaRow}>
-              <AppText style={s.recommendationScore}>
-                #{recommendation.bucket === "continue" ? "Now" : Math.max(1, recommendation.recommendationScore)}
-              </AppText>
-              <AppText style={s.recommendationMetaText}>
-                {appLanguage === "th"
-                  ? "อิงจากความสนใจ เป้าหมาย และการสำรวจที่ผ่านมา"
-                  : "Based on your interests, goals, and exploration history"}
-              </AppText>
-            </View>
-            <View style={s.recommendationReasonList}>
-              {recommendation.reasons.map((reason) => (
-                <View key={reason.code} style={s.recommendationReasonItem}>
-                  <AppText variant="bold" style={s.recommendationReasonLabel}>
-                    {reason.label}
-                  </AppText>
-                  <AppText style={s.recommendationReasonDetail}>
-                    {reason.detail}
-                  </AppText>
-                </View>
-              ))}
-            </View>
-          </Animated.View>
-        )}
-
         {/* Path Days */}
         {pathDays.length > 0 && (
           <Animated.View
@@ -905,45 +863,6 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: "#4B5563",
     lineHeight: 24,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  recommendationMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
-  },
-  recommendationScore: {
-    fontSize: 12,
-    color: "#10B981",
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  recommendationMetaText: {
-    flex: 1,
-    fontSize: 13,
-    color: "#6B7280",
-    lineHeight: 18,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  recommendationReasonList: {
-    gap: 12,
-  },
-  recommendationReasonItem: {
-    gap: 4,
-  },
-  recommendationReasonLabel: {
-    fontSize: 14,
-    color: "#111827",
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  recommendationReasonDetail: {
-    fontSize: 14,
-    color: "#4B5563",
-    lineHeight: 22,
     fontFamily: "BaiJamjuree_400Regular",
   },
 

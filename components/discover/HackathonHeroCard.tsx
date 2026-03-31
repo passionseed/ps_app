@@ -17,6 +17,18 @@ import Reanimated, {
 import Svg, { Defs, RadialGradient, Stop, Rect } from "react-native-svg";
 import { AppText as Text } from "../AppText";
 import { styles } from "./discoverStyles";
+import {
+  Canvas,
+  Text as SkiaText,
+  useFont,
+  LinearGradient as SkiaLinearGradient,
+  vec,
+  Fill,
+  Mask,
+  Rect as SkiaRect,
+  Group,
+  BlurMask,
+} from "@shopify/react-native-skia";
 
 const CinematicGlow = ({
   color,
@@ -87,6 +99,10 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
   const subtitleAnim = useSharedValue(0);
   const arrowPulse = useSharedValue(0);
 
+  // Shimmer animation for Enter text - cinematic sweep
+  const shimmer = useSharedValue(0);
+  const textShimmer = useSharedValue(-1);
+
   useEffect(() => {
     // Complex asynchronous floating for cinematic flares
     float1.value = withRepeat(withTiming(1, { duration: 12000, easing: Easing.inOut(Easing.ease) }), -1, true);
@@ -101,13 +117,11 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
     wave1.value = withRepeat(withTiming(1, { duration: 14000, easing: Easing.inOut(Easing.sin) }), -1, true);
     wave2.value = withRepeat(withTiming(1, { duration: 19000, easing: Easing.inOut(Easing.sin) }), -1, true);
 
-    arrowPulse.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 800, easing: Easing.inOut(Easing.ease) })
-      ),
+    // Cinematic shimmer sweep across text
+    textShimmer.value = withRepeat(
+      withTiming(1, { duration: 2500, easing: Easing.linear }),
       -1,
-      true
+      false
     );
 
     // 1. Logo glow-up animation (starts immediately)
@@ -133,14 +147,7 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
     ],
   }));
 
-  const logoGlowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(logoAnim.value, [0, 0.5, 1], [0, 1, 0.6]),
-    transform: [
-      { scale: interpolate(logoAnim.value, [0, 0.5, 1], [0.8, 1.5, 1]) },
-    ],
-  }));
-
-  // Match the clipPath: inset(0 100% 0 0) wipe
+  // Match the clipPath: inset(0 100% 0 0) wipe - CINEMATIC
   const subtitleWipeStyle = useAnimatedStyle(() => ({
     width: `${interpolate(subtitleAnim.value, [0, 1], [0, 100])}%`,
     overflow: "hidden",
@@ -155,11 +162,11 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
     ]
   }));
 
-  const arrowStyle = useAnimatedStyle(() => ({
+  // Cinematic text shimmer - sweep effect
+  const textShimmerStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: interpolate(arrowPulse.value, [0, 1], [0, 6]) }
-    ],
-    opacity: interpolate(arrowPulse.value, [0, 1], [0.6, 1])
+      { translateX: interpolate(textShimmer.value, [-1, 1], [-100, 100]) }
+    ]
   }));
 
   // Foreground fast particles moving diagonally up
@@ -301,20 +308,6 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
           <Reanimated.View style={[styles.hackathonHeroContent]}>
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
               <View style={{ alignItems: "center", width: "100%" }}>
-                {/* Glow behind the logo to match animate-titleGlowUp / drop-shadow */}
-                <Reanimated.View style={[{
-                  position: 'absolute',
-                  width: '60%',
-                  height: 40,
-                  backgroundColor: 'rgba(145,196,227,0.3)',
-                  top: '20%',
-                  borderRadius: 100,
-                  shadowColor: 'rgba(145,196,227,1)',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowRadius: 40,
-                  elevation: 10,
-                }, logoGlowStyle]} />
-                
                 <Reanimated.View style={[logoStyle, { width: "100%", height: 110, alignItems: "center" }]}>
                   <Image
                     source={require("../../assets/HackLogo.png")}
@@ -325,8 +318,8 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
                 
                 <Reanimated.View style={subtitleWipeStyle}>
                   {/* Provide a fixed width wrapper slightly larger than text so it doesn't wrap during wipe */}
-                  <View style={{ width: 300, alignItems: "center" }}>
-                    <Text style={styles.hackathonSubtitle} numberOfLines={1}>
+                  <View style={{ width: 400, alignItems: "center" }}>
+                    <Text style={[styles.hackathonSubtitle, { fontSize: 12, letterSpacing: 2 }]} numberOfLines={1}>
                       Preventive & Predictive Healthcare
                     </Text>
                   </View>
@@ -335,20 +328,28 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
             </View>
 
             <Reanimated.View style={[styles.hackathonBottomRow, bottomContentStyle]}>
-              <View style={styles.hackathonMetaPill}>
-                <Text style={styles.hackathonMetaText}>
-                  {isThai ? "เฟส 1 • การค้นพบ" : "PHASE 1 • DISCOVERY"}
+              <Pressable onPress={onHeroPress} style={{ alignItems: "center" }}>
+                {/* Cinematic shimmer text effect */}
+                <View style={{ overflow: "hidden", borderRadius: 4 }}>
+                  <Reanimated.View style={[textShimmerStyle, { flexDirection: "row", alignItems: "center" }]}>
+                    <LinearGradient
+                      colors={[
+                        "transparent",
+                        "rgba(255,255,255,0.8)",
+                        "rgba(255,255,255,1)",
+                        "rgba(255,255,255,0.8)",
+                        "transparent"
+                      ]}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={{ width: 60, height: 24 }}
+                    />
+                  </Reanimated.View>
+                </View>
+                <Text style={[styles.hackathonSubtitle, { fontSize: 18, color: "rgba(255,255,255,0.9)", letterSpacing: 4, textTransform: "uppercase", marginTop: -24 }]}>
+                  {isThai ? "เข้าร่วม" : "Enter"}
                 </Text>
-              </View>
-
-              <View style={styles.hackathonClickHint}>
-                <Text style={styles.hackathonClickText}>
-                  {isThai ? "ดูรายละเอียด" : "DISCOVER"}
-                </Text>
-                <Reanimated.View style={arrowStyle}>
-                  <Text style={styles.hackathonClickArrow}>→</Text>
-                </Reanimated.View>
-              </View>
+              </Pressable>
             </Reanimated.View>
           </Reanimated.View>
         </Reanimated.View>
