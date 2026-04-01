@@ -7,6 +7,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { AppText } from "../../../components/AppText";
@@ -27,6 +28,7 @@ export default function HackathonPhaseScreen() {
   const { phaseId } = useLocalSearchParams<{ phaseId: string }>();
   const [detail, setDetail] = useState<HackathonPhaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   useFocusEffect(
     useCallback(() => {
@@ -58,7 +60,7 @@ export default function HackathonPhaseScreen() {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.md }]}>
       <Pressable
         onPress={() => router.back()}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
