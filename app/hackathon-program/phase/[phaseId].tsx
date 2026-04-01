@@ -5,19 +5,21 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { PathLabSkiaLoader } from "../../../components/PathLabSkiaLoader";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { AppText } from "../../../components/AppText";
-import { GlassCard } from "../../../components/Glass/GlassCard";
+import { AppText as Text } from "../../../components/AppText";
 import { getHackathonPhaseDetail } from "../../../lib/hackathonProgram";
 import { getPreviewPhaseDetail } from "../../../lib/hackathonProgramPreview";
-import { Accent, PageBg, Space, Text as ThemeText } from "../../../lib/theme";
+import { Accent, Space, Text as ThemeText, Radius, PageBg } from "../../../lib/theme";
 import type { HackathonPhaseDetail } from "../../../types/hackathon-program";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HackathonPhaseScreen() {
   const { phaseId } = useLocalSearchParams<{ phaseId: string }>();
   const [detail, setDetail] = useState<HackathonPhaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   useFocusEffect(
     useCallback(() => {
@@ -51,55 +53,68 @@ export default function HackathonPhaseScreen() {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.back()}>
-        <AppText style={styles.backLink}>‹ Back</AppText>
-      </Pressable>
+    <View style={styles.root}>
+      <LinearGradient
+        colors={["#F8F9FA", "#F3E8FF"]}
+        style={StyleSheet.absoluteFill}
+      />
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.lg }]}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backLink}>‹ Back</Text>
+        </Pressable>
 
-      <AppText variant="bold" style={styles.title}>
-        {detail.phase?.title ?? "Phase"}
-      </AppText>
-      <AppText style={styles.subtitle}>
-        {detail.phase?.description}
-      </AppText>
-
-      {detail.playlists.map((playlist) => (
-        <View key={playlist.id} style={styles.playlist}>
-          <GlassCard variant="destination" style={styles.playlistCard}>
-            <AppText variant="bold" style={styles.playlistTitle}>
-              {playlist.title}
-            </AppText>
-            <AppText style={styles.playlistBody}>{playlist.description}</AppText>
-          </GlassCard>
-
-          {playlist.modules.map((module) => (
-            <Pressable
-              key={module.id}
-              onPress={() => router.push(`/hackathon-program/module/${module.id}`)}
-            >
-              <GlassCard variant="neutral" style={styles.moduleCard}>
-                <AppText variant="bold" style={styles.moduleTitle}>
-                  {module.title}
-                </AppText>
-                <AppText style={styles.moduleBody}>
-                  {module.summary ?? "Structured module"}
-                </AppText>
-                <AppText style={styles.moduleMeta}>
-                  Scope: {module.workflow_scope} • Gate: {module.gate_rule}
-                </AppText>
-              </GlassCard>
-            </Pressable>
-          ))}
+        <View style={styles.headerContainer}>
+          <Text variant="bold" style={styles.title}>
+            {detail.phase?.title ?? "Phase"}
+          </Text>
+          <Text style={styles.subtitle}>
+            {detail.phase?.description}
+          </Text>
         </View>
-      ))}
-    </ScrollView>
+
+        {detail.playlists.map((playlist) => (
+          <View key={playlist.id} style={styles.playlist}>
+            <View style={styles.playlistHeader}>
+              <Text variant="bold" style={styles.playlistTitle}>
+                {playlist.title}
+              </Text>
+              <Text style={styles.playlistBody}>{playlist.description}</Text>
+            </View>
+
+            {playlist.modules.map((module) => (
+              <Pressable
+                key={module.id}
+                onPress={() => router.push(`/hackathon-program/module/${module.id}`)}
+                style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+              >
+                <View style={styles.moduleCard}>
+                  <Text variant="bold" style={styles.moduleTitle}>
+                    {module.title}
+                  </Text>
+                  <Text style={styles.moduleBody}>
+                    {module.summary ?? "Structured module"}
+                  </Text>
+                  <View style={styles.moduleMetaContainer}>
+                    <View style={styles.metaBadge}>
+                      <Text style={styles.moduleMeta}>SCOPE: {module.workflow_scope}</Text>
+                    </View>
+                    <View style={styles.metaBadge}>
+                      <Text style={styles.moduleMeta}>GATE: {module.gate_rule}</Text>
+                    </View>
+                  </View>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: PageBg.default,
   },
   content: {
     padding: Space.lg,
@@ -112,14 +127,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: PageBg.default,
   },
+  backBtn: {
+    paddingVertical: Space.xs,
+    alignSelf: "flex-start",
+  },
   backLink: {
     fontSize: 15,
     color: ThemeText.secondary,
+    fontWeight: "600",
+  },
+  headerContainer: {
+    marginBottom: Space.sm,
   },
   title: {
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 32,
+    lineHeight: 38,
     color: ThemeText.primary,
+    letterSpacing: -0.5,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
@@ -127,14 +152,17 @@ const styles = StyleSheet.create({
     color: ThemeText.secondary,
   },
   playlist: {
-    gap: 12,
+    gap: Space.sm,
+    marginTop: Space.xs,
   },
-  playlistCard: {
-    gap: 8,
+  playlistHeader: {
+    marginBottom: Space.xs,
+    paddingHorizontal: Space.xs,
   },
   playlistTitle: {
     fontSize: 20,
     color: ThemeText.primary,
+    marginBottom: 4,
   },
   playlistBody: {
     fontSize: 14,
@@ -142,7 +170,17 @@ const styles = StyleSheet.create({
     color: ThemeText.secondary,
   },
   moduleCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.lg,
+    padding: Space.lg,
     gap: 8,
+    shadowColor: Accent.purple,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.1)",
   },
   moduleTitle: {
     fontSize: 18,
@@ -153,9 +191,22 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: ThemeText.secondary,
   },
+  moduleMetaContainer: {
+    flexDirection: "row",
+    gap: Space.xs,
+    marginTop: Space.xs,
+  },
+  metaBadge: {
+    backgroundColor: "rgba(139, 92, 246, 0.08)",
+    paddingHorizontal: Space.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+  },
   moduleMeta: {
-    fontSize: 12,
-    color: ThemeText.tertiary,
+    fontSize: 10,
+    color: Accent.purple,
     textTransform: "uppercase",
+    fontWeight: "bold",
+    letterSpacing: 0.5,
   },
 });

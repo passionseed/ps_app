@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Pressable,
   Modal,
 } from "react-native";
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";

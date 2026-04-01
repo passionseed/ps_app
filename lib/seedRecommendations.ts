@@ -73,17 +73,17 @@ export function buildFallbackRecommendations(
 ): SeedRecommendationsPayload {
   const recommendations = [...seeds]
     .sort((a, b) => {
-      const aActive = ["active", "paused"].includes(a.enrollment?.status ?? "")
-        ? 1
-        : 0;
-      const bActive = ["active", "paused"].includes(b.enrollment?.status ?? "")
-        ? 1
-        : 0;
+      const aStatus = a.enrollment?.status;
+      const bStatus = b.enrollment?.status;
+      const aActive = aStatus === "active" || aStatus === "paused" ? 1 : 0;
+      const bActive = bStatus === "active" || bStatus === "paused" ? 1 : 0;
       return bActive - aActive;
     })
     .map<SeedRecommendation>((seed, index) => {
-      const isActive = ["active", "paused"].includes(seed.enrollment?.status ?? "");
-      const explored = Boolean(seed.enrollment);
+      const enrollment = seed.enrollment;
+      const status = enrollment?.status;
+      const isActive = status === "active" || status === "paused";
+      const explored = Boolean(enrollment);
 
       // Compute affinity boost from user event signals
       let affinityBoost = 0;
@@ -149,9 +149,10 @@ export function buildFallbackRecommendations(
   const completedCount = recommendations.filter(
     (seed) => seed.enrollment?.status === "explored",
   ).length;
-  const activeCount = recommendations.filter((seed) =>
-    ["active", "paused"].includes(seed.enrollment?.status ?? ""),
-  ).length;
+  const activeCount = recommendations.filter((seed) => {
+    const s = seed.enrollment?.status;
+    return s === "active" || s === "paused";
+  }).length;
 
   return {
     version: SEED_RECOMMENDATION_SCHEMA_VERSION,
@@ -178,9 +179,14 @@ export function buildSeedRecommendationSections(
     (a, b) => b.recommendationScore - a.recommendationScore,
   );
 
-  return ordered.reduce<RecommendationSections>(
+  const sections = ordered.reduce<RecommendationSections>(
     (sections, seed) => {
-      if (seed.bucket === "continue") {
+      const status = seed.enrollment?.status;
+      const shouldBeInContinue =
+        seed.bucket === "continue" ||
+        (!!seed.enrollment && status !== "explored" && status !== "quit");
+
+      if (shouldBeInContinue) {
         sections.continue.push(seed);
       } else if (seed.bucket === "recommended") {
         sections.recommended.push(seed);
@@ -189,16 +195,21 @@ export function buildSeedRecommendationSections(
       } else {
         sections.deprioritized.push(seed);
       }
-
       return sections;
     },
-    {
-      continue: [],
-      recommended: [],
-      exploreMore: [],
-      deprioritized: [],
-    },
+    { continue: [], recommended: [], exploreMore: [], deprioritized: [] }
   );
+
+  console.log(
+    "[Recommendations] Section counts -> Continue:",
+    sections.continue.length,
+    "Recommended:",
+    sections.recommended.length,
+    "Explore More:",
+    sections.exploreMore.length
+  );
+
+  return sections;
 }
 
 export function hydrateRecommendationSeedMedia(
@@ -207,23 +218,59 @@ export function hydrateRecommendationSeedMedia(
 ): SeedRecommendationsPayload {
   const liveSeedsById = new Map(liveSeeds.map((seed) => [seed.id, seed]));
 
+  const updatedSeeds = payload.seeds.map((seed) => {
+    const liveSeed = liveSeedsById.get(seed.id);
+
+    if (!liveSeed) return seed;
+
+    const enrollment = liveSeed.enrollment ?? seed.enrollment;
+    const path = liveSeed.path ?? seed.path;
+    const s = enrollment?.status;
+    const isActive = s === "active" || s === "paused";
+
+    return {
+      ...seed,
+      enrollment,
+      path,
+      cover_image_url: liveSeed.cover_image_url ?? seed.cover_image_url,
+      cover_image_blurhash:
+        liveSeed.cover_image_blurhash ?? seed.cover_image_blurhash,
+      cover_image_key: liveSeed.cover_image_key ?? seed.cover_image_key,
+      cover_image_updated_at:
+        liveSeed.cover_image_updated_at ?? seed.cover_image_updated_at,
+      bucket: isActive ? ("continue" as const) : seed.bucket,
+      coverage: {
+        ...seed.coverage,
+        daysCompleted: Math.max(0, (enrollment?.current_day ?? 1) - 1),
+        hasExplored: Boolean(enrollment),
+        totalDays: path?.total_days ?? seed.coverage.totalDays,
+      },
+    };
+  });
+
+  const exploredCount = updatedSeeds.filter((s) => s.coverage.hasExplored)
+    .length;
+  const completedCount = updatedSeeds.filter(
+    (s) => s.enrollment?.status === "explored",
+  ).length;
+  const activeCount = updatedSeeds.filter((s) => {
+    const status = s.enrollment?.status;
+    return status === "active" || status === "paused";
+  }).length;
+
   return {
     ...payload,
-    seeds: payload.seeds.map((seed) => {
-      const liveSeed = liveSeedsById.get(seed.id);
-
-      if (!liveSeed) return seed;
-
-      return {
-        ...seed,
-        cover_image_url: liveSeed.cover_image_url ?? seed.cover_image_url,
-        cover_image_blurhash:
-          liveSeed.cover_image_blurhash ?? seed.cover_image_blurhash,
-        cover_image_key: liveSeed.cover_image_key ?? seed.cover_image_key,
-        cover_image_updated_at:
-          liveSeed.cover_image_updated_at ?? seed.cover_image_updated_at,
-      };
-    }),
+    coverage: {
+      activeCount,
+      exploredCount,
+      completedCount,
+      totalCount: updatedSeeds.length,
+      completionPercent:
+        updatedSeeds.length === 0
+          ? 0
+          : Math.round((exploredCount / updatedSeeds.length) * 100),
+    },
+    seeds: updatedSeeds,
   };
 }
 
