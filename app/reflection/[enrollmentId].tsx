@@ -185,13 +185,12 @@ export default function ReflectionScreen() {
           body: {
             reflectionId: result.id,
             enrollmentId: enrollment.id,
-            reflectionData: {
-              energyLevel,
-              confusionLevel,
-              interestLevel,
-              openResponse: openResponse || undefined,
-              dayNumber: enrollment.current_day,
-            },
+            openResponse: openResponse || undefined,
+            energyLevel,
+            confusionLevel,
+            interestLevel,
+            dayNumber: enrollment.current_day,
+            seedTitle: enrollment.path?.seed?.title,
           },
         });
       } catch {

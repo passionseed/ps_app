@@ -249,10 +249,8 @@ export function getCachedRecommendedSeeds(
 async function loadAvailableSeeds({
   userId,
 }: GetAvailableSeedsOptions = {}): Promise<SeedWithEnrollment[]> {
-  const resolvedUserId =
-    userId ??
-    (await supabase.auth.getSession()).data.session?.user?.id ??
-    null;
+  const sessionUserId = (await supabase.auth.getSession()).data.session?.user?.id ?? null;
+  const resolvedUserId = userId ?? sessionUserId;
 
   return withSupabaseRetry(async () => {
     console.log("[getAvailableSeeds] Starting query...");
@@ -302,8 +300,7 @@ async function loadAvailableSeeds({
     }
 
     if (resolvedUserId) {
-      const pathIds = seeds.map(s => s.path?.id).filter(Boolean);
-
+      const pathIds = seeds.map((s) => s.path?.id).filter((id): id is string => Boolean(id));
       if (pathIds.length > 0) {
         const { data: enrollments, error: enrollmentsError } = await supabase
           .from("path_enrollments")
@@ -313,9 +310,10 @@ async function loadAvailableSeeds({
 
         if (enrollmentsError) throw enrollmentsError;
 
-        return seeds.map(seed => ({
+        const enrollmentByPathId = new Map(enrollments?.map((e) => [e.path_id, e]) ?? []);
+        return seeds.map((seed) => ({
           ...seed,
-          enrollment: enrollments?.find(e => e.path_id === seed.path?.id) || null,
+          enrollment: seed.path?.id ? enrollmentByPathId.get(seed.path.id) ?? null : null,
         }));
       }
     }
