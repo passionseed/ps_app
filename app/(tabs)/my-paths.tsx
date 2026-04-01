@@ -15,9 +15,11 @@ import { router, useFocusEffect } from "expo-router";
 import { CareerPathCard } from "../../components/JourneyBoard/CareerPathCard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getActiveJourneys } from "../../lib/journey";
+import { getUserActiveEnrollments, getUserCompletedEnrollments } from "../../lib/pathlab";
 import { useAuth } from "../../lib/auth";
 import type { StudentJourney } from "../../types/journey";
 import type { CareerPath, PathStep } from "../../types/journey";
+import type { EnrollmentWithPath } from "../../lib/pathlab";
 import {
   Gradient,
   Radius,
@@ -100,11 +102,15 @@ function journeyToCareerPath(journey: StudentJourney): CareerPath {
 export default function MyPathsScreen() {
   const { appLanguage } = useAuth();
   const [journeys, setJourneys] = useState<StudentJourney[]>([]);
+  const [pathlabEnrollments, setPathlabEnrollments] = useState<EnrollmentWithPath[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getActiveJourneys()
-      .then(setJourneys)
+    Promise.all([getActiveJourneys(), getUserActiveEnrollments()])
+      .then(([journeysData, enrollmentsData]) => {
+        setJourneys(journeysData);
+        setPathlabEnrollments(enrollmentsData);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -112,8 +118,11 @@ export default function MyPathsScreen() {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      getActiveJourneys()
-        .then(setJourneys)
+      Promise.all([getActiveJourneys(), getUserActiveEnrollments()])
+        .then(([journeysData, enrollmentsData]) => {
+          setJourneys(journeysData);
+          setPathlabEnrollments(enrollmentsData);
+        })
         .catch(console.error)
         .finally(() => setLoading(false));
     }, []),
@@ -137,6 +146,10 @@ export default function MyPathsScreen() {
           plansTitle: "TCAS Admission Plans",
           plansCardTitle: "Plan Your Applications",
           plansCardSubtitle: "Create admission plans for each TCAS round",
+          pathlabTitle: "PathLab Progress",
+          pathlabEmpty: "No active paths",
+          pathlabContinue: "Continue",
+          pathlabDay: (day: number, total: number) => `Day ${day}/${total}`,
         }
       : {
           title: "จำลองเส้นทางอาชีพ",
@@ -152,6 +165,10 @@ export default function MyPathsScreen() {
           plansTitle: "แผนสมัคร TCAS",
           plansCardTitle: "วางแผนการสมัคร",
           plansCardSubtitle: "สร้างแผนสมัครสำหรับแต่ละรอบ TCAS",
+          pathlabTitle: "เส้นทาง PathLab",
+          pathlabEmpty: "ไม่มีเส้นทางที่กำลังทำ",
+          pathlabContinue: "ทำต่อ",
+          pathlabDay: (day: number, total: number) => `วัน ${day}/${total}`,
         };
 
   const paths = journeys.map(journeyToCareerPath);
@@ -307,6 +324,64 @@ export default function MyPathsScreen() {
             </Animated.ScrollView>
           </View>
         )}
+
+        {/* PathLab Progress Section */}
+        <View style={styles.pathlabSection}>
+          <Text style={styles.sectionTitle}>
+            🌱 {copy.pathlabTitle}
+          </Text>
+          
+          {pathlabEnrollments.length === 0 ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.pathlabEmptyCard,
+                pressed && styles.pathlabCardPressed,
+              ]}
+              onPress={() => router.push("/(tabs)/discover")}
+            >
+              <View style={styles.pathlabEmptyContent}>
+                <Text style={styles.pathlabEmptyIcon}>🔍</Text>
+                <Text style={styles.pathlabEmptyText}>{copy.pathlabEmpty}</Text>
+                <Text style={styles.pathlabEmptyHint}>
+                  {appLanguage === "en" ? "Discover paths on the Explore tab" : "ค้นหาเส้นทางในแท็บ Discover"}
+                </Text>
+              </View>
+            </Pressable>
+          ) : (
+            pathlabEnrollments.map((enrollment) => (
+              <Pressable
+                key={enrollment.id}
+                style={({ pressed }) => [
+                  styles.pathlabCard,
+                  pressed && styles.pathlabCardPressed,
+                ]}
+                onPress={() => router.push(`/path/${enrollment.id}`)}
+              >
+                <LinearGradient
+                  colors={["#FFFFFF", "#F0FDF4"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.pathlabCardGradient}
+                >
+                  <View style={styles.pathlabCardHeader}>
+                    <View style={styles.pathlabIconCircle}>
+                      <Text style={styles.pathlabIcon}>🌿</Text>
+                    </View>
+                    <View style={styles.pathlabCardText}>
+                      <Text style={styles.pathlabCardTitle}>
+                        {enrollment.path?.seed?.title || "PathLab Path"}
+                      </Text>
+                      <Text style={styles.pathlabCardSubtitle}>
+                        {copy.pathlabDay(enrollment.current_day, enrollment.path?.total_days || 1)}
+                      </Text>
+                    </View>
+                    <Text style={styles.pathlabCardArrow}>→</Text>
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            ))
+          )}
+        </View>
 
         {/* TCAS Admission Plans Section */}
         <View style={styles.plansSection}>
@@ -517,6 +592,87 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#111",
+  },
+  
+  // PathLab Section
+  pathlabSection: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    gap: 12,
+  },
+  pathlabCard: {
+    borderRadius: Radius["2xl"],
+    overflow: "hidden",
+    ...Shadow.neutral,
+  },
+  pathlabCardPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.95,
+  },
+  pathlabCardGradient: {
+    padding: 20,
+    borderRadius: Radius["2xl"],
+    borderWidth: 1,
+    borderColor: "rgb(206, 206, 206)",
+  },
+  pathlabCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  pathlabIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F0FDF4",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pathlabIcon: {
+    fontSize: 24,
+  },
+  pathlabCardText: {
+    flex: 1,
+    gap: 4,
+  },
+  pathlabCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+  },
+  pathlabCardSubtitle: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  pathlabCardArrow: {
+    fontSize: 20,
+    color: "#9CA3AF",
+  },
+  pathlabEmptyCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius["2xl"],
+    borderWidth: 1,
+    borderColor: "rgb(206, 206, 206)",
+    padding: 24,
+    alignItems: "center",
+    ...Shadow.neutral,
+  },
+  pathlabEmptyContent: {
+    alignItems: "center",
+    gap: 8,
+  },
+  pathlabEmptyIcon: {
+    fontSize: 32,
+    opacity: 0.5,
+  },
+  pathlabEmptyText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  pathlabEmptyHint: {
+    fontSize: 12,
+    color: "#9CA3AF",
   },
   plansCard: {
     borderRadius: Radius["2xl"],

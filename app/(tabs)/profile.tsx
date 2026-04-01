@@ -5,6 +5,7 @@ import {
   Pressable,
   Image,
   FlatList,
+  Alert,
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
 import { StatusBar } from "expo-status-bar";
@@ -14,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
+import { backfillMissingIkigaiReflections } from "../../lib/ikigaiBackfill";
 import { getProfile } from "../../lib/onboarding";
 import {
   type IkigaiScores,
@@ -272,6 +274,8 @@ export default function ProfileScreen() {
   const [portfolioCount, setPortfolioCount] = useState(0);
   const [savedProgramsCount, setSavedProgramsCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [backfillingScores, setBackfillingScores] = useState(false);
+  const [profileRefreshNonce, setProfileRefreshNonce] = useState(0);
   useEffect(() => {
     if (!user?.id) return;
 
@@ -329,7 +333,9 @@ export default function ProfileScreen() {
       setInterests((interestsData.data as InterestCategory[] | null) ?? []);
       setCareers((careersData.data as CareerGoal[] | null) ?? []);
 
-      // Compute ikigai scores from journey
+      const scoreEvents = (scoreEventsData.data as any[]) || [];
+
+      // Compute ikigai scores from journey, or fall back to latest score event
       const journey = journeyData.data as any;
       if (journey?.scores) {
         const s = journey.scores;
@@ -339,13 +345,22 @@ export default function ProfileScreen() {
         const vocation = Math.round((passion + mission + profession) / 3);
         setIkigaiScores({ passion, mission, profession, vocation });
         setHasScores(passion > 0 || mission > 0 || profession > 0);
+      } else if (scoreEvents.length > 0) {
+        const latestMeta = (scoreEvents[0].metadata as Record<string, number>) || {};
+        const passion = latestMeta.passion || 0;
+        const mission = latestMeta.mission || 0;
+        const profession = latestMeta.profession || 0;
+        const vocation =
+          latestMeta.vocation ||
+          Math.round((passion + mission + profession) / 3);
+        setIkigaiScores({ passion, mission, profession, vocation });
+        setHasScores(passion > 0 || mission > 0 || profession > 0);
       } else {
         setIkigaiScores(null);
         setHasScores(false);
       }
 
       // Build timeline from score events
-      const scoreEvents = (scoreEventsData.data as any[]) || [];
       if (scoreEvents.length > 0) {
         const eventsByDate = new Map<string, any[]>();
         scoreEvents.forEach((event) => {
@@ -364,6 +379,8 @@ export default function ProfileScreen() {
           };
         });
         setScoreTimeline(timeline.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      } else {
+        setScoreTimeline([]);
       }
 
       setPortfolioCount((portfolioData.data as any[])?.length ?? 0);
@@ -376,7 +393,7 @@ export default function ProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, profileRefreshNonce]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -397,6 +414,47 @@ export default function ProfileScreen() {
 
   const handleCreateProfile = () => {
     router.replace("/");
+  };
+
+  const handleBackfillIkigai = () => {
+    if (backfillingScores) return;
+
+    Alert.alert(
+      isThai ? "รีคำนวณ Ikigai" : "Recompute Ikigai",
+      isThai
+        ? "ดึง reflections เก่าที่เคยบันทึกไว้กลับมาคิดคะแนน Ikigai อีกครั้งไหม?"
+        : "Replay your older saved reflections into Ikigai scoring?",
+      [
+        { text: isThai ? "ยกเลิก" : "Cancel", style: "cancel" },
+        {
+          text: isThai ? "เริ่ม" : "Run",
+          onPress: async () => {
+            setBackfillingScores(true);
+            try {
+              const result = await backfillMissingIkigaiReflections(supabase);
+              Alert.alert(
+                isThai ? "เสร็จแล้ว" : "Done",
+                result.processedCount > 0
+                  ? isThai
+                    ? `เพิ่ม reflections เก่าเข้า Ikigai แล้ว ${result.processedCount} รายการ`
+                    : `Backfilled ${result.processedCount} older reflections into Ikigai.`
+                  : isThai
+                    ? "ไม่มี reflections เก่าที่ต้อง backfill แล้ว"
+                    : "No older reflections needed backfill."
+              );
+              setProfileRefreshNonce((value) => value + 1);
+            } catch (error) {
+              Alert.alert(
+                isThai ? "เกิดข้อผิดพลาด" : "Backfill failed",
+                error instanceof Error ? error.message : String(error)
+              );
+            } finally {
+              setBackfillingScores(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const isThai = appLanguage === "th";
@@ -790,9 +848,16 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Version {appVersion}</Text>
-        </View>
+        <Pressable
+          style={styles.versionContainer}
+          onLongPress={handleBackfillIkigai}
+          delayLongPress={800}
+        >
+          <Text style={styles.versionText}>
+            Version {appVersion}
+            {backfillingScores ? (isThai ? " · กำลังรีคำนวณ..." : " · recomputing...") : ""}
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );

@@ -5,6 +5,7 @@ import {
   getCachedRecommendedSeeds,
   getRecommendedSeeds,
 } from "../../lib/pathlab";
+import { mergeSeedEnrollmentState } from "../../lib/seedEnrollmentMerge";
 import { supabase } from "../../lib/supabase";
 import {
   buildFallbackRecommendations,
@@ -43,6 +44,9 @@ export function useDiscoverSeeds({
   const [refreshing, setRefreshing] = useState(false);
   const fetchGenerationRef = useRef(0);
   const bootstrappedForUserRef = useRef<string | null>(null);
+  const seedsRef = useRef<SeedWithEnrollment[]>(
+    getCachedAvailableSeeds(userId) ?? [],
+  );
   const restrictRecommendationsToSeeds = useCallback(
     (
       payload: SeedRecommendationsPayload,
@@ -75,6 +79,8 @@ export function useDiscoverSeeds({
       if (isStale()) return;
       console.log("[Discover] Seeds loaded:", data?.length || 0);
 
+      const previousSeeds = seedsRef.current;
+
       if (userId && data) {
         const enrolledSeeds = data.filter(s => s.enrollment);
 
@@ -99,38 +105,47 @@ export function useDiscoverSeeds({
               : false;
             return { ...seed, enrollment: { ...seed.enrollment, isDoneToday } };
           });
+          const mergedSeeds = mergeSeedEnrollmentState(previousSeeds, enrichedSeeds);
 
           if (!isGuest && userId) {
             const recPayload = await getRecommendedSeeds({
-              fallbackSeeds: enrichedSeeds,
+              fallbackSeeds: mergedSeeds,
               forceRefresh: options?.forceRefresh,
               userId,
             });
             if (isStale()) return;
-            setSeeds(enrichedSeeds);
+            seedsRef.current = mergedSeeds;
+            setSeeds(mergedSeeds);
             setRecommendations(
               restrictRecommendationsToSeeds(
-                hydrateRecommendationSeedMedia(recPayload, enrichedSeeds),
-                enrichedSeeds,
+                hydrateRecommendationSeedMedia(recPayload, mergedSeeds),
+                mergedSeeds,
               ),
             );
           } else {
-            setSeeds(enrichedSeeds);
-            setRecommendations(buildFallbackRecommendations(enrichedSeeds));
+            seedsRef.current = mergedSeeds;
+            setSeeds(mergedSeeds);
+            setRecommendations(buildFallbackRecommendations(mergedSeeds));
           }
         } else {
-          setSeeds(data);
-          setRecommendations(buildFallbackRecommendations(data));
+          const mergedSeeds = mergeSeedEnrollmentState(previousSeeds, data);
+          seedsRef.current = mergedSeeds;
+          setSeeds(mergedSeeds);
+          setRecommendations(buildFallbackRecommendations(mergedSeeds));
         }
       } else {
-        setSeeds(data || []);
-        setRecommendations(buildFallbackRecommendations(data || []));
+        const mergedSeeds = mergeSeedEnrollmentState(previousSeeds, data || []);
+        seedsRef.current = mergedSeeds;
+        setSeeds(mergedSeeds);
+        setRecommendations(buildFallbackRecommendations(mergedSeeds));
       }
     } catch (error) {
       console.error("[Discover] Failed to load seeds:", error);
       if (generation === fetchGenerationRef.current) {
-        setSeeds([]);
-        setRecommendations(null);
+        if (seedsRef.current.length === 0) {
+          setSeeds([]);
+          setRecommendations(null);
+        }
       }
     } finally {
       if (generation === fetchGenerationRef.current) {
@@ -139,6 +154,10 @@ export function useDiscoverSeeds({
       }
     }
   }, [isGuest, restrictRecommendationsToSeeds, userId]);
+
+  useEffect(() => {
+    seedsRef.current = seeds;
+  }, [seeds]);
 
   useEffect(() => {
     if (authLoading) return;
