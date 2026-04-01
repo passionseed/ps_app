@@ -19,6 +19,7 @@ import { getPreviewHackathonProgramHome } from "../../lib/hackathonProgramPrevie
 import { Accent, PageBg, Space, Text as ThemeText, Radius, Type } from "../../lib/theme";
 import type { HackathonProgramHome } from "../../types/hackathon-program";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // --- Subcomponents for Polish ---
 
@@ -39,6 +40,7 @@ export default function HackathonProgramHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const load = useCallback(async () => {
     try {
@@ -81,21 +83,26 @@ export default function HackathonProgramHomeScreen() {
     data.phases[0]!;
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => {
-            setRefreshing(true);
-            load();
-          }}
-          tintColor={Accent.yellow}
-        />
-      }
-    >
-      <View style={styles.header}>
+    <View style={styles.root}>
+      <LinearGradient
+        colors={["#F8F9FA", "#F3E8FF"]}
+        style={StyleSheet.absoluteFill}
+      />
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.lg }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load();
+            }}
+            tintColor={Accent.purple}
+          />
+        }
+      >
+        <View style={styles.header}>
         <AppText variant="bold" style={styles.eyebrow}>
           {data.program?.title ?? "Super Seed Hackathon"}
         </AppText>
@@ -229,6 +236,7 @@ export default function HackathonProgramHomeScreen() {
         </View>
       </View>
     </ScrollView>
+    </View>
   );
 }
 

@@ -77,59 +77,61 @@ export function useDiscoverSeeds({
         forceRefresh: options?.forceRefresh,
       });
       if (isStale()) return;
-      console.log("[Discover] Seeds loaded:", data?.length || 0);
+      console.log("[Discover] Seeds loaded:", data?.length || 0, "userId:", userId);
 
       const previousSeeds = seedsRef.current;
 
       if (userId && data) {
-        const enrolledSeeds = data.filter(s => s.enrollment);
+        // RADICAL: Fetch reflections for ALL seeds in the data list if we have a userId
+        // to ensure we never miss an enrollment due to filtering.
+        const seedsWithEnrollments = data.filter((s) => s.enrollment);
+        let reflectionMap = new Map();
 
-        if (enrolledSeeds.length > 0) {
+        if (seedsWithEnrollments.length > 0) {
           const { data: reflections } = await supabase
             .from("path_reflections")
             .select("enrollment_id, day_number, created_at")
-            .in("enrollment_id", enrolledSeeds.map(s => s.enrollment!.id));
+            .in(
+              "enrollment_id",
+              seedsWithEnrollments.map((s) => s.enrollment!.id)
+            );
 
           if (isStale()) return;
 
-          const today = new Date().toDateString();
-          const reflectionMap = new Map(
-            (reflections || []).map(r => [r.enrollment_id, r])
-          );
-
-          const enrichedSeeds = data.map(seed => {
-            if (!seed.enrollment) return seed;
-            const ref = reflectionMap.get(seed.enrollment.id);
-            const isDoneToday = ref?.created_at
-              ? new Date(ref.created_at).toDateString() === today
-              : false;
-            return { ...seed, enrollment: { ...seed.enrollment, isDoneToday } };
+          (reflections || []).forEach((r) => {
+            reflectionMap.set(`${r.enrollment_id}-${r.day_number}`, r);
           });
-          const mergedSeeds = mergeSeedEnrollmentState(previousSeeds, enrichedSeeds);
+        }
 
-          if (!isGuest && userId) {
-            const recPayload = await getRecommendedSeeds({
-              fallbackSeeds: mergedSeeds,
-              forceRefresh: options?.forceRefresh,
-              userId,
-            });
-            if (isStale()) return;
-            seedsRef.current = mergedSeeds;
-            setSeeds(mergedSeeds);
-            setRecommendations(
-              restrictRecommendationsToSeeds(
-                hydrateRecommendationSeedMedia(recPayload, mergedSeeds),
-                mergedSeeds,
-              ),
-            );
-          } else {
-            seedsRef.current = mergedSeeds;
-            setSeeds(mergedSeeds);
-            setRecommendations(buildFallbackRecommendations(mergedSeeds));
-          }
+        const today = new Date().toDateString();
+        const enrichedSeeds = data.map((seed) => {
+          if (!seed.enrollment) return seed;
+          const key = `${seed.enrollment.id}-${seed.enrollment.current_day}`;
+          const ref = reflectionMap.get(key);
+          const isDoneToday = ref?.created_at
+            ? new Date(ref.created_at).toDateString() === today
+            : false;
+          return { ...seed, enrollment: { ...seed.enrollment, isDoneToday } };
+        });
+
+        const mergedSeeds = mergeSeedEnrollmentState(previousSeeds, enrichedSeeds);
+        seedsRef.current = mergedSeeds;
+
+        if (!isGuest && userId) {
+          const recPayload = await getRecommendedSeeds({
+            fallbackSeeds: mergedSeeds,
+            forceRefresh: options?.forceRefresh,
+            userId,
+          });
+          if (isStale()) return;
+          setSeeds(mergedSeeds);
+          setRecommendations(
+            restrictRecommendationsToSeeds(
+              hydrateRecommendationSeedMedia(recPayload, mergedSeeds),
+              mergedSeeds,
+            ),
+          );
         } else {
-          const mergedSeeds = mergeSeedEnrollmentState(previousSeeds, data);
-          seedsRef.current = mergedSeeds;
           setSeeds(mergedSeeds);
           setRecommendations(buildFallbackRecommendations(mergedSeeds));
         }

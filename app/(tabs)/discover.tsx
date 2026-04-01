@@ -24,7 +24,6 @@ import { getDiscoverScrollInterpolations } from "../../components/discover/scrol
 import { useDiscoverSeeds } from "../../components/discover/useDiscoverSeeds";
 import { styles } from "../../components/discover/discoverStyles";
 import {
-  ProgressSection,
   SeedSection,
 } from "../../components/discover/DiscoverSeedSections";
 
@@ -80,13 +79,38 @@ export default function DiscoverScreen() {
 
   const fallbackPayload = buildFallbackRecommendations(seeds);
   const displayRecommendations = recommendations ?? fallbackPayload;
-  const filteredRecommendations = displayRecommendations.seeds.filter((seed) => {
+
+  // RADICAL: Re-merge live enrollment data into recommendations every render
+  // to ensure remote payloads or hydration misses never hide progress.
+  const seedsById = new Map(seeds.map((s) => [s.id, s]));
+  const mergedSeeds = displayRecommendations.seeds.map((recSeed) => {
+    const liveSeed = seedsById.get(recSeed.id);
+    if (!liveSeed) return recSeed;
+
+    return {
+      ...recSeed,
+      enrollment: liveSeed.enrollment ?? recSeed.enrollment,
+      path: liveSeed.path ?? recSeed.path,
+    };
+  });
+
+  console.log(
+    "[Discover] Render -> Seeds count:",
+    seeds.length,
+    "Enrolled seeds in DB:",
+    seeds.filter((s) => s.enrollment).length,
+    "Enrolled seeds in merged payload:",
+    mergedSeeds.filter((s) => s.enrollment).length
+  );
+
+  const filteredRecommendations = mergedSeeds.filter((seed) => {
     if (!searchQuery.trim()) return true;
 
     const haystack =
       `${seed.title} ${seed.slogan ?? ""} ${seed.description ?? ""}`.toLowerCase();
-    return haystack.includes(searchQuery.trim().toLowerCase());
+    return haystack.indexOf(searchQuery.trim().toLowerCase()) !== -1;
   });
+
   const sections = buildSeedRecommendationSections(filteredRecommendations);
 
   if (loading) {
@@ -172,7 +196,7 @@ export default function DiscoverScreen() {
         </View>
 
         {sections.continue.length > 0 && (
-          <ProgressSection
+          <SeedSection
             title={isThai ? "▶️ ทำต่อจากที่ค้างไว้" : "▶️ continue your path"}
             seeds={sections.continue}
           />
@@ -181,16 +205,19 @@ export default function DiscoverScreen() {
         <SeedSection
           title={isThai ? "🌟 แนะนำสำหรับคุณ" : "🌟 recommended for you"}
           seeds={sections.recommended}
+          showEmptyCards
         />
 
         <SeedSection
           title={isThai ? "💡 สำรวจเพิ่ม" : "💡 explore more"}
           seeds={sections.exploreMore}
+          showEmptyCards
         />
 
         <SeedSection
           title={isThai ? "🗂️ เก็บไว้ก่อน" : "🗂️ lower priority"}
           seeds={sections.deprioritized}
+          showEmptyCards
         />
 
         <View style={styles.section}>
