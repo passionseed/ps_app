@@ -8,9 +8,11 @@ import { styles } from "./discoverStyles";
 export function SeedSection({
   title,
   seeds,
+  showEmptyCards = false,
 }: {
   title: string;
   seeds: SeedRecommendation[];
+  showEmptyCards?: boolean;
 }) {
   if (seeds.length === 0) return null;
 
@@ -32,64 +34,30 @@ export function SeedSection({
             }}
           />
         ))}
-        {Array.from({ length: Math.max(0, 4 - seeds.length) }).map((_, i) => (
-          <View key={`empty-${i}`} style={styles.emptyCard} />
-        ))}
+        {showEmptyCards &&
+          Array.from({ length: Math.max(0, 4 - seeds.length) }).map((_, i) => (
+            <View key={`empty-${i}`} style={styles.emptyCard} />
+          ))}
       </ScrollView>
     </View>
   );
 }
 
-export function ProgressSection({
-  title,
-  seeds,
-}: {
-  title: string;
-  seeds: SeedRecommendation[];
-}) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.sectionGrid}
-        style={styles.fullWidthScroll}
-      >
-        {seeds.map((seed, index) => (
-          <ProgressSeedCard
-            key={seed.id || `progress-${index}`}
-            seed={seed}
-            progress={
-              seed.enrollment
-                ? (seed.enrollment.current_day - 1) /
-                  (seed.path?.total_days || 5)
-                : 0
-            }
-            doneToday={seed.enrollment?.isDoneToday || false}
-            onPress={() => {
-              router.push(`/seed/${seed.id}`);
-            }}
-          />
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
-
-function ProgressSeedCard({
+function CompactSeedCard({
   seed,
-  progress,
-  doneToday,
   onPress,
 }: {
   seed: SeedRecommendation;
-  progress: number;
-  doneToday?: boolean;
   onPress: () => void;
 }) {
+  const enrollment = seed.enrollment;
+  const isEnrolled = !!enrollment && enrollment.status !== "explored";
+
   const totalDays = seed.path?.total_days || 5;
-  const daysCompleted = seed.enrollment ? seed.enrollment.current_day - 1 : 0;
+  const daysCompleted = enrollment ? enrollment.current_day - 1 : 0;
+  const progress = isEnrolled ? daysCompleted / Math.max(1, totalDays) : 0;
+  const doneToday = enrollment?.isDoneToday || false;
+
   return (
     <View style={styles.compactCardWrapper}>
       <Pressable
@@ -118,7 +86,11 @@ function ProgressSeedCard({
         )}
 
         <LinearGradient
-          colors={["transparent", "rgba(0, 0, 0, 0.4)", "rgba(0, 0, 0, 0.95)"]}
+          colors={
+            isEnrolled
+              ? ["transparent", "rgba(0, 0, 0, 0.4)", "rgba(0, 0, 0, 0.95)"]
+              : ["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.85)"]
+          }
           locations={[0, 0.5, 1]}
           style={styles.compactOverlay}
         >
@@ -126,11 +98,7 @@ function ProgressSeedCard({
             {seed.title}
           </Text>
 
-          {doneToday ? (
-            <View style={styles.doneBadge}>
-              <Text style={styles.doneBadgeText}>✅ done today</Text>
-            </View>
-          ) : (
+          {isEnrolled && (
             <View style={styles.progressRow}>
               <Text style={styles.progressLabel}>
                 {daysCompleted}/{totalDays}
@@ -145,58 +113,17 @@ function ProgressSeedCard({
               </View>
             </View>
           )}
-        </LinearGradient>
-      </Pressable>
-    </View>
-  );
-}
 
-function CompactSeedCard({
-  seed,
-  onPress,
-}: {
-  seed: SeedRecommendation;
-  onPress: () => void;
-}) {
-  return (
-    <View style={styles.compactCardWrapper}>
-      <Pressable
-        style={({ pressed }) => [
-          styles.compactCard,
-          pressed && styles.compactCardPressed,
-        ]}
-        onPress={onPress}
-      >
-        {seed.cover_image_url ? (
-          <Image
-            source={
-              typeof seed.cover_image_url === "string"
-                ? { uri: seed.cover_image_url }
-                : seed.cover_image_url
-            }
-            style={styles.compactImageFull}
-            resizeMode="cover"
-          />
-        ) : (
-          <View
-            style={[styles.compactImageFull, styles.compactImagePlaceholder]}
-          >
-            <Text style={styles.compactImageIcon}>🌱</Text>
-          </View>
-        )}
-
-        <LinearGradient
-          colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.85)"]}
-          locations={[0, 0.5, 1]}
-          style={styles.compactOverlay}
-        >
-          <Text variant="bold" style={styles.compactTitle} numberOfLines={2}>
-            {seed.title}
-          </Text>
-          {seed.slogan && (
+          {!isEnrolled && seed.slogan && (
             <Text style={styles.compactSlogan} numberOfLines={1}>
               {seed.slogan}
             </Text>
+          )}
+
+          {isEnrolled && doneToday && (
+            <View style={styles.doneBadge}>
+              <Text style={styles.doneBadgeText}>✅ done today</Text>
+            </View>
           )}
         </LinearGradient>
       </Pressable>
