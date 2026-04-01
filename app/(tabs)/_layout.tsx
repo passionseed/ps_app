@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Tabs } from "expo-router";
+import { Tabs, usePathname } from "expo-router";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
@@ -264,7 +264,11 @@ function TabBarButton({
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const tabBarHeight = Platform.OS === "ios" ? Math.max(insets.bottom, 24) + 44 + 24 : 24 + 44 + 24;
+  
+  // Only show on discover page
+  const isDiscoverPage = pathname === "/discover" || pathname === "/(tabs)/discover";
 
   return (
     <View style={{ flex: 1 }}>
@@ -279,7 +283,12 @@ export default function TabsLayout() {
         <Tabs.Screen name="my-paths" />
         <Tabs.Screen name="profile" />
       </Tabs>
-      <FloatingProgressButton bottomOffset={tabBarHeight} />
+      {isDiscoverPage && (
+        <FloatingProgressButton 
+          bottomOffset={tabBarHeight} 
+          visible={isDiscoverPage}
+        />
+      )}
     </View>
   );
 }
