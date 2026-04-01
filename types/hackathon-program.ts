@@ -38,6 +38,7 @@ export interface HackathonProgramPhase {
   phase_number: number;
   starts_at: string | null;
   ends_at: string | null;
+  due_at: string | null;
   created_at: string;
   updated_at: string;
 }

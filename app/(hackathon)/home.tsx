@@ -1,7 +1,6 @@
 // app/(hackathon)/home.tsx
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Dimensions,
   Pressable,
   RefreshControl,
@@ -11,30 +10,24 @@ import {
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { AppText } from "../../components/AppText";
-import { JourneyNodeGraph } from "../../components/Hackathon/JourneyNodeGraph";
 import {
   getCurrentHackathonProgramHome,
   getEmptyHackathonProgramHome,
-  getHackathonJourneyModules,
-  getModuleActivityProgress,
 } from "../../lib/hackathonProgram";
 import {
   getPreviewHackathonProgramHome,
-  getPreviewJourneyModules,
 } from "../../lib/hackathonProgramPreview";
+import { getProgramPhasesWithActivities } from "../../lib/hackathonPhaseActivity";
 import { Radius, Space } from "../../lib/theme";
-import { supabase } from "../../lib/supabase";
-import type {
-  HackathonJourneyModuleProgress,
-  HackathonPhaseModule,
-  HackathonProgramHome,
-} from "../../types/hackathon-program";
+import type { HackathonProgramHome, HackathonProgramPhase } from "../../types/hackathon-program";
+import type { HackathonPhaseWithActivities } from "../../types/hackathon-phase-activity";
 
 const BG = "#010814";
 const CYAN = "#00F0FF";
 const WHITE = "#FFFFFF";
 const WHITE75 = "rgba(255,255,255,0.75)";
 const WHITE40 = "rgba(255,255,255,0.4)";
+const WHITE10 = "rgba(255,255,255,0.1)";
 const CYAN_BORDER = "rgba(0,240,255,0.2)";
 const CYAN_BG = "rgba(0,240,255,0.06)";
 const AMBER = "#F59E0B";
@@ -43,16 +36,7 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 const CARD_PADDING = Space.xl;
 const PEEK_WIDTH = 28;
 const CARD_GAP = Space.md;
-const CARD_WIDTH = SCREEN_WIDTH - CARD_PADDING * 2 - PEEK_WIDTH - 32; // 32 for chevrons
-
-type ModuleWithEnds = HackathonPhaseModule & { ends_at: string | null };
-
-const PLACEHOLDER_NODES = Array.from({ length: 6 }, (_, i) => ({
-  id: `placeholder-${i}`,
-  map_id: "placeholder",
-  title: "Activity",
-  node_type: "text" as const,
-}));
+const CARD_WIDTH = SCREEN_WIDTH - CARD_PADDING * 2 - PEEK_WIDTH - 32;
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -60,128 +44,70 @@ function formatDate(dateStr: string | null): string {
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
-function ModuleCard({
-  module,
-  isActive,
+type PhaseCard = {
+  phase: HackathonProgramPhase;
+  activityTitles: string[];
+  activityCount: number;
+  isActive: boolean;
+};
+
+function PhaseCardView({
+  card,
   onPress,
 }: {
-  module: ModuleWithEnds;
-  isActive: boolean;
+  card: PhaseCard;
   onPress: () => void;
 }) {
-  const [progress, setProgress] = useState<HackathonJourneyModuleProgress | null>(null);
-
-  useEffect(() => {
-    if (!isActive) return;
-    // No path_id means preview module — show placeholder graph dots
-    if (!module.path_id) {
-      setProgress({
-        moduleId: module.id,
-        totalNodes: PLACEHOLDER_NODES.length,
-        completedNodes: 0,
-        currentNodeId: null,
-        nodes: PLACEHOLDER_NODES,
-        completedNodeIds: new Set(),
-      });
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          if (!cancelled) {
-            setProgress({
-              moduleId: module.id,
-              totalNodes: PLACEHOLDER_NODES.length,
-              completedNodes: 0,
-              currentNodeId: null,
-              nodes: PLACEHOLDER_NODES,
-              completedNodeIds: new Set(),
-            });
-          }
-          return;
-        }
-        const result = await getModuleActivityProgress(module.id, user.id);
-        if (!cancelled) {
-          setProgress({
-            moduleId: module.id,
-            totalNodes: result.nodes.length,
-            completedNodes: result.completedNodeIds.size,
-            currentNodeId: result.currentNodeId,
-            nodes: result.nodes,
-            completedNodeIds: result.completedNodeIds,
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setProgress({
-            moduleId: module.id,
-            totalNodes: 0,
-            completedNodes: 0,
-            currentNodeId: null,
-            nodes: [],
-            completedNodeIds: new Set(),
-          });
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isActive, module.id, module.path_id]);
-
-  const pct =
-    progress && progress.totalNodes > 0
-      ? Math.round((progress.completedNodes / progress.totalNodes) * 100)
-      : null;
-
-  const progressLabel = progress === null
-    ? "Loading..."
-    : progress.totalNodes === 0
-      ? "No activities yet"
-      : `${pct}% complete`;
+  const dueDate = formatDate(card.phase.due_at ?? card.phase.ends_at);
 
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
       onPress={onPress}
     >
+      {/* Header */}
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
           <AppText variant="bold" style={styles.cardTitle}>
-            {module.title}
+            {card.phase.title}
           </AppText>
-          <AppText style={[styles.cardProgress, progress === null && { opacity: 0.3 }]}>
-            {progressLabel}
+          {card.phase.description ? (
+            <AppText style={styles.cardDescription} numberOfLines={2}>
+              {card.phase.description}
+            </AppText>
+          ) : null}
+        </View>
+        {dueDate ? (
+          <AppText style={styles.cardDate}>{dueDate}</AppText>
+        ) : null}
+      </View>
+
+      {/* Activity list */}
+      {card.activityTitles.length > 0 ? (
+        <View style={styles.activityList}>
+          {card.activityTitles.map((title, i) => (
+            <View key={i} style={styles.activityRow}>
+              <View style={styles.activityDot} />
+              <AppText style={styles.activityTitle} numberOfLines={1}>
+                {title}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.activityList}>
+          <AppText style={{ color: WHITE40, fontSize: 12 }}>
+            Activities coming soon
           </AppText>
         </View>
-        <AppText style={styles.cardDate}>{formatDate(module.ends_at)}</AppText>
-      </View>
+      )}
 
-      <View style={styles.graphContainer}>
-        {progress ? (
-          <JourneyNodeGraph
-            nodes={progress.nodes}
-            completedNodeIds={progress.completedNodeIds}
-            currentNodeId={progress.currentNodeId}
-            width={CARD_WIDTH - Space.lg * 2}
-            height={110}
-          />
-        ) : (
-          <View style={{ height: 110 }} />
-        )}
-      </View>
-
-      <View style={styles.progressTrack}>
-        <View
-          style={[
-            styles.progressFill,
-            { width: pct !== null ? `${pct}%` : "0%" },
-          ]}
-        />
+      {/* Footer */}
+      <View style={styles.cardFooter}>
+        <AppText style={styles.activityCount}>
+          {card.activityCount} {card.activityCount === 1 ? "activity" : "activities"}
+        </AppText>
+        <AppText style={styles.tapHint}>Tap to open →</AppText>
       </View>
     </Pressable>
   );
@@ -189,7 +115,7 @@ function ModuleCard({
 
 export default function HackathonHomeScreen() {
   const [data, setData] = useState<HackathonProgramHome | null>(null);
-  const [modules, setModules] = useState<ModuleWithEnds[]>([]);
+  const [phaseCards, setPhaseCards] = useState<PhaseCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -203,36 +129,57 @@ export default function HackathonHomeScreen() {
         JSON.stringify(home) === JSON.stringify(getEmptyHackathonProgramHome());
 
       if (isEmpty || !home.program || home.phases.length === 0) {
+        // Preview mode — use hardcoded preview data
         const previewHome = getPreviewHackathonProgramHome();
         setData(previewHome);
         setIsPreview(true);
-        const previewPhase =
-          previewHome.phases.find((p) => p.id === previewHome.enrollment?.current_phase_id) ??
-          previewHome.phases[0];
-        if (previewPhase) {
-          setModules(getPreviewJourneyModules(previewPhase.id));
-        }
+        setPhaseCards(
+          previewHome.phases.map((phase, i) => ({
+            phase,
+            activityTitles: i === 0
+              ? ["Know Yourself", "Find a Problem", "Brainstorm Solutions", "Pick Your Solution"]
+              : [],
+            activityCount: i === 0 ? 4 : 0,
+            isActive: phase.id === previewHome.enrollment?.current_phase_id,
+          }))
+        );
       } else {
         setData(home);
         setIsPreview(false);
-        const currentPhase =
-          home.phases.find((p) => p.id === home.enrollment?.current_phase_id) ??
-          home.phases[0];
-        if (currentPhase) {
-          const mods = await getHackathonJourneyModules(currentPhase.id);
-          setModules(mods);
-        }
+        const phasesWithActivities = await getProgramPhasesWithActivities(home.program.id);
+        const currentPhaseId = home.enrollment?.current_phase_id;
+
+        // Merge phases from home (ordering) with activity data
+        const cards: PhaseCard[] = home.phases.map((phase) => {
+          const phaseData = phasesWithActivities.find((p) => p.id === phase.id);
+          const activities = phaseData?.activities ?? [];
+          return {
+            phase,
+            activityTitles: activities.map((a) => a.title),
+            activityCount: activities.length,
+            isActive: phase.id === currentPhaseId,
+          };
+        });
+        setPhaseCards(cards);
+
+        // Scroll to current phase
+        const currentIndex = cards.findIndex((c) => c.isActive);
+        if (currentIndex > 0) setActiveIndex(currentIndex);
       }
     } catch {
       const previewHome = getPreviewHackathonProgramHome();
       setData(previewHome);
       setIsPreview(true);
-      const previewPhase =
-        previewHome.phases.find((p) => p.id === previewHome.enrollment?.current_phase_id) ??
-        previewHome.phases[0];
-      if (previewPhase) {
-        setModules(getPreviewJourneyModules(previewPhase.id));
-      }
+      setPhaseCards(
+        previewHome.phases.map((phase, i) => ({
+          phase,
+          activityTitles: i === 0
+            ? ["Know Yourself", "Find a Problem", "Brainstorm Solutions", "Pick Your Solution"]
+            : [],
+          activityCount: i === 0 ? 4 : 0,
+          isActive: phase.id === previewHome.enrollment?.current_phase_id,
+        }))
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -246,7 +193,7 @@ export default function HackathonHomeScreen() {
   );
 
   function scrollTo(index: number) {
-    const clamped = Math.max(0, Math.min(index, modules.length - 1));
+    const clamped = Math.max(0, Math.min(index, phaseCards.length - 1));
     setActiveIndex(clamped);
     scrollRef.current?.scrollTo({
       x: clamped * (CARD_WIDTH + CARD_GAP),
@@ -257,7 +204,7 @@ export default function HackathonHomeScreen() {
   if (loading || !data) {
     return (
       <View style={styles.loadingRoot}>
-        <ActivityIndicator size="large" color={CYAN} />
+        <AppText style={{ color: CYAN }}>Loading...</AppText>
       </View>
     );
   }
@@ -280,7 +227,7 @@ export default function HackathonHomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <AppText variant="bold" style={styles.eyebrow}>
-          {data.program?.title ?? "Super Seed Hackathon"}
+          {data.program?.title ?? "Epic Sprint"}
         </AppText>
         <AppText variant="bold" style={styles.title}>
           Your Journey
@@ -301,8 +248,8 @@ export default function HackathonHomeScreen() {
         </View>
       )}
 
-      {/* Carousel */}
-      {modules.length > 0 ? (
+      {/* Phase carousel */}
+      {phaseCards.length > 0 ? (
         <View style={styles.carouselSection}>
           <View style={styles.carouselRow}>
             {/* Left chevron */}
@@ -312,17 +259,11 @@ export default function HackathonHomeScreen() {
               hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
               disabled={activeIndex === 0}
             >
-              <AppText
-                style={[
-                  styles.chevronText,
-                  activeIndex === 0 && { opacity: 0.2 },
-                ]}
-              >
+              <AppText style={[styles.chevronText, activeIndex === 0 && { opacity: 0.2 }]}>
                 ‹
               </AppText>
             </Pressable>
 
-            {/* Scrollable cards */}
             <ScrollView
               ref={scrollRef}
               horizontal
@@ -331,34 +272,32 @@ export default function HackathonHomeScreen() {
               style={{ flex: 1 }}
               contentContainerStyle={styles.cardsContent}
             >
-              {modules.map((mod, i) => (
-                <ModuleCard
-                  key={mod.id}
-                  module={mod}
-                  isActive={i === activeIndex}
-                  onPress={() => router.push(`/(hackathon)/module/${mod.id}`)}
+              {phaseCards.map((card, i) => (
+                <PhaseCardView
+                  key={card.phase.id}
+                  card={card}
+                  onPress={() => router.push(`/(hackathon)/phase/${card.phase.id}`)}
                 />
               ))}
             </ScrollView>
 
-            {/* Right chevron + peek */}
             <View style={styles.rightSide}>
               <Pressable
                 onPress={() => scrollTo(activeIndex + 1)}
                 style={styles.chevron}
                 hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-                disabled={activeIndex === modules.length - 1}
+                disabled={activeIndex === phaseCards.length - 1}
               >
                 <AppText
                   style={[
                     styles.chevronText,
-                    activeIndex === modules.length - 1 && { opacity: 0.2 },
+                    activeIndex === phaseCards.length - 1 && { opacity: 0.2 },
                   ]}
                 >
                   ›
                 </AppText>
               </Pressable>
-              {activeIndex < modules.length - 1 && (
+              {activeIndex < phaseCards.length - 1 && (
                 <View style={styles.peek} />
               )}
             </View>
@@ -366,7 +305,7 @@ export default function HackathonHomeScreen() {
 
           {/* Dot indicators */}
           <View style={styles.dots}>
-            {modules.map((_, i) => (
+            {phaseCards.map((_, i) => (
               <View
                 key={i}
                 style={[styles.dot, i === activeIndex && styles.dotActive]}
@@ -376,7 +315,7 @@ export default function HackathonHomeScreen() {
         </View>
       ) : (
         <View style={styles.emptyModules}>
-          <AppText style={{ color: WHITE40 }}>No modules available yet.</AppText>
+          <AppText style={{ color: WHITE40 }}>No phases available yet.</AppText>
         </View>
       )}
 
@@ -442,14 +381,14 @@ const styles = StyleSheet.create({
   rightSide: { flexDirection: "row", alignItems: "center" },
   peek: {
     width: PEEK_WIDTH,
-    height: 160,
+    height: 200,
     borderRadius: Radius.lg,
     backgroundColor: "rgba(255,255,255,0.03)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
   },
   cardsContent: { gap: CARD_GAP },
-  // Module card
+  // Phase card
   card: {
     width: CARD_WIDTH,
     backgroundColor: CYAN_BG,
@@ -465,16 +404,31 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: Space.sm,
   },
-  cardTitle: { fontSize: 16, color: WHITE },
-  cardProgress: { fontSize: 11, color: CYAN, marginTop: 2 },
+  cardTitle: { fontSize: 17, color: WHITE },
+  cardDescription: { fontSize: 12, color: WHITE40, marginTop: 3, lineHeight: 17 },
   cardDate: { fontSize: 11, color: WHITE40 },
-  graphContainer: { marginHorizontal: -Space.xs },
-  progressTrack: {
-    height: 3,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 2,
+  // Activity list
+  activityList: { gap: Space.sm },
+  activityRow: { flexDirection: "row", alignItems: "center", gap: Space.sm },
+  activityDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: CYAN,
+    opacity: 0.6,
   },
-  progressFill: { height: 3, backgroundColor: CYAN, borderRadius: 2 },
+  activityTitle: { fontSize: 13, color: WHITE75, flex: 1 },
+  // Footer
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: WHITE10,
+    paddingTop: Space.sm,
+  },
+  activityCount: { fontSize: 11, color: WHITE40 },
+  tapHint: { fontSize: 11, color: CYAN },
   // Dots
   dots: { flexDirection: "row", justifyContent: "center", gap: 6 },
   dot: {

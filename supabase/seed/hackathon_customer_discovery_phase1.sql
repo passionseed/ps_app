@@ -122,3 +122,74 @@ VALUES
     4
   )
 ON CONFLICT (playlist_id, slug) DO NOTHING;
+
+-- Phase 1 activities (direct activity list, no day layer)
+-- due_at for phase 1
+UPDATE public.hackathon_program_phases
+SET due_at = '2026-04-26T23:59:59Z'
+WHERE id = 'f1000000-0000-0000-0000-000000000010';
+
+-- Activity 1: Watch intro video
+INSERT INTO public.hackathon_phase_activities (
+  id, phase_id, title, instructions, display_order, estimated_minutes, is_required, is_draft
+) VALUES (
+  'fa000000-0000-0000-0000-000000000001',
+  'f1000000-0000-0000-0000-000000000010',
+  'Customer Discovery Overview',
+  'Watch this short video to understand what customer discovery means and why it matters.',
+  0, 5, true, false
+) ON CONFLICT (phase_id, display_order) DO NOTHING;
+
+INSERT INTO public.hackathon_phase_activity_content (
+  id, activity_id, content_type, content_title, content_url, display_order
+) VALUES (
+  'fb000000-0000-0000-0000-000000000001',
+  'fa000000-0000-0000-0000-000000000001',
+  'video',
+  'What is Customer Discovery?',
+  'https://www.youtube.com/watch?v=IVhPCOKu7Rs',
+  0
+) ON CONFLICT (activity_id, display_order) DO NOTHING;
+
+-- Activity 2: Read the brief
+INSERT INTO public.hackathon_phase_activities (
+  id, phase_id, title, instructions, display_order, estimated_minutes, is_required, is_draft
+) VALUES (
+  'fa000000-0000-0000-0000-000000000002',
+  'f1000000-0000-0000-0000-000000000010',
+  'Read the Problem Brief',
+  'Read your track''s problem brief carefully before conducting interviews.',
+  1, 10, true, false
+) ON CONFLICT (phase_id, display_order) DO NOTHING;
+
+INSERT INTO public.hackathon_phase_activity_content (
+  id, activity_id, content_type, content_title, content_body, display_order
+) VALUES (
+  'fb000000-0000-0000-0000-000000000002',
+  'fa000000-0000-0000-0000-000000000002',
+  'text',
+  'Problem Brief Guide',
+  'Your goal this phase is to identify the real pain behind your track''s problem statement. Talk to at least 5 people. Ask open-ended questions. Focus on behaviors, not opinions.',
+  0
+) ON CONFLICT (activity_id, display_order) DO NOTHING;
+
+-- Activity 3: Submit interview notes (individual submission)
+INSERT INTO public.hackathon_phase_activities (
+  id, phase_id, title, instructions, display_order, estimated_minutes, is_required, is_draft
+) VALUES (
+  'fa000000-0000-0000-0000-000000000003',
+  'f1000000-0000-0000-0000-000000000010',
+  'Submit Interview Notes',
+  'Conduct at least 3 customer interviews and submit your notes summarizing what you learned.',
+  2, 60, true, false
+) ON CONFLICT (phase_id, display_order) DO NOTHING;
+
+INSERT INTO public.hackathon_phase_activity_assessments (
+  id, activity_id, assessment_type, is_graded, metadata
+) VALUES (
+  'fc000000-0000-0000-0000-000000000001',
+  'fa000000-0000-0000-0000-000000000003',
+  'text_answer',
+  false,
+  '{"submission_label": "Interview Notes", "min_words": 100, "rubric": "Summarize what you heard from each interviewee. What pain points came up most?"}'::jsonb
+) ON CONFLICT (activity_id) DO NOTHING;
