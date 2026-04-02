@@ -50,7 +50,7 @@ export function buildSeedStartedEventData(params: {
 export function buildSeedCompletedEventData(params: {
   enrollmentId: string;
   seedId: string;
-  pathId: string;
+  pathId: string | null;
   seedTitle: string;
   categoryId: string | null;
   tags: string[];

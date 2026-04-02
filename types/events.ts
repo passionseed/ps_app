@@ -69,13 +69,12 @@ export interface EventDataMap {
   seed_completed: {
     enrollment_id: string;
     seed_id: string;
-    path_id: string;
+    path_id: string | null;
     seed_title: string;
     category_id: string | null;
     tags: string[];
     completed_seed_count: number;
     milestone_seed_count: 1 | 2 | 3 | 5 | null;
-    completion_type: 'final_reflection';
   };
   direction_finder_viewed: {
     source: 'profile_ikigai';
