@@ -46,6 +46,7 @@ describe("event logger analytics wrappers", () => {
     await logSeedStarted({
       seed: {
         id: "seed-1",
+        title: "UX Designer Discovery",
         category_id: "category-tech",
         tags: ["ux", "design"],
       },
@@ -59,6 +60,7 @@ describe("event logger analytics wrappers", () => {
       event_type: "seed_started",
       event_data: {
         seed_id: "seed-1",
+        seed_title: "UX Designer Discovery",
         seed_category_id: "category-tech",
         seed_tags: ["ux", "design"],
         path_id: "path-1",
@@ -91,8 +93,8 @@ describe("event logger analytics wrappers", () => {
         seed_id: "seed-1",
         path_id: "path-1",
         seed_title: "UX Designer Discovery",
-        category_id: "category-tech",
-        tags: ["ux", "design"],
+        seed_category_id: "category-tech",
+        seed_tags: ["ux", "design"],
         completed_seed_count: 3,
         milestone_seed_count: 3,
       },
