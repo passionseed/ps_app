@@ -1,50 +1,94 @@
 // app/(hackathon)/phase/[phaseId].tsx
 import { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
-import { getHackathonPhaseDetail } from "../../../lib/hackathonProgram";
-import { getPreviewPhaseDetail } from "../../../lib/hackathonProgramPreview";
-import { Radius, Space } from "../../../lib/theme";
-import type { HackathonPhaseDetail } from "../../../types/hackathon-program";
+import { getPhaseWithActivities } from "../../../lib/hackathonPhaseActivity";
+import { readHackathonParticipant } from "../../../lib/hackathon-mode";
+import { Space } from "../../../lib/theme";
+import type { HackathonPhaseWithActivities, HackathonPhaseActivityDetail } from "../../../types/hackathon-phase-activity";
 
-const BG = "#010814";
-const CYAN = "#00F0FF";
-const CYAN_BORDER = "rgba(0,240,255,0.2)";
-const CYAN_BG = "rgba(0,240,255,0.06)";
-const WHITE = "#FFFFFF";
-const WHITE75 = "rgba(255,255,255,0.75)";
-const WHITE40 = "rgba(255,255,255,0.4)";
+// ── Bioluminescent tokens ────────────────────────────────────────
+const BG      = "#03050a";
+const CARD_BG = "rgba(13,18,25,0.95)";
+const CYAN    = "#91C4E3";
+const BLUE    = "#65ABFC";
+const CYAN45  = "rgba(145,196,227,0.45)";
+const BORDER  = "rgba(74,107,130,0.35)";
+const WHITE   = "#FFFFFF";
+const WHITE55 = "rgba(255,255,255,0.55)";
+const WHITE28 = "rgba(255,255,255,0.28)";
+
+type ActivityStatus = "not_started" | "draft" | "submitted" | "passed" | "revision_required";
+
+type ActivityWithStatus = HackathonPhaseActivityDetail & {
+  status: ActivityStatus;
+};
+
+async function fetchActivityStatuses(
+  _activities: HackathonPhaseActivityDetail[],
+  _participantId: string
+): Promise<Record<string, ActivityStatus>> {
+  // TODO: wire to real submissions once hackathon_phase_activity_submissions table exists.
+  // Current submissions table (hackathon_activity_individual_submissions) uses module_id (old system).
+  return {};
+}
 
 export default function HackathonPhaseScreen() {
   const { phaseId } = useLocalSearchParams<{ phaseId: string }>();
-  const [detail, setDetail] = useState<HackathonPhaseDetail | null>(null);
-  const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
+  const [phase, setPhase] = useState<HackathonPhaseWithActivities | null>(null);
+  const [activities, setActivities] = useState<ActivityWithStatus[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [participantId, setParticipantId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
         try {
-          const live = await getHackathonPhaseDetail(phaseId!);
-          if (!cancelled) {
-            setDetail(live.phase ? live : getPreviewPhaseDetail(phaseId!));
+          const [phaseData, participant] = await Promise.all([
+            getPhaseWithActivities(phaseId!),
+            readHackathonParticipant(),
+          ]);
+
+          if (cancelled) return;
+
+          if (!phaseData) {
+            setLoading(false);
+            return;
           }
-        } catch {
-          if (!cancelled) {
-            setDetail(getPreviewPhaseDetail(phaseId!));
+
+          setPhase(phaseData);
+          setParticipantId(participant?.id ?? null);
+
+          if (participant?.id && phaseData.activities.length > 0) {
+            const statuses = await fetchActivityStatuses(phaseData.activities, participant.id);
+            if (!cancelled) {
+              setActivities(
+                phaseData.activities.map((a) => ({
+                  ...a,
+                  status: statuses[a.id] ?? "not_started",
+                }))
+              );
+            }
+          } else {
+            if (!cancelled) {
+              setActivities(
+                phaseData.activities.map((a) => ({ ...a, status: "not_started" }))
+              );
+            }
           }
+        } catch (e) {
+          console.error("[PhaseScreen] load error:", e);
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -53,16 +97,34 @@ export default function HackathonPhaseScreen() {
     }, [phaseId]),
   );
 
-  if (loading || !detail) {
+  const completedCount = activities.filter(
+    (a) => a.status === "passed" || a.status === "submitted"
+  ).length;
+  const totalCount = activities.length;
+  const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  if (loading) {
     return (
       <View style={styles.loadingRoot}>
-        <ActivityIndicator size="large" color={CYAN} />
+        <AppText style={{ color: CYAN }}>Loading...</AppText>
+      </View>
+    );
+  }
+
+  if (!phase) {
+    return (
+      <View style={styles.loadingRoot}>
+        <AppText style={{ color: WHITE28 }}>Phase not found.</AppText>
       </View>
     );
   }
 
   return (
     <View style={styles.root}>
+      {/* Glow orbs */}
+      <View style={styles.glowCyan} pointerEvents="none" />
+
+      {/* Back button */}
       <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
         <SkiaBackButton
           variant="dark"
@@ -72,143 +134,233 @@ export default function HackathonPhaseScreen() {
           }}
         />
       </View>
-      <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}
+      >
+        {/* Header */}
         <View style={styles.header}>
-          <AppText variant="bold" style={styles.eyebrow}>PHASE</AppText>
-          <AppText variant="bold" style={styles.title}>
-            {detail.phase?.title ?? "Phase"}
-          </AppText>
-          <AppText style={styles.subtitle}>{detail.phase?.description}</AppText>
+          <AppText style={styles.eyebrow}>Phase {phase.phase_number}</AppText>
+          <AppText variant="bold" style={styles.title}>{phase.title}</AppText>
+          {phase.description ? (
+            <AppText style={styles.subtitle}>{phase.description}</AppText>
+          ) : null}
         </View>
 
-        {detail.playlists.map((playlist) => (
-          <View key={playlist.id} style={styles.playlist}>
-            {/* Playlist header card */}
-            <View style={styles.playlistCard}>
-              <LinearGradient
-                colors={["#01040A", "#030B17"]}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={styles.playlistGlow} pointerEvents="none" />
-              <AppText variant="bold" style={styles.playlistTitle}>
-                {playlist.title}
-              </AppText>
-              <AppText style={styles.playlistBody}>{playlist.description}</AppText>
-            </View>
+        {/* Debug / Progress Panel */}
+        <View style={styles.debugPanel}>
+          <AppText style={styles.debugHeading}>Debug · Activity Progress</AppText>
 
-            {playlist.modules.map((module) => (
+          <View style={styles.debugRow}>
+            <AppText style={styles.debugLabel}>Total activities</AppText>
+            <AppText style={styles.debugValue}>{totalCount}</AppText>
+          </View>
+          <View style={styles.debugRow}>
+            <AppText style={styles.debugLabel}>Completed</AppText>
+            <AppText style={styles.debugValue}>{completedCount} / {totalCount} ({pct}%)</AppText>
+          </View>
+          <View style={styles.debugRow}>
+            <AppText style={styles.debugLabel}>Participant ID</AppText>
+            <AppText style={styles.debugValue} numberOfLines={1}>
+              {participantId ?? "none (preview)"}
+            </AppText>
+          </View>
+
+          <View style={styles.debugDivider} />
+
+          {activities.length === 0 ? (
+            <AppText style={styles.debugMuted}>No activities found for this phase.</AppText>
+          ) : (
+            activities.map((a, i) => (
+              <View key={a.id} style={styles.debugActivity}>
+                <View style={styles.debugActivityLeft}>
+                  <StatusDot status={a.status} />
+                  <AppText style={styles.debugActivityTitle} numberOfLines={1}>
+                    {i + 1}. {a.title}
+                  </AppText>
+                </View>
+                <AppText style={[styles.debugActivityStatus, statusColor(a.status)]}>
+                  {a.status.replace("_", " ")}
+                </AppText>
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* Activity list */}
+        {activities.length > 0 && (
+          <View style={styles.activitySection}>
+            <AppText style={styles.sectionLabel}>Activities</AppText>
+            {activities.map((activity) => (
               <Pressable
-                key={module.id}
-                onPress={() => router.push(`/(hackathon)/module/${module.id}`)}
-                style={({ pressed }) => [styles.moduleCard, pressed && { opacity: 0.8 }]}
+                key={activity.id}
+                style={({ pressed }) => [styles.activityCard, pressed && { opacity: 0.85 }]}
+                onPress={() => router.push(`/(hackathon)/activity/${activity.id}`)}
               >
-                <View style={styles.moduleDot} />
-                <View style={styles.moduleContent}>
-                  <AppText variant="bold" style={styles.moduleTitle}>
-                    {module.title}
-                  </AppText>
-                  <AppText style={styles.moduleBody}>
-                    {module.summary ?? "Structured module"}
-                  </AppText>
-                  <View style={styles.modulePills}>
-                    <MetaPill value={module.workflow_scope} />
-                    <MetaPill value={module.gate_rule} />
+                <View style={styles.activityCardLeft}>
+                  <StatusDot status={activity.status} />
+                  <View style={styles.activityCardBody}>
+                    <AppText variant="bold" style={styles.activityTitle}>{activity.title}</AppText>
+                    {activity.instructions ? (
+                      <AppText style={styles.activityInstructions} numberOfLines={2}>
+                        {activity.instructions}
+                      </AppText>
+                    ) : null}
+                    <View style={styles.activityMeta}>
+                      {activity.estimated_minutes ? (
+                        <AppText style={styles.metaChip}>{activity.estimated_minutes} min</AppText>
+                      ) : null}
+                      {activity.assessment ? (
+                        <AppText style={styles.metaChip}>{activity.assessment.assessment_type.replace("_", " ")}</AppText>
+                      ) : null}
+                      {activity.content.length > 0 ? (
+                        <AppText style={styles.metaChip}>{activity.content.length} content</AppText>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
-                <AppText style={styles.moduleArrow}>→</AppText>
+                <AppText style={styles.arrow}>→</AppText>
               </Pressable>
             ))}
           </View>
-        ))}
+        )}
       </ScrollView>
     </View>
   );
 }
 
-function MetaPill({ value }: { value: string }) {
-  return (
-    <View style={styles.metaPill}>
-      <AppText style={styles.metaPillText}>{value}</AppText>
-    </View>
-  );
+function StatusDot({ status }: { status: ActivityStatus }) {
+  const color = statusColorValue(status);
+  return <View style={[styles.statusDot, { backgroundColor: color }]} />;
+}
+
+function statusColorValue(status: ActivityStatus): string {
+  switch (status) {
+    case "passed": return "#4ADE80";
+    case "submitted": return CYAN;
+    case "draft": return "#FACC15";
+    case "revision_required": return "#F87171";
+    default: return "rgba(255,255,255,0.2)";
+  }
+}
+
+function statusColor(status: ActivityStatus) {
+  return { color: statusColorValue(status) };
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
-  content: { padding: Space.lg, gap: Space.xl, paddingBottom: 96 },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: Space.lg, paddingBottom: 96, gap: Space.xl },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
+
+  glowCyan: {
+    position: "absolute", top: -40, left: -40,
+    width: 200, height: 200, borderRadius: 100,
+    backgroundColor: CYAN, opacity: 0.04,
+  },
   headerActions: {
     position: "absolute",
     left: Space.lg,
     zIndex: 10,
   },
+
   header: { gap: Space.sm },
-  eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2 },
-  title: { fontSize: 30, lineHeight: 36, color: WHITE },
-  subtitle: { fontSize: 15, lineHeight: 23, color: WHITE75 },
-  playlist: { gap: Space.sm },
-  playlistCard: {
-    borderRadius: Radius.lg,
-    overflow: "hidden",
+  eyebrow: { fontSize: 10, color: CYAN45, textTransform: "uppercase", letterSpacing: 2.5 },
+  title: {
+    fontSize: 28, lineHeight: 34, color: WHITE,
+    textShadowColor: "rgba(145,196,227,0.2)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
+  },
+  subtitle: { fontSize: 14, lineHeight: 21, color: WHITE55 },
+
+  // Debug panel
+  debugPanel: {
+    backgroundColor: "rgba(0,0,0,0.4)",
     borderWidth: 1,
-    borderColor: CYAN_BORDER,
-    padding: Space.lg,
+    borderColor: "rgba(145,196,227,0.2)",
+    borderRadius: 14,
+    padding: Space.md,
     gap: Space.sm,
   },
-  playlistGlow: {
-    position: "absolute",
-    left: -30,
-    top: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(0,240,255,0.08)",
+  debugHeading: {
+    fontSize: 9,
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    color: CYAN45,
+    marginBottom: 4,
   },
-  playlistTitle: { fontSize: 18, color: WHITE },
-  playlistBody: { fontSize: 13, lineHeight: 20, color: WHITE75 },
-  moduleCard: {
+  debugRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  debugLabel: { fontSize: 12, color: WHITE28 },
+  debugValue: { fontSize: 12, color: WHITE55, flex: 1, textAlign: "right" },
+  debugDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    marginVertical: 4,
+  },
+  debugMuted: { fontSize: 12, color: WHITE28 },
+  debugActivity: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: Radius.lg,
+    justifyContent: "space-between",
+    gap: Space.sm,
+  },
+  debugActivityLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+    flex: 1,
+  },
+  debugActivityTitle: { fontSize: 12, color: WHITE55, flex: 1 },
+  debugActivityStatus: { fontSize: 11, textTransform: "capitalize" },
+
+  // Activity list
+  activitySection: { gap: Space.sm },
+  sectionLabel: {
+    fontSize: 9, textTransform: "uppercase", letterSpacing: 2, color: CYAN45,
+  },
+  activityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: CARD_BG,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: BORDER,
+    borderRadius: 16,
     padding: Space.lg,
     gap: Space.md,
   },
-  moduleDot: {
+  activityCardLeft: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Space.md,
+    flex: 1,
+  },
+  activityCardBody: { flex: 1, gap: 4 },
+  activityTitle: { fontSize: 15, color: WHITE },
+  activityInstructions: { fontSize: 12, lineHeight: 18, color: WHITE55 },
+  activityMeta: { flexDirection: "row", flexWrap: "wrap", gap: Space.xs, marginTop: 4 },
+  metaChip: {
+    fontSize: 10,
+    color: CYAN45,
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.2)",
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  arrow: { fontSize: 16, color: BLUE },
+
+  statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: CYAN,
-    opacity: 0.6,
     flexShrink: 0,
     marginTop: 4,
-    alignSelf: "flex-start",
-  },
-  moduleContent: { flex: 1, gap: 4 },
-  moduleTitle: { fontSize: 16, color: WHITE },
-  moduleBody: { fontSize: 13, lineHeight: 19, color: WHITE75 },
-  modulePills: { flexDirection: "row", gap: Space.xs, marginTop: Space.xs },
-  moduleArrow: {
-    fontSize: 16,
-    color: CYAN,
-    textShadowColor: "rgba(0,240,255,0.6)",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
-  },
-  metaPill: {
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: CYAN_BORDER,
-    backgroundColor: CYAN_BG,
-    paddingHorizontal: Space.sm,
-    paddingVertical: 2,
-  },
-  metaPillText: {
-    fontSize: 10,
-    color: CYAN,
-    textTransform: "uppercase",
-    letterSpacing: 1,
   },
 });
