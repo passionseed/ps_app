@@ -487,6 +487,23 @@ export const styles = StyleSheet.create({
     color: Accent.green,
     fontFamily: "LibreFranklin_400Regular",
   },
+  socialProofBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: Space.sm,
+    borderRadius: Radius.md,
+    alignSelf: "flex-start",
+  },
+  socialProofBadgeExploring: {
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+  },
+  socialProofBadgeCompleted: {
+    backgroundColor: "rgba(16, 185, 129, 0.22)",
+  },
+  socialProofBadgeText: {
+    fontSize: 10,
+    color: "#FFFFFF",
+    fontFamily: "LibreFranklin_600SemiBold",
+  },
 
   quickLinks: {
     flexDirection: "row",

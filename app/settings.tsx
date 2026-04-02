@@ -5,6 +5,7 @@ import {
   Pressable,
   Switch,
   Animated,
+  Alert,
 } from "react-native";
 import { AppText as Text } from "../components/AppText";
 import { PathLabSkiaLoader } from "../components/PathLabSkiaLoader";
@@ -16,6 +17,13 @@ import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { getProfile } from "../lib/onboarding";
 import type { Profile, MobileSettings } from "../types/onboarding";
+import {
+  DEFAULT_MOBILE_SETTINGS,
+  REMINDER_TIME_OPTIONS,
+  disablePushNotifications,
+  enablePushNotifications,
+  saveNotificationSettings,
+} from "../lib/notifications";
 import {
   PageBg,
   Text as ThemeText,
@@ -43,6 +51,12 @@ export default function SettingsScreen() {
     notifications: isThai ? "การแจ้งเตือน" : "Notifications",
     push: isThai ? "การแจ้งเตือนแบบพุช" : "Push Notifications",
     reminder: isThai ? "เวลาแจ้งเตือน" : "Reminder Time",
+    reminderHelp: isThai
+      ? "เลือกเวลาที่อยากให้เตือนทุกวัน"
+      : "Choose when daily reminders should appear",
+    disabledHelp: isThai
+      ? "ปิดการแจ้งเตือนทั้งหมดได้ทุกเมื่อ"
+      : "You can unsubscribe from all push reminders here",
     appearance: isThai ? "รูปลักษณ์" : "Appearance",
     light: isThai ? "สว่าง" : "Light",
     dark: isThai ? "มืด" : "Dark",
@@ -84,33 +98,62 @@ export default function SettingsScreen() {
     loadProfile();
   }, [user?.id]);
 
-  const updateSetting = async <K extends keyof MobileSettings>(
-    key: K,
-    value: MobileSettings[K]
+  const updateNotificationProfile = (
+    nextSettings: MobileSettings,
+    expoPushToken: string | null = profile?.expo_push_token ?? null,
   ) => {
+    if (!profile) return;
+    setProfile({
+      ...profile,
+      mobile_settings: nextSettings,
+      expo_push_token: expoPushToken,
+    });
+  };
+
+  const handlePushToggle = async (enabled: boolean) => {
     if (!user?.id || !profile) return;
 
     setSaving(true);
-    const currentSettings = profile.mobile_settings || {
-      push_enabled: true,
-      reminder_time: "09:00",
-      theme: "light",
-    };
+    try {
+      const currentSettings = profile.mobile_settings || DEFAULT_MOBILE_SETTINGS;
 
-    const newSettings: MobileSettings = {
-      ...currentSettings,
-      [key]: value,
-    };
+      if (enabled) {
+        const result = await enablePushNotifications(user.id, {
+          ...currentSettings,
+          push_enabled: true,
+        });
+        updateNotificationProfile(result.settings, result.expoPushToken);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ mobile_settings: newSettings })
-      .eq("id", user.id);
+        if (!result.granted) {
+          Alert.alert(
+            "Notifications Disabled",
+            "Please enable notifications in your device settings if you want reminder nudges later.",
+          );
+        }
+        return;
+      }
 
-    if (!error) {
-      setProfile({ ...profile, mobile_settings: newSettings });
+      const disabledSettings = await disablePushNotifications(user.id, currentSettings);
+      updateNotificationProfile(disabledSettings, null);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
+  };
+
+  const handleReminderTimeChange = async (reminderTime: string) => {
+    if (!user?.id || !profile) return;
+
+    setSaving(true);
+    try {
+      const currentSettings = profile.mobile_settings || DEFAULT_MOBILE_SETTINGS;
+      const newSettings = await saveNotificationSettings(user.id, {
+        ...currentSettings,
+        reminder_time: reminderTime,
+      }, profile.expo_push_token ?? null);
+      updateNotificationProfile(newSettings);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateLanguage = async (lang: "en" | "th") => {
@@ -129,11 +172,7 @@ export default function SettingsScreen() {
     setSaving(false);
   };
 
-  const settings = profile?.mobile_settings || {
-    push_enabled: true,
-    reminder_time: "09:00",
-    theme: "light",
-  };
+  const settings = profile?.mobile_settings || DEFAULT_MOBILE_SETTINGS;
 
   return (
     <LinearGradient colors={["#FFFFFF", "#F9F5FF", "#F3EAFF"]} style={styles.container}>
@@ -199,9 +238,7 @@ export default function SettingsScreen() {
                   <Text style={styles.optionText}>{copy.push}</Text>
                   <Switch
                     value={settings.push_enabled}
-                    onValueChange={(value) =>
-                      updateSetting("push_enabled", value)
-                    }
+                    onValueChange={handlePushToggle}
                     trackColor={{
                       false: ThemeText.muted,
                       true: "rgba(0, 230, 118, 0.4)", // green with opacity
@@ -210,12 +247,43 @@ export default function SettingsScreen() {
                   />
                 </View>
                 <View style={styles.optionDivider} />
-                <Pressable style={styles.optionRow}>
-                  <Text style={styles.optionText}>{copy.reminder}</Text>
-                  <Text style={styles.optionValue}>
-                    {settings.reminder_time}
-                  </Text>
-                </Pressable>
+                <View style={styles.optionStack}>
+                  <View style={styles.optionRowStatic}>
+                    <View style={styles.optionCopy}>
+                      <Text style={styles.optionText}>{copy.reminder}</Text>
+                      <Text style={styles.optionHint}>{copy.reminderHelp}</Text>
+                    </View>
+                    <Text style={styles.optionValue}>
+                      {settings.reminder_time}
+                    </Text>
+                  </View>
+                  <View style={styles.chipRow}>
+                    {REMINDER_TIME_OPTIONS.map((option) => (
+                      <Pressable
+                        key={option.value}
+                        onPress={() => handleReminderTimeChange(option.value)}
+                        disabled={!settings.push_enabled || saving}
+                        style={[
+                          styles.reminderChip,
+                          settings.reminder_time === option.value &&
+                            styles.reminderChipActive,
+                          !settings.push_enabled && styles.reminderChipDisabled,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.reminderChipText,
+                            settings.reminder_time === option.value &&
+                              styles.reminderChipTextActive,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Text style={styles.sectionNote}>{copy.disabledHelp}</Text>
+                </View>
               </View>
             </View>
 
@@ -312,17 +380,70 @@ const styles = StyleSheet.create({
     paddingHorizontal: Space.xl,
     paddingVertical: Space.lg,
   },
+  optionRowStatic: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: Space.md,
+  },
   optionRowSelected: {
     backgroundColor: "rgba(0, 230, 118, 0.08)", // subtle green
+  },
+  optionStack: {
+    paddingHorizontal: Space.xl,
+    paddingVertical: Space.lg,
+    gap: Space.md,
+  },
+  optionCopy: {
+    flex: 1,
+    gap: Space.xs,
   },
   optionText: {
     fontSize: 15,
     color: ThemeText.primary,
     fontWeight: "500",
   },
+  optionHint: {
+    fontSize: 13,
+    color: ThemeText.tertiary,
+    lineHeight: 18,
+  },
   optionValue: {
     fontSize: 15,
     color: ThemeText.secondary,
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Space.sm,
+  },
+  reminderChip: {
+    paddingHorizontal: Space.lg,
+    paddingVertical: Space.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.16)",
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
+  },
+  reminderChipActive: {
+    borderColor: "#00E676",
+    backgroundColor: "rgba(0, 230, 118, 0.14)",
+  },
+  reminderChipDisabled: {
+    opacity: 0.45,
+  },
+  reminderChipText: {
+    fontSize: 14,
+    color: ThemeText.secondary,
+    fontWeight: "600",
+  },
+  reminderChipTextActive: {
+    color: ThemeText.primary,
+  },
+  sectionNote: {
+    fontSize: 12,
+    color: ThemeText.tertiary,
+    lineHeight: 18,
   },
   radioOutline: {
     width: 22,
