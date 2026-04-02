@@ -17,6 +17,7 @@ describe("hackathon navigation", () => {
 
   it("keeps the allowed onboarded app segments narrow", () => {
     expect(isAllowedOnboardedAppSegment("(tabs)")).toBe(true);
+    expect(isAllowedOnboardedAppSegment("pathlab-activity")).toBe(true);
     expect(isAllowedOnboardedAppSegment("hackathon-program")).toBe(false);
     expect(isAllowedOnboardedAppSegment(undefined)).toBe(false);
   });

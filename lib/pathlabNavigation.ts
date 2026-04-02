@@ -20,7 +20,7 @@ export function getPathlabActivityRoute(
   params: PathlabActivityRouteParams,
 ): Href {
   return {
-    pathname: "/activity/[activityId]",
+    pathname: "/pathlab-activity/[activityId]",
     params: {
       activityId: params.activityId,
       enrollmentId: params.enrollmentId,

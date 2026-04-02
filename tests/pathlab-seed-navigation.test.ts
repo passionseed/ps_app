@@ -56,7 +56,7 @@ describe("PathLab seed navigation", () => {
         isCurrentDay: false,
       }),
     ).toEqual({
-      pathname: "/activity/[activityId]",
+      pathname: "/pathlab-activity/[activityId]",
       params: {
         activityId: "activity-abc",
         enrollmentId: "enrollment-123",
@@ -75,7 +75,7 @@ describe("PathLab seed navigation", () => {
         totalPages: 5,
       }),
     ).toEqual({
-      pathname: "/activity/[activityId]",
+      pathname: "/pathlab-activity/[activityId]",
       params: {
         activityId: "activity-xyz",
         enrollmentId: "enrollment-123",
