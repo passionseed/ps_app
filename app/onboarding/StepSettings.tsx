@@ -11,20 +11,12 @@ import {
 import { router } from "expo-router";
 import { completeOnboarding } from "../../lib/onboarding";
 import {
-  requestPushPermissions,
-  savePushToken,
-  scheduleDailyReminder,
-  cancelAllReminders,
+  DEFAULT_MOBILE_SETTINGS,
+  REMINDER_TIME_OPTIONS,
+  disablePushNotifications,
+  enablePushNotifications,
 } from "../../lib/notifications";
 import type { MobileSettings } from "../../types/onboarding";
-
-const REMINDER_HOURS = [
-  { value: "07:00", label: "7 AM" },
-  { value: "09:00", label: "9 AM" },
-  { value: "12:00", label: "12 PM" },
-  { value: "18:00", label: "6 PM" },
-  { value: "21:00", label: "9 PM" },
-];
 const THEMES = [
   { value: "light" as const, label: "☀️ Light" },
   { value: "dark" as const, label: "🌙 Dark" },
@@ -33,48 +25,52 @@ const THEMES = [
 type Props = { userId: string };
 
 export default function StepSettings({ userId }: Props) {
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [reminderTime, setReminderTime] = useState("09:00");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [pushEnabled, setPushEnabled] = useState(
+    DEFAULT_MOBILE_SETTINGS.push_enabled,
+  );
+  const [reminderTime, setReminderTime] = useState(
+    DEFAULT_MOBILE_SETTINGS.reminder_time,
+  );
+  const [theme, setTheme] = useState<"light" | "dark">(
+    DEFAULT_MOBILE_SETTINGS.theme,
+  );
   const [saving, setSaving] = useState(false);
 
   const handleFinish = async () => {
     setSaving(true);
-    const settings: MobileSettings = {
+    let settings: MobileSettings = {
       push_enabled: pushEnabled,
       reminder_time: reminderTime,
       theme,
     };
-    await completeOnboarding(userId, settings);
-    router.replace("/(tabs)/discover");
-  };
+    try {
+      if (pushEnabled) {
+        const result = await enablePushNotifications(userId, settings);
+        settings = result.settings;
 
-  const handlePushToggle = async (enabled: boolean) => {
-    setPushEnabled(enabled);
-    if (enabled) {
-      const token = await requestPushPermissions();
-      if (!token) {
-        Alert.alert(
-          "Notifications Disabled",
-          "Please enable notifications in your device settings to receive daily reminders.",
-        );
-        setPushEnabled(false);
-        return;
+        if (!result.granted) {
+          Alert.alert(
+            "Notifications Disabled",
+            "Please enable notifications in your device settings if you want reminder nudges later.",
+          );
+        }
+      } else {
+        settings = await disablePushNotifications(userId, settings);
       }
-      await savePushToken(userId, token);
-      const [hour, minute] = reminderTime.split(":").map(Number);
-      await scheduleDailyReminder(hour, minute);
-    } else {
-      await cancelAllReminders();
+
+      await completeOnboarding(userId, settings);
+      router.replace("/(tabs)/discover");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleTimeChange = async (time: string) => {
+  const handlePushToggle = (enabled: boolean) => {
+    setPushEnabled(enabled);
+  };
+
+  const handleTimeChange = (time: string) => {
     setReminderTime(time);
-    if (pushEnabled) {
-      const [hour, minute] = time.split(":").map(Number);
-      await scheduleDailyReminder(hour, minute);
-    }
   };
 
   return (
@@ -102,7 +98,7 @@ export default function StepSettings({ userId }: Props) {
           <>
             <Text style={styles.label}>Reminder time</Text>
             <View style={styles.chipRow}>
-              {REMINDER_HOURS.map((h) => (
+              {REMINDER_TIME_OPTIONS.map((h) => (
                 <Pressable
                   key={h.value}
                   style={[
