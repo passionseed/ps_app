@@ -41,6 +41,10 @@ import {
 } from "../../lib/pathlab";
 import { warmPathDayBundle, clearEnrollmentCache, markEnrollmentReset } from "../../lib/pathlabSession";
 import { formatPathDayLabel } from "../../lib/pathlab-day-label";
+import {
+  getPathlabSeedDayActivityRoute,
+  getPathlabSeedEntryRoute,
+} from "../../lib/pathlabNavigation";
 import type { Seed } from "../../types/seeds";
 import type { Path, PathEnrollment, PathDay, PathReflection } from "../../types/pathlab";
 
@@ -217,7 +221,7 @@ export default function SeedDetailScreen() {
     try {
       const newEnrollment = await enrollInPath({ pathId: path.id });
       setEnrollment(newEnrollment);
-      await navigateToCurrentActivity(newEnrollment.id);
+      await navigateToCurrentPath(newEnrollment.id);
     } catch (error) {
       console.error("[SeedDetail] Error enrolling:", error);
       Alert.alert(guestCopy.errorTitle, guestCopy.errorBody);
@@ -229,7 +233,7 @@ export default function SeedDetailScreen() {
   const handleContinue = () => {
     if (enrollment) {
       setEnrolling(true);
-      void navigateToCurrentActivity(enrollment.id);
+      void navigateToCurrentPath(enrollment.id);
     }
   };
 
@@ -251,7 +255,7 @@ export default function SeedDetailScreen() {
             console.log("[SeedDetail] Reset successful");
             invalidateActivityCache();
             clearEnrollmentCache(enrollment.id);
-            await navigateToCurrentActivity(enrollment.id);
+            await navigateToCurrentPath(enrollment.id);
           } catch (error) {
             console.error("[SeedDetail] Reset failed:", error);
             setResetting(false);
@@ -262,7 +266,7 @@ export default function SeedDetailScreen() {
     ]);
   };
 
-  const navigateToCurrentActivity = async (enrollmentId: string) => {
+  const navigateToCurrentPath = async (enrollmentId: string) => {
     try {
       const dayBundle = await getEnrollmentDayBundle(enrollmentId);
 
@@ -277,18 +281,11 @@ export default function SeedDetailScreen() {
         (activity) => activity.progress?.status !== "completed"
       );
 
-      if (!firstIncomplete) {
-        // All activities done for the day — go reflect
-        router.push(`/reflection/${enrollmentId}`);
-        return;
-      }
-
-      const activityIndex = dayBundle.activities.findIndex(
-        (activity) => activity.id === firstIncomplete.id
-      );
-
       router.push(
-        `/activity/${firstIncomplete.id}?enrollmentId=${enrollmentId}&pageIndex=${activityIndex}&totalPages=${dayBundle.activities.length}`
+        getPathlabSeedEntryRoute({
+          enrollmentId,
+          hasIncompleteActivities: !!firstIncomplete,
+        })
       );
     } catch (error) {
       console.error("[SeedDetail] Error preloading day bundle:", error);
@@ -606,7 +603,15 @@ export default function SeedDetailScreen() {
                           ]}
                           onPress={() => {
                             if (isActClickable && enrollment) {
-                              router.push(`/activity/${act.id}?enrollmentId=${enrollment.id}&pageIndex=${ai}&totalPages=${dayActivities[day.id].length}`);
+                              router.push(
+                                getPathlabSeedDayActivityRoute({
+                                  enrollmentId: enrollment.id,
+                                  activityId: act.id,
+                                  pageIndex: ai,
+                                  totalPages: dayActivities[day.id].length,
+                                  isCurrentDay: Boolean(isActive),
+                                })
+                              );
                             }
                           }}
                         >

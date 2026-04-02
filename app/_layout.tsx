@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import * as Sentry from "@sentry/react-native";
 import { AnimatedSplash } from "../components/AnimatedSplash";
+import { isAllowedOnboardedAppSegment } from "../lib/hackathonNavigation";
 
 function ConfigErrorScreen({ message }: { message: string }) {
   return (
@@ -49,6 +50,7 @@ function RootNavigator() {
     // Helper to check if we are already in a valid section
     const isInHackathonArea = segments[0] === "(hackathon)" || segments[0] === "hackathon" || segments[0] === "hackathon-program";
     const isInTabs = segments[0] === "(tabs)";
+    const isInAllowedOnboardedArea = isAllowedOnboardedAppSegment(segments[0]);
     const isInOnboarding = segments[0] === "onboarding";
 
     if (!session && !isGuest && !isHackathon) {
@@ -87,7 +89,7 @@ function RootNavigator() {
     if (profile !== undefined) {
       // We already have a profile state (or at least we are in the process)
       // If we are already in a valid area (tabs or onboarding), don't force redirect
-      if (profile?.is_onboarded && isInTabs) {
+      if (profile?.is_onboarded && isInAllowedOnboardedArea) {
         setIsNavReady(true);
         return;
       }
@@ -119,7 +121,7 @@ function RootNavigator() {
         if (!p || !p.is_onboarded) {
            if (!isInOnboarding) router.replace("/onboarding");
         } else {
-           if (!isInTabs) router.replace("/(tabs)/discover");
+           if (!isInAllowedOnboardedArea) router.replace("/(tabs)/discover");
         }
         setIsNavReady(true);
       })
