@@ -1,16 +1,8 @@
 import type { Seed } from "../types/seeds";
 
-type SeedAnalyticsContext = Pick<Seed, "id" | "category_id" | "tags">;
-type SeedAnalyticsPayloadContext = Pick<Seed, "id" | "title" | "category_id" | "tags">;
-
-type SeedEventParams = {
-  seed: SeedAnalyticsContext;
-  pathId: string;
-  enrollmentId: string;
-};
-
+type SeedAnalyticsContext = Pick<Seed, "id" | "title" | "category_id" | "tags">;
 type SeedAnalyticsPayloadParams = {
-  seed: SeedAnalyticsPayloadContext;
+  seed: SeedAnalyticsContext;
   pathId: string | null;
 };
 
@@ -19,42 +11,6 @@ function normalizeSeedTags(tags: string[] | null | undefined): string[] {
   return tags
     .map((tag) => tag.trim())
     .filter((tag) => tag.length > 0);
-}
-
-function buildSeedContext(seed: SeedAnalyticsContext) {
-  return {
-    seed_id: seed.id,
-    seed_category_id: seed.category_id ?? null,
-    seed_tags: normalizeSeedTags(seed.tags),
-  };
-}
-
-export function buildSeedStartedEventData({
-  seed,
-  pathId,
-  enrollmentId,
-}: SeedEventParams) {
-  return {
-    ...buildSeedContext(seed),
-    path_id: pathId,
-    enrollment_id: enrollmentId,
-    source: "seed_detail" as const,
-  };
-}
-
-export function buildSeedCompletedEventData({
-  seed,
-  pathId,
-  enrollmentId,
-  dayNumber,
-}: SeedEventParams & { dayNumber: number }) {
-  return {
-    ...buildSeedContext(seed),
-    path_id: pathId,
-    enrollment_id: enrollmentId,
-    day_number: dayNumber,
-    completion_type: "final_reflection" as const,
-  };
 }
 
 export function buildDirectionFinderViewedEventData() {
@@ -73,6 +29,43 @@ export function buildSeedAnalyticsPayload({
     seed_title: seed.title,
     category_id: seed.category_id ?? null,
     tags: normalizeSeedTags(seed.tags),
+  };
+}
+
+export function buildSeedStartedEventData(params: {
+  seed: SeedAnalyticsContext;
+  pathId: string;
+  enrollmentId: string;
+}) {
+  return {
+    ...buildSeedAnalyticsPayload({
+      seed: params.seed,
+      pathId: params.pathId,
+    }),
+    enrollment_id: params.enrollmentId,
+    source: "seed_detail" as const,
+  };
+}
+
+export function buildSeedCompletedEventData(params: {
+  enrollmentId: string;
+  seedId: string;
+  pathId: string;
+  seedTitle: string;
+  categoryId: string | null;
+  tags: string[];
+  completedSeedCount: number;
+  milestoneSeedCount: 1 | 2 | 3 | 5 | null;
+}) {
+  return {
+    enrollment_id: params.enrollmentId,
+    seed_id: params.seedId,
+    path_id: params.pathId,
+    seed_title: params.seedTitle,
+    category_id: params.categoryId,
+    tags: normalizeSeedTags(params.tags),
+    completed_seed_count: params.completedSeedCount,
+    milestone_seed_count: params.milestoneSeedCount,
   };
 }
 
