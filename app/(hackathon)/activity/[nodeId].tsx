@@ -1,7 +1,8 @@
 // app/(hackathon)/activity/[nodeId].tsx
-import { useEffect, useState } from "react";
+// Hackathon phase activity screen — fetches from hackathon_phase_activities
+import { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,225 +10,263 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
-import { completeActivityNode } from "../../../lib/hackathonProgram";
-import { Radius, Space } from "../../../lib/theme";
 import { supabase } from "../../../lib/supabase";
-import type { MapNode, QuizQuestion } from "../../../types/map";
+import { Space } from "../../../lib/theme";
+import type {
+  HackathonPhaseActivityDetail,
+  HackathonPhaseActivityContent,
+  HackathonPhaseActivityAssessment,
+} from "../../../types/hackathon-phase-activity";
 
-const BG = "#010814";
-const CYAN = "#00F0FF";
-const CYAN_BORDER = "rgba(0,240,255,0.2)";
-const CYAN_BG = "rgba(0,240,255,0.06)";
-const WHITE = "#FFFFFF";
+// ── Bioluminescent tokens ─────────────────────────────────────────
+const BG      = "#03050a";
+const CARD_BG = "rgba(13,18,25,0.95)";
+const CYAN    = "#91C4E3";
+const BLUE    = "#65ABFC";
+const CYAN45  = "rgba(145,196,227,0.45)";
+const CYAN20  = "rgba(145,196,227,0.20)";
+const BORDER  = "rgba(74,107,130,0.35)";
+const WHITE   = "#FFFFFF";
 const WHITE75 = "rgba(255,255,255,0.75)";
-const WHITE40 = "rgba(255,255,255,0.4)";
+const WHITE55 = "rgba(255,255,255,0.55)";
+const WHITE28 = "rgba(255,255,255,0.28)";
 
-function nodeTypeLabel(nodeType: string): string {
-  switch (nodeType) {
-    case "video": return "VIDEO";
-    case "quiz": return "QUIZ";
-    case "text": return "TEXT";
-    case "file_upload": return "FILE UPLOAD";
-    case "project": return "PROJECT";
-    case "npc_conversation": return "NPC CONVERSATION";
-    case "assessment": return "ASSESSMENT";
-    default: return nodeType.toUpperCase();
+// ── Fetch ─────────────────────────────────────────────────────────
+async function fetchActivity(id: string): Promise<HackathonPhaseActivityDetail | null> {
+  const { data, error } = await supabase
+    .from("hackathon_phase_activities")
+    .select(`
+      id, phase_id, title, instructions, display_order,
+      estimated_minutes, is_required, is_draft, created_at, updated_at,
+      hackathon_phase_activity_content (
+        id, activity_id, content_type, content_title,
+        content_url, content_body, display_order, metadata, created_at
+      ),
+      hackathon_phase_activity_assessments (
+        id, activity_id, assessment_type, points_possible,
+        is_graded, metadata, created_at, updated_at
+      )
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+
+  return {
+    ...(data as any),
+    content: ((data as any).hackathon_phase_activity_content ?? []).sort(
+      (a: any, b: any) => a.display_order - b.display_order
+    ),
+    assessment: (data as any).hackathon_phase_activity_assessments?.[0] ?? null,
+  };
+}
+
+// ── Content type label ────────────────────────────────────────────
+function contentTypeLabel(type: string): string {
+  switch (type) {
+    case "npc_chat":    return "NPC CONVERSATION";
+    case "ai_chat":     return "AI CHAT";
+    case "video":       return "VIDEO";
+    case "short_video": return "VIDEO";
+    case "text":        return "READING";
+    case "image":       return "IMAGE";
+    case "pdf":         return "DOCUMENT";
+    case "canva_slide": return "SLIDES";
+    default:            return type.toUpperCase().replace(/_/g, " ");
   }
 }
 
-function TextContent({ node }: { node: MapNode }) {
-  const body = node.content?.body ?? node.instructions ?? "No content available.";
-  return (
-    <View style={styles.contentCard}>
-      <AppText style={styles.bodyText}>{body}</AppText>
-    </View>
-  );
+function primaryContentType(content: HackathonPhaseActivityContent[]): string {
+  if (content.length === 0) return "activity";
+  return contentTypeLabel(content[0].content_type);
 }
 
-function VideoContent({ node }: { node: MapNode }) {
-  const url = node.content?.video_url;
+// ── Content renderers ─────────────────────────────────────────────
+function TextBlock({ item }: { item: HackathonPhaseActivityContent }) {
   return (
-    <View style={styles.contentCard}>
-      {url ? (
-        <AppText style={styles.bodyText}>Video: {url}</AppText>
+    <View style={styles.contentBlock}>
+      {item.content_title ? (
+        <AppText variant="bold" style={styles.contentBlockTitle}>{item.content_title}</AppText>
+      ) : null}
+      {item.content_body ? (
+        <AppText style={styles.bodyText}>{item.content_body}</AppText>
       ) : (
-        <AppText style={[styles.bodyText, { color: WHITE40 }]}>No video URL configured.</AppText>
+        <AppText style={[styles.bodyText, { color: WHITE28 }]}>No content.</AppText>
       )}
     </View>
   );
 }
 
-function QuizContent({ node }: { node: MapNode }) {
-  const questions: QuizQuestion[] = node.content?.questions ?? [];
-  const [selected, setSelected] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
-
+function ImageBlock({ item }: { item: HackathonPhaseActivityContent }) {
   return (
-    <View style={styles.contentCard}>
-      {questions.length === 0 ? (
-        <AppText style={{ color: WHITE40 }}>No questions configured.</AppText>
+    <View style={styles.contentBlock}>
+      {item.content_title ? (
+        <AppText variant="bold" style={styles.contentBlockTitle}>{item.content_title}</AppText>
+      ) : null}
+      {item.content_url ? (
+        <Image
+          source={{ uri: item.content_url }}
+          style={styles.imageBlock}
+          resizeMode="contain"
+        />
       ) : (
-        questions.map((q) => (
-          <View key={q.id} style={{ marginBottom: Space.lg }}>
-            <AppText variant="bold" style={styles.questionText}>{q.question}</AppText>
-            {(q.options ?? []).map((opt) => {
-              const isSelected = selected[q.id] === opt.id;
-              return (
-                <Pressable
-                  key={opt.id}
-                  onPress={() => !submitted && setSelected((prev) => ({ ...prev, [q.id]: opt.id }))}
-                  style={[styles.optionRow, isSelected && styles.optionRowSelected]}
-                >
-                  <AppText style={[styles.optionText, isSelected && { color: CYAN }]}>{opt.text}</AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))
-      )}
-      {!submitted && questions.length > 0 && (
-        <Pressable style={styles.submitBtn} onPress={() => setSubmitted(true)}>
-          <AppText variant="bold" style={styles.submitBtnText}>Submit answers</AppText>
-        </Pressable>
-      )}
-      {submitted && (
-        <AppText style={{ color: CYAN, marginTop: Space.sm }}>Submitted! Tap "Mark complete" below.</AppText>
+        <AppText style={[styles.bodyText, { color: WHITE28 }]}>No image URL.</AppText>
       )}
     </View>
   );
 }
 
-function ProjectContent({
-  node,
-  onTextChange,
+function VideoBlock({ item }: { item: HackathonPhaseActivityContent }) {
+  return (
+    <View style={styles.contentBlock}>
+      {item.content_title ? (
+        <AppText variant="bold" style={styles.contentBlockTitle}>{item.content_title}</AppText>
+      ) : null}
+      {item.content_url ? (
+        <View style={styles.videoPlaceholder}>
+          <AppText style={styles.videoIcon}>▶</AppText>
+          <AppText style={[styles.bodyText, { color: CYAN, marginTop: 8 }]} numberOfLines={1}>
+            {item.content_url}
+          </AppText>
+        </View>
+      ) : (
+        <AppText style={[styles.bodyText, { color: WHITE28 }]}>No video URL.</AppText>
+      )}
+    </View>
+  );
+}
+
+function ChatBlock({ item, type }: { item: HackathonPhaseActivityContent; type: "npc_chat" | "ai_chat" }) {
+  const label = type === "npc_chat" ? "NPC Conversation" : "AI Chat";
+  const icon  = type === "npc_chat" ? "🤖" : "✨";
+  return (
+    <View style={[styles.contentBlock, styles.chatBlock]}>
+      <AppText style={styles.chatIcon}>{icon}</AppText>
+      <AppText variant="bold" style={[styles.contentBlockTitle, { textAlign: "center" }]}>
+        {item.content_title ?? label}
+      </AppText>
+      <AppText style={[styles.bodyText, { textAlign: "center", color: WHITE55 }]}>
+        {type === "npc_chat"
+          ? "An interactive conversation experience."
+          : "Chat with AI to explore this topic."}
+      </AppText>
+      <View style={styles.chatComingSoon}>
+        <AppText style={styles.chatComingSoonText}>Coming soon</AppText>
+      </View>
+    </View>
+  );
+}
+
+function ContentBlock({ item }: { item: HackathonPhaseActivityContent }) {
+  switch (item.content_type) {
+    case "text":        return <TextBlock item={item} />;
+    case "image":       return <ImageBlock item={item} />;
+    case "video":
+    case "short_video": return <VideoBlock item={item} />;
+    case "npc_chat":    return <ChatBlock item={item} type="npc_chat" />;
+    case "ai_chat":     return <ChatBlock item={item} type="ai_chat" />;
+    default:
+      return (
+        <View style={styles.contentBlock}>
+          {item.content_title ? (
+            <AppText variant="bold" style={styles.contentBlockTitle}>{item.content_title}</AppText>
+          ) : null}
+          <AppText style={[styles.bodyText, { color: WHITE28 }]}>
+            Content type "{item.content_type}" — coming soon.
+          </AppText>
+        </View>
+      );
+  }
+}
+
+// ── Assessment renderer ───────────────────────────────────────────
+function AssessmentBlock({
+  assessment,
+  value,
+  onChange,
 }: {
-  node: MapNode;
-  onTextChange: (text: string) => void;
+  assessment: HackathonPhaseActivityAssessment;
+  value: string;
+  onChange: (v: string) => void;
 }) {
-  const deliverables = node.content?.deliverables ?? [];
   return (
-    <View style={styles.contentCard}>
-      {deliverables.length > 0 && (
-        <View style={{ marginBottom: Space.md }}>
-          <AppText variant="bold" style={{ color: WHITE, marginBottom: Space.xs }}>Deliverables</AppText>
-          {deliverables.map((d, i) => (
-            <AppText key={i} style={styles.bodyText}>• {d}</AppText>
-          ))}
+    <View style={styles.assessmentBlock}>
+      <AppText style={styles.assessmentLabel}>
+        {assessment.assessment_type === "text_answer" ? "Your answer" : "Upload your work"}
+        {assessment.points_possible ? ` · ${assessment.points_possible} pts` : ""}
+      </AppText>
+      {assessment.assessment_type === "text_answer" ? (
+        <TextInput
+          style={styles.textArea}
+          multiline
+          placeholder="Write your response here..."
+          placeholderTextColor={WHITE28}
+          value={value}
+          onChangeText={onChange}
+        />
+      ) : (
+        <View style={styles.uploadPlaceholder}>
+          <AppText style={{ color: WHITE28, fontSize: 13 }}>
+            File/image upload — coming soon.
+          </AppText>
         </View>
       )}
-      <AppText variant="bold" style={{ color: WHITE, marginBottom: Space.xs }}>Your submission</AppText>
-      <TextInput
-        style={styles.textArea}
-        multiline
-        placeholder="Write your response here..."
-        placeholderTextColor={WHITE40}
-        onChangeText={onTextChange}
-      />
     </View>
   );
 }
 
-function NpcContent() {
-  return (
-    <View style={styles.contentCard}>
-      <AppText style={[styles.bodyText, { color: WHITE40 }]}>
-        NPC conversation coming soon. Mark complete to proceed.
-      </AppText>
-    </View>
-  );
-}
-
-function GenericContent({ node }: { node: MapNode }) {
-  return (
-    <View style={styles.contentCard}>
-      <AppText style={styles.bodyText}>
-        {node.content?.description ?? node.instructions ?? "Complete this activity and mark it done."}
-      </AppText>
-    </View>
-  );
-}
-
+// ── Main screen ───────────────────────────────────────────────────
 export default function HackathonActivityScreen() {
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
-  const [node, setNode] = useState<MapNode | null>(null);
+  const insets = useSafeAreaInsets();
+  const [activity, setActivity] = useState<HackathonPhaseActivityDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [completing, setCompleting] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [submissionText, setSubmissionText] = useState("");
+  const [answer, setAnswer] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [{ data: nodeData }, { data: { user } }] = await Promise.all([
-          supabase
-            .from("map_nodes")
-            .select("*, node_content(*), node_assessments(id, assessment_type, quiz_questions(*))")
-            .eq("id", nodeId!)
-            .maybeSingle(),
-          supabase.auth.getUser(),
-        ]);
-        if (!cancelled) {
-          setNode(nodeData as MapNode | null);
-          setUserId(user?.id ?? null);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoading(true);
+      (async () => {
+        try {
+          const data = await fetchActivity(nodeId!);
+          if (!cancelled) setActivity(data);
+        } finally {
+          if (!cancelled) setLoading(false);
         }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [nodeId]);
-
-  async function handleComplete() {
-    if (!nodeId || !userId || completing) return;
-    setCompleting(true);
-    try {
-      await completeActivityNode(nodeId, userId);
-      router.back();
-    } catch {
-      setCompleting(false);
-    }
-  }
+      })();
+      return () => { cancelled = true; };
+    }, [nodeId])
+  );
 
   if (loading) {
     return (
       <View style={styles.loadingRoot}>
-        <ActivityIndicator size="large" color={CYAN} />
+        <AppText style={{ color: CYAN }}>Loading...</AppText>
       </View>
     );
   }
 
-  if (!node) {
+  if (!activity) {
     return (
       <View style={styles.loadingRoot}>
-        <AppText style={{ color: WHITE40 }}>Activity not found.</AppText>
+        <AppText style={{ color: WHITE28 }}>Activity not found.</AppText>
       </View>
     );
   }
 
-  function renderContent() {
-    if (!node) return null;
-    const type = node.node_type as string;
-    switch (type) {
-      case "text": return <TextContent node={node} />;
-      case "video": return <VideoContent node={node} />;
-      case "quiz": return <QuizContent node={node} />;
-      case "project": return <ProjectContent node={node} onTextChange={setSubmissionText} />;
-      case "npc_conversation": return <NpcContent />;
-      default: return <GenericContent node={node} />;
-    }
-  }
-
-  const insets = useSafeAreaInsets();
+  const typeLabel = primaryContentType(activity.content);
 
   return (
     <View style={styles.root}>
+      {/* Glow orb */}
+      <View style={styles.glowCyan} pointerEvents="none" />
+
+      {/* Back button */}
       <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
         <SkiaBackButton
           variant="dark"
@@ -237,97 +276,203 @@ export default function HackathonActivityScreen() {
           }}
         />
       </View>
+
       <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 60 }]}
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
         <View style={styles.header}>
-          <AppText variant="bold" style={styles.eyebrow}>{nodeTypeLabel(node.node_type)}</AppText>
-          <AppText variant="bold" style={styles.title}>{node.title}</AppText>
+          <AppText style={styles.eyebrow}>{typeLabel}</AppText>
+          <AppText variant="bold" style={styles.title}>{activity.title}</AppText>
+          {activity.instructions ? (
+            <AppText style={styles.instructions}>{activity.instructions}</AppText>
+          ) : null}
+          <View style={styles.metaRow}>
+            {activity.estimated_minutes ? (
+              <View style={styles.metaChip}>
+                <AppText style={styles.metaChipText}>~{activity.estimated_minutes} min</AppText>
+              </View>
+            ) : null}
+            {activity.is_required ? (
+              <View style={styles.metaChip}>
+                <AppText style={styles.metaChipText}>Required</AppText>
+              </View>
+            ) : null}
+          </View>
         </View>
 
-        {renderContent()}
-      </ScrollView>
+        {/* Content blocks */}
+        {activity.content.length > 0 ? (
+          <View style={styles.contentSection}>
+            {activity.content.map((item) => (
+              <ContentBlock key={item.id} item={item} />
+            ))}
+          </View>
+        ) : (
+          <View style={[styles.contentBlock, { borderColor: BORDER }]}>
+            <AppText style={[styles.bodyText, { color: WHITE28 }]}>
+              No content yet for this activity.
+            </AppText>
+          </View>
+        )}
 
-      <View style={styles.footer}>
-        <Pressable
-          style={[styles.ctaButton, completing && { opacity: 0.5 }]}
-          onPress={handleComplete}
-          disabled={completing}
-        >
-          <AppText variant="bold" style={styles.ctaText}>
-            {completing ? "Saving..." : "Mark complete →"}
-          </AppText>
-        </Pressable>
-      </View>
+        {/* Assessment */}
+        {activity.assessment ? (
+          <AssessmentBlock
+            assessment={activity.assessment}
+            value={answer}
+            onChange={setAnswer}
+          />
+        ) : null}
+
+        {/* Submit button */}
+        {activity.assessment ? (
+          <Pressable
+            style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.8 }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              // TODO: wire submission once hackathon_phase_activity_submissions table exists
+              router.back();
+            }}
+          >
+            <AppText variant="bold" style={styles.submitBtnText}>Submit →</AppText>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.8 }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.back();
+            }}
+          >
+            <AppText variant="bold" style={styles.submitBtnText}>Mark complete →</AppText>
+          </Pressable>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: Space.lg, paddingBottom: 96, gap: Space.xl },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
+
+  glowCyan: {
+    position: "absolute", top: -40, right: -40,
+    width: 200, height: 200, borderRadius: 100,
+    backgroundColor: CYAN, opacity: 0.04,
+  },
   headerActions: {
     position: "absolute",
-    left: Space["2xl"],
+    left: Space.lg,
     zIndex: 10,
   },
-  scrollContent: { padding: Space["2xl"], paddingBottom: 120, gap: Space.xl },
+
+  // Header
   header: { gap: Space.sm },
-  eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2 },
-  title: { fontSize: 28, color: WHITE },
-  contentCard: {
-    borderRadius: Radius.lg,
+  eyebrow: {
+    fontSize: 10, color: CYAN45,
+    textTransform: "uppercase", letterSpacing: 2.5,
+  },
+  title: {
+    fontSize: 26, lineHeight: 32, color: WHITE,
+    textShadowColor: "rgba(145,196,227,0.15)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 16,
+  },
+  instructions: { fontSize: 14, lineHeight: 21, color: WHITE55 },
+  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: Space.xs },
+  metaChip: {
     borderWidth: 1,
-    borderColor: CYAN_BORDER,
-    backgroundColor: "rgba(0,240,255,0.03)",
+    borderColor: CYAN20,
+    borderRadius: 99,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  metaChipText: { fontSize: 11, color: CYAN45 },
+
+  // Content
+  contentSection: { gap: Space.md },
+  contentBlock: {
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 16,
     padding: Space.lg,
     gap: Space.sm,
   },
+  contentBlockTitle: { fontSize: 14, color: WHITE, marginBottom: 2 },
   bodyText: { fontSize: 14, lineHeight: 22, color: WHITE75 },
-  questionText: { fontSize: 15, color: WHITE, marginBottom: Space.sm },
-  optionRow: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    padding: Space.md,
-    marginBottom: Space.xs,
+
+  imageBlock: {
+    width: "100%",
+    height: 220,
+    borderRadius: 12,
+    marginTop: 4,
   },
-  optionRowSelected: { borderColor: CYAN_BORDER, backgroundColor: CYAN_BG },
-  optionText: { fontSize: 14, color: WHITE75 },
-  submitBtn: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: CYAN_BORDER,
-    backgroundColor: CYAN_BG,
-    padding: Space.md,
+
+  videoPlaceholder: {
     alignItems: "center",
+    paddingVertical: Space.xl,
+    gap: 4,
+  },
+  videoIcon: { fontSize: 36, color: BLUE },
+
+  chatBlock: { alignItems: "center", paddingVertical: Space.xl, gap: Space.sm },
+  chatIcon: { fontSize: 40 },
+  chatComingSoon: {
+    borderWidth: 1,
+    borderColor: CYAN20,
+    borderRadius: 99,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
     marginTop: Space.sm,
   },
-  submitBtnText: { color: CYAN, fontSize: 14 },
+  chatComingSoonText: { fontSize: 11, color: CYAN45 },
+
+  // Assessment
+  assessmentBlock: {
+    gap: Space.sm,
+  },
+  assessmentLabel: {
+    fontSize: 10,
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    color: CYAN45,
+  },
   textArea: {
-    borderRadius: Radius.md,
+    backgroundColor: CARD_BG,
     borderWidth: 1,
-    borderColor: CYAN_BORDER,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: BORDER,
+    borderRadius: 16,
+    padding: Space.lg,
     color: WHITE,
-    padding: Space.md,
-    minHeight: 120,
     fontSize: 14,
+    lineHeight: 21,
+    minHeight: 140,
     textAlignVertical: "top",
   },
-  footer: {
+  uploadPlaceholder: {
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 16,
     padding: Space.xl,
-    paddingBottom: Space["2xl"],
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 100,
   },
-  ctaButton: {
-    borderRadius: Radius.full,
-    backgroundColor: CYAN,
-    padding: Space.lg,
+
+  // Submit
+  submitBtn: {
+    backgroundColor: BLUE,
+    borderRadius: 16,
+    paddingVertical: Space.lg,
     alignItems: "center",
   },
-  ctaText: { fontSize: 15, color: BG, letterSpacing: 0.5 },
+  submitBtnText: { fontSize: 15, color: BG, letterSpacing: 0.5 },
 });
