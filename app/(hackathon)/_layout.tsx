@@ -15,7 +15,7 @@ export default function HackathonLayout() {
         tabBarActiveTintColor: Accent.purple,
         tabBarInactiveTintColor: ThemeText.secondary,
         tabBarLabelStyle: {
-          fontFamily: "LibreFranklin_400Regular",
+          fontFamily: "BaiJamjuree_400Regular",
           fontSize: 11,
         },
       }}

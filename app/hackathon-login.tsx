@@ -234,6 +234,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2.8,
     textTransform: "uppercase",
     color: CYAN45,
+    fontFamily: "BaiJamjuree_500Medium",
   },
   title: {
     fontSize: 30,
@@ -242,8 +243,14 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(145,196,227,0.3)",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 30,
+    fontFamily: "BaiJamjuree_700Bold",
   },
-  subtitle: { fontSize: 13, lineHeight: 20, color: WHITE40 },
+  subtitle: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: WHITE40,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
 
   form: { gap: Space.md },
   inputWrap: {
@@ -261,11 +268,12 @@ const styles = StyleSheet.create({
     letterSpacing: 2.2,
     textTransform: "uppercase",
     color: CYAN55,
+    fontFamily: "BaiJamjuree_500Medium",
   },
   input: {
     fontSize: 16,
     color: WHITE,
-    fontFamily: "LibreFranklin_400Regular",
+    fontFamily: "BaiJamjuree_400Regular",
     paddingVertical: 4,
   },
 
@@ -283,13 +291,24 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   loginButtonDisabled: { opacity: 0.5 },
-  loginButtonText: { color: WHITE, fontSize: 15, letterSpacing: 0.3 },
+  loginButtonText: {
+    color: WHITE,
+    fontSize: 15,
+    letterSpacing: 0.3,
+    fontFamily: "BaiJamjuree_700Bold",
+    textTransform: "uppercase",
+  },
 
   footerNote: {
     fontSize: 11,
     color: WHITE25,
     textAlign: "center",
     lineHeight: 18,
+    fontFamily: "BaiJamjuree_400Regular",
   },
-  footerNoteAccent: { color: CYAN50_TEXT },
+  footerNoteAccent: {
+    color: CYAN50_TEXT,
+    fontFamily: "BaiJamjuree_500Medium",
+  },
 });
+
