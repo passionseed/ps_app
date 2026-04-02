@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const pathScreenSource = readFileSync(
-  "app/path/[enrollmentId].tsx",
+  join(__dirname, "../app/path/[enrollmentId].tsx"),
   "utf8",
 );
 

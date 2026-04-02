@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const activityScreenSource = readFileSync(
-  "app/activity/[activityId].tsx",
+  join(__dirname, "../app/activity/[activityId].tsx"),
   "utf8",
 );
 
