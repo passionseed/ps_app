@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 const pathScreenSource = readFileSync(
-  "/Users/bunyasit/dev/ps_app/app/path/[enrollmentId].tsx",
+  "app/path/[enrollmentId].tsx",
   "utf8",
 );
 

@@ -30,6 +30,11 @@ export const EVENT_TYPES = {
   // Career search
   CAREER_SEARCHED: 'career_searched',
   JOURNEY_SIMULATION_CREATED: 'journey_simulation_created',
+
+  // Seed velocity analytics
+  SEED_STARTED: 'seed_started',
+  SEED_COMPLETED: 'seed_completed',
+  DIRECTION_FINDER_VIEWED: 'direction_finder_viewed',
 } as const;
 
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
@@ -52,6 +57,27 @@ export interface EventDataMap {
   admission_plan_created: { round_count: number; program_ids: string[] };
   career_searched: { query: string; results_count: number };
   journey_simulation_created: { job_id: string; job_title: string };
+  seed_started: {
+    seed_id: string;
+    path_id: string;
+    enrollment_id: string;
+    seed_category_id: string | null;
+    seed_tags: string[];
+    source: 'seed_detail';
+  };
+  seed_completed: {
+    enrollment_id: string;
+    seed_id: string;
+    path_id: string | null;
+    seed_title: string;
+    category_id: string | null;
+    tags: string[];
+    completed_seed_count: number;
+    milestone_seed_count: 1 | 2 | 3 | 5 | null;
+  };
+  direction_finder_viewed: {
+    source: 'profile_ikigai';
+  };
 }
 
 /**

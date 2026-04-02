@@ -131,6 +131,13 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function getEmptySocialProof() {
+  return {
+    exploringCount: 0,
+    completedCount: 0,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS });
@@ -224,6 +231,30 @@ Deno.serve(async (req) => {
   const seeds = (seedsData ?? []) as SeedRecord[];
   const enrollments = (enrollmentsData ?? []) as EnrollmentRecord[];
   const enrollmentIds = enrollments.map((enrollment) => enrollment.id);
+  const pathIds = seeds
+    .map((seed) => (Array.isArray(seed.paths) ? seed.paths[0]?.id : null))
+    .filter((pathId): pathId is string => Boolean(pathId));
+
+  const { data: allSeedEnrollments } = pathIds.length
+    ? await service
+        .from("path_enrollments")
+        .select("path_id, status")
+        .in("path_id", pathIds)
+    : { data: [] };
+
+  const socialProofByPathId = new Map<string, ReturnType<typeof getEmptySocialProof>>();
+  for (const enrollment of allSeedEnrollments ?? []) {
+    const socialProof =
+      socialProofByPathId.get(enrollment.path_id) ?? getEmptySocialProof();
+
+    if (enrollment.status === "active" || enrollment.status === "paused") {
+      socialProof.exploringCount += 1;
+    } else if (enrollment.status === "explored") {
+      socialProof.completedCount += 1;
+    }
+
+    socialProofByPathId.set(enrollment.path_id, socialProof);
+  }
 
   const { data: reflectionsData } = enrollmentIds.length
     ? await service
@@ -260,6 +291,9 @@ Deno.serve(async (req) => {
     const path = Array.isArray(seed.paths) ? (seed.paths[0] ?? null) : null;
     const enrollment = enrollments.find((item) => item.path_id === path?.id) ?? null;
     const reflections = enrollment ? reflectionsByEnrollment.get(enrollment.id) ?? [] : [];
+    const socialProof = path?.id
+      ? socialProofByPathId.get(path.id) ?? getEmptySocialProof()
+      : getEmptySocialProof();
     const haystack = normalizeWords(
       [seed.title, seed.slogan, seed.description].filter(Boolean).join(" "),
     );
@@ -361,6 +395,7 @@ Deno.serve(async (req) => {
       created_at: seed.created_at,
       updated_at: seed.updated_at,
       path,
+      socialProof,
       enrollment: enrollment
         ? {
             id: enrollment.id,

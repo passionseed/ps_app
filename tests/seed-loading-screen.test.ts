@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 const seedScreenSource = readFileSync(
-  "/Users/bunyasit/dev/ps_app/app/seed/[id].tsx",
+  "app/seed/[id].tsx",
   "utf8",
 );
 

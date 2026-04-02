@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { AppText as Text } from "../AppText";
 import type { SeedRecommendation } from "../../lib/seedRecommendations";
+import { getSeedSocialProofBadge } from "../../lib/seedSocialProof";
 import { styles } from "./discoverStyles";
 
 export function SeedSection({
@@ -57,6 +58,7 @@ function CompactSeedCard({
   const daysCompleted = enrollment ? enrollment.current_day - 1 : 0;
   const progress = isEnrolled ? daysCompleted / Math.max(1, totalDays) : 0;
   const doneToday = enrollment?.isDoneToday || false;
+  const socialProofBadge = getSeedSocialProofBadge(seed);
 
   return (
     <View style={styles.compactCardWrapper}>
@@ -118,6 +120,21 @@ function CompactSeedCard({
             <Text style={styles.compactSlogan} numberOfLines={1}>
               {seed.slogan}
             </Text>
+          )}
+
+          {!isEnrolled && socialProofBadge && (
+            <View
+              style={[
+                styles.socialProofBadge,
+                socialProofBadge.tone === "completed"
+                  ? styles.socialProofBadgeCompleted
+                  : styles.socialProofBadgeExploring,
+              ]}
+            >
+              <Text style={styles.socialProofBadgeText}>
+                {socialProofBadge.label}
+              </Text>
+            </View>
           )}
 
           {isEnrolled && doneToday && (
