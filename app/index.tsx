@@ -42,7 +42,7 @@ const COPY = {
     googleBtn: "เข้าสู่ระบบด้วย Google",
     appleBtn: "เข้าสู่ระบบด้วย Apple",
     guestBtn: "ข้าม",
-    hackathonBtn: "เข้าสู่ระบบ Hackathon",
+    hackathonBtn: "HACKATHON LOGIN",
     features: [
       { icon: "🎯", text: "ภารกิจรายวัน", subtext: "30 นาที" },
       { icon: "📝", text: "คิดกับตัวเอง", subtext: "ทุกวัน" },
@@ -58,7 +58,7 @@ const COPY = {
     googleBtn: "Continue with Google",
     appleBtn: "Sign in with Apple",
     guestBtn: "Explore without signing in",
-    hackathonBtn: "Hackathon Login",
+    hackathonBtn: "HACKATHON LOGIN",
     features: [
       { icon: "🎯", text: "Daily Tasks", subtext: "30 min" },
       { icon: "📝", text: "Daily Reflection", subtext: "" },
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: "#FFFFFF",
-    fontFamily: "LibreFranklin_700Bold",
+    fontFamily: "BaiJamjuree_700Bold",
     letterSpacing: 0.5,
   },
   hackathonBtnArrow: {
@@ -588,5 +588,6 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,240,255,0.8)",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 6,
+    fontFamily: "BaiJamjuree_700Bold",
   },
 });
