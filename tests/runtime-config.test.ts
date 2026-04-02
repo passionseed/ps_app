@@ -6,6 +6,7 @@ async function loadRuntimeConfigModule(env: Record<string, string | undefined>) 
   for (const key of [
     "EXPO_PUBLIC_SUPABASE_URL",
     "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "EXPO_PUBLIC_SUPABASE_ANON_KEY",
     "EXPO_PUBLIC_PROJECT_ID",
   ]) {
     if (env[key] === undefined) {
@@ -23,6 +24,7 @@ describe("runtime config", () => {
     const mod = await loadRuntimeConfigModule({
       EXPO_PUBLIC_SUPABASE_URL: undefined,
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: undefined,
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: undefined,
     });
 
     expect(mod.getSupabaseConfigErrorMessage()).toBe(
@@ -34,6 +36,7 @@ describe("runtime config", () => {
     const mod = await loadRuntimeConfigModule({
       EXPO_PUBLIC_SUPABASE_URL: " https://example.supabase.co ",
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: " public-anon-key ",
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: " anon-key ",
       EXPO_PUBLIC_PROJECT_ID: " project-id ",
     });
 
@@ -41,6 +44,7 @@ describe("runtime config", () => {
     expect(mod.getSupabaseRuntimeConfig()).toEqual({
       url: "https://example.supabase.co",
       publishableKey: "public-anon-key",
+      anonKey: "anon-key",
     });
     expect(mod.getExpoProjectId()).toBe("project-id");
   });
