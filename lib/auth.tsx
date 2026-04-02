@@ -340,7 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("[Auth] signInWithEmailPassword start", { email });
 
     const { url: supabaseUrl, anonKey } = getSupabaseRuntimeConfig();
-    const res = await fetch(`${supabaseUrl}/functions/v1/hackathon-login`, {
+    const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/hackathon-login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
