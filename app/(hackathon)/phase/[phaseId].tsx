@@ -13,8 +13,10 @@ import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { getPhaseWithActivities } from "../../../lib/hackathonPhaseActivity";
 import { readHackathonParticipant } from "../../../lib/hackathon-mode";
+import { getPreviewPhaseWithActivities } from "../../../lib/hackathonProgramPreview";
 import { Space } from "../../../lib/theme";
 import type { HackathonPhaseWithActivities, HackathonPhaseActivityDetail } from "../../../types/hackathon-phase-activity";
+import { fetchActivitySubmissionStatuses } from "../../../lib/hackathon-submit";
 
 // ── Bioluminescent tokens ────────────────────────────────────────
 const BG      = "#03050a";
@@ -34,12 +36,16 @@ type ActivityWithStatus = HackathonPhaseActivityDetail & {
 };
 
 async function fetchActivityStatuses(
-  _activities: HackathonPhaseActivityDetail[],
+  activities: HackathonPhaseActivityDetail[],
   _participantId: string
 ): Promise<Record<string, ActivityStatus>> {
-  // TODO: wire to real submissions once hackathon_phase_activity_submissions table exists.
-  // Current submissions table (hackathon_activity_individual_submissions) uses module_id (old system).
-  return {};
+  const ids = activities.map((a) => a.id);
+  const raw = await fetchActivitySubmissionStatuses(ids);
+  const result: Record<string, ActivityStatus> = {};
+  for (const [id, status] of Object.entries(raw)) {
+    result[id] = status as ActivityStatus;
+  }
+  return result;
 }
 
 export default function HackathonPhaseScreen() {
@@ -62,19 +68,17 @@ export default function HackathonPhaseScreen() {
 
           if (cancelled) return;
 
-          if (!phaseData) {
-            setLoading(false);
-            return;
-          }
+          const resolvedPhase = phaseData ?? getPreviewPhaseWithActivities(phaseId!);
+          console.log("[PhaseScreen] activities count:", resolvedPhase.activities.length, "phaseId:", phaseId);
 
-          setPhase(phaseData);
+          setPhase(resolvedPhase);
           setParticipantId(participant?.id ?? null);
 
-          if (participant?.id && phaseData.activities.length > 0) {
-            const statuses = await fetchActivityStatuses(phaseData.activities, participant.id);
+          if (participant?.id && resolvedPhase.activities.length > 0) {
+            const statuses = await fetchActivityStatuses(resolvedPhase.activities, participant.id);
             if (!cancelled) {
               setActivities(
-                phaseData.activities.map((a) => ({
+                resolvedPhase.activities.map((a) => ({
                   ...a,
                   status: statuses[a.id] ?? "not_started",
                 }))
@@ -83,7 +87,7 @@ export default function HackathonPhaseScreen() {
           } else {
             if (!cancelled) {
               setActivities(
-                phaseData.activities.map((a) => ({ ...a, status: "not_started" }))
+                resolvedPhase.activities.map((a) => ({ ...a, status: "not_started" }))
               );
             }
           }
@@ -111,13 +115,7 @@ export default function HackathonPhaseScreen() {
     );
   }
 
-  if (!phase) {
-    return (
-      <View style={styles.loadingRoot}>
-        <AppText style={{ color: WHITE28 }}>Phase not found.</AppText>
-      </View>
-    );
-  }
+  if (!phase) return null;
 
   return (
     <View style={styles.root}>
@@ -173,16 +171,31 @@ export default function HackathonPhaseScreen() {
             <AppText style={styles.debugMuted}>No activities found for this phase.</AppText>
           ) : (
             activities.map((a, i) => (
-              <View key={a.id} style={styles.debugActivity}>
-                <View style={styles.debugActivityLeft}>
-                  <StatusDot status={a.status} />
-                  <AppText style={styles.debugActivityTitle} numberOfLines={1}>
-                    {i + 1}. {a.title}
+              <View key={a.id} style={styles.debugActivityBlock}>
+                <View style={styles.debugActivity}>
+                  <View style={styles.debugActivityLeft}>
+                    <StatusDot status={a.status} />
+                    <AppText style={styles.debugActivityTitle} numberOfLines={1}>
+                      {i + 1}. {a.title}
+                    </AppText>
+                  </View>
+                  <AppText style={[styles.debugActivityStatus, statusColor(a.status)]}>
+                    {a.status.replace(/_/g, " ")}
                   </AppText>
                 </View>
-                <AppText style={[styles.debugActivityStatus, statusColor(a.status)]}>
-                  {a.status.replace("_", " ")}
-                </AppText>
+                <View style={styles.debugActivityMeta}>
+                  <AppText style={styles.debugMuted}>
+                    content: {a.content.length > 0
+                      ? a.content.map((c) => c.content_type).join(", ")
+                      : "none"}
+                  </AppText>
+                  <AppText style={styles.debugMuted}>
+                    assessment: {a.assessment ? a.assessment.assessment_type : "none"}
+                  </AppText>
+                  {a.estimated_minutes ? (
+                    <AppText style={styles.debugMuted}>~{a.estimated_minutes} min</AppText>
+                  ) : null}
+                </View>
               </View>
             ))
           )}
@@ -195,13 +208,17 @@ export default function HackathonPhaseScreen() {
             {activities.map((activity) => (
               <Pressable
                 key={activity.id}
-                style={({ pressed }) => [styles.activityCard, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [
+                  styles.activityCard,
+                  activityCardStyle(activity.status),
+                  pressed && { opacity: 0.85 },
+                ]}
                 onPress={() => router.push(`/(hackathon)/activity/${activity.id}`)}
               >
                 <View style={styles.activityCardLeft}>
                   <StatusDot status={activity.status} />
                   <View style={styles.activityCardBody}>
-                    <AppText variant="bold" style={styles.activityTitle}>{activity.title}</AppText>
+                    <AppText variant="bold" style={[styles.activityTitle, activity.status !== "not_started" && statusColor(activity.status)]}>{activity.title}</AppText>
                     {activity.instructions ? (
                       <AppText style={styles.activityInstructions} numberOfLines={2}>
                         {activity.instructions}
@@ -247,6 +264,21 @@ function statusColorValue(status: ActivityStatus): string {
 
 function statusColor(status: ActivityStatus) {
   return { color: statusColorValue(status) };
+}
+
+function activityCardStyle(status: ActivityStatus) {
+  switch (status) {
+    case "passed":
+      return { borderColor: "rgba(74,222,128,0.4)", backgroundColor: "rgba(74,222,128,0.06)" };
+    case "submitted":
+      return { borderColor: "rgba(145,196,227,0.45)", backgroundColor: "rgba(145,196,227,0.07)" };
+    case "revision_required":
+      return { borderColor: "rgba(248,113,113,0.4)", backgroundColor: "rgba(248,113,113,0.06)" };
+    case "draft":
+      return { borderColor: "rgba(250,204,21,0.35)", backgroundColor: "rgba(250,204,21,0.05)" };
+    default:
+      return {};
+  }
 }
 
 const styles = StyleSheet.create({
@@ -305,12 +337,14 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   debugMuted: { fontSize: 12, color: WHITE28 },
+  debugActivityBlock: { gap: 3 },
   debugActivity: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: Space.sm,
   },
+  debugActivityMeta: { paddingLeft: 20, gap: 1 },
   debugActivityLeft: {
     flexDirection: "row",
     alignItems: "center",

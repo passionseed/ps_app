@@ -260,24 +260,18 @@ export function getChallengeSummary(
   };
 }
 
-async function getCurrentUserId() {
-  const supabase = await getSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id ?? null;
-}
-
 export async function getCurrentHackathonTeamMembership(): Promise<HackathonTeamMembership | null> {
   return withRetry(async () => {
     const supabase = await getSupabaseClient();
-    const userId = await getCurrentUserId();
-    if (!userId) return null;
+
+    const { readHackathonParticipant } = await import("./hackathon-mode");
+    const participant = await readHackathonParticipant();
+    if (!participant?.id) return null;
 
     const { data, error } = await supabase
       .from("hackathon_team_members")
       .select("*")
-      .eq("user_id", userId)
+      .eq("participant_id", participant.id)
       .maybeSingle();
 
     if (error) throw error;
@@ -288,57 +282,59 @@ export async function getCurrentHackathonTeamMembership(): Promise<HackathonTeam
 export async function getCurrentHackathonProgramHome(): Promise<HackathonProgramHome> {
   return withRetry(async () => {
     const supabase = await getSupabaseClient();
+
+    // Any logged-in participant can see the program — no team required.
+    const { readHackathonParticipant } = await import("./hackathon-mode");
+    const participant = await readHackathonParticipant();
+    if (!participant?.id) {
+      return { team: null, enrollment: null, program: null, phases: [] };
+    }
+
+    // Load the single active program directly.
+    const { data: program, error: progErr } = await supabase
+      .from("hackathon_programs")
+      .select("*")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    console.log("[hackathonProgram] program:", program ? (program as any).id : null, "progErr:", progErr?.message ?? null);
+    if (!program) {
+      return { team: null, enrollment: null, program: null, phases: [] };
+    }
+
+    const { data: phases } = await supabase
+      .from("hackathon_program_phases")
+      .select("*")
+      .eq("program_id", (program as any).id)
+      .order("phase_number", { ascending: true });
+
+    console.log("[hackathonProgram] phases count:", (phases as any[])?.length ?? 0);
+
+    // Team + enrollment are optional — used for challenge selection and current_phase_id.
     const membership = await getCurrentHackathonTeamMembership();
-    if (!membership) {
-      return {
-        team: null,
-        enrollment: null,
-        program: null,
-        phases: [],
-      };
+    let team: HackathonTeam | null = null;
+    let enrollment: HackathonTeamProgramEnrollment | null = null;
+
+    if (membership) {
+      const [{ data: teamData }, { data: enrollmentData }] = await Promise.all([
+        supabase.from("hackathon_teams").select("*").eq("id", membership.team_id).maybeSingle(),
+        supabase
+          .from("hackathon_team_program_enrollments")
+          .select("*")
+          .eq("team_id", membership.team_id)
+          .eq("program_id", (program as any).id)
+          .maybeSingle(),
+      ]);
+      team = (teamData as HackathonTeam | null) ?? null;
+      enrollment = (enrollmentData as HackathonTeamProgramEnrollment | null) ?? null;
     }
-
-    const [{ data: team }, { data: enrollment }] = await Promise.all([
-      supabase
-        .from("hackathon_teams")
-        .select("*")
-        .eq("id", membership.team_id)
-        .maybeSingle(),
-      supabase
-        .from("hackathon_team_program_enrollments")
-        .select("*")
-        .eq("team_id", membership.team_id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-    if (!enrollment) {
-      return {
-        team: (team as HackathonTeam | null) ?? null,
-        enrollment: null,
-        program: null,
-        phases: [],
-      };
-    }
-
-    const [{ data: program }, { data: phases }] = await Promise.all([
-      supabase
-        .from("hackathon_programs")
-        .select("*")
-        .eq("id", enrollment.program_id)
-        .maybeSingle(),
-      supabase
-        .from("hackathon_program_phases")
-        .select("*")
-        .eq("program_id", enrollment.program_id)
-        .order("phase_number", { ascending: true }),
-    ]);
 
     return {
-      team: (team as HackathonTeam | null) ?? null,
-      enrollment: enrollment as HackathonTeamProgramEnrollment,
-      program: (program as HackathonProgram | null) ?? null,
+      team,
+      enrollment,
+      program: program as HackathonProgram,
       phases: (phases as HackathonProgramPhase[] | null) ?? [],
     };
   }, "Unable to load hackathon program");
