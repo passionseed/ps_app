@@ -97,6 +97,7 @@ describe("event logger analytics wrappers", () => {
         tags: ["ux", "design"],
         completed_seed_count: 3,
         milestone_seed_count: 3,
+        completion_type: "final_reflection",
       },
       session_id: "session-1",
     });
