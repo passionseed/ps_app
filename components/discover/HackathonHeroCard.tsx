@@ -29,6 +29,7 @@ import {
   Group,
   BlurMask,
 } from "@shopify/react-native-skia";
+import { HACKATHON_PROGRAM_ROUTE } from "../../lib/hackathonNavigation";
 
 const CinematicGlow = ({
   color,
@@ -82,7 +83,13 @@ const CinematicGlow = ({
   );
 };
 
-export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
+export function HackathonHeroCard({
+  isThai,
+  href = HACKATHON_PROGRAM_ROUTE,
+}: {
+  isThai: boolean;
+  href?: string;
+}) {
   const { width } = useWindowDimensions();
   const float1 = useSharedValue(0);
   const float2 = useSharedValue(0);
@@ -202,9 +209,9 @@ export function HackathonHeroCard({ isThai }: { isThai: boolean }) {
 
     // Wait slightly to let the user feel the dooming effect before navigating
     setTimeout(() => {
-      router.push("/hackathon-program");
+      router.push(href);
     }, 400);
-  }, []);
+  }, [href]);
 
   return (
     <View style={styles.hackathonHeroWrap}>

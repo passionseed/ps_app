@@ -42,6 +42,10 @@ import {
   type DayActivityListItem,
 } from "../../lib/pathlabSession";
 import {
+  getPathlabActivityRoute,
+  getPathlabReflectionRoute,
+} from "../../lib/pathlabNavigation";
+import {
   initializeSounds,
   playNPCSpeakSound,
   playActivityCompleteSound,
@@ -1465,9 +1469,16 @@ export default function ActivityDetailScreen() {
       const nextIndex = currentPage + 1;
       if (nextIndex < dayActivitiesList.length) {
         const nextActivity = dayActivitiesList[nextIndex];
-        router.replace(`/activity/${nextActivity.id}?enrollmentId=${enrollmentId}&pageIndex=${nextIndex}&totalPages=${dayActivitiesList.length}`);
+        router.replace(
+          getPathlabActivityRoute({
+            enrollmentId,
+            activityId: nextActivity.id,
+            pageIndex: nextIndex,
+            totalPages: dayActivitiesList.length,
+          })
+        );
       } else {
-        router.replace(`/reflection/${enrollmentId}`);
+        router.replace(getPathlabReflectionRoute(enrollmentId));
       }
     } catch (error) {
       console.error("Error completing activity:", error);
@@ -1500,10 +1511,17 @@ export default function ActivityDetailScreen() {
     const nextIndex = currentPage + 1;
     if (nextIndex < dayActivitiesList.length) {
       const nextActivity = dayActivitiesList[nextIndex];
-      router.replace(`/activity/${nextActivity.id}?enrollmentId=${enrollmentId}&pageIndex=${nextIndex}&totalPages=${dayActivitiesList.length}`);
+      router.replace(
+        getPathlabActivityRoute({
+          enrollmentId,
+          activityId: nextActivity.id,
+          pageIndex: nextIndex,
+          totalPages: dayActivitiesList.length,
+        })
+      );
     } else {
       // No more activities — go to daily reflection
-      router.replace(`/reflection/${enrollmentId}`);
+      router.replace(getPathlabReflectionRoute(enrollmentId));
     }
   };
 
@@ -1516,7 +1534,14 @@ export default function ActivityDetailScreen() {
     const prevIndex = currentPage - 1;
     if (prevIndex >= 0 && dayActivitiesList.length > 0) {
       const prevActivity = dayActivitiesList[prevIndex];
-      router.replace(`/activity/${prevActivity.id}?enrollmentId=${enrollmentId}&pageIndex=${prevIndex}&totalPages=${dayActivitiesList.length}`);
+      router.replace(
+        getPathlabActivityRoute({
+          enrollmentId,
+          activityId: prevActivity.id,
+          pageIndex: prevIndex,
+          totalPages: dayActivitiesList.length,
+        })
+      );
     }
   };
 

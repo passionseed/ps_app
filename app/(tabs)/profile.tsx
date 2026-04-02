@@ -36,6 +36,7 @@ import type {
 } from "../../types/onboarding";
 import { Accent, PageBg } from "../../lib/theme";
 import { HackathonHeroCard } from "../../components/discover/HackathonHeroCard";
+import { PROFILE_HACKATHON_HERO_ROUTE } from "../../lib/hackathonNavigation";
 
 interface IkigaiPillar {
   score: number;
@@ -682,7 +683,10 @@ export default function ProfileScreen() {
             )}
           </LinearGradient>
 
-          <HackathonHeroCard isThai={isThai} />
+          <HackathonHeroCard
+            isThai={isThai}
+            href={PROFILE_HACKATHON_HERO_ROUTE}
+          />
 
           <View style={styles.sectionContainer}>
             <Text variant="bold" style={styles.sectionTitle}>{t.ikigaiSection.title}</Text>

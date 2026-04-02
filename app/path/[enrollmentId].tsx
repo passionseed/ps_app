@@ -18,6 +18,10 @@ import type { PathActivityWithContent } from "../../types/pathlab-content";
 import { warmPathDayBundle } from "../../lib/pathlabSession";
 import { formatPathDayLabel } from "../../lib/pathlab-day-label";
 import {
+  getPathlabActivityRoute,
+  getPathlabReflectionRoute,
+} from "../../lib/pathlabNavigation";
+import {
   PageBg,
   Text as ThemeText,
   Border,
@@ -146,14 +150,21 @@ export default function DailyPathScreen() {
 
     if (firstIncomplete) {
       const activityIndex = activities.findIndex(a => a.id === firstIncomplete.id);
-      router.push(`/activity/${firstIncomplete.id}?enrollmentId=${enrollmentId}&pageIndex=${activityIndex}&totalPages=${activities.length}`);
+      router.push(
+        getPathlabActivityRoute({
+          enrollmentId: enrollmentId!,
+          activityId: firstIncomplete.id,
+          pageIndex: activityIndex,
+          totalPages: activities.length,
+        })
+      );
     } else {
-      router.push(`/reflection/${enrollmentId}`);
+      router.push(getPathlabReflectionRoute(enrollmentId!));
     }
   };
 
   const handleFinishDay = () => {
-    router.push(`/reflection/${enrollmentId}`);
+    router.push(getPathlabReflectionRoute(enrollmentId!));
   };
 
   if (loading) {
@@ -309,9 +320,14 @@ function ActivityTimelineCard({
   };
 
   const handlePress = () => {
-    // Navigate even if completed
-    const url = `/activity/${activity.id}?enrollmentId=${enrollmentId}&pageIndex=${index - 1}&totalPages=${totalActivities}`;
-    router.push(url);
+    router.push(
+      getPathlabActivityRoute({
+        enrollmentId,
+        activityId: activity.id,
+        pageIndex: index - 1,
+        totalPages: totalActivities,
+      })
+    );
   };
 
   return (
