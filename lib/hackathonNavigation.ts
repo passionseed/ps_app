@@ -5,5 +5,9 @@ export const PROFILE_HACKATHON_HERO_ROUTE = HACKATHON_LOGIN_ROUTE;
 export function isAllowedOnboardedAppSegment(
   segment: string | undefined,
 ): boolean {
-  return segment === "(tabs)" || segment === "hackathon-login";
+  return (
+    segment === "(tabs)" ||
+    segment === "hackathon-login" ||
+    segment === "pathlab-activity"
+  );
 }

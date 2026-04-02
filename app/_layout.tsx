@@ -175,6 +175,10 @@ function RootNavigator() {
         options={{ presentation: "card" }}
       />
       <Stack.Screen
+        name="pathlab-activity/[activityId]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
         name="reflection/[enrollmentId]"
         options={{ presentation: "card" }}
       />
