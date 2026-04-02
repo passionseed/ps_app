@@ -224,6 +224,16 @@ export function getPreviewPhaseWithActivities(phaseId: string): HackathonPhaseWi
   };
 }
 
+const previewActivitiesById = new Map(
+  getPreviewPhaseWithActivities(previewPhases[0].id).activities.map((a) => [a.id, a])
+);
+
+export function getPreviewActivityDetail(
+  activityId: string,
+): import("../types/hackathon-phase-activity").HackathonPhaseActivityDetail | null {
+  return previewActivitiesById.get(activityId) ?? null;
+}
+
 export function getPreviewJourneyModules(
   phaseId: string,
 ): Array<HackathonPhaseModule & { ends_at: string | null }> {

@@ -2,6 +2,7 @@
 // Hackathon phase activity screen — fetches from hackathon_phase_activities
 import { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -12,9 +13,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { supabase } from "../../../lib/supabase";
+import { getPreviewActivityDetail } from "../../../lib/hackathonProgramPreview";
+import { submitTextAnswer, submitFile } from "../../../lib/hackathon-submit";
 import { Space } from "../../../lib/theme";
 import type {
   HackathonPhaseActivityDetail,
@@ -61,7 +66,7 @@ async function fetchActivity(id: string): Promise<HackathonPhaseActivityDetail |
     content: ((data as any).hackathon_phase_activity_content ?? []).sort(
       (a: any, b: any) => a.display_order - b.display_order
     ),
-    assessment: (data as any).hackathon_phase_activity_assessments?.[0] ?? null,
+    assessment: (data as any).hackathon_phase_activity_assessments ?? null,
   };
 }
 
@@ -183,21 +188,178 @@ function ContentBlock({ item }: { item: HackathonPhaseActivityContent }) {
   }
 }
 
-// ── Assessment renderer ───────────────────────────────────────────
-function AssessmentBlock({
+// ── Assessment upload blocks ───────────────────────────────────────
+type UploadState = "idle" | "uploading" | "done" | "error";
+
+function ImageUploadBlock({
   assessment,
-  value,
-  onChange,
+  activityId,
+  onUploaded,
 }: {
   assessment: HackathonPhaseActivityAssessment;
+  activityId: string;
+  onUploaded: (url: string) => void;
+}) {
+  const [uri, setUri] = useState<string | null>(null);
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function pick() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+      allowsEditing: false,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setUri(asset.uri);
+    setError(null);
+    setUploadState("uploading");
+    try {
+      const fileName = asset.uri.split("/").pop() ?? "photo.jpg";
+      const mimeType = asset.mimeType ?? "image/jpeg";
+      const res = await submitFile(activityId, assessment.id, asset.uri, fileName, mimeType);
+      setUploadState("done");
+      onUploaded(res.url ?? asset.uri);
+    } catch (e: any) {
+      setUploadState("error");
+      setError(e.message ?? "Upload failed");
+    }
+  }
+
+  return (
+    <View style={styles.uploadBlock}>
+      {uri ? (
+        <View style={styles.imagePreviewWrap}>
+          <Image source={{ uri }} style={styles.imagePreview} resizeMode="cover" />
+          {uploadState === "uploading" && (
+            <View style={styles.uploadOverlay}>
+              <ActivityIndicator color={CYAN} />
+            </View>
+          )}
+          {uploadState === "done" && (
+            <View style={styles.uploadBadge}>
+              <AppText style={styles.uploadBadgeText}>✓</AppText>
+            </View>
+          )}
+          {uploadState !== "uploading" && (
+            <Pressable style={styles.changeBtn} onPress={pick}>
+              <AppText style={styles.changeBtnText}>Change</AppText>
+            </Pressable>
+          )}
+        </View>
+      ) : (
+        <Pressable style={styles.uploadEmptyBtn} onPress={pick}>
+          <AppText style={styles.uploadEmptyIcon}>📷</AppText>
+          <AppText style={styles.uploadEmptyLabel}>Tap to add photo</AppText>
+        </Pressable>
+      )}
+      {uploadState === "error" && error ? (
+        <View style={styles.uploadError}>
+          <AppText style={styles.uploadErrorText}>{error}</AppText>
+          <Pressable onPress={pick}><AppText style={styles.retryText}>Retry</AppText></Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function FileUploadBlock({
+  assessment,
+  activityId,
+  onUploaded,
+}: {
+  assessment: HackathonPhaseActivityAssessment;
+  activityId: string;
+  onUploaded: (url: string) => void;
+}) {
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function pick() {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setFileName(asset.name);
+    setError(null);
+    setUploadState("uploading");
+    try {
+      const mimeType = asset.mimeType ?? "application/octet-stream";
+      const res = await submitFile(activityId, assessment.id, asset.uri, asset.name, mimeType);
+      setUploadState("done");
+      onUploaded(res.url ?? asset.uri);
+    } catch (e: any) {
+      setUploadState("error");
+      setError(e.message ?? "Upload failed");
+    }
+  }
+
+  return (
+    <View style={styles.uploadBlock}>
+      {fileName ? (
+        <View style={styles.fileRow}>
+          <AppText style={styles.fileIcon}>📄</AppText>
+          <AppText style={styles.fileName} numberOfLines={1}>{fileName}</AppText>
+          {uploadState === "uploading" && <ActivityIndicator color={CYAN} size="small" />}
+          {uploadState === "done" && <AppText style={styles.fileDone}>✓</AppText>}
+          {uploadState !== "uploading" && (
+            <Pressable onPress={pick}>
+              <AppText style={styles.changeBtnText}>Change</AppText>
+            </Pressable>
+          )}
+        </View>
+      ) : (
+        <Pressable style={styles.uploadEmptyBtn} onPress={pick}>
+          <AppText style={styles.uploadEmptyIcon}>📎</AppText>
+          <AppText style={styles.uploadEmptyLabel}>Tap to attach file</AppText>
+        </Pressable>
+      )}
+      {uploadState === "error" && error ? (
+        <View style={styles.uploadError}>
+          <AppText style={styles.uploadErrorText}>{error}</AppText>
+          <Pressable onPress={pick}><AppText style={styles.retryText}>Retry</AppText></Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// ── Assessment block ───────────────────────────────────────────────
+function AssessmentBlock({
+  assessment,
+  activityId,
+  value,
+  onChange,
+  onFileUploaded,
+}: {
+  assessment: HackathonPhaseActivityAssessment;
+  activityId: string;
   value: string;
   onChange: (v: string) => void;
+  onFileUploaded: (url: string) => void;
 }) {
+  const label = assessment.assessment_type === "text_answer"
+    ? "Your answer"
+    : assessment.assessment_type === "image_upload"
+    ? "Your photo"
+    : "Your file";
+
   return (
     <View style={styles.assessmentBlock}>
       <AppText style={styles.assessmentLabel}>
-        {assessment.assessment_type === "text_answer" ? "Your answer" : "Upload your work"}
-        {assessment.points_possible ? ` · ${assessment.points_possible} pts` : ""}
+        {label}{assessment.points_possible ? ` · ${assessment.points_possible} pts` : ""}
       </AppText>
       {assessment.assessment_type === "text_answer" ? (
         <TextInput
@@ -208,12 +370,18 @@ function AssessmentBlock({
           value={value}
           onChangeText={onChange}
         />
+      ) : assessment.assessment_type === "image_upload" ? (
+        <ImageUploadBlock
+          assessment={assessment}
+          activityId={activityId}
+          onUploaded={onFileUploaded}
+        />
       ) : (
-        <View style={styles.uploadPlaceholder}>
-          <AppText style={{ color: WHITE28, fontSize: 13 }}>
-            File/image upload — coming soon.
-          </AppText>
-        </View>
+        <FileUploadBlock
+          assessment={assessment}
+          activityId={activityId}
+          onUploaded={onFileUploaded}
+        />
       )}
     </View>
   );
@@ -226,6 +394,10 @@ export default function HackathonActivityScreen() {
   const [activity, setActivity] = useState<HackathonPhaseActivityDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [answer, setAnswer] = useState("");
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -233,7 +405,8 @@ export default function HackathonActivityScreen() {
       setLoading(true);
       (async () => {
         try {
-          const data = await fetchActivity(nodeId!);
+          const dbData = await fetchActivity(nodeId!);
+          const data = dbData ?? getPreviewActivityDetail(nodeId!);
           if (!cancelled) setActivity(data);
         } finally {
           if (!cancelled) setLoading(false);
@@ -242,6 +415,31 @@ export default function HackathonActivityScreen() {
       return () => { cancelled = true; };
     }, [nodeId])
   );
+
+  const canSubmit = activity?.assessment
+    ? activity.assessment.assessment_type === "text_answer"
+      ? answer.trim().length > 0
+      : uploadedUrl !== null
+    : true;
+
+  async function handleSubmit() {
+    if (!activity) return;
+    if (!activity.assessment) { router.back(); return; }
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (activity.assessment.assessment_type === "text_answer") {
+        await submitTextAnswer(activity.id, activity.assessment.id, answer);
+      }
+      // image/file already uploaded on pick — just mark done
+      setSubmitted(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      setSubmitError(e.message ?? "Submission failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -322,34 +520,38 @@ export default function HackathonActivityScreen() {
         {activity.assessment ? (
           <AssessmentBlock
             assessment={activity.assessment}
+            activityId={activity.id}
             value={answer}
             onChange={setAnswer}
+            onFileUploaded={(url) => setUploadedUrl(url)}
           />
         ) : null}
 
+        {/* Submit error */}
+        {submitError ? (
+          <AppText style={{ color: "#F87171", fontSize: 13, textAlign: "center" }}>
+            {submitError}
+          </AppText>
+        ) : null}
+
         {/* Submit button */}
-        {activity.assessment ? (
-          <Pressable
-            style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.8 }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              // TODO: wire submission once hackathon_phase_activity_submissions table exists
-              router.back();
-            }}
-          >
-            <AppText variant="bold" style={styles.submitBtnText}>Submit →</AppText>
-          </Pressable>
-        ) : (
-          <Pressable
-            style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.8 }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.back();
-            }}
-          >
-            <AppText variant="bold" style={styles.submitBtnText}>Mark complete →</AppText>
-          </Pressable>
-        )}
+        <Pressable
+          style={({ pressed }) => [
+            styles.submitBtn,
+            (!canSubmit || submitting) && { opacity: 0.5 },
+            pressed && canSubmit && !submitting && { opacity: 0.8 },
+          ]}
+          disabled={!canSubmit || submitting}
+          onPress={handleSubmit}
+        >
+          {submitting ? (
+            <ActivityIndicator color={BG} />
+          ) : (
+            <AppText variant="bold" style={styles.submitBtnText}>
+              {submitted ? "Submitted ✓" : activity.assessment ? "Submit →" : "Mark complete →"}
+            </AppText>
+          )}
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -435,9 +637,7 @@ const styles = StyleSheet.create({
   chatComingSoonText: { fontSize: 11, color: CYAN45 },
 
   // Assessment
-  assessmentBlock: {
-    gap: Space.sm,
-  },
+  assessmentBlock: { gap: Space.sm },
   assessmentLabel: {
     fontSize: 10,
     textTransform: "uppercase",
@@ -456,16 +656,66 @@ const styles = StyleSheet.create({
     minHeight: 140,
     textAlignVertical: "top",
   },
-  uploadPlaceholder: {
+
+  // Upload blocks
+  uploadBlock: { gap: Space.sm },
+  uploadEmptyBtn: {
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: BORDER,
     borderRadius: 16,
-    padding: Space.xl,
+    paddingVertical: Space.xl,
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  uploadEmptyIcon: { fontSize: 32 },
+  uploadEmptyLabel: { fontSize: 14, color: WHITE55 },
+  imagePreviewWrap: { borderRadius: 16, overflow: "hidden" },
+  imagePreview: { width: "100%", height: 220, borderRadius: 16 },
+  uploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 100,
   },
+  uploadBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "#4ADE80",
+    borderRadius: 99,
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  uploadBadgeText: { color: "#000", fontSize: 14 },
+  changeBtn: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 99,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  changeBtnText: { fontSize: 12, color: CYAN },
+  fileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 14,
+    padding: Space.md,
+    gap: Space.sm,
+  },
+  fileIcon: { fontSize: 20 },
+  fileName: { flex: 1, fontSize: 13, color: WHITE55 },
+  fileDone: { fontSize: 16, color: "#4ADE80" },
+  uploadError: { flexDirection: "row", alignItems: "center", gap: Space.sm, marginTop: 4 },
+  uploadErrorText: { fontSize: 12, color: "#F87171", flex: 1 },
+  retryText: { fontSize: 12, color: CYAN },
 
   // Submit
   submitBtn: {
