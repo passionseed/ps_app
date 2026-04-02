@@ -5,6 +5,7 @@ import type { EventType, EventDataMap } from '../types/events';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   buildDirectionFinderViewedEventData,
+  buildSeedCompletedEventData,
   buildSeedStartedEventData,
 } from './seedVelocityAnalytics';
 import type { Seed } from '../types/seeds';
@@ -231,7 +232,7 @@ export async function logJourneySimulationCreated(
  * Log when a user starts a seed for the first time.
  */
 export async function logSeedStarted(params: {
-  seed: Pick<Seed, 'id' | 'category_id' | 'tags'>;
+  seed: Pick<Seed, 'id' | 'title' | 'category_id' | 'tags'>;
   pathId: string;
   enrollmentId: string;
 }): Promise<void> {
@@ -258,16 +259,19 @@ export async function logSeedCompleted(params: {
   completedSeedCount: number;
   milestoneSeedCount: 1 | 2 | 3 | 5 | null;
 }): Promise<void> {
-  await logEvent('seed_completed', {
-    enrollment_id: params.enrollmentId,
-    seed_id: params.seedId,
-    path_id: params.pathId,
-    seed_title: params.seedTitle,
-    category_id: params.categoryId,
-    tags: params.tags,
-    completed_seed_count: params.completedSeedCount,
-    milestone_seed_count: params.milestoneSeedCount,
-  });
+  await logEvent(
+    'seed_completed',
+    buildSeedCompletedEventData({
+      enrollmentId: params.enrollmentId,
+      seedId: params.seedId,
+      pathId: params.pathId,
+      seedTitle: params.seedTitle,
+      categoryId: params.categoryId,
+      tags: params.tags,
+      completedSeedCount: params.completedSeedCount,
+      milestoneSeedCount: params.milestoneSeedCount,
+    })
+  );
 }
 
 /**

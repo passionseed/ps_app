@@ -12,7 +12,6 @@ import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { logSeedCompleted } from "../../lib/eventLogger";
 import { supabase } from "../../lib/supabase";
 import { getPathDay, submitDailyReflection } from "../../lib/pathlab";
 import { formatPathDayCompletionLabel } from "../../lib/pathlab-day-label";
