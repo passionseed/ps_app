@@ -41,6 +41,7 @@ describe("runtime config", () => {
     expect(mod.getSupabaseRuntimeConfig()).toEqual({
       url: "https://example.supabase.co",
       publishableKey: "public-anon-key",
+      anonKey: "",
     });
     expect(mod.getExpoProjectId()).toBe("project-id");
   });
