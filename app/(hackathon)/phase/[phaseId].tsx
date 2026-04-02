@@ -16,6 +16,7 @@ import { readHackathonParticipant } from "../../../lib/hackathon-mode";
 import { getPreviewPhaseWithActivities } from "../../../lib/hackathonProgramPreview";
 import { Space } from "../../../lib/theme";
 import type { HackathonPhaseWithActivities, HackathonPhaseActivityDetail } from "../../../types/hackathon-phase-activity";
+import { fetchActivitySubmissionStatuses } from "../../../lib/hackathon-submit";
 
 // ── Bioluminescent tokens ────────────────────────────────────────
 const BG      = "#03050a";
@@ -35,12 +36,16 @@ type ActivityWithStatus = HackathonPhaseActivityDetail & {
 };
 
 async function fetchActivityStatuses(
-  _activities: HackathonPhaseActivityDetail[],
+  activities: HackathonPhaseActivityDetail[],
   _participantId: string
 ): Promise<Record<string, ActivityStatus>> {
-  // TODO: wire to real submissions once hackathon_phase_activity_submissions table exists.
-  // Current submissions table (hackathon_activity_individual_submissions) uses module_id (old system).
-  return {};
+  const ids = activities.map((a) => a.id);
+  const raw = await fetchActivitySubmissionStatuses(ids);
+  const result: Record<string, ActivityStatus> = {};
+  for (const [id, status] of Object.entries(raw)) {
+    result[id] = status as ActivityStatus;
+  }
+  return result;
 }
 
 export default function HackathonPhaseScreen() {
@@ -203,13 +208,17 @@ export default function HackathonPhaseScreen() {
             {activities.map((activity) => (
               <Pressable
                 key={activity.id}
-                style={({ pressed }) => [styles.activityCard, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [
+                  styles.activityCard,
+                  activityCardStyle(activity.status),
+                  pressed && { opacity: 0.85 },
+                ]}
                 onPress={() => router.push(`/(hackathon)/activity/${activity.id}`)}
               >
                 <View style={styles.activityCardLeft}>
                   <StatusDot status={activity.status} />
                   <View style={styles.activityCardBody}>
-                    <AppText variant="bold" style={styles.activityTitle}>{activity.title}</AppText>
+                    <AppText variant="bold" style={[styles.activityTitle, activity.status !== "not_started" && statusColor(activity.status)]}>{activity.title}</AppText>
                     {activity.instructions ? (
                       <AppText style={styles.activityInstructions} numberOfLines={2}>
                         {activity.instructions}
@@ -255,6 +264,21 @@ function statusColorValue(status: ActivityStatus): string {
 
 function statusColor(status: ActivityStatus) {
   return { color: statusColorValue(status) };
+}
+
+function activityCardStyle(status: ActivityStatus) {
+  switch (status) {
+    case "passed":
+      return { borderColor: "rgba(74,222,128,0.4)", backgroundColor: "rgba(74,222,128,0.06)" };
+    case "submitted":
+      return { borderColor: "rgba(145,196,227,0.45)", backgroundColor: "rgba(145,196,227,0.07)" };
+    case "revision_required":
+      return { borderColor: "rgba(248,113,113,0.4)", backgroundColor: "rgba(248,113,113,0.06)" };
+    case "draft":
+      return { borderColor: "rgba(250,204,21,0.35)", backgroundColor: "rgba(250,204,21,0.05)" };
+    default:
+      return {};
+  }
 }
 
 const styles = StyleSheet.create({
