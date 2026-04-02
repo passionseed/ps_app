@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 const landingSource = readFileSync(
-  "/Users/bunyasit/dev/ps_app/app/index.tsx",
+  "app/index.tsx",
   "utf8",
 );
 const glassCardSource = readFileSync(
-  "/Users/bunyasit/dev/ps_app/components/Glass/GlassCard.tsx",
+  "components/Glass/GlassCard.tsx",
   "utf8",
 );
 

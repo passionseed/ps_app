@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 const activityScreenSource = readFileSync(
-  "/Users/bunyasit/dev/ps_app/app/activity/[activityId].tsx",
+  "app/activity/[activityId].tsx",
   "utf8",
 );
 
