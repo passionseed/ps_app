@@ -26,11 +26,203 @@ function ConfigErrorScreen({ message }: { message: string }) {
   );
 }
 
+function RootNavigator() {
+  const { router, useSegments, Stack } = require("expo-router") as typeof import("expo-router");
+  const { useAuth } = require("../lib/auth") as typeof import("../lib/auth");
+  const { getProfile } = require("../lib/onboarding") as typeof import("../lib/onboarding");
+  const { logAppOpened } = require("../lib/eventLogger") as typeof import("../lib/eventLogger");
+
+  const { session, loading, isGuest, isHackathon } = useAuth();
+  const [profile, setProfile] = useState<
+    import("../types/onboarding").Profile | null | undefined
+  >(undefined);
+  const [isNavReady, setIsNavReady] = useState(false);
+  const segments = useSegments();
+
+  useEffect(() => {
+    console.log("[RootNavigator] Effect running:", { loading, hasSession: !!session, isGuest, isHackathon, segments });
+    if (loading) return;
+
+    // Log app opened event
+    logAppOpened().catch(() => {});
+
+    // Helper to check if we are already in a valid section
+    const isInHackathonArea = segments[0] === "(hackathon)" || segments[0] === "hackathon" || segments[0] === "hackathon-program";
+    const isInTabs = segments[0] === "(tabs)";
+    const isInOnboarding = segments[0] === "onboarding";
+
+    if (!session && !isGuest && !isHackathon) {
+      // Not logged in - go to landing page
+      console.log("[RootNavigator] Not logged in, checking if redirect needed");
+      setProfile(null);
+      if (isNavReady && segments.length > 0 && segments[0] !== "index" && segments[0] !== "hackathon-login") {
+        router.replace("/");
+      }
+      setIsNavReady(true);
+      return;
+    }
+
+    if (isHackathon) {
+      console.log("[RootNavigator] Hackathon mode, checking if redirect needed");
+      setProfile(null);
+      if (!isInHackathonArea) {
+        router.replace("/(hackathon)/home");
+      }
+      setIsNavReady(true);
+      return;
+    }
+
+    if (isGuest) {
+      // Guest user - go to discover
+      console.log("[RootNavigator] Guest mode, checking if redirect needed");
+      setProfile(null);
+      if (!isInTabs) {
+        router.replace("/(tabs)/discover");
+      }
+      setIsNavReady(true);
+      return;
+    }
+
+    // Logged in user - check onboarding status
+    if (profile !== undefined) {
+      // We already have a profile state (or at least we are in the process)
+      // If we are already in a valid area (tabs or onboarding), don't force redirect
+      if (profile?.is_onboarded && isInTabs) {
+        setIsNavReady(true);
+        return;
+      }
+      if (!profile?.is_onboarded && isInOnboarding) {
+        setIsNavReady(true);
+        return;
+      }
+    }
+
+    console.log("[RootNavigator] Logged in, fetching profile...", { userId: session!.user.id });
+    const profileStart = Date.now();
+
+    // Safety: cancelled flag prevents stale async updates if effect re-runs
+    let cancelled = false;
+    // Hard timeout: if getProfile hangs >10s, unblock navigation
+    const profileTimeout = setTimeout(() => {
+      if (cancelled) return;
+      console.warn("[RootNavigator] ⚠️ getProfile timed out after 10s — possible RLS timeout or network hang");
+      router.replace("/onboarding");
+      setIsNavReady(true);
+    }, 10000);
+
+    getProfile(session!.user.id)
+      .then((p: any) => {
+        if (cancelled) return;
+        clearTimeout(profileTimeout);
+        console.log("[RootNavigator] Profile fetched in", Date.now() - profileStart, "ms:", { hasProfile: !!p, isOnboarded: p?.is_onboarded });
+        setProfile(p);
+        if (!p || !p.is_onboarded) {
+           if (!isInOnboarding) router.replace("/onboarding");
+        } else {
+           if (!isInTabs) router.replace("/(tabs)/discover");
+        }
+        setIsNavReady(true);
+      })
+      .catch((err: any) => {
+        if (cancelled) return;
+        clearTimeout(profileTimeout);
+        console.error("[RootNavigator] ❌ getProfile threw after", Date.now() - profileStart, "ms:", err);
+        // Proceed without profile — go to discover as fallback
+        setProfile(null);
+        if (!isInTabs) router.replace("/(tabs)/discover");
+        setIsNavReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(profileTimeout);
+    };
+  }, [isGuest, isHackathon, loading, session, isNavReady]);
+
+  // Show animated splash while auth is loading
+  // This prevents showing the landing page to logged-in users
+  if (!isNavReady) {
+    return <AnimatedSplash />;
+  }
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: "fade",
+        animationDuration: 400,
+        contentStyle: {
+          backgroundColor: "#F3F4F6",
+        },
+      }}
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen name="hackathon-login" />
+      <Stack.Screen name="(hackathon)" />
+      <Stack.Screen name="(hackathon)/activity/[nodeId]" options={{ headerShown: false }} />
+      <Stack.Screen name="hackathon/challenges" options={{ presentation: "card" }} />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="seed/[id]" options={{ presentation: "card" }} />
+      <Stack.Screen
+        name="path/[enrollmentId]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="activity/[activityId]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="reflection/[enrollmentId]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="university/[key]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="university/compare"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen name="settings" options={{ presentation: "card" }} />
+      <Stack.Screen
+        name="portfolio/index"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="hackathon-program/index"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="hackathon-program/phase/[phaseId]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="hackathon-program/module/[moduleId]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen
+        name="hackathon-program/reflection/[phaseId]"
+        options={{ presentation: "card" }}
+      />
+      <Stack.Screen name="fit/index" options={{ presentation: "card" }} />
+      <Stack.Screen name="career/[name]" options={{ presentation: "card" }} />
+      {/* Super Planner screens */}
+      <Stack.Screen name="programs/index" options={{ presentation: "card" }} />
+      <Stack.Screen name="programs/[programId]" options={{ presentation: "card" }} />
+      <Stack.Screen name="saved/index" options={{ presentation: "card" }} />
+      <Stack.Screen name="plans/index" options={{ presentation: "card" }} />
+      <Stack.Screen name="plans/[planId]" options={{ presentation: "card" }} />
+      <Stack.Screen name="plans/create" options={{ presentation: "card" }} />
+      <Stack.Screen name="google-auth" options={{ headerShown: false }} />
+    </Stack>
+  );
+}
+
 function RootLayout() {
   const { initializeSentry } = require("../lib/sentry") as typeof import("../lib/sentry");
   initializeSentry();
 
-  const { Stack, router } = require("expo-router") as typeof import("expo-router");
   const { StatusBar } = require("expo-status-bar") as typeof import("expo-status-bar");
   const { useFonts } = require("expo-font") as typeof import("expo-font");
   const {
@@ -43,9 +235,7 @@ function RootLayout() {
     LibreFranklin_700Bold,
   } = require("@expo-google-fonts/libre-franklin") as typeof import("@expo-google-fonts/libre-franklin");
   const SplashScreen = require("expo-splash-screen") as typeof import("expo-splash-screen");
-  const { AuthProvider, useAuth } = require("../lib/auth") as typeof import("../lib/auth");
-  const { getProfile } = require("../lib/onboarding") as typeof import("../lib/onboarding");
-  const { logAppOpened } = require("../lib/eventLogger") as typeof import("../lib/eventLogger");
+  const { AuthProvider } = require("../lib/auth") as typeof import("../lib/auth");
   const {
     getSupabaseConfigErrorMessage,
   } = require("../lib/runtime-config") as typeof import("../lib/runtime-config");
@@ -55,172 +245,6 @@ function RootLayout() {
     fade: true,
   });
   void SplashScreen.preventAutoHideAsync();
-
-  function RootNavigator() {
-    const { session, loading, isGuest, isHackathon } = useAuth();
-    const [profile, setProfile] = useState<
-      import("../types/onboarding").Profile | null | undefined
-    >(undefined);
-    const [isNavReady, setIsNavReady] = useState(false);
-
-    useEffect(() => {
-      console.log("[RootNavigator] Effect running:", { loading, hasSession: !!session, isGuest, isHackathon });
-      if (loading) return;
-
-      // Log app opened event
-      logAppOpened().catch(() => {});
-
-      if (!session && !isGuest && !isHackathon) {
-        // Not logged in - go to landing page
-        // Only replace if already nav-ready (i.e. sign-out), not on initial load
-        // (on initial load, index is already the current route)
-        console.log("[RootNavigator] Not logged in, navigating to index");
-        setProfile(null);
-        if (isNavReady) {
-          router.replace("/");
-        }
-        setIsNavReady(true);
-        return;
-      }
-
-      if (isHackathon) {
-        console.log("[RootNavigator] Hackathon mode, going to hackathon home");
-        setProfile(null);
-        router.replace("/(hackathon)/home");
-        setIsNavReady(true);
-        return;
-      }
-
-      if (isGuest) {
-        // Guest user - go to discover
-        console.log("[RootNavigator] Guest mode, going to tabs");
-        setProfile(null);
-        router.replace("/(tabs)/discover");
-        setIsNavReady(true);
-        return;
-      }
-
-      // Logged in user - check onboarding status
-      console.log("[RootNavigator] Logged in, fetching profile...", { userId: session!.user.id });
-      const profileStart = Date.now();
-
-      // Safety: cancelled flag prevents stale async updates if effect re-runs
-      let cancelled = false;
-      // Hard timeout: if getProfile hangs >10s, unblock navigation
-      const profileTimeout = setTimeout(() => {
-        if (cancelled) return;
-        console.warn("[RootNavigator] ⚠️ getProfile timed out after 10s — possible RLS timeout or network hang");
-        router.replace("/onboarding");
-        setIsNavReady(true);
-      }, 10000);
-
-      getProfile(session!.user.id)
-        .then((p) => {
-          if (cancelled) return;
-          clearTimeout(profileTimeout);
-          console.log("[RootNavigator] Profile fetched in", Date.now() - profileStart, "ms:", { hasProfile: !!p, isOnboarded: p?.is_onboarded });
-          setProfile(p);
-          if (!p || !p.is_onboarded) {
-            router.replace("/onboarding");
-          } else {
-            router.replace("/(tabs)/discover");
-          }
-          setIsNavReady(true);
-        })
-        .catch((err) => {
-          if (cancelled) return;
-          clearTimeout(profileTimeout);
-          console.error("[RootNavigator] ❌ getProfile threw after", Date.now() - profileStart, "ms:", err);
-          // Proceed without profile — go to discover as fallback
-          setProfile(null);
-          router.replace("/(tabs)/discover");
-          setIsNavReady(true);
-        });
-
-      return () => {
-        cancelled = true;
-        clearTimeout(profileTimeout);
-      };
-    }, [isGuest, isHackathon, loading, session]);
-
-    // Show animated splash while auth is loading
-    // This prevents showing the landing page to logged-in users
-    if (!isNavReady) {
-      return <AnimatedSplash />;
-    }
-
-    return (
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: "fade",
-          animationDuration: 400,
-          contentStyle: {
-            backgroundColor: "#F3F4F6",
-          },
-        }}
-      >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="hackathon-login" />
-        <Stack.Screen name="(hackathon)" />
-        <Stack.Screen name="(hackathon)/activity/[nodeId]" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="seed/[id]" options={{ presentation: "card" }} />
-        <Stack.Screen
-          name="path/[enrollmentId]"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen
-          name="activity/[activityId]"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen
-          name="reflection/[enrollmentId]"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen
-          name="university/[key]"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen
-          name="university/compare"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen name="settings" options={{ presentation: "card" }} />
-        <Stack.Screen
-          name="portfolio/index"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen
-          name="hackathon-program/index"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen
-          name="hackathon-program/phase/[phaseId]"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen
-          name="hackathon-program/module/[moduleId]"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen
-          name="hackathon-program/reflection/[phaseId]"
-          options={{ presentation: "card" }}
-        />
-        <Stack.Screen name="fit/index" options={{ presentation: "card" }} />
-        <Stack.Screen name="career/[name]" options={{ presentation: "card" }} />
-        {/* Super Planner screens */}
-        <Stack.Screen name="programs/index" options={{ presentation: "card" }} />
-        <Stack.Screen name="programs/[programId]" options={{ presentation: "card" }} />
-        <Stack.Screen name="saved/index" options={{ presentation: "card" }} />
-        <Stack.Screen name="plans/index" options={{ presentation: "card" }} />
-        <Stack.Screen name="plans/[planId]" options={{ presentation: "card" }} />
-        <Stack.Screen name="plans/create" options={{ presentation: "card" }} />
-        <Stack.Screen name="google-auth" options={{ headerShown: false }} />
-      </Stack>
-    );
-  }
 
   const [fontsLoaded] = useFonts({
     BaiJamjuree_400Regular,

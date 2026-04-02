@@ -3,6 +3,7 @@ import type {
   HackathonModuleProgress,
   HackathonModuleProgressSnapshot,
   HackathonModuleStatus,
+  HackathonChallenge,
   HackathonPhaseDetail,
   HackathonPhaseModule,
   HackathonPhasePlaylist,
@@ -236,6 +237,27 @@ export function summarizePhaseModules(modules: HackathonModuleProgress[]) {
   }
 
   return summary;
+}
+
+function getPreferredChallengeTitle(challenge: HackathonChallenge) {
+  return challenge.title_en?.trim() || challenge.title_th?.trim() || "Selected challenge";
+}
+
+function getPreferredTrackTitle(challenge: HackathonChallenge) {
+  return challenge.track?.title?.trim() || challenge.track?.subtitle?.trim() || null;
+}
+
+export function getChallengeSummary(
+  enrollment: HackathonTeamProgramEnrollment | null,
+) {
+  const challenge = enrollment?.selected_challenge;
+  if (!challenge) return null;
+
+  return {
+    title: getPreferredChallengeTitle(challenge),
+    trackTitle: getPreferredTrackTitle(challenge),
+    promptLabel: challenge.num,
+  };
 }
 
 async function getCurrentUserId() {
