@@ -8,6 +8,7 @@ import type {
   HackathonTeam,
   HackathonTeamProgramEnrollment,
 } from "../types/hackathon-program";
+import type { HackathonPhaseWithActivities } from "../types/hackathon-phase-activity";
 
 const previewProgram: HackathonProgram = {
   id: "4ae8f785-64eb-4038-9614-f471f035110f",
@@ -29,9 +30,9 @@ const previewPhases: HackathonProgramPhase[] = [
     id: "099eb24b-5f7c-4c2f-b971-dd5451fa743f",
     program_id: previewProgram.id,
     slug: "ideation",
-    title: "Phase 1: Ideation",
+    title: "Where is Da Problem",
     description:
-      "Discover your strengths, identify a problem worth solving, brainstorm solutions, and pick your best idea.",
+      "Discover your interests, identify problems worth solving, and find your idea.",
     phase_number: 1,
     starts_at: "2026-04-01T00:00:00.000Z",
     ends_at: "2026-04-08T23:59:59.000Z",
@@ -201,6 +202,26 @@ export function getPreviewModuleDetail(
   moduleId: string,
 ): HackathonPhaseModule | null {
   return previewModules.get(moduleId) ?? null;
+}
+
+export function getPreviewPhaseWithActivities(phaseId: string): HackathonPhaseWithActivities {
+  const phase = previewPhases.find((p) => p.id === phaseId) ?? previewPhases[0];
+  return {
+    id: phase.id,
+    program_id: phase.program_id,
+    slug: phase.slug,
+    title: phase.title,
+    description: phase.description,
+    phase_number: phase.phase_number,
+    starts_at: phase.starts_at,
+    ends_at: phase.ends_at,
+    due_at: phase.due_at,
+    activities: [
+      { id: "preview-act-1", phase_id: phase.id, title: "Show the Outcome", instructions: "Chat with your future self to see where your path leads.", display_order: 1, estimated_minutes: 20, is_required: true, is_draft: false, created_at: "", updated_at: "", content: [{ id: "c1", activity_id: "preview-act-1", content_type: "npc_chat", content_title: "Your Future Self", content_url: null, content_body: null, display_order: 1, metadata: {}, created_at: "" }], assessment: { id: "a1", activity_id: "preview-act-1", assessment_type: "text_answer", points_possible: 10, is_graded: true, metadata: {}, created_at: "", updated_at: "" } },
+      { id: "preview-act-2", phase_id: phase.id, title: "You Are the Interviewee", instructions: "An AI interviews you to uncover what you truly care about.", display_order: 2, estimated_minutes: 25, is_required: true, is_draft: false, created_at: "", updated_at: "", content: [{ id: "c2", activity_id: "preview-act-2", content_type: "ai_chat", content_title: "Discovery Interview", content_url: null, content_body: null, display_order: 1, metadata: {}, created_at: "" }], assessment: { id: "a2", activity_id: "preview-act-2", assessment_type: "text_answer", points_possible: 15, is_graded: true, metadata: {}, created_at: "", updated_at: "" } },
+      { id: "preview-act-3", phase_id: phase.id, title: "The 5 Why Technique", instructions: "Use the 5 Why framework to find the root of a real problem.", display_order: 3, estimated_minutes: 30, is_required: true, is_draft: false, created_at: "", updated_at: "", content: [{ id: "c3", activity_id: "preview-act-3", content_type: "image", content_title: "5 Why Guidelines", content_url: null, content_body: null, display_order: 1, metadata: {}, created_at: "" }, { id: "c4", activity_id: "preview-act-3", content_type: "text", content_title: "How to Use 5 Why", content_url: null, content_body: null, display_order: 2, metadata: {}, created_at: "" }], assessment: { id: "a3", activity_id: "preview-act-3", assessment_type: "image_upload", points_possible: 20, is_graded: true, metadata: {}, created_at: "", updated_at: "" } },
+    ],
+  };
 }
 
 export function getPreviewJourneyModules(

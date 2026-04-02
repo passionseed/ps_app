@@ -271,13 +271,21 @@ async function getCurrentUserId() {
 export async function getCurrentHackathonTeamMembership(): Promise<HackathonTeamMembership | null> {
   return withRetry(async () => {
     const supabase = await getSupabaseClient();
-    const userId = await getCurrentUserId();
+
+    // Hackathon participants use a custom session (not Supabase auth) — look up by participant_id
+    const { readHackathonParticipant } = await import("./hackathon-mode");
+    const participant = await readHackathonParticipant();
+    const participantId = participant?.id ?? null;
+
+    // Fall back to Supabase auth user_id for non-hackathon users
+    const userId = participantId ?? (await getCurrentUserId());
     if (!userId) return null;
 
+    const column = participantId ? "participant_id" : "user_id";
     const { data, error } = await supabase
       .from("hackathon_team_members")
       .select("*")
-      .eq("user_id", userId)
+      .eq(column, userId)
       .maybeSingle();
 
     if (error) throw error;
@@ -289,6 +297,7 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
   return withRetry(async () => {
     const supabase = await getSupabaseClient();
     const membership = await getCurrentHackathonTeamMembership();
+    console.log("[hackathonProgram] membership:", membership ? { team_id: membership.team_id, participant_id: membership.participant_id } : null);
     if (!membership) {
       return {
         team: null,
@@ -313,6 +322,7 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
         .maybeSingle(),
     ]);
 
+    console.log("[hackathonProgram] team:", team ? (team as any).id : null, "enrollment:", enrollment ? { id: (enrollment as any).id, program_id: (enrollment as any).program_id } : null);
     if (!enrollment) {
       return {
         team: (team as HackathonTeam | null) ?? null,
@@ -322,7 +332,7 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
       };
     }
 
-    const [{ data: program }, { data: phases }] = await Promise.all([
+    const [{ data: program, error: progErr }, { data: phases, error: phasesErr }] = await Promise.all([
       supabase
         .from("hackathon_programs")
         .select("*")
@@ -335,6 +345,7 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
         .order("phase_number", { ascending: true }),
     ]);
 
+    console.log("[hackathonProgram] program:", program ? (program as any).id : null, "progErr:", progErr?.message ?? null, "phases count:", (phases as any[])?.length ?? 0, "phasesErr:", phasesErr?.message ?? null);
     return {
       team: (team as HackathonTeam | null) ?? null,
       enrollment: enrollment as HackathonTeamProgramEnrollment,
