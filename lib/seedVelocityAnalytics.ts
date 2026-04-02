@@ -1,16 +1,15 @@
 import type { Seed } from "../types/seeds";
 
-type SeedAnalyticsContext = Pick<Seed, "id" | "category_id" | "tags">;
-type SeedAnalyticsPayloadContext = Pick<Seed, "id" | "title" | "category_id" | "tags">;
+type SeedAnalyticsContext = Pick<Seed, "id" | "title" | "category_id" | "tags">;
 
 type SeedEventParams = {
   seed: SeedAnalyticsContext;
-  pathId: string;
+  pathId: string | null;
   enrollmentId: string;
 };
 
 type SeedAnalyticsPayloadParams = {
-  seed: SeedAnalyticsPayloadContext;
+  seed: SeedAnalyticsContext;
   pathId: string | null;
 };
 
@@ -21,39 +20,41 @@ function normalizeSeedTags(tags: string[] | null | undefined): string[] {
     .filter((tag) => tag.length > 0);
 }
 
-function buildSeedContext(seed: SeedAnalyticsContext) {
-  return {
-    seed_id: seed.id,
-    seed_category_id: seed.category_id ?? null,
-    seed_tags: normalizeSeedTags(seed.tags),
-  };
-}
-
 export function buildSeedStartedEventData({
   seed,
   pathId,
   enrollmentId,
 }: SeedEventParams) {
   return {
-    ...buildSeedContext(seed),
+    seed_id: seed.id,
+    seed_title: seed.title,
+    seed_category_id: seed.category_id ?? null,
+    seed_tags: normalizeSeedTags(seed.tags),
     path_id: pathId,
     enrollment_id: enrollmentId,
     source: "seed_detail" as const,
   };
 }
 
-export function buildSeedCompletedEventData({
-  seed,
-  pathId,
-  enrollmentId,
-  dayNumber,
-}: SeedEventParams & { dayNumber: number }) {
+export function buildSeedCompletedEventData(params: {
+  enrollmentId: string;
+  seedId: string;
+  pathId: string | null;
+  seedTitle: string;
+  categoryId: string | null;
+  tags: string[];
+  completedSeedCount: number;
+  milestoneSeedCount: 1 | 2 | 3 | 5 | null;
+}) {
   return {
-    ...buildSeedContext(seed),
-    path_id: pathId,
-    enrollment_id: enrollmentId,
-    day_number: dayNumber,
-    completion_type: "final_reflection" as const,
+    enrollment_id: params.enrollmentId,
+    seed_id: params.seedId,
+    seed_title: params.seedTitle,
+    seed_category_id: params.categoryId,
+    seed_tags: normalizeSeedTags(params.tags),
+    path_id: params.pathId,
+    completed_seed_count: params.completedSeedCount,
+    milestone_seed_count: params.milestoneSeedCount,
   };
 }
 

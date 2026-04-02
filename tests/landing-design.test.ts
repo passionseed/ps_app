@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const landingSource = readFileSync(
-  "app/index.tsx",
+  join(__dirname, "../app/index.tsx"),
   "utf8",
 );
 const glassCardSource = readFileSync(
-  "components/Glass/GlassCard.tsx",
+  join(__dirname, "../components/Glass/GlassCard.tsx"),
   "utf8",
 );
 

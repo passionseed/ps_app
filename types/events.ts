@@ -59,10 +59,11 @@ export interface EventDataMap {
   journey_simulation_created: { job_id: string; job_title: string };
   seed_started: {
     seed_id: string;
-    path_id: string;
-    enrollment_id: string;
+    seed_title: string;
     seed_category_id: string | null;
     seed_tags: string[];
+    path_id: string | null;
+    enrollment_id: string;
     source: 'seed_detail';
   };
   seed_completed: {
@@ -70,8 +71,8 @@ export interface EventDataMap {
     seed_id: string;
     path_id: string | null;
     seed_title: string;
-    category_id: string | null;
-    tags: string[];
+    seed_category_id: string | null;
+    seed_tags: string[];
     completed_seed_count: number;
     milestone_seed_count: 1 | 2 | 3 | 5 | null;
   };
