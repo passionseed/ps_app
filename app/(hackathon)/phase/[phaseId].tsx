@@ -13,6 +13,7 @@ import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { getPhaseWithActivities } from "../../../lib/hackathonPhaseActivity";
 import { readHackathonParticipant } from "../../../lib/hackathon-mode";
+import { getPreviewPhaseWithActivities } from "../../../lib/hackathonProgramPreview";
 import { Space } from "../../../lib/theme";
 import type { HackathonPhaseWithActivities, HackathonPhaseActivityDetail } from "../../../types/hackathon-phase-activity";
 
@@ -62,19 +63,17 @@ export default function HackathonPhaseScreen() {
 
           if (cancelled) return;
 
-          if (!phaseData) {
-            setLoading(false);
-            return;
-          }
+          const resolvedPhase = phaseData ?? getPreviewPhaseWithActivities(phaseId!);
+          console.log("[PhaseScreen] activities count:", resolvedPhase.activities.length, "phaseId:", phaseId);
 
-          setPhase(phaseData);
+          setPhase(resolvedPhase);
           setParticipantId(participant?.id ?? null);
 
-          if (participant?.id && phaseData.activities.length > 0) {
-            const statuses = await fetchActivityStatuses(phaseData.activities, participant.id);
+          if (participant?.id && resolvedPhase.activities.length > 0) {
+            const statuses = await fetchActivityStatuses(resolvedPhase.activities, participant.id);
             if (!cancelled) {
               setActivities(
-                phaseData.activities.map((a) => ({
+                resolvedPhase.activities.map((a) => ({
                   ...a,
                   status: statuses[a.id] ?? "not_started",
                 }))
@@ -83,7 +82,7 @@ export default function HackathonPhaseScreen() {
           } else {
             if (!cancelled) {
               setActivities(
-                phaseData.activities.map((a) => ({ ...a, status: "not_started" }))
+                resolvedPhase.activities.map((a) => ({ ...a, status: "not_started" }))
               );
             }
           }
@@ -111,13 +110,7 @@ export default function HackathonPhaseScreen() {
     );
   }
 
-  if (!phase) {
-    return (
-      <View style={styles.loadingRoot}>
-        <AppText style={{ color: WHITE28 }}>Phase not found.</AppText>
-      </View>
-    );
-  }
+  if (!phase) return null;
 
   return (
     <View style={styles.root}>
@@ -173,16 +166,31 @@ export default function HackathonPhaseScreen() {
             <AppText style={styles.debugMuted}>No activities found for this phase.</AppText>
           ) : (
             activities.map((a, i) => (
-              <View key={a.id} style={styles.debugActivity}>
-                <View style={styles.debugActivityLeft}>
-                  <StatusDot status={a.status} />
-                  <AppText style={styles.debugActivityTitle} numberOfLines={1}>
-                    {i + 1}. {a.title}
+              <View key={a.id} style={styles.debugActivityBlock}>
+                <View style={styles.debugActivity}>
+                  <View style={styles.debugActivityLeft}>
+                    <StatusDot status={a.status} />
+                    <AppText style={styles.debugActivityTitle} numberOfLines={1}>
+                      {i + 1}. {a.title}
+                    </AppText>
+                  </View>
+                  <AppText style={[styles.debugActivityStatus, statusColor(a.status)]}>
+                    {a.status.replace(/_/g, " ")}
                   </AppText>
                 </View>
-                <AppText style={[styles.debugActivityStatus, statusColor(a.status)]}>
-                  {a.status.replace("_", " ")}
-                </AppText>
+                <View style={styles.debugActivityMeta}>
+                  <AppText style={styles.debugMuted}>
+                    content: {a.content.length > 0
+                      ? a.content.map((c) => c.content_type).join(", ")
+                      : "none"}
+                  </AppText>
+                  <AppText style={styles.debugMuted}>
+                    assessment: {a.assessment ? a.assessment.assessment_type : "none"}
+                  </AppText>
+                  {a.estimated_minutes ? (
+                    <AppText style={styles.debugMuted}>~{a.estimated_minutes} min</AppText>
+                  ) : null}
+                </View>
               </View>
             ))
           )}
@@ -305,12 +313,14 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   debugMuted: { fontSize: 12, color: WHITE28 },
+  debugActivityBlock: { gap: 3 },
   debugActivity: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: Space.sm,
   },
+  debugActivityMeta: { paddingLeft: 20, gap: 1 },
   debugActivityLeft: {
     flexDirection: "row",
     alignItems: "center",

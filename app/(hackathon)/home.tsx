@@ -215,6 +215,7 @@ export default function HackathonHomeScreen() {
         JSON.stringify(home) === JSON.stringify(getEmptyHackathonProgramHome());
 
       if (isEmpty || !home.program || home.phases.length === 0) {
+        console.log("[Home] using preview — isEmpty:", isEmpty, "program:", home.program?.id ?? null, "phases:", home.phases.length);
         const previewHome = getPreviewHackathonProgramHome();
         setData(previewHome);
         setIsPreview(true);
@@ -230,9 +231,11 @@ export default function HackathonHomeScreen() {
           }))
         );
       } else {
+        console.log("[Home] live data — program:", home.program.id, "phases:", home.phases.map((p) => ({ id: p.id, title: p.title })));
         setData(home);
         setIsPreview(false);
         const phasesWithActivities = await getProgramPhasesWithActivities(home.program.id);
+        console.log("[Home] phasesWithActivities:", phasesWithActivities.map((p) => ({ id: p.id, title: p.title, activityCount: p.activities.length })));
         const currentPhaseId = home.enrollment?.current_phase_id;
 
         const cards: PhaseCard[] = home.phases.map((phase) => {
@@ -246,6 +249,13 @@ export default function HackathonHomeScreen() {
             isActive: phase.id === currentPhaseId,
           };
         });
+        console.log("[Home] phases loaded:", cards.map((c) => ({
+          id: c.phase.id,
+          title: c.phase.title,
+          phase_number: c.phase.phase_number,
+          activityCount: c.activityCount,
+          activities: c.activityTitles,
+        })));
         setPhaseCards(cards);
 
         const currentIndex = cards.findIndex((c) => c.isActive);
