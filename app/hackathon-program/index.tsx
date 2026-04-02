@@ -13,6 +13,7 @@ import { GlassCard } from "../../components/Glass/GlassCard";
 import { GlassButton } from "../../components/Glass/GlassButton";
 import {
   getCurrentHackathonProgramHome,
+  getChallengeSummary,
   getEmptyHackathonProgramHome,
 } from "../../lib/hackathonProgram";
 import { getPreviewHackathonProgramHome } from "../../lib/hackathonProgramPreview";
@@ -81,6 +82,7 @@ export default function HackathonProgramHomeScreen() {
   const currentPhase =
     data.phases.find((phase) => phase.id === data.enrollment?.current_phase_id) ??
     data.phases[0]!;
+  const selectedChallenge = getChallengeSummary(data.enrollment);
 
   return (
     <View style={styles.root}>
@@ -173,6 +175,35 @@ export default function HackathonProgramHomeScreen() {
           </AppText>
         </GlassCard>
       </View>
+
+      {selectedChallenge ? (
+        <View style={styles.section}>
+          <GlassCard size="medium" style={styles.challengeCard}>
+            <View style={styles.cardHeader}>
+              <Badge
+                label="CHALLENGE"
+                color={Accent.purple}
+                bgColor="rgba(139, 92, 246, 0.1)"
+              />
+            </View>
+            <AppText variant="bold" style={styles.challengeTitle}>
+              {selectedChallenge.title}
+            </AppText>
+            <AppText style={styles.challengeCopy}>
+              {selectedChallenge.trackTitle
+                ? `${selectedChallenge.trackTitle} · ${selectedChallenge.promptLabel}`
+                : selectedChallenge.promptLabel}
+            </AppText>
+            <GlassButton
+              variant="secondary"
+              style={styles.challengeButton}
+              onPress={() => router.push("/hackathon/challenges")}
+            >
+              View all challenges
+            </GlassButton>
+          </GlassCard>
+        </View>
+      ) : null}
 
       {/* Timeline of all phases */}
       <View style={styles.section}>
@@ -374,6 +405,22 @@ const styles = StyleSheet.create({
   // Team Card
   teamCard: {
     gap: Space.sm,
+  },
+  challengeCard: {
+    gap: Space.sm,
+  },
+  challengeTitle: {
+    fontSize: Type.subtitle.fontSize,
+    color: ThemeText.primary,
+  },
+  challengeCopy: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: ThemeText.secondary,
+  },
+  challengeButton: {
+    marginTop: Space.sm,
+    alignSelf: "flex-start",
   },
   metaCopy: {
     fontSize: 12,

@@ -584,33 +584,35 @@ export default function ActivityDetailScreen() {
         path_content: contentData || [],
         path_assessment: pathAssessment,
       };
+
+      // FETCH SIBLINGS: If we loaded from Supabase, we need the full day list for navigation
+      if (activityData.path_day_id) {
+        const { data: siblings } = await supabase
+          .from("path_activities")
+          .select("id, display_order, title")
+          .eq("path_day_id", activityData.path_day_id)
+          .order("display_order", { ascending: true });
+
+        if (siblings) {
+          setDayActivitiesList(siblings);
+          setDayActivitiesCount(siblings.length);
+          
+          if (totalPages === undefined) {
+             setAutoTotalPages(siblings.length);
+          }
+
+          if (pageIndex === undefined) {
+            const myIndex = siblings.findIndex(s => s.id === activityId);
+            if (myIndex >= 0) setAutoCurrentPage(myIndex);
+          }
+        }
+      }
+
       const resolvedActivity = await ensureActivityHasProgress(fullActivity, {
         enrollmentId,
         activityId,
         ensureProgress: ensureActivityProgress,
       });
-
-      const activityType = getActivityType(resolvedActivity);
-
-      console.log("[Activity] Full activity loaded:", {
-        id: resolvedActivity.id,
-        title: resolvedActivity.title,
-        activityType,
-        content_count: resolvedActivity.path_content.length,
-        content_types: resolvedActivity.path_content.map(c => c.content_type),
-        has_assessment: !!resolvedActivity.path_assessment,
-        assessment_type: resolvedActivity.path_assessment?.assessment_type,
-        has_progress: !!resolvedActivity.progress,
-        full_activity: JSON.stringify(resolvedActivity, null, 2),
-      });
-
-      // Debug image content/assessment specifically
-      if (activityType === 'image' || resolvedActivity.path_assessment?.assessment_type === 'image_upload') {
-        console.log('[IMAGE ACTIVITY] Image activity detected!');
-        console.log('[IMAGE ACTIVITY] Screen width:', screenWidth);
-        console.log('[IMAGE ACTIVITY] Activity type:', activityType);
-        console.log('[IMAGE ACTIVITY] Assessment type:', resolvedActivity.path_assessment?.assessment_type);
-      }
 
       setActivity(resolvedActivity);
       setLoading(false);

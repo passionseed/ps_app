@@ -10,7 +10,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { AppText } from "../../../components/AppText";
+import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { JourneyNodeGraph } from "../../../components/Hackathon/JourneyNodeGraph";
 import { ProgressGateCard } from "../../../components/Hackathon/ProgressGateCard";
 import { ResponsibilityBanner } from "../../../components/Hackathon/ResponsibilityBanner";
@@ -139,13 +141,17 @@ export default function HackathonModuleScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.md }]}>
-      <Pressable
-        onPress={() => router.back()}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <AppText style={styles.backLink}>‹ Back</AppText>
-      </Pressable>
+    <View style={styles.root}>
+      <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
+        <SkiaBackButton
+          variant="dark"
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
+        />
+      </View>
+      <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}>
 
       <View style={styles.header}>
         <AppText variant="bold" style={styles.eyebrow}>MODULE</AppText>
@@ -247,7 +253,8 @@ export default function HackathonModuleScreen() {
           })
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -255,7 +262,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   content: { padding: Space["2xl"], paddingBottom: 96, gap: Space.xl },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
-  backLink: { fontSize: 15, color: CYAN },
+  headerActions: {
+    position: "absolute",
+    left: Space["2xl"],
+    zIndex: 10,
+  },
   header: { gap: Space.sm },
   eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2 },
   title: { fontSize: 28, color: WHITE },

@@ -1,0 +1,51 @@
+{
+  "name": "Hackathon Phase 1 Expansion",
+  "metadata": {
+    "version": "1.0",
+    "description": "Multi-agent execution plan for integrating Challenges in DB, Post-Activity Reflections, Uniqueness Grading, and Phase 1 Sequence."
+  },
+  "nodes": [
+    {
+      "id": "node_db_schema",
+      "name": "Database Schema Modifications",
+      "agent_role": "task_backend_plan_api_v1",
+      "description": "Create SQL migrations: hackathon_tracks, hackathon_challenges, hackathon_team_reflections, and add pgvector uniqueness columns (problem_statement, embedding, uniqueness_score) to hackathon_team_program_enrollment.",
+      "tasks": ["1.1", "2.1", "3.1"]
+    },
+    {
+      "id": "node_db_seed",
+      "name": "Database Content Seeding",
+      "agent_role": "task_backend_plan_api_v1",
+      "description": "Create SQL seeds: supabase/seed/hackathon_challenges.sql and replace Phase 1 mock data with the massive 16-step highly interactive sequence in hackathon_phase1_activities_complete.sql.",
+      "tasks": ["1.2", "4.1"]
+    },
+    {
+      "id": "node_backend_api",
+      "name": "Types, API and Grading Logic",
+      "agent_role": "task_backend_plan_api_v1",
+      "description": "Update types/hackathon-program.ts, build fetchers in lib/, and implement the grading edge function mapping TrueFoundry embeddings to a 0-100 uniqueness_score via cosine distance.",
+      "tasks": ["1.3", "2.2", "3.2"]
+    },
+    {
+      "id": "node_frontend_ui",
+      "name": "Frontend Application UI",
+      "agent_role": "task_frontend_canvas_v1",
+      "description": "Build the React Native/Expo UI: Add Challenges CTA to app/hackathon-program/index.tsx, create app/(hackathon)/reflection/[phaseId].tsx, and create the Skia-powered app/(hackathon)/uniqueness-radar.tsx scatter plot.",
+      "tasks": ["1.4", "2.3", "3.3"]
+    }
+  ],
+  "edges": [
+    {
+      "source": "node_db_schema",
+      "target": "node_db_seed"
+    },
+    {
+      "source": "node_db_schema",
+      "target": "node_backend_api"
+    },
+    {
+      "source": "node_backend_api",
+      "target": "node_frontend_ui"
+    }
+  ]
+}

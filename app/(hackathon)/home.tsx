@@ -335,6 +335,27 @@ export default function HackathonHomeScreen() {
           </AppText>
         </View>
       )}
+
+      {/* Challenge Link Card */}
+      <Pressable
+        style={({ pressed }) => [styles.challengeLinkCard, pressed && { opacity: 0.8 }]}
+        onPress={() => router.push("/hackathon/challenges")}
+      >
+        <View style={styles.challengeLinkContent}>
+          <AppText variant="bold" style={styles.challengeLinkLabel}>
+            YOUR CHALLENGE
+          </AppText>
+          <AppText variant="bold" style={styles.challengeLinkTitle}>
+            {data.enrollment?.selected_challenge_id ? "View Selected Challenge" : "Pick Your Problem Space"}
+          </AppText>
+          {!data.enrollment?.selected_challenge_id && (
+            <AppText style={styles.challengeLinkDesc}>
+              Select a challenge brief before proceeding.
+            </AppText>
+          )}
+        </View>
+        <AppText style={styles.challengeLinkArrow}>→</AppText>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -462,4 +483,28 @@ const styles = StyleSheet.create({
   },
   teamId: { fontSize: 12, color: WHITE40 },
   teamName: { fontSize: 18, color: WHITE },
+  // Challenge link
+  challengeLinkCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: CYAN_BORDER,
+    backgroundColor: "rgba(0,240,255,0.03)",
+    padding: Space.lg,
+    gap: Space.md,
+  },
+  challengeLinkContent: { flex: 1, gap: Space.xs },
+  challengeLinkLabel: {
+    fontSize: 11,
+    color: CYAN,
+    textTransform: "uppercase",
+    letterSpacing: 2,
+  },
+  challengeLinkTitle: { fontSize: 18, color: WHITE },
+  challengeLinkDesc: { fontSize: 13, color: WHITE75, marginTop: 2 },
+  challengeLinkArrow: {
+    fontSize: 20,
+    color: CYAN,
+  },
 });
