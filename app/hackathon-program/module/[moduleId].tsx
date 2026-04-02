@@ -6,15 +6,18 @@ import {
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText } from "../../../components/AppText";
+import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { GlassCard } from "../../../components/Glass/GlassCard";
 import { ProgressGateCard } from "../../../components/Hackathon/ProgressGateCard";
 import { ResponsibilityBanner } from "../../../components/Hackathon/ResponsibilityBanner";
 import { TeamWorkspaceSection } from "../../../components/Hackathon/TeamWorkspaceSection";
 import {
   getHackathonModuleDetail,
+  buildModuleProgressSnapshot,
 } from "../../../lib/hackathonProgram";
 import { PathLabSkiaLoader } from "../../../components/PathLabSkiaLoader";
 import { getPreviewModuleDetail } from "../../../lib/hackathonProgramPreview";
@@ -217,18 +220,21 @@ export default function HackathonModuleScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
+      <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
+        <SkiaBackButton
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
+        />
+      </View>
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + Space.xl, paddingBottom: Space["4xl"] },
-        ]}
+        style={styles.root}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <AppText style={styles.backText}>‹ Back</AppText>
-          </Pressable>
           <AppText variant="bold" style={styles.title}>
             {module?.title ?? "Module"}
           </AppText>
@@ -390,7 +396,7 @@ function MetaPill({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
     backgroundColor: PageBg.default,
   },
@@ -400,16 +406,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: PageBg.default,
   },
-  scrollContent: {
-    paddingHorizontal: Space["2xl"],
-    gap: Space.xl,
+  content: {
+    paddingHorizontal: Space.lg,
+    gap: Space.lg,
   },
   header: {
     gap: Space.sm,
   },
-  backText: {
-    fontSize: 14,
-    color: Accent.purple,
+  headerActions: {
+    position: "absolute",
+    left: Space.lg,
+    zIndex: 10,
   },
   title: {
     fontSize: 28,

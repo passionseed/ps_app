@@ -10,7 +10,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { AppText } from "../../../components/AppText";
+import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { getHackathonPhaseDetail } from "../../../lib/hackathonProgram";
 import { getPreviewPhaseDetail } from "../../../lib/hackathonProgramPreview";
 import { Radius, Space } from "../../../lib/theme";
@@ -60,62 +62,66 @@ export default function HackathonPhaseScreen() {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.md }]}>
-      <Pressable
-        onPress={() => router.back()}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <AppText style={styles.backLink}>‹ Back</AppText>
-      </Pressable>
-
-      <View style={styles.header}>
-        <AppText variant="bold" style={styles.eyebrow}>PHASE</AppText>
-        <AppText variant="bold" style={styles.title}>
-          {detail.phase?.title ?? "Phase"}
-        </AppText>
-        <AppText style={styles.subtitle}>{detail.phase?.description}</AppText>
+    <View style={styles.root}>
+      <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
+        <SkiaBackButton
+          variant="dark"
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
+        />
       </View>
-
-      {detail.playlists.map((playlist) => (
-        <View key={playlist.id} style={styles.playlist}>
-          {/* Playlist header card */}
-          <View style={styles.playlistCard}>
-            <LinearGradient
-              colors={["#01040A", "#030B17"]}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.playlistGlow} pointerEvents="none" />
-            <AppText variant="bold" style={styles.playlistTitle}>
-              {playlist.title}
-            </AppText>
-            <AppText style={styles.playlistBody}>{playlist.description}</AppText>
-          </View>
-
-          {playlist.modules.map((module) => (
-            <Pressable
-              key={module.id}
-              onPress={() => router.push(`/(hackathon)/module/${module.id}`)}
-              style={({ pressed }) => [styles.moduleCard, pressed && { opacity: 0.8 }]}
-            >
-              <View style={styles.moduleDot} />
-              <View style={styles.moduleContent}>
-                <AppText variant="bold" style={styles.moduleTitle}>
-                  {module.title}
-                </AppText>
-                <AppText style={styles.moduleBody}>
-                  {module.summary ?? "Structured module"}
-                </AppText>
-                <View style={styles.modulePills}>
-                  <MetaPill value={module.workflow_scope} />
-                  <MetaPill value={module.gate_rule} />
-                </View>
-              </View>
-              <AppText style={styles.moduleArrow}>→</AppText>
-            </Pressable>
-          ))}
+      <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}>
+        <View style={styles.header}>
+          <AppText variant="bold" style={styles.eyebrow}>PHASE</AppText>
+          <AppText variant="bold" style={styles.title}>
+            {detail.phase?.title ?? "Phase"}
+          </AppText>
+          <AppText style={styles.subtitle}>{detail.phase?.description}</AppText>
         </View>
-      ))}
-    </ScrollView>
+
+        {detail.playlists.map((playlist) => (
+          <View key={playlist.id} style={styles.playlist}>
+            {/* Playlist header card */}
+            <View style={styles.playlistCard}>
+              <LinearGradient
+                colors={["#01040A", "#030B17"]}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.playlistGlow} pointerEvents="none" />
+              <AppText variant="bold" style={styles.playlistTitle}>
+                {playlist.title}
+              </AppText>
+              <AppText style={styles.playlistBody}>{playlist.description}</AppText>
+            </View>
+
+            {playlist.modules.map((module) => (
+              <Pressable
+                key={module.id}
+                onPress={() => router.push(`/(hackathon)/module/${module.id}`)}
+                style={({ pressed }) => [styles.moduleCard, pressed && { opacity: 0.8 }]}
+              >
+                <View style={styles.moduleDot} />
+                <View style={styles.moduleContent}>
+                  <AppText variant="bold" style={styles.moduleTitle}>
+                    {module.title}
+                  </AppText>
+                  <AppText style={styles.moduleBody}>
+                    {module.summary ?? "Structured module"}
+                  </AppText>
+                  <View style={styles.modulePills}>
+                    <MetaPill value={module.workflow_scope} />
+                    <MetaPill value={module.gate_rule} />
+                  </View>
+                </View>
+                <AppText style={styles.moduleArrow}>→</AppText>
+              </Pressable>
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -131,7 +137,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   content: { padding: Space.lg, gap: Space.xl, paddingBottom: 96 },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
-  backLink: { fontSize: 15, color: CYAN },
+  headerActions: {
+    position: "absolute",
+    left: Space.lg,
+    zIndex: 10,
+  },
   header: { gap: Space.sm },
   eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2 },
   title: { fontSize: 30, lineHeight: 36, color: WHITE },

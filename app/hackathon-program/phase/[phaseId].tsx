@@ -8,7 +8,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { PathLabSkiaLoader } from "../../../components/PathLabSkiaLoader";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { AppText as Text } from "../../../components/AppText";
+import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { getHackathonPhaseDetail } from "../../../lib/hackathonProgram";
 import { getPreviewPhaseDetail } from "../../../lib/hackathonProgramPreview";
 import { Accent, Space, Text as ThemeText, Radius, PageBg } from "../../../lib/theme";
@@ -58,10 +60,15 @@ export default function HackathonPhaseScreen() {
         colors={["#F8F9FA", "#F3E8FF"]}
         style={StyleSheet.absoluteFill}
       />
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.lg }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backLink}>‹ Back</Text>
-        </Pressable>
+      <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
+        <SkiaBackButton
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
+        />
+      </View>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}>
 
         <View style={styles.headerContainer}>
           <Text variant="bold" style={styles.title}>
@@ -127,14 +134,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: PageBg.default,
   },
-  backBtn: {
-    paddingVertical: Space.xs,
-    alignSelf: "flex-start",
-  },
-  backLink: {
-    fontSize: 15,
-    color: ThemeText.secondary,
-    fontWeight: "600",
+  headerActions: {
+    position: "absolute",
+    left: Space.lg,
+    zIndex: 10,
   },
   headerContainer: {
     marginBottom: Space.sm,

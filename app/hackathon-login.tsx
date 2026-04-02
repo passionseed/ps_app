@@ -10,9 +10,12 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { AppText } from "../components/AppText";
+import { SkiaBackButton } from "../components/navigation/SkiaBackButton";
 import { useAuth } from "../lib/auth";
 import { Radius, Space } from "../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const BG = "#010814";
 const CYAN = "#00F0FF";
@@ -28,6 +31,7 @@ export default function HackathonLoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
   async function handleLogin() {
     if (loading) return;
@@ -57,15 +61,17 @@ export default function HackathonLoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.content}>
-          <Pressable
-            onPress={() => router.replace("/")}
-            style={styles.backRow}
-            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-          >
-            <AppText style={styles.backText}>‹ Back</AppText>
-          </Pressable>
+          <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
+            <SkiaBackButton
+              variant="dark"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.replace("/");
+              }}
+            />
+          </View>
 
-          <View style={styles.header}>
+          <View style={[styles.header, { marginTop: 60 }]}>
             <AppText variant="bold" style={styles.eyebrow}>HACKATHON</AppText>
             <AppText variant="bold" style={styles.title}>
               Sign in
@@ -153,12 +159,10 @@ const styles = StyleSheet.create({
     paddingTop: Space["4xl"],
     gap: Space.xl,
   },
-  backRow: {
-    alignSelf: "flex-start",
-  },
-  backText: {
-    fontSize: 15,
-    color: CYAN,
+  headerActions: {
+    position: "absolute",
+    left: Space["2xl"],
+    zIndex: 10,
   },
   header: { gap: Space.sm },
   eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2 },

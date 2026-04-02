@@ -71,6 +71,40 @@ export interface HackathonPhaseModule {
   updated_at: string;
 }
 
+export interface HackathonTrack {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  icon: string | null;
+  color: string | null;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+  hackathon_challenges?: HackathonChallenge[];
+}
+
+export interface HackathonChallenge {
+  id: string;
+  track_id: string;
+  num: string;
+  title_en: string;
+  title_th: string | null;
+  hook_en: string | null;
+  hook_th: string | null;
+  challenge_en: string;
+  challenge_th: string | null;
+  tangible_equivalent_en: string | null;
+  tangible_equivalent_th: string | null;
+  tags: string[] | null;
+  severity: number | null;
+  difficulty: number | null;
+  impact: number | null;
+  urgency: number | null;
+  created_at: string;
+  updated_at: string;
+  track?: HackathonTrack | null;
+}
+
 export interface HackathonTeamProgramEnrollment {
   id: string;
   team_id: string;
@@ -79,6 +113,8 @@ export interface HackathonTeamProgramEnrollment {
   status: string;
   started_at: string | null;
   completed_at: string | null;
+  selected_challenge_id?: string | null;
+  selected_challenge?: HackathonChallenge | null;
   created_at: string;
   updated_at: string;
 }

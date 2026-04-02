@@ -10,7 +10,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { AppText } from "../../../components/AppText";
+import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { completeActivityNode } from "../../../lib/hackathonProgram";
 import { Radius, Space } from "../../../lib/theme";
 import { supabase } from "../../../lib/supabase";
@@ -226,18 +228,20 @@ export default function HackathonActivityScreen() {
 
   return (
     <View style={styles.root}>
+      <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
+        <SkiaBackButton
+          variant="dark"
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
+        />
+      </View>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Space.md }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 60 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <AppText style={styles.backLink}>‹ Back</AppText>
-        </Pressable>
-
         <View style={styles.header}>
           <AppText variant="bold" style={styles.eyebrow}>{nodeTypeLabel(node.node_type)}</AppText>
           <AppText variant="bold" style={styles.title}>{node.title}</AppText>
@@ -264,8 +268,12 @@ export default function HackathonActivityScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
+  headerActions: {
+    position: "absolute",
+    left: Space["2xl"],
+    zIndex: 10,
+  },
   scrollContent: { padding: Space["2xl"], paddingBottom: 120, gap: Space.xl },
-  backLink: { fontSize: 15, color: CYAN },
   header: { gap: Space.sm },
   eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2 },
   title: { fontSize: 28, color: WHITE },
