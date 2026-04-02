@@ -3,6 +3,11 @@
 import { supabase } from './supabase';
 import type { EventType, EventDataMap } from '../types/events';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  buildDirectionFinderViewedEventData,
+  buildSeedStartedEventData,
+} from './seedVelocityAnalytics';
+import type { Seed } from '../types/seeds';
 
 function generateUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -220,4 +225,54 @@ export async function logJourneySimulationCreated(
   jobTitle: string
 ): Promise<void> {
   await logEvent('journey_simulation_created', { job_id: jobId, job_title: jobTitle });
+}
+
+/**
+ * Log when a user starts a seed for the first time.
+ */
+export async function logSeedStarted(params: {
+  seed: Pick<Seed, 'id' | 'category_id' | 'tags'>;
+  pathId: string;
+  enrollmentId: string;
+}): Promise<void> {
+  await logEvent(
+    'seed_started',
+    buildSeedStartedEventData({
+      seed: params.seed,
+      pathId: params.pathId,
+      enrollmentId: params.enrollmentId,
+    })
+  );
+}
+
+/**
+ * Log when a user completes the final reflection for a seed.
+ */
+export async function logSeedCompleted(params: {
+  enrollmentId: string;
+  seedId: string;
+  pathId: string | null;
+  seedTitle: string;
+  categoryId: string | null;
+  tags: string[];
+  completedSeedCount: number;
+  milestoneSeedCount: 1 | 2 | 3 | 5 | null;
+}): Promise<void> {
+  await logEvent('seed_completed', {
+    enrollment_id: params.enrollmentId,
+    seed_id: params.seedId,
+    path_id: params.pathId,
+    seed_title: params.seedTitle,
+    category_id: params.categoryId,
+    tags: params.tags,
+    completed_seed_count: params.completedSeedCount,
+    milestone_seed_count: params.milestoneSeedCount,
+  });
+}
+
+/**
+ * Log when a user opens the current Direction Finder surface.
+ */
+export async function logDirectionFinderViewed(): Promise<void> {
+  await logEvent('direction_finder_viewed', buildDirectionFinderViewedEventData());
 }

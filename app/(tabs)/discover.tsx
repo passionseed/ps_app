@@ -91,6 +91,7 @@ export default function DiscoverScreen() {
       ...recSeed,
       enrollment: liveSeed.enrollment ?? recSeed.enrollment,
       path: liveSeed.path ?? recSeed.path,
+      socialProof: liveSeed.socialProof ?? recSeed.socialProof ?? null,
     };
   });
 

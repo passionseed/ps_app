@@ -17,6 +17,7 @@ function makeSeed(
     cover_image_key: null,
     cover_image_updated_at: null,
     category_id: null,
+    tags: [],
     created_by: null,
     created_at: "2026-03-29T00:00:00.000Z",
     updated_at: "2026-03-29T00:00:00.000Z",

@@ -12,6 +12,7 @@ import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { logSeedCompleted } from "../../lib/eventLogger";
 import { supabase } from "../../lib/supabase";
 import { getPathDay, submitDailyReflection } from "../../lib/pathlab";
 import { formatPathDayCompletionLabel } from "../../lib/pathlab-day-label";
@@ -29,7 +30,10 @@ type EnrollmentData = {
     id: string;
     total_days: number;
     seed: {
+      id: string;
       title: string;
+      category_id: string | null;
+      tags: string[];
     };
   };
 };
@@ -133,7 +137,7 @@ export default function ReflectionScreen() {
         const { data, error } = await supabase
           .from("path_enrollments")
           .select(
-            `id, current_day, path:paths(id, total_days, seed:seeds(title))`,
+            `id, current_day, path:paths(id, total_days, seed:seeds(id, title, category_id, tags))`,
           )
           .eq("id", enrollmentId)
           .single();

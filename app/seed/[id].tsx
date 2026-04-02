@@ -25,6 +25,7 @@ import { GlassButton } from "../../components/Glass";
 import { AnimatedSplash } from "../../components/AnimatedSplash";
 import { SkiaBackButton } from "../../components/navigation/SkiaBackButton";
 import { useAuth } from "../../lib/auth";
+import { logSeedStarted } from "../../lib/eventLogger";
 import {
   getSeedById,
   getPathBySeedId,
@@ -221,6 +222,13 @@ export default function SeedDetailScreen() {
     try {
       const newEnrollment = await enrollInPath({ pathId: path.id });
       setEnrollment(newEnrollment);
+      if (seed) {
+        logSeedStarted({
+          seed,
+          pathId: path.id,
+          enrollmentId: newEnrollment.id,
+        }).catch(() => {});
+      }
       await navigateToCurrentPath(newEnrollment.id);
     } catch (error) {
       console.error("[SeedDetail] Error enrolling:", error);

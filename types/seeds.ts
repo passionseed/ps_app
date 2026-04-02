@@ -11,6 +11,11 @@ export interface SeedCategory {
   created_at: string;
 }
 
+export interface SeedSocialProof {
+  exploringCount: number;
+  completedCount: number;
+}
+
 export interface Seed {
   id: string;
   map_id: string;
@@ -32,6 +37,7 @@ export interface Seed {
     id: string;
     total_days: number;
   } | null;
+  socialProof?: SeedSocialProof | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

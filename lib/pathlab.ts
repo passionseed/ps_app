@@ -1,6 +1,11 @@
 // PathLab API functions for mobile app
 import { supabase } from "./supabase";
 import { getResetTimestamp, clearResetTimestamp } from "./pathlabSession";
+import {
+  getPathNotificationEventsForEnrollment,
+  getPathNotificationEventsForReflection,
+  sendPathNotificationEvent,
+} from "./pathNotifications";
 
 // ============ Activity Cache ============
 // Short-lived cache so navigating from path screen → activity screen
@@ -13,6 +18,21 @@ interface ActivityCacheEntry {
 }
 let _activityCache: ActivityCacheEntry | null = null;
 const CACHE_TTL_MS = 30_000;
+
+async function dispatchPathNotificationEvents(
+  events: ReturnType<typeof getPathNotificationEventsForReflection>,
+) {
+  for (const event of events) {
+    try {
+      await sendPathNotificationEvent(event);
+    } catch (error) {
+      console.warn("[notifications] Failed to send path notification event", {
+        event,
+        error,
+      });
+    }
+  }
+}
 
 export function setCachedActivities(
   pathDayId: string,
@@ -50,7 +70,11 @@ export function getCachedDayActivities(
 export function invalidateActivityCache() {
   _activityCache = null;
 }
-import type { Seed, SeedWithEnrollment, SeedNpcAvatar } from "../types/seeds";
+import type {
+  Seed,
+  SeedWithEnrollment,
+  SeedNpcAvatar,
+} from "../types/seeds";
 import type {
   Path,
   PathDay,
@@ -78,6 +102,11 @@ import {
   writeCachedPathDayBundle,
   writeCachedSeedRecommendations,
 } from "./seedRecommendations";
+import { logSeedCompleted } from "./eventLogger";
+import {
+  buildSeedAnalyticsPayload,
+  getCompletedSeedMilestone,
+} from "./seedVelocityAnalytics";
 import { computeAffinityProfile } from "./userSignals";
 
 export type EnrollmentWithPath = PathEnrollment & {
@@ -300,8 +329,11 @@ async function loadAvailableSeeds({
       return [];
     }
 
+    const pathIds = seeds
+      .map((seed) => seed.path?.id)
+      .filter((id): id is string => Boolean(id));
+
     if (resolvedUserId) {
-      const pathIds = seeds.map((s) => s.path?.id).filter((id): id is string => Boolean(id));
       if (pathIds.length > 0) {
         const { data: enrollments, error: enrollmentsError } = await supabase
           .from("path_enrollments")
@@ -576,6 +608,7 @@ export async function enrollInPath(params: {
     .single();
 
   if (error) throw new Error(error.message);
+  await dispatchPathNotificationEvents(getPathNotificationEventsForEnrollment());
   return data;
 }
 
@@ -1064,10 +1097,81 @@ export async function submitDailyReflection(params: {
       .eq("id", params.enrollmentId)
       .select();
     console.log('[submitDailyReflection] Enrollment update (final):', { updateData, updateError });
+    await logSeedCompletionAnalytics(params.enrollmentId);
   }
+
+  await dispatchPathNotificationEvents(
+    getPathNotificationEventsForReflection({
+      completedDayNumber: params.dayNumber,
+      decision: params.decision,
+    }),
+  );
 
   console.log('[submitDailyReflection] Complete! Returning data:', data);
   return data;
+}
+
+async function logSeedCompletionAnalytics(enrollmentId: string): Promise<void> {
+  try {
+    const { data: enrollmentRow, error: enrollmentError } = await supabase
+      .from("path_enrollments")
+      .select("id, user_id, path_id")
+      .eq("id", enrollmentId)
+      .single();
+
+    if (enrollmentError || !enrollmentRow?.user_id || !enrollmentRow?.path_id) {
+      return;
+    }
+
+    const { data: pathRow, error: pathError } = await supabase
+      .from("paths")
+      .select("seed:seeds(id, title, category_id, tags)")
+      .eq("id", enrollmentRow.path_id)
+      .single();
+
+    if (pathError) {
+      return;
+    }
+
+    const seedRow = Array.isArray(pathRow?.seed) ? pathRow.seed[0] : pathRow?.seed;
+    if (!seedRow?.id || !seedRow?.title) {
+      return;
+    }
+
+    const { count, error: countError } = await supabase
+      .from("path_enrollments")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", enrollmentRow.user_id)
+      .eq("status", "explored");
+
+    if (countError) {
+      return;
+    }
+
+    const completedSeedCount = count ?? 0;
+    const payload = buildSeedAnalyticsPayload({
+      seed: {
+        id: seedRow.id,
+        title: seedRow.title,
+        category_id: seedRow.category_id ?? null,
+        tags: seedRow.tags ?? [],
+      },
+      pathId: enrollmentRow.path_id,
+    });
+
+    await logSeedCompleted({
+      enrollmentId,
+      seedId: payload.seed_id,
+      pathId: payload.path_id,
+      seedTitle: payload.seed_title,
+      categoryId: payload.category_id,
+      tags: payload.tags,
+      completedSeedCount,
+      milestoneSeedCount: getCompletedSeedMilestone(completedSeedCount),
+    });
+  } catch (error) {
+    console.error("[submitDailyReflection] Seed analytics logging failed:", error);
+  }
 }
 
 export async function getReflectionsForEnrollment(enrollmentId: string): Promise<PathReflection[]> {
