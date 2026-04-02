@@ -24,7 +24,6 @@ import { Space } from "../../lib/theme";
 import type { HackathonProgramHome, HackathonProgramPhase } from "../../types/hackathon-program";
 
 // ── Bioluminescent Ocean tokens ─────────────────────────────────
-<<<<<<< HEAD
 const BG      = "#03050a";
 const CARD_BG = "rgba(13,18,25,0.95)";
 const CYAN    = "#91C4E3";
@@ -36,19 +35,6 @@ const WHITE   = "#FFFFFF";
 const WHITE28 = "rgba(255,255,255,0.28)";
 const WHITE06 = "rgba(255,255,255,0.06)";
 const AMBER   = "#F59E0B";
-=======
-const BG       = "#03050a";
-const CARD_BG  = "rgba(13,18,25,0.95)";
-const CYAN     = "#91C4E3";
-const BLUE     = "#65ABFC";
-const CYAN45   = "rgba(145,196,227,0.45)";
-const CYAN60   = "rgba(145,196,227,0.6)";
-const BORDER   = "rgba(74,107,130,0.35)";
-const WHITE    = "#FFFFFF";
-const WHITE28  = "rgba(255,255,255,0.28)";
-const WHITE06  = "rgba(255,255,255,0.06)";
-const AMBER    = "#F59E0B";
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const CARD_PADDING = Space.xl;
@@ -86,10 +72,6 @@ function PhaseNodeGraph({ nodes, width }: { nodes: ActivityNode[]; width: number
 
   return (
     <Svg width={width} height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`}>
-<<<<<<< HEAD
-=======
-      {/* Connecting lines */}
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
       {nodes.map((node, i) => {
         if (i === nodes.length - 1) return null;
         const x1 = cx(i) + NODE_R;
@@ -107,10 +89,6 @@ function PhaseNodeGraph({ nodes, width }: { nodes: ActivityNode[]; width: number
         );
       })}
 
-<<<<<<< HEAD
-=======
-      {/* Nodes */}
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
       {nodes.map((node, i) => {
         const x = cx(i);
         const labelY = NODE_Y + NODE_R + 10;
@@ -129,17 +107,7 @@ function PhaseNodeGraph({ nodes, width }: { nodes: ActivityNode[]; width: number
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-<<<<<<< HEAD
               <SvgText x={x} y={labelY} textAnchor="middle" fontSize={7.5} fill="rgba(145,196,227,0.7)" fontFamily="system-ui">
-=======
-              <SvgText
-                x={x} y={labelY}
-                textAnchor="middle"
-                fontSize={7.5}
-                fill="rgba(145,196,227,0.7)"
-                fontFamily="system-ui"
-              >
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
                 {shortTitle}
               </SvgText>
             </React.Fragment>
@@ -152,41 +120,17 @@ function PhaseNodeGraph({ nodes, width }: { nodes: ActivityNode[]; width: number
               <Circle cx={x} cy={NODE_Y} r={PULSE_R} fill="rgba(145,196,227,0.04)" stroke="rgba(145,196,227,0.3)" strokeWidth={1} strokeDasharray="3 2" />
               <Circle cx={x} cy={NODE_Y} r={NODE_R} fill={CARD_BG} stroke={CYAN} strokeWidth={2} />
               <Circle cx={x} cy={NODE_Y} r={4} fill={CYAN} opacity={0.8} />
-<<<<<<< HEAD
               <SvgText x={x} y={labelY + 6} textAnchor="middle" fontSize={7.5} fill="rgba(255,255,255,0.55)" fontFamily="system-ui">
-=======
-              <SvgText
-                x={x} y={labelY + 6}
-                textAnchor="middle"
-                fontSize={7.5}
-                fill="rgba(255,255,255,0.55)"
-                fontFamily="system-ui"
-              >
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
                 {shortTitle}
               </SvgText>
             </React.Fragment>
           );
         }
 
-<<<<<<< HEAD
         return (
           <React.Fragment key={`node-${i}`}>
             <Circle cx={x} cy={NODE_Y} r={NODE_R} fill="rgba(13,18,25,0.6)" stroke="rgba(255,255,255,0.12)" strokeWidth={1.5} />
             <SvgText x={x} y={labelY} textAnchor="middle" fontSize={7.5} fill="rgba(255,255,255,0.25)" fontFamily="system-ui">
-=======
-        // upcoming
-        return (
-          <React.Fragment key={`node-${i}`}>
-            <Circle cx={x} cy={NODE_Y} r={NODE_R} fill="rgba(13,18,25,0.6)" stroke="rgba(255,255,255,0.12)" strokeWidth={1.5} />
-            <SvgText
-              x={x} y={labelY}
-              textAnchor="middle"
-              fontSize={7.5}
-              fill="rgba(255,255,255,0.25)"
-              fontFamily="system-ui"
-            >
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
               {shortTitle}
             </SvgText>
           </React.Fragment>
@@ -222,15 +166,8 @@ function PhaseCardView({ card, onPress }: { card: PhaseCard; onPress: () => void
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
       onPress={onPress}
     >
-<<<<<<< HEAD
       <View style={styles.cardGlow} pointerEvents="none" />
 
-=======
-      {/* Inner glow orb */}
-      <View style={styles.cardGlow} pointerEvents="none" />
-
-      {/* Header */}
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
           <AppText style={styles.phaseLabel}>Phase {card.phase.phase_number}</AppText>
@@ -242,22 +179,10 @@ function PhaseCardView({ card, onPress }: { card: PhaseCard; onPress: () => void
         {dueDate ? <AppText style={styles.phaseDue}>{dueDate}</AppText> : null}
       </View>
 
-<<<<<<< HEAD
       <View style={styles.graphContainer}>
         <PhaseNodeGraph nodes={nodes} width={CARD_WIDTH - Space.lg * 2} />
       </View>
 
-=======
-      {/* Node graph */}
-      <View style={styles.graphContainer}>
-        <PhaseNodeGraph
-          nodes={nodes}
-          width={CARD_WIDTH - Space.lg * 2}
-        />
-      </View>
-
-      {/* Progress bar */}
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${pct}%` }]} />
       </View>
@@ -372,10 +297,6 @@ export default function HackathonHomeScreen() {
 
   return (
     <View style={styles.root}>
-<<<<<<< HEAD
-=======
-      {/* Ambient glow orbs */}
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
       <View style={styles.glowCyan} pointerEvents="none" />
       <View style={styles.glowPurple} pointerEvents="none" />
 
@@ -390,10 +311,6 @@ export default function HackathonHomeScreen() {
           />
         }
       >
-<<<<<<< HEAD
-=======
-        {/* Header */}
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
         <View style={styles.header}>
           <AppText style={styles.eyebrow}>
             {data.program?.title ?? "Epic Sprint"}
@@ -401,10 +318,6 @@ export default function HackathonHomeScreen() {
           <AppText variant="bold" style={styles.title}>Your Journey</AppText>
         </View>
 
-<<<<<<< HEAD
-=======
-        {/* Preview banner */}
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
         {isPreview && (
           <View style={styles.previewCard}>
             <View style={styles.previewHeader}>
@@ -417,10 +330,6 @@ export default function HackathonHomeScreen() {
           </View>
         )}
 
-<<<<<<< HEAD
-=======
-        {/* Phase carousel */}
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
         {phaseCards.length > 0 ? (
           <View style={styles.carouselSection}>
             <View style={styles.carouselRow}>
@@ -475,10 +384,6 @@ export default function HackathonHomeScreen() {
           </View>
         )}
 
-<<<<<<< HEAD
-=======
-        {/* Team card */}
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
         {data.team && (
           <View style={styles.teamCard}>
             <View style={styles.teamCardHeader}>
@@ -490,9 +395,7 @@ export default function HackathonHomeScreen() {
             </AppText>
           </View>
         )}
-<<<<<<< HEAD
 
-        {/* Challenge Link Card */}
         <Pressable
           style={({ pressed }) => [styles.challengeLinkCard, pressed && { opacity: 0.8 }]}
           onPress={() => router.push("/hackathon/challenges")}
@@ -510,8 +413,6 @@ export default function HackathonHomeScreen() {
           </View>
           <AppText style={styles.challengeLinkArrow}>→</AppText>
         </Pressable>
-=======
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
       </ScrollView>
     </View>
   );
@@ -527,10 +428,6 @@ const styles = StyleSheet.create({
   },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
 
-<<<<<<< HEAD
-=======
-  // Glow orbs
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   glowCyan: {
     position: "absolute", top: -60, left: -60,
     width: 240, height: 240, borderRadius: 120,
@@ -542,10 +439,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#A594BA", opacity: 0.07,
   },
 
-<<<<<<< HEAD
-=======
-  // Header
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   header: { gap: Space.xs },
   eyebrow: {
     fontSize: 10,
@@ -562,10 +455,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 30,
   },
 
-<<<<<<< HEAD
-=======
-  // Preview banner
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   previewCard: {
     borderRadius: 16,
     borderWidth: 1,
@@ -579,10 +468,6 @@ const styles = StyleSheet.create({
   previewTitle: { fontSize: 14, color: AMBER },
   previewCopy: { fontSize: 13, lineHeight: 20, color: "rgba(255,255,255,0.75)" },
 
-<<<<<<< HEAD
-=======
-  // Carousel
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   carouselSection: { gap: Space.md },
   carouselRow: { flexDirection: "row", alignItems: "center" },
   chevron: { paddingHorizontal: 4 },
@@ -595,10 +480,6 @@ const styles = StyleSheet.create({
   },
   cardsContent: { gap: CARD_GAP },
 
-<<<<<<< HEAD
-=======
-  // Phase card (glass morphism)
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   card: {
     width: CARD_WIDTH,
     backgroundColor: CARD_BG,
@@ -620,29 +501,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(145,196,227,0.07)",
   },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: Space.sm },
-<<<<<<< HEAD
   phaseLabel: { fontSize: 9, textTransform: "uppercase", letterSpacing: 2, color: CYAN45 },
-=======
-  phaseLabel: {
-    fontSize: 9, textTransform: "uppercase", letterSpacing: 2,
-    color: CYAN45,
-  },
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   phaseName: { fontSize: 15, color: WHITE },
   phasePct: { fontSize: 11, color: CYAN60, marginTop: 2 },
   phaseDue: { fontSize: 11, color: WHITE28 },
   graphContainer: { marginHorizontal: -Space.xs },
 
-<<<<<<< HEAD
   progressTrack: { height: 2, backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 1 },
-=======
-  // Progress bar
-  progressTrack: {
-    height: 2,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 1,
-  },
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   progressFill: {
     height: 2,
     backgroundColor: CYAN,
@@ -653,10 +518,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
 
-<<<<<<< HEAD
-=======
-  // Card footer
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -668,10 +529,6 @@ const styles = StyleSheet.create({
   actCount: { fontSize: 10, color: WHITE28 },
   tapHint: { fontSize: 10, color: BLUE },
 
-<<<<<<< HEAD
-=======
-  // Dots
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   dots: { flexDirection: "row", justifyContent: "center", gap: 6 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.15)" },
   dotActive: {
@@ -682,15 +539,8 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
 
-<<<<<<< HEAD
   emptyPhases: { alignItems: "center", paddingVertical: Space.xl },
 
-=======
-  // Empty
-  emptyPhases: { alignItems: "center", paddingVertical: Space.xl },
-
-  // Team card
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
   teamCard: {
     borderRadius: 16,
     borderWidth: 1,
@@ -703,7 +553,6 @@ const styles = StyleSheet.create({
   teamLabel: { fontSize: 9, color: CYAN45, textTransform: "uppercase", letterSpacing: 2 },
   teamId: { fontSize: 11, color: WHITE28 },
   teamName: { fontSize: 16, color: WHITE },
-<<<<<<< HEAD
 
   challengeLinkCard: {
     flexDirection: "row",
@@ -720,6 +569,4 @@ const styles = StyleSheet.create({
   challengeLinkTitle: { fontSize: 16, color: WHITE },
   challengeLinkDesc: { fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 2 },
   challengeLinkArrow: { fontSize: 20, color: BLUE },
-=======
->>>>>>> c73e773 (feat: redesign hackathon home with bioluminescent theme and node graph phase cards)
 });
