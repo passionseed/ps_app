@@ -35,6 +35,7 @@ import {
   getExpertForSeed,
   getEnrollmentDayBundle,
   resetEnrollment,
+  isEnrollmentResetEnabled,
   invalidateActivityCache,
   getReflectionsForEnrollment,
   type ExpertInfo,
@@ -677,6 +678,7 @@ export default function SeedDetailScreen() {
             fullWidth
             onPress={handleReset}
             style={{ marginTop: 10 }}
+            disabled={!isEnrollmentResetEnabled()}
           >
             Restart (for test only)
           </GlassButton>

@@ -1,6 +1,8 @@
 // PathLab API functions for mobile app
 import { supabase } from "./supabase";
 import { getResetTimestamp, clearResetTimestamp } from "./pathlabSession";
+import { isEnrollmentResetEnabled } from "./runtime-config";
+export { isEnrollmentResetEnabled } from "./runtime-config";
 
 // ============ Activity Cache ============
 // Short-lived cache so navigating from path screen → activity screen
@@ -851,6 +853,29 @@ export async function updateActivityProgress(params: {
 
 // Reset enrollment progress (for testing)
 export async function resetEnrollment(enrollmentId: string): Promise<void> {
+  if (!isEnrollmentResetEnabled()) {
+    throw new Error("Enrollment reset is disabled in this environment.");
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) throw new Error(userError.message);
+  if (!user) throw new Error("You must be signed in to reset progress.");
+
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from("path_enrollments")
+    .select("id, user_id")
+    .eq("id", enrollmentId)
+    .single();
+
+  if (enrollmentError) throw new Error(enrollmentError.message);
+  if (!enrollment || enrollment.user_id !== user.id) {
+    throw new Error("You can only reset your own enrollment.");
+  }
+
   const { data: progressRows, error: fetchError } = await supabase
     .from("path_activity_progress")
     .select("id")
@@ -893,6 +918,7 @@ export async function resetEnrollment(enrollmentId: string): Promise<void> {
     .update({ updated_at: new Date().toISOString() })
     .eq("id", enrollmentId);
 }
+
 
 // NEW: Submit assessment
 export async function submitAssessment(params: {

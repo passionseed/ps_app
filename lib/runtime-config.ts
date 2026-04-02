@@ -46,3 +46,11 @@ export function getSupabaseConfigErrorMessage(): string | null {
 export function getExpoProjectId(): string | undefined {
   return runtimeConfig.expoProjectId?.trim() || undefined;
 }
+
+export function isEnrollmentResetEnabled(): boolean {
+  const overrideFlag =
+    process.env.EXPO_PUBLIC_ENABLE_ENROLLMENT_RESET?.trim().toLowerCase() ===
+    "true";
+  const isDevRuntime = typeof __DEV__ !== "undefined" ? __DEV__ : false;
+  return isDevRuntime || overrideFlag;
+}
