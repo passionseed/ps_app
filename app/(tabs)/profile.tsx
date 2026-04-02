@@ -9,11 +9,12 @@ import {
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
 import { StatusBar } from "expo-status-bar";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import Constants from "expo-constants";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
+import { logDirectionFinderViewed } from "../../lib/eventLogger";
 import { supabase } from "../../lib/supabase";
 import { backfillMissingIkigaiReflections } from "../../lib/ikigaiBackfill";
 import { getProfile } from "../../lib/onboarding";
@@ -277,6 +278,16 @@ export default function ProfileScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [backfillingScores, setBackfillingScores] = useState(false);
   const [profileRefreshNonce, setProfileRefreshNonce] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return undefined;
+
+      logDirectionFinderViewed().catch(() => {});
+      return undefined;
+    }, [user?.id]),
+  );
+
   useEffect(() => {
     if (!user?.id) return;
 

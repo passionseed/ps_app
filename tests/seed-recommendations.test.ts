@@ -26,6 +26,7 @@ function makeSeed(
     cover_image_key: null,
     cover_image_updated_at: null,
     category_id: null,
+    tags: [],
     created_by: null,
     created_at: "2026-03-29T00:00:00.000Z",
     updated_at: "2026-03-29T00:00:00.000Z",
@@ -186,5 +187,43 @@ describe("seed recommendations", () => {
       "2026-03-29T13:00:00.000Z",
     );
     expect(hydrated.seeds[0].recommendationScore).toBe(92);
+  });
+
+  it("hydrates social proof from the live seed list", () => {
+    const payload: SeedRecommendationsPayload = {
+      version: 1,
+      computedAt: "2026-03-29T12:00:00.000Z",
+      source: "cache",
+      coverage: {
+        activeCount: 0,
+        exploredCount: 0,
+        completedCount: 0,
+        totalCount: 1,
+        completionPercent: 0,
+      },
+      seeds: [
+        {
+          ...makeSeed("seed-1", "Baascii Experience", 92),
+          socialProof: null,
+        } as SeedRecommendation,
+      ],
+    };
+
+    const hydrated = hydrateRecommendationSeedMedia(payload, [
+      {
+        ...makeSeed("seed-1", "Baascii Experience", 50),
+        socialProof: {
+          exploringCount: 12,
+          completedCount: 45,
+        },
+      } as SeedWithEnrollment,
+    ]);
+
+    expect(hydrated.seeds[0]).toMatchObject({
+      socialProof: {
+        exploringCount: 12,
+        completedCount: 45,
+      },
+    });
   });
 });

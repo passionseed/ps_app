@@ -12,6 +12,7 @@ import {
   hydrateRecommendationSeedMedia,
   type SeedRecommendationsPayload,
 } from "../../lib/seedRecommendations";
+import { getEmptySeedSocialProof } from "../../lib/seedSocialProof";
 import type { SeedWithEnrollment } from "../../types/seeds";
 
 type UseDiscoverSeedsArgs = {
@@ -20,6 +21,68 @@ type UseDiscoverSeedsArgs = {
   /** Wait until false so `userId` matches the session used by `getAvailableSeeds` (avoids a duplicate fetch). */
   authLoading: boolean;
 };
+
+async function hydrateSeedSocialProof(
+  seeds: SeedWithEnrollment[],
+): Promise<SeedWithEnrollment[]> {
+  const pathIds = seeds
+    .map((seed) => seed.path?.id)
+    .filter((id): id is string => Boolean(id));
+
+  if (pathIds.length === 0) {
+    return seeds.map((seed) => ({
+      ...seed,
+      socialProof: seed.socialProof ?? getEmptySeedSocialProof(),
+    }));
+  }
+
+  const seedIdByPathId = new Map(
+    seeds.flatMap((seed) =>
+      seed.path?.id ? [[seed.path.id, seed.id] as const] : [],
+    ),
+  );
+  const { data, error } = await supabase
+    .from("path_enrollments")
+    .select("path_id, status")
+    .in("path_id", pathIds);
+
+  if (error) {
+    console.warn("[Discover] Failed to load seed social proof:", error);
+    return seeds.map((seed) => ({
+      ...seed,
+      socialProof: seed.socialProof ?? getEmptySeedSocialProof(),
+    }));
+  }
+
+  const socialProofBySeedId = new Map<
+    string,
+    ReturnType<typeof getEmptySeedSocialProof>
+  >();
+
+  for (const enrollment of data ?? []) {
+    const seedId = seedIdByPathId.get(enrollment.path_id);
+    if (!seedId) continue;
+
+    const socialProof =
+      socialProofBySeedId.get(seedId) ?? getEmptySeedSocialProof();
+
+    if (enrollment.status === "active" || enrollment.status === "paused") {
+      socialProof.exploringCount += 1;
+    } else if (enrollment.status === "explored") {
+      socialProof.completedCount += 1;
+    }
+
+    socialProofBySeedId.set(seedId, socialProof);
+  }
+
+  return seeds.map((seed) => ({
+    ...seed,
+    socialProof:
+      socialProofBySeedId.get(seed.id) ??
+      seed.socialProof ??
+      getEmptySeedSocialProof(),
+  }));
+}
 
 export function useDiscoverSeeds({
   isGuest,
@@ -72,10 +135,11 @@ export function useDiscoverSeeds({
         setLoading(true);
       }
       console.log("[Discover] Loading seeds...");
-      const data = await getAvailableSeeds({
+      const seedData = await getAvailableSeeds({
         userId,
         forceRefresh: options?.forceRefresh,
       });
+      const data = await hydrateSeedSocialProof(seedData);
       if (isStale()) return;
       console.log("[Discover] Seeds loaded:", data?.length || 0, "userId:", userId);
 

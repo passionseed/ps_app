@@ -232,6 +232,7 @@ export function hydrateRecommendationSeedMedia(
       ...seed,
       enrollment,
       path,
+      socialProof: liveSeed.socialProof ?? seed.socialProof ?? null,
       cover_image_url: liveSeed.cover_image_url ?? seed.cover_image_url,
       cover_image_blurhash:
         liveSeed.cover_image_blurhash ?? seed.cover_image_blurhash,
