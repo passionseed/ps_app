@@ -13,7 +13,6 @@ import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { getPhaseWithActivities } from "../../../lib/hackathonPhaseActivity";
 import { readHackathonParticipant } from "../../../lib/hackathon-mode";
-import { getPreviewPhaseWithActivities } from "../../../lib/hackathonProgramPreview";
 import { Space } from "../../../lib/theme";
 import type { HackathonPhaseWithActivities, HackathonPhaseActivityDetail } from "../../../types/hackathon-phase-activity";
 import { fetchActivitySubmissionStatuses } from "../../../lib/hackathon-submit";
@@ -68,7 +67,13 @@ export default function HackathonPhaseScreen() {
 
           if (cancelled) return;
 
-          const resolvedPhase = phaseData ?? getPreviewPhaseWithActivities(phaseId!);
+          const resolvedPhase = phaseData;
+          if (!resolvedPhase) {
+            setPhase(null);
+            setActivities([]);
+            setParticipantId(participant?.id ?? null);
+            return;
+          }
           console.log("[PhaseScreen] activities count:", resolvedPhase.activities.length, "phaseId:", phaseId);
 
           setPhase(resolvedPhase);
@@ -115,7 +120,13 @@ export default function HackathonPhaseScreen() {
     );
   }
 
-  if (!phase) return null;
+  if (!phase) {
+    return (
+      <View style={styles.loadingRoot}>
+        <AppText style={{ color: WHITE28 }}>Phase not found.</AppText>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
