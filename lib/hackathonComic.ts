@@ -9,6 +9,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function toStringValue(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
@@ -37,20 +41,22 @@ function firstString(values: Array<unknown>, fallback: string): string {
 function normalizePanel(
   panel: HackathonComicPanelMetadata,
   index: number,
-  contentTitle: string,
-  contentBody: string,
+  contentTitle: string | null | undefined,
+  contentBody: string | null | undefined,
 ): HackathonComicPanel {
+  const normalizedTitle = toStringValue(contentTitle);
+  const normalizedBody = toStringValue(contentBody) ?? "";
   const fallbackHeadline = `Panel ${index + 1}`;
-  const fallbackBody = contentBody.trim();
+  const fallbackBody = normalizedBody;
 
   return {
     id: toStringValue(panel.id) ?? `panel-${index + 1}`,
     order: toNumberValue(panel.order ?? panel.display_order) ?? index + 1,
     headline: firstString(
-      [panel.headline, panel.title, panel.label, contentTitle],
+      [panel.headline, panel.title, panel.label, normalizedTitle],
       fallbackHeadline,
     ),
-    body: firstString([panel.body, panel.description, contentBody], fallbackBody),
+    body: firstString([panel.body, panel.description, normalizedBody], fallbackBody),
     imageKey:
       toStringValue(panel.image_key) ??
       toStringValue(panel.imageKey) ??
@@ -62,8 +68,8 @@ function normalizePanel(
 
 export function parseHackathonComicContent(
   metadata: unknown,
-  contentTitle: string,
-  contentBody: string,
+  contentTitle?: string | null,
+  contentBody?: string | null,
 ): HackathonComicContent | null {
   if (!isRecord(metadata)) {
     return null;
@@ -84,7 +90,13 @@ export function parseHackathonComicContent(
         contentBody,
       ),
     )
-    .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id));
+    .sort((left, right) => {
+      if (left.order !== right.order) {
+        return left.order - right.order;
+      }
+
+      return left.id.localeCompare(right.id);
+    });
 
   if (normalizedPanels.length === 0) {
     return null;
