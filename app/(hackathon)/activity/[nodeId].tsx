@@ -17,6 +17,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { AppText } from "../../../components/AppText";
 import HackathonEvidenceComic from "../../../components/Hackathon/HackathonEvidenceComic";
+import { parseHackathonComicContent } from "../../../lib/hackathonComic";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { supabase } from "../../../lib/supabase";
 import { submitTextAnswer, submitFile } from "../../../lib/hackathon-submit";
@@ -86,9 +87,19 @@ function contentTypeLabel(type: string): string {
   }
 }
 
+function isComicContent(item: HackathonPhaseActivityContent): boolean {
+  if (item.content_type === "infographic_comic") return true;
+  if (item.content_type !== "text") return false;
+  return parseHackathonComicContent(
+    item.metadata,
+    item.content_title,
+    item.content_body,
+  ) !== null;
+}
+
 function primaryContentType(content: HackathonPhaseActivityContent[]): string {
   if (content.length === 0) return "activity";
-  return contentTypeLabel(content[0].content_type);
+  return isComicContent(content[0]) ? "COMIC" : contentTypeLabel(content[0].content_type);
 }
 
 // ── Content renderers ─────────────────────────────────────────────
@@ -168,11 +179,13 @@ function ChatBlock({ item, type }: { item: HackathonPhaseActivityContent; type: 
 }
 
 function ContentBlock({ item }: { item: HackathonPhaseActivityContent }) {
+  if (isComicContent(item)) {
+    return <HackathonEvidenceComic item={item} />;
+  }
+
   switch (item.content_type) {
     case "text":        return <TextBlock item={item} />;
     case "image":       return <ImageBlock item={item} />;
-    case "infographic_comic":
-      return <HackathonEvidenceComic item={item} />;
     case "video":
     case "short_video": return <VideoBlock item={item} />;
     case "npc_chat":    return <ChatBlock item={item} type="npc_chat" />;
