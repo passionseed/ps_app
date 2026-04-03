@@ -225,6 +225,9 @@ export default function HackathonPhaseScreen() {
                       </AppText>
                     ) : null}
                     <View style={styles.activityMeta}>
+                      <AppText style={[styles.metaChip, activity.submission_scope === "team" && styles.metaChipTeam]}>
+                        {activity.submission_scope === "team" ? "👥 Team" : "👤 Individual"}
+                      </AppText>
                       {activity.estimated_minutes ? (
                         <AppText style={styles.metaChip}>{activity.estimated_minutes} min</AppText>
                       ) : null}
@@ -387,6 +390,10 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     paddingHorizontal: 8,
     paddingVertical: 2,
+  },
+  metaChipTeam: {
+    color: "#C084FC",
+    borderColor: "rgba(192,132,252,0.3)",
   },
   arrow: { fontSize: 16, color: BLUE },
 
