@@ -1,5 +1,5 @@
 // app/hackathon-login.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,13 +10,13 @@ import {
   View,
   Dimensions,
 } from "react-native";
-import { Canvas, Circle as SkiaCircle, Blur } from "@shopify/react-native-skia";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Ellipse, Path } from "react-native-svg";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../components/AppText";
 import { SkiaBackButton } from "../components/navigation/SkiaBackButton";
+import { HackathonBackground } from "../components/Hackathon/HackathonBackground";
 import { useAuth } from "../lib/auth";
 import { Space } from "../lib/theme";
 
@@ -33,38 +33,6 @@ const WHITE25     = "rgba(255,255,255,0.25)";
 const CYAN45      = "rgba(145,196,227,0.45)";
 const CYAN55      = "rgba(145,196,227,0.55)";
 const CYAN50_TEXT = "rgba(145,196,227,0.5)";
-
-function JellyfishSvg() {
-  return (
-    <Svg width={64} height={80} viewBox="0 0 64 80">
-      {/* Bell outer */}
-      <Ellipse
-        cx={32} cy={28} rx={22} ry={18}
-        fill="rgba(145,196,227,0.07)"
-        stroke="rgba(145,196,227,0.3)"
-        strokeWidth={1}
-      />
-      {/* Bell inner */}
-      <Ellipse
-        cx={32} cy={26} rx={14} ry={11}
-        fill="rgba(145,196,227,0.05)"
-        stroke="rgba(145,196,227,0.15)"
-        strokeWidth={0.8}
-      />
-      {/* Core glow */}
-      <Ellipse cx={32} cy={24} rx={6} ry={5} fill="rgba(145,196,227,0.12)" />
-      {/* Tentacles */}
-      <Path d="M20 44 Q18 56 20 68" stroke="rgba(145,196,227,0.3)" strokeWidth={1} fill="none" />
-      <Path d="M25 46 Q22 58 24 70" stroke="rgba(145,196,227,0.2)" strokeWidth={1} fill="none" />
-      <Path d="M32 46 Q32 60 30 72" stroke="rgba(145,196,227,0.3)" strokeWidth={1} fill="none" />
-      <Path d="M38 46 Q40 58 38 70" stroke="rgba(145,196,227,0.2)" strokeWidth={1} fill="none" />
-      <Path d="M44 44 Q46 56 44 68" stroke="rgba(145,196,227,0.25)" strokeWidth={1} fill="none" />
-    </Svg>
-  );
-}
-
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 export default function HackathonLoginScreen() {
   const { signInWithEmailPassword } = useAuth();
@@ -93,30 +61,8 @@ export default function HackathonLoginScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Ambient glow orbs via Skia */}
-      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-        <SkiaCircle cx={50} cy={50} r={110} color="rgba(145,196,227,0.055)">
-          <Blur blur={80} />
-        </SkiaCircle>
-        <SkiaCircle cx={SCREEN_WIDTH - 20} cy={SCREEN_HEIGHT - 60} r={100} color="rgba(165,148,186,0.08)">
-          <Blur blur={90} />
-        </SkiaCircle>
-        <SkiaCircle cx={SCREEN_WIDTH * 0.4} cy={SCREEN_HEIGHT * 0.4} r={80} color="rgba(101,171,252,0.04)">
-          <Blur blur={80} />
-        </SkiaCircle>
-      </Canvas>
-
-      {/* Star particles */}
-      <View style={[styles.star, { top: "18%", left: "15%", width: 2, height: 2, opacity: 0.4 }]} pointerEvents="none" />
-      <View style={[styles.star, { top: "30%", left: "80%", width: 1.5, height: 1.5, opacity: 0.3 }]} pointerEvents="none" />
-      <View style={[styles.star, { top: "55%", left: "88%", width: 2, height: 2, opacity: 0.25 }]} pointerEvents="none" />
-      <View style={[styles.star, { top: "70%", left: "8%", width: 1.5, height: 1.5, opacity: 0.3 }]} pointerEvents="none" />
-      <View style={[styles.star, { top: "85%", left: "55%", width: 2, height: 2, opacity: 0.2 }]} pointerEvents="none" />
-
-      {/* Jellyfish */}
-      <View style={[styles.jellyfish, { top: insets.top + 56 }]} pointerEvents="none">
-        <JellyfishSvg />
-      </View>
+      {/* Ambient glow orbs and Skia creature SVGs */}
+      <HackathonBackground />
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -136,10 +82,24 @@ export default function HackathonLoginScreen() {
 
           {/* Header */}
           <View style={styles.header}>
-            <AppText style={styles.eyebrow}>Next Decade Hackathon</AppText>
-            <AppText variant="bold" style={styles.title}>{"Sign in to\nyour journey"}</AppText>
-            <AppText style={styles.subtitle}>
-              Use your registered hackathon email and password.
+            <Image 
+              source={require("../assets/HackLogo.png")} 
+              style={{ width: 256, height: 226, marginBottom: 0, alignSelf: "center" }} 
+              contentFit="contain" 
+            />
+            <Text style={{ 
+              fontFamily: "ReenieBeanie_400Regular", 
+              fontSize: 28, 
+              color: WHITE, 
+              textAlign: "center", 
+              lineHeight: 38,
+              marginTop: -70, 
+              marginBottom: Space.lg 
+            }}>
+              Preventive & Predictive Healthcare
+            </Text>
+            <AppText variant="bold" style={[styles.title, { textAlign: "left" }]}>
+              Sign in
             </AppText>
           </View>
 
@@ -208,11 +168,9 @@ const styles = StyleSheet.create({
     backgroundColor: WHITE,
   },
 
-  // Jellyfish
-  jellyfish: {
+  // Floating creatures
+  creature: {
     position: "absolute",
-    right: 18,
-    opacity: 0.45,
   },
 
   keyboardView: { flex: 1 },
@@ -233,12 +191,12 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_500Medium",
   },
   title: {
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 18,
+    lineHeight: 26,
     color: WHITE,
     textShadowColor: "rgba(145,196,227,0.3)",
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 30,
+    textShadowRadius: 15,
     fontFamily: "BaiJamjuree_700Bold",
   },
   subtitle: {
