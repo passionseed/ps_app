@@ -6,7 +6,44 @@ export type HackathonPhaseActivityContentType =
   | 'image'
   | 'pdf'
   | 'ai_chat'
-  | 'npc_chat';
+  | 'npc_chat'
+  | 'infographic_comic';
+
+export interface HackathonComicPanelMetadata {
+  id?: string;
+  order?: number;
+  display_order?: number;
+  headline?: string;
+  title?: string;
+  label?: string;
+  body?: string;
+  description?: string;
+  image_key?: string;
+  imageKey?: string;
+  image_url?: string;
+  imageUrl?: string;
+  accent?: string;
+  tone?: string;
+}
+
+export interface HackathonComicMetadata {
+  variant?: string;
+  panels?: HackathonComicPanelMetadata[];
+}
+
+export interface HackathonComicPanel {
+  id: string;
+  order: number;
+  headline: string;
+  body: string;
+  imageKey: string | null;
+  accent: string;
+}
+
+export interface HackathonComicContent {
+  variant: string;
+  panels: HackathonComicPanel[];
+}
 
 export type HackathonPhaseActivityAssessmentType =
   | 'text_answer'
