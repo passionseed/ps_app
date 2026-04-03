@@ -240,6 +240,9 @@ function RootLayout() {
     LibreFranklin_400Regular,
     LibreFranklin_700Bold,
   } = require("@expo-google-fonts/libre-franklin") as typeof import("@expo-google-fonts/libre-franklin");
+  const {
+    ReenieBeanie_400Regular,
+  } = require("@expo-google-fonts/reenie-beanie") as typeof import("@expo-google-fonts/reenie-beanie");
   const SplashScreen = require("expo-splash-screen") as typeof import("expo-splash-screen");
   const { AuthProvider } = require("../lib/auth") as typeof import("../lib/auth");
   const {
@@ -258,6 +261,7 @@ function RootLayout() {
     BaiJamjuree_700Bold,
     LibreFranklin_400Regular,
     LibreFranklin_700Bold,
+    ReenieBeanie_400Regular,
   });
   const [isReady, setIsReady] = useState(false);
   const configError = getSupabaseConfigErrorMessage();

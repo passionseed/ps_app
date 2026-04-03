@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as Haptics from "expo-haptics";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -43,11 +44,6 @@ const COPY = {
     appleBtn: "เข้าสู่ระบบด้วย Apple",
     guestBtn: "ข้าม",
     hackathonBtn: "HACKATHON LOGIN",
-    features: [
-      { icon: "🎯", text: "ภารกิจรายวัน", subtext: "30 นาที" },
-      { icon: "📝", text: "คิดกับตัวเอง", subtext: "ทุกวัน" },
-      { icon: "🗺️", text: "แนวทางอาชีพ", subtext: "ของจริง" },
-    ],
     footer: "ออกแบบสำหรับนักเรียนและผู้ที่กำลังค้นหาเส้นทางอาชีพ",
   },
   en: {
@@ -59,11 +55,6 @@ const COPY = {
     appleBtn: "Sign in with Apple",
     guestBtn: "Explore without signing in",
     hackathonBtn: "HACKATHON LOGIN",
-    features: [
-      { icon: "🎯", text: "Daily Tasks", subtext: "30 min" },
-      { icon: "📝", text: "Daily Reflection", subtext: "" },
-      { icon: "🗺️", text: "Career Roadmap", subtext: "" },
-    ],
     footer: "Designed for students discovering their career path",
   },
 } as const;
@@ -88,6 +79,8 @@ export default function LandingPage() {
   const cardY = useState(new RNAnimated.Value(50))[0];
   const cardOpacity = useState(new RNAnimated.Value(0))[0];
   const backgroundY = useState(new RNAnimated.Value(0))[0];
+  const hackathonScaleAnim = useState(new RNAnimated.Value(1))[0];
+  const waterTransitionY = useState(new RNAnimated.Value(height))[0];
 
   // Entrance animation
   useEffect(() => {
@@ -160,6 +153,26 @@ export default function LandingPage() {
     } finally {
       setSigningInProvider(null);
     }
+  };
+
+  const handleHackathonPressIn = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    RNAnimated.spring(hackathonScaleAnim, {
+      toValue: 0.92,
+      useNativeDriver: true,
+      tension: 400,
+      friction: 5,
+    }).start();
+  };
+
+  const handleHackathonPressOut = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    RNAnimated.spring(hackathonScaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 400,
+      friction: 5,
+    }).start();
   };
 
   const handleEnterAsGuest = useCallback(() => {
@@ -316,69 +329,101 @@ export default function LandingPage() {
                 <AppText style={styles.hackathonDividerText}>or</AppText>
               </View>
 
-              <Pressable
-                onPress={() => router.push("/hackathon-login")}
-                style={({ pressed }) => [styles.hackathonButton, pressed && { opacity: 0.85 }]}
-              >
-                <LinearGradient
-                  colors={["#01040A", "#030B17", "#010814"]}
-                  locations={[0, 0.5, 1]}
-                  style={StyleSheet.absoluteFill}
-                />
-                {/* Cyan glow left */}
-                <View style={styles.hackathonGlowLeft} pointerEvents="none" />
-                {/* Purple glow right */}
-                <View style={styles.hackathonGlowRight} pointerEvents="none" />
-                <Image
-                  source={require("../assets/HackLogo.png")}
-                  style={styles.hackathonBtnLogo}
-                  resizeMode="contain"
-                />
-                <AppText style={styles.hackathonBtnText}>{c.hackathonBtn}</AppText>
-                <AppText style={styles.hackathonBtnArrow}>→</AppText>
-              </Pressable>
+              <RNAnimated.View style={{ transform: [{ scale: hackathonScaleAnim }], width: "100%" }}>
+                <Pressable
+                  onPress={() => {
+                    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    
+                    // Trigger water rising from bottom to top
+                    RNAnimated.timing(waterTransitionY, {
+                      toValue: 0,
+                      duration: 500,
+                      useNativeDriver: true,
+                    }).start(() => {
+                      router.push("/hackathon-login");
+                      // Reset the overlay silently half a second after the new screen has pushed over it
+                      setTimeout(() => waterTransitionY.setValue(height), 500);
+                    });
+                  }}
+                  onPressIn={handleHackathonPressIn}
+                  onPressOut={handleHackathonPressOut}
+                  style={({ pressed }) => [styles.hackathonButton, pressed && { opacity: 0.85 }]}
+                >
+                  <LinearGradient
+                    colors={["rgba(5, 8, 14, 0.95)", "rgba(0, 0, 0, 0.98)", "rgba(8, 12, 20, 0.9)"]}
+                    locations={[0, 0.5, 1]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  
+                  {/* Bioluminescent Left Glow */}
+                  <LinearGradient
+                    colors={["rgba(145, 196, 227, 0.3)", "transparent"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.hackathonGlowLeft}
+                    pointerEvents="none"
+                  />
+                  
+                  {/* Bioluminescent Bottom Glow */}
+                  <View style={styles.hackathonGlowBottom} pointerEvents="none" />
+
+                  {/* Bioluminescent Right Glow */}
+                  <LinearGradient
+                    colors={["rgba(165, 148, 186, 0.25)", "transparent"]}
+                    start={{ x: 1, y: 1 }}
+                    end={{ x: 0, y: 0 }}
+                    style={styles.hackathonGlowRight}
+                    pointerEvents="none"
+                  />
+                  
+                  <Image
+                    source={require("../assets/HackLogo.png")}
+                    style={styles.hackathonBtnLogo}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.hackathonBtnTextWrapper}>
+                    <AppText style={styles.hackathonBtnText}>{c.hackathonBtn}</AppText>
+                  </View>
+                  <AppText style={styles.hackathonBtnArrow}>→</AppText>
+                </Pressable>
+              </RNAnimated.View>
             </View>
 
-            {/* Features */}
-            <View style={styles.features}>
-              {c.features.map((f) => (
-                <FeatureItem
-                  key={f.icon}
-                  icon={f.icon}
-                  text={f.text}
-                  subtext={f.subtext}
-                />
-              ))}
-            </View>
+
           </GlassCard>
-
-          {/* Footer */}
-          <AppText style={styles.footer}>{c.footer}</AppText>
         </RNAnimated.View>
       </View>
+
+      {/* Cinematic Water Transition Overlay */}
+      <RNAnimated.View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            transform: [{ translateY: waterTransitionY }],
+            zIndex: 999,
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={["#65ABFC", "rgba(18, 28, 41, 0.98)", "#000000"]}
+          locations={[0, 0.1, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* Adds a crest of light specifically at the "surface" line */}
+        <LinearGradient
+          colors={["rgba(145, 196, 227, 0.8)", "transparent"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{ height: 20, width: "100%" }}
+        />
+      </RNAnimated.View>
     </View>
   );
 }
 
-function FeatureItem({
-  icon,
-  text,
-  subtext,
-}: {
-  icon: string;
-  text: string;
-  subtext: string;
-}) {
-  return (
-    <View style={styles.featureItem}>
-      <View style={styles.featureIconContainer}>
-        <AppText style={styles.featureIcon}>{icon}</AppText>
-      </View>
-      <AppText style={styles.featureText}>{text}</AppText>
-      <AppText style={styles.featureSubtext}>{subtext}</AppText>
-    </View>
-  );
-}
+
 
 const styles = StyleSheet.create({
   page: {
@@ -488,52 +533,6 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 32,
   },
-  features: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    gap: 8,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.05)",
-  },
-  featureItem: {
-    alignItems: "center",
-    flex: 1,
-  },
-  featureIconContainer: {
-    backgroundColor: "rgba(191, 255, 0, 0.1)",
-    borderRadius: Radius.lg,
-    width: 52,
-    height: 52,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "rgba(191, 255, 0, 0.2)",
-  },
-  featureIcon: {
-    fontSize: 24,
-  },
-  featureText: {
-    fontSize: 12,
-    color: ThemeText.primary,
-    textAlign: "center",
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  featureSubtext: {
-    fontSize: 10,
-    color: ThemeText.tertiary,
-    textAlign: "center",
-  },
-  footer: {
-    fontSize: 11,
-    color: ThemeText.muted,
-    textAlign: "center",
-    marginTop: 24,
-    lineHeight: 16,
-  },
   hackathonDivider: {
     alignItems: "center",
     marginVertical: Space.xs,
@@ -547,47 +546,65 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: Radius.lg,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(0,240,255,0.25)",
+    borderWidth: 1.5,
+    borderColor: "rgba(145, 196, 227, 0.65)", // increased contrast/brightness
     paddingVertical: Space.md,
     paddingHorizontal: Space.lg,
-    gap: Space.sm,
+    gap: Space.md,
+    shadowColor: "#91C4E3", // pure hack-cyan
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45, // much higher glow
+    shadowRadius: 16,
+    elevation: 8,
   },
   hackathonGlowLeft: {
     position: "absolute",
-    left: -20,
-    top: -20,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(0,240,255,0.12)",
+    left: -40,
+    top: -40,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
+  hackathonGlowBottom: {
+    position: "absolute",
+    bottom: -30,
+    alignSelf: "center",
+    width: "90%",
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(101, 171, 252, 0.12)", // hack-blue
   },
   hackathonGlowRight: {
     position: "absolute",
-    right: -20,
-    top: -20,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(123,44,191,0.15)",
+    right: -40,
+    top: -40,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
   hackathonBtnLogo: {
-    width: 55,
-    height: 55,
+    width: 50,
+    height: 50,
+  },
+  hackathonBtnTextWrapper: {
+    flex: 1,
+    justifyContent: "center",
   },
   hackathonBtnText: {
-    flex: 1,
-    fontSize: 14,
+    fontSize: 16,
     color: "#FFFFFF",
     fontFamily: "BaiJamjuree_700Bold",
-    letterSpacing: 0.5,
+    letterSpacing: 1, // better tracking for high impact
+    textShadowColor: "rgba(145, 196, 227, 0.8)", // intense glow
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
   },
   hackathonBtnArrow: {
-    fontSize: 14,
-    color: "#00F0FF",
-    textShadowColor: "rgba(0,240,255,0.8)",
+    fontSize: 20, // slightly larger
+    color: "#65ABFC", // hack-blue
+    textShadowColor: "rgba(101, 171, 252, 1)", // max glow
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
+    textShadowRadius: 15,
     fontFamily: "BaiJamjuree_700Bold",
   },
 });
