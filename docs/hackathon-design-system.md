@@ -22,7 +22,7 @@ The sensation is: *diving into the unknown, guided by organic, glowing light.*
 
 ## 1. Design Tokens (Color Palette)
 
-The hackathon uses a highly specific subset of colors. Avoid using the standard Tailwind grays or neutral colors unless deeply tinted with blue.
+The hackathon uses a highly specific subset of colors. Avoid using standard gray or neutral colors unless deeply tinted with blue.
 
 ### Primary Colors (Bioluminescent Glows)
 | Token Concept | Hex Code | Usage |
@@ -52,98 +52,128 @@ The hackathon uses a highly specific subset of colors. Avoid using the standard 
 
 Typography in the hackathon section blends technical precision with organic legibility.
 
-| Font Family | CSS Variable | Usage |
-|-------------|--------------|-------|
-| **Mitr** | `var(--font-mitr)` | Eyebrows, small uppercase labels, tracking-widest text |
-| **Bai Jamjuree** | `var(--font-bai-jamjuree)` | English headings, button text, standard UI |
-| **Reenie Beanie** | `var(--font-reenie-beanie)` | Handwritten-style accents and subheadings |
-| **Space Mono** | `var(--font-space-mono)` | Team lobby codes, numbers, track IDs |
+| Font Family | Font Name | Usage |
+|-------------|-----------|-------|
+| **Bai Jamjuree** | `BaiJamjuree-Regular` / `BaiJamjuree-Bold` | English headings, button text, eyebrows, standard UI |
+| **Reenie Beanie** | `ReenieBeanie-Regular` | Handwritten-style accents and subheadings |
+| **Space Mono** | `SpaceMono-Regular` | Team lobby codes, numbers, track IDs |
 
 **Typographic Patterns:**
-- **Eyebrows:** `text-xs tracking-[0.25em] uppercase text-[#91C4E3]/50 font-[family-name:var(--font-mitr)]`
-- **Glowing Headings:** `text-shadow: '0 0 30px rgba(145,196,227,0.3)'`
-- **Lobby Codes:** Large, monospaced, with extreme letter spacing (`tracking-[0.3em]`)
+- **Eyebrows:** Bai Jamjuree (Bold or Medium), small size (`fontSize: 12`), generous letter spacing (`letterSpacing: 2` or more), uppercase. Example: `<Text style={{ fontFamily: 'BaiJamjuree-Bold', fontSize: 12, letterSpacing: 3, textTransform: 'uppercase', color: 'rgba(145,196,227,0.5)' }}>`
+- **Glowing Headings:** Use text shadows in React Native (`textShadowColor`, `textShadowRadius`, `textShadowOffset`) or `@shopify/react-native-skia` for advanced glowing effects.
+- **Lobby Codes:** Large, monospaced, with extreme letter spacing (`letterSpacing: 4+`).
 
 ---
 
 ## 3. Component Patterns
 
 ### Glass Cards
-Cards are the primary container for content. They use a backdrop blur, a gradient background that is highly transparent, and subtle borders that glow on hover.
+Cards are the primary container for content. In React Native, achieve this look using `BlurView` combined with an `expo-linear-gradient` overlay and subtle borders. 
 
-**Base Classes:**
-```css
-bg-gradient-to-br from-[#0d1219]/90 to-[#121c29]/80
-backdrop-blur-md
-border border-[#4a6b82]/30
-rounded-3xl
-shadow-[0_0_30px_rgba(74,107,130,0.15)]
+**React Native Implementation:**
+```tsx
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+
+<BlurView intensity={30} tint="dark" style={styles.cardContainer}>
+  <LinearGradient 
+    colors={['rgba(13, 18, 25, 0.9)', 'rgba(18, 28, 41, 0.8)']} 
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 1 }}
+    style={styles.cardGradient}
+  >
+    {/* Content */}
+  </LinearGradient>
+</BlurView>
 ```
 
-**Hover State (Glowing Border):**
-Cards often use a pseudo-element behind the card to create a glowing border effect on hover.
-```css
-/* Applied to a wrapper behind the card content */
-absolute -inset-0.5 bg-gradient-to-br from-[#91C4E3] via-[#91C4E3]/50 to-transparent
-rounded-3xl opacity-30 group-hover:opacity-50 blur-sm transition-opacity duration-500
-```
+**Interactive State (Glowing Border):**
+Mobile doesn't have hover, so glows can be driven by `Pressable` activity (press in/out) using `react-native-reanimated` or by creating a slightly larger background layer with a high blur mask using `@shopify/react-native-skia`.
 
 ### Buttons
-Buttons should feel tactile but ethereal, utilizing glow and subtle scaling.
+Buttons should feel tactile but ethereal, utilizing glow and subtle scaling. Use `Pressable` combined with `react-native-reanimated` for smooth touch feedback.
 
 **Primary CTA:**
-```css
-bg-[#9D81AC] hover:bg-[#8a6f99] text-white
-rounded-full px-12 py-6
-shadow-[0_0_40px_rgba(157,129,172,0.6)]
-hover:shadow-[0_0_60px_rgba(157,129,172,1)]
-transition-all duration-300 transform hover:scale-105
+```tsx
+const styles = StyleSheet.create({
+  primaryButton: {
+    backgroundColor: '#9D81AC',
+    borderRadius: 99,
+    paddingHorizontal: 48,
+    paddingVertical: 24,
+    shadowColor: '#9D81AC',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20, 
+    elevation: 8, // Android fallback
+  }
+});
+// Animate scale (e.g., to 1.05) using Reanimated on press
 ```
 
 **Secondary Action / Outline:**
-```css
-bg-white/5 hover:bg-white/10 text-white
-border border-white/10 hover:border-[#91C4E3]/50
-rounded-xl px-6 py-3
-transition-all duration-300
+```tsx
+const styles = StyleSheet.create({
+  secondaryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  }
+});
+// Animate border color to 'rgba(145, 196, 227, 0.5)' on press.
 ```
 
 ### Form Inputs
-Inputs use a slightly elevated, highly transparent background to stand out from the deep background, with glowing focus rings.
+Inputs use a slightly elevated, highly transparent background to stand out from the deep background, with glowing focus rings driven by the active focus state.
 
-```css
-bg-[#1a2530]/80 text-white placeholder:text-gray-500
-border-2 border-[#5a7a94]/40
-rounded-xl px-4 py-3
-focus:border-[#7aa4c4] focus:outline-none
-focus:shadow-[0_0_20px_rgba(106,154,196,0.3)]
-transition-all duration-300
+```tsx
+const styles = StyleSheet.create({
+  input: {
+    backgroundColor: 'rgba(26, 37, 48, 0.8)',
+    color: '#ffffff',
+    borderWidth: 2,
+    borderColor: 'rgba(90, 122, 148, 0.4)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  inputFocused: {
+    borderColor: '#7aa4c4',
+    // Apply additional shadow wrapper if a glow effect is needed
+  }
+});
 ```
 
 ---
 
 ## 4. Animation Patterns
 
-Animations are crucial to the hackathon's underwater theme. Motion should never be abrupt; it should feel like moving through water.
+Animations are crucial to the hackathon's underwater theme. Motion should never be abrupt; it should feel like moving through water. Avoid immediate snapping.
 
-### CSS Keyframes
-*Note: These are standard patterns used in the hackathon section.*
+### React Native Reanimated & Skia 
+Standard animations are built using `react-native-reanimated` and `@shopify/react-native-skia`.
 
-- **Continuous Float:** `animation: float 6s infinite ease-in-out` (Used for floating UI elements, jellyfish)
-- **Twinkle:** `animation: twinkle 2-5s ease-in-out infinite` (Used for background starfield/particles)
-- **Title Glow:** `animation: titleGlowUp 1.2s ease-out forwards` (Used for initial hero text entry)
-- **Waves:** `animation: waveShift 11s linear infinite` (Used for multi-layered SVG waves)
+- **Continuous Float:** Use `withRepeat(withTiming(value, { duration: 6000, easing: Easing.inOut(Easing.ease) }), -1, true)` applied to `transform: [{ translateY }]`.
+- **Twinkle:** Animate opacity using `withRepeat(withSequence(...))`.
+- **Title Glow:** Animate opacity and shadow properties on mount using `withTiming`.
+- **Waves:** Prefer using `@shopify/react-native-skia` with shaders or animated paths for fluid, performant waves without dropping frames.
 
-### GSAP (GreenSock) Transitions
-The hackathon uses GSAP for complex, orchestrated sequence animations, particularly page transitions.
-- **The "Water Fill" Transition:** When navigating between major hackathon pages (e.g., from landing to register), a water element rises from `yPercent: 100` to `0` with `power3.inOut` easing over 0.9 seconds.
+### Screen Transitions
+We use Expo Router for navigation and `react-native-reanimated` for shared element transitions or custom enter/exit animations. 
+- **The "Water Fill" Transition:** Can be achieved by mounting a full-screen `Animated.View` overlay that translates its translateY position upwards, timed alongside route changes.
 
 ### Reveal & Stagger
-When sections mount, they should float up and fade in:
-```css
-initial={{ opacity: 0, y: 30 }}
-whileInView={{ opacity: 1, y: 0 }}
-transition={{ duration: 0.6, ease: "easeOut" }}
+When components mount (like lists or text blocks), they should float up and fade in gradually:
+```tsx
+import Animated, { FadeInUp } from 'react-native-reanimated';
+
+// Example for staggering items in a list:
+<Animated.View entering={FadeInUp.duration(600).delay(index * 100)}>
+  {/* Content */}
+</Animated.View>
 ```
 
 ---
@@ -151,14 +181,20 @@ transition={{ duration: 0.6, ease: "easeOut" }}
 ## 5. Backgrounds & Environments
 
 ### The Starfield / Particle Background
-Most pages utilize a fixed, non-interactive background layer of white `div` elements with varying opacity and sizes (1px - 3px) that use a CSS `twinkle` animation.
+Most screens utilize a specialized `@shopify/react-native-skia` Canvas for performant particle effects, or lightweight `Animated.View` components to simulate twinkling stars.
 
 ### Ambient Glow Orbs
-Large, highly blurred `div`s placed absolutely in the background to create bioluminescent hot spots.
-```css
-absolute w-[500px] h-[500px] rounded-full blur-[150px]
-bg-[#91C4E3] opacity-5 /* or 10% for brighter areas */
-```
+Large, highly blurred shapes placed absolutely in the background to create bioluminescent hot spots. In React Native, `@shopify/react-native-skia`'s `Blur` mask allows for beautiful, performant glows:
+```tsx
+import { Canvas, Circle, Blur } from '@shopify/react-native-skia';
 
-### SVGs & Illustrations
-Always use the specialized Hackathon SVGs (Jellyfish, Clione, custom icons) located in `public/hackathon/Creature/`. They should always have a slow `float` animation applied and a drop-shadow matching their predominant color to enhance the bioluminescent feel.
+<Canvas style={StyleSheet.absoluteFill}>
+  <Circle cx={150} cy={200} r={200} color="rgba(145, 196, 227, 0.05)">
+    <Blur blur={100} />
+  </Circle>
+</Canvas>
+```
+Alternatively, multiple layered, highly transparent radial gradients can simulate this without Skia if extreme performance is needed, though Skia is preferred.
+
+### Assets & Illustrations
+Always use the specialized Hackathon assets (Jellyfish, Clione, custom icons) from the `assets/hackathon/Creature/` directory. For SVGs, use `react-native-svg` or Skia's `ImageSVG`. They should typically be wrapped in an `Animated.View` applying a continuous, slow `float` animation to enhance the oceanic sensation.
