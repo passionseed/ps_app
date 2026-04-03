@@ -10,6 +10,9 @@ import {
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import { Canvas, Circle as SkiaCircle, Blur } from "@shopify/react-native-skia";
 import Svg, { Circle, Line, Polyline, Text as SvgText } from "react-native-svg";
 import { AppText } from "../../components/AppText";
 import {
@@ -37,6 +40,7 @@ const WHITE06 = "rgba(255,255,255,0.06)";
 const AMBER   = "#F59E0B";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 const CARD_PADDING = Space.xl;
 const PEEK_WIDTH = 28;
 const CARD_GAP = Space.md;
@@ -163,10 +167,17 @@ function PhaseCardView({ card, onPress }: { card: PhaseCard; onPress: () => void
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+      style={({ pressed }) => [styles.cardContainer, pressed && { opacity: 0.9 }]}
       onPress={onPress}
     >
       <View style={styles.cardGlow} pointerEvents="none" />
+      <BlurView intensity={30} tint="dark" style={styles.cardBlur}>
+        <LinearGradient
+          colors={['rgba(13, 18, 25, 0.95)', 'rgba(18, 28, 41, 0.85)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.cardInner}
+        >
 
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
@@ -191,8 +202,10 @@ function PhaseCardView({ card, onPress }: { card: PhaseCard; onPress: () => void
         <AppText style={styles.actCount}>
           {card.activityCount} {card.activityCount === 1 ? "activity" : "activities"}
         </AppText>
-        <AppText style={styles.tapHint}>Tap to open →</AppText>
-      </View>
+          <AppText style={styles.tapHint}>Tap to open →</AppText>
+        </View>
+        </LinearGradient>
+      </BlurView>
     </Pressable>
   );
 }
@@ -307,8 +320,14 @@ export default function HackathonHomeScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={styles.glowCyan} pointerEvents="none" />
-      <View style={styles.glowPurple} pointerEvents="none" />
+      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+        <SkiaCircle cx={80} cy={60} r={120} color="rgba(145,196,227,0.05)">
+          <Blur blur={80} />
+        </SkiaCircle>
+        <SkiaCircle cx={SCREEN_WIDTH - 20} cy={SCREEN_HEIGHT - 100} r={150} color="rgba(165,148,186,0.05)">
+          <Blur blur={100} />
+        </SkiaCircle>
+      </Canvas>
 
       <ScrollView
         style={styles.scroll}
@@ -451,17 +470,6 @@ const styles = StyleSheet.create({
   },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
 
-  glowCyan: {
-    position: "absolute", top: -60, left: -60,
-    width: 240, height: 240, borderRadius: 120,
-    backgroundColor: CYAN, opacity: 0.05,
-  },
-  glowPurple: {
-    position: "absolute", bottom: 80, right: -50,
-    width: 200, height: 200, borderRadius: 100,
-    backgroundColor: "#A594BA", opacity: 0.07,
-  },
-
   header: { gap: Space.xs },
   eyebrow: {
     fontSize: 10,
@@ -540,20 +548,27 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.05)",
   },
 
-  card: {
+  cardContainer: {
     width: CARD_WIDTH,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  cardBlur: {
+    flex: 1,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  cardInner: {
+    flex: 1,
+    padding: Space.lg,
+    gap: Space.md,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
     borderRadius: 18,
-    padding: Space.lg,
-    gap: Space.md,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   cardGlow: {
     position: "absolute",
