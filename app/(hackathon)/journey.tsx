@@ -7,8 +7,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle as SvgCircle, Line, Polyline, Text as SvgText, Path } from "react-native-svg";
 import { AppText } from "../../components/AppText";
 import { Space } from "../../lib/theme";
-import { getCurrentHackathonProgramHome, getEmptyHackathonProgramHome } from "../../lib/hackathonProgram";
-import { getPreviewHackathonProgramHome } from "../../lib/hackathonProgramPreview";
+import {
+  buildJourneyActivityNodes,
+  getCurrentHackathonProgramHome,
+  getEmptyHackathonProgramHome,
+} from "../../lib/hackathonProgram";
 import { getProgramPhasesWithActivities } from "../../lib/hackathonPhaseActivity";
 import type { HackathonProgramHome, HackathonProgramPhase } from "../../types/hackathon-program";
 
@@ -161,18 +164,9 @@ type NodeStatus = "completed" | "active" | "locked";
 type ActivityData = {
   id: string;
   title: string;
-  duration: string;
+  stepLabel: string;
   status: NodeStatus;
-  type: string;
 };
-
-// Mock data for the active phase's activities
-const ACTIVE_PHASE_ACTIVITIES: ActivityData[] = [
-  { id: "1", title: "Know Yourself", duration: "15 min", status: "completed", type: "Video & Reflection" },
-  { id: "2", title: "Find a Problem", duration: "30 min", status: "active", type: "Interactive Workshop" },
-  { id: "3", title: "Brainstorm Solutions", duration: "45 min", status: "locked", type: "Team Collaboration" },
-  { id: "4", title: "Pick Your Solution", duration: "20 min", status: "locked", type: "Decision Matrix" },
-];
 
 function ActivityPathNode({ activity, isLast }: { activity: ActivityData, isLast: boolean }) {
   const isCompleted = activity.status === "completed";
@@ -224,8 +218,7 @@ function ActivityPathNode({ activity, isLast }: { activity: ActivityData, isLast
             style={[styles.activityCardInner, isActive && styles.activityCardInnerActive]}
           >
             <View style={styles.activityCardHeader}>
-              <AppText style={styles.activityType}>{activity.type}</AppText>
-              <AppText style={styles.activityDuration}>{activity.duration}</AppText>
+              <AppText style={styles.activityType}>{activity.stepLabel}</AppText>
             </View>
             <AppText variant="bold" style={styles.activityTitle}>{activity.title}</AppText>
             
@@ -276,15 +269,8 @@ export default function HackathonJourneyScreen() {
       const home = await getCurrentHackathonProgramHome();
       const isEmpty = JSON.stringify(home) === JSON.stringify(getEmptyHackathonProgramHome());
       if (isEmpty || !home.program || home.phases.length === 0) {
-        const previewHome = getPreviewHackathonProgramHome();
-        setData(previewHome);
-        setPhaseCards(previewHome.phases.map((phase, i) => ({
-          phase,
-          activityTitles: i === 0 ? ["Know Yourself", "Find a Problem", "Brainstorm Solutions", "Pick Your Solution"] : [],
-          activityCount: i === 0 ? 4 : 0,
-          completedCount: i === 0 ? 1 : 0,
-          isActive: phase.id === previewHome.enrollment?.current_phase_id,
-        })));
+        setData(home);
+        setPhaseCards([]);
       } else {
         setData(home);
         const phasesWithActivities = await getProgramPhasesWithActivities(home.program.id);
@@ -305,15 +291,8 @@ export default function HackathonJourneyScreen() {
         if (currentIndex > 0) setActiveIndex(currentIndex);
       }
     } catch {
-      const previewHome = getPreviewHackathonProgramHome();
-      setData(previewHome);
-      setPhaseCards(previewHome.phases.map((phase, i) => ({
-        phase,
-        activityTitles: i === 0 ? ["Know Yourself", "Find a Problem", "Brainstorm Solutions", "Pick Your Solution"] : [],
-        activityCount: i === 0 ? 4 : 0,
-        completedCount: i === 0 ? 1 : 0,
-        isActive: phase.id === previewHome.enrollment?.current_phase_id,
-      })));
+      setData(getEmptyHackathonProgramHome());
+      setPhaseCards([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -337,6 +316,22 @@ export default function HackathonJourneyScreen() {
   }
 
   const activePhase = phaseCards[activeIndex];
+  const activePhaseActivities: ActivityData[] = activePhase
+    ? buildJourneyActivityNodes(
+        activePhase.activityTitles,
+        activePhase.completedCount,
+      ).map((activity, index) => ({
+        id: activity.id,
+        title: activity.title,
+        status:
+          activity.state === "completed"
+            ? "completed"
+            : activity.state === "current"
+              ? "active"
+              : "locked",
+        stepLabel: `Step ${index + 1}`,
+      }))
+    : [];
 
   return (
     <View style={styles.root}>
@@ -394,13 +389,17 @@ export default function HackathonJourneyScreen() {
           </View>
 
           <View style={styles.pathList}>
-            {ACTIVE_PHASE_ACTIVITIES.map((activity, index) => (
-              <ActivityPathNode 
-                key={activity.id} 
-                activity={activity} 
-                isLast={index === ACTIVE_PHASE_ACTIVITIES.length - 1} 
+            {activePhaseActivities.length > 0 ? activePhaseActivities.map((activity, index) => (
+              <ActivityPathNode
+                key={activity.id}
+                activity={activity}
+                isLast={index === activePhaseActivities.length - 1}
               />
-            ))}
+            )) : (
+              <View style={styles.emptyPhases}>
+                <AppText style={{ color: WHITE28 }}>No activities available yet.</AppText>
+              </View>
+            )}
           </View>
         </View>
 
@@ -601,4 +600,3 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
-

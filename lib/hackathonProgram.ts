@@ -23,6 +23,13 @@ import type {
 import type { MapNode, StudentNodeProgress } from "../types/map";
 
 type CardTone = "neutral" | "education" | "destination";
+const LIVE_HACKATHON_PROGRAM_SLUG = "super-seed-hackathon";
+export type JourneyActivityState = "completed" | "current" | "upcoming";
+export type JourneyActivityNode = {
+  id: string;
+  title: string;
+  state: JourneyActivityState;
+};
 
 type ModuleProgressInput = {
   memberStatuses: Array<
@@ -205,6 +212,27 @@ export function deriveModuleStatus(
 
 export type { HackathonModuleProgress } from "../types/hackathon-program";
 
+export function buildJourneyActivityNodes(
+  activityTitles: string[],
+  completedCount: number,
+): JourneyActivityNode[] {
+  const safeCompletedCount = Math.max(
+    0,
+    Math.min(completedCount, activityTitles.length),
+  );
+
+  return activityTitles.map((title, index) => ({
+    id: `journey-activity-${index + 1}`,
+    title,
+    state:
+      index < safeCompletedCount
+        ? "completed"
+        : index === safeCompletedCount
+          ? "current"
+          : "upcoming",
+  }));
+}
+
 export function summarizePhaseModules(modules: HackathonModuleProgress[]) {
   const summary = {
     total: modules.length,
@@ -283,21 +311,25 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
   return withRetry(async () => {
     const supabase = await getSupabaseClient();
 
-    // Any logged-in participant can see the program — no team required.
+    // Program/phases should still load even when the local participant session
+    // is missing. Team/enrollment remain optional.
     const { readHackathonParticipant } = await import("./hackathon-mode");
     const participant = await readHackathonParticipant();
-    if (!participant?.id) {
-      return { team: null, enrollment: null, program: null, phases: [] };
-    }
 
     // Load the single active program directly.
-    const { data: program, error: progErr } = await supabase
+    const { data: programs, error: progErr } = await supabase
       .from("hackathon_programs")
       .select("*")
       .eq("status", "active")
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(10);
+
+    const program =
+      ((programs as HackathonProgram[] | null) ?? []).find(
+        (candidate) => candidate.slug === LIVE_HACKATHON_PROGRAM_SLUG,
+      ) ??
+      ((programs as HackathonProgram[] | null) ?? [])[0] ??
+      null;
 
     console.log("[hackathonProgram] program:", program ? (program as any).id : null, "progErr:", progErr?.message ?? null);
     if (!program) {
@@ -313,7 +345,9 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
     console.log("[hackathonProgram] phases count:", (phases as any[])?.length ?? 0);
 
     // Team + enrollment are optional — used for challenge selection and current_phase_id.
-    const membership = await getCurrentHackathonTeamMembership();
+    const membership = participant?.id
+      ? await getCurrentHackathonTeamMembership()
+      : null;
     let team: HackathonTeam | null = null;
     let enrollment: HackathonTeamProgramEnrollment | null = null;
 

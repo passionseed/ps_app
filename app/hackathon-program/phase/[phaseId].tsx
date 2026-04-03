@@ -12,7 +12,6 @@ import * as Haptics from "expo-haptics";
 import { AppText as Text } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { getHackathonPhaseDetail } from "../../../lib/hackathonProgram";
-import { getPreviewPhaseDetail } from "../../../lib/hackathonProgramPreview";
 import { Accent, Space, Text as ThemeText, Radius, PageBg } from "../../../lib/theme";
 import type { HackathonPhaseDetail } from "../../../types/hackathon-program";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,11 +29,11 @@ export default function HackathonPhaseScreen() {
         try {
           const live = await getHackathonPhaseDetail(phaseId!);
           if (!cancelled) {
-            setDetail(live.phase ? live : getPreviewPhaseDetail(phaseId!));
+            setDetail(live.phase ? live : null);
           }
         } catch {
           if (!cancelled) {
-            setDetail(getPreviewPhaseDetail(phaseId!));
+            setDetail(null);
           }
         } finally {
           if (!cancelled) setLoading(false);
@@ -46,10 +45,18 @@ export default function HackathonPhaseScreen() {
     }, [phaseId]),
   );
 
-  if (loading || !detail) {
+  if (loading) {
     return (
       <View style={styles.loadingRoot}>
         <PathLabSkiaLoader size="large" />
+      </View>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <View style={styles.loadingRoot}>
+        <Text style={styles.emptyText}>Phase not found.</Text>
       </View>
     );
   }
@@ -133,6 +140,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: PageBg.default,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: ThemeText.secondary,
   },
   headerActions: {
     position: "absolute",

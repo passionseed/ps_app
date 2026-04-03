@@ -20,7 +20,6 @@ import {
   buildModuleProgressSnapshot,
 } from "../../../lib/hackathonProgram";
 import { PathLabSkiaLoader } from "../../../components/PathLabSkiaLoader";
-import { getPreviewModuleDetail } from "../../../lib/hackathonProgramPreview";
 import {
   buildPainPointFeedbackInput,
   getPainPointFeedbackVerdictLabel,
@@ -127,20 +126,16 @@ export default function HackathonModuleScreen() {
       try {
         const result = await getHackathonModuleDetail(moduleId);
         if (!cancelled) {
-          const fallback = result ?? getPreviewModuleDetail(moduleId);
-          setModule(fallback);
-          setError(fallback ? null : "Module not found");
+          setModule(result);
+          setError(result ? null : "Module not found");
         }
       } catch (err) {
         if (!cancelled) {
-          const fallback = getPreviewModuleDetail(moduleId);
-          setModule(fallback);
+          setModule(null);
           setError(
-            fallback
-              ? null
-              : err instanceof Error
-                ? err.message
-                : "Unable to load module",
+            err instanceof Error
+              ? err.message
+              : "Unable to load module",
           );
         }
       } finally {

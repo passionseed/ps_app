@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildJourneyActivityNodes,
   deriveModuleStatus,
   getChallengeSummary,
   summarizePhaseModules,
@@ -95,6 +96,43 @@ describe("summarizePhaseModules", () => {
     expect(summary.inProgress).toBe(1);
     expect(summary.readyForReview).toBe(1);
     expect(summary.completed).toBe(1);
+  });
+});
+
+describe("buildJourneyActivityNodes", () => {
+  it("marks the next unfinished live activity as current", () => {
+    expect(
+      buildJourneyActivityNodes(
+        ["Customer Discovery Overview", "Create Persona", "Submit Final Changes"],
+        1,
+      ),
+    ).toEqual([
+      {
+        id: "journey-activity-1",
+        title: "Customer Discovery Overview",
+        state: "completed",
+      },
+      {
+        id: "journey-activity-2",
+        title: "Create Persona",
+        state: "current",
+      },
+      {
+        id: "journey-activity-3",
+        title: "Submit Final Changes",
+        state: "upcoming",
+      },
+    ]);
+  });
+
+  it("clamps invalid completed counts to the live activity list", () => {
+    expect(buildJourneyActivityNodes(["Only step"], 99)).toEqual([
+      {
+        id: "journey-activity-1",
+        title: "Only step",
+        state: "completed",
+      },
+    ]);
   });
 });
 

@@ -16,7 +16,6 @@ import {
   getChallengeSummary,
   getEmptyHackathonProgramHome,
 } from "../../lib/hackathonProgram";
-import { getPreviewHackathonProgramHome } from "../../lib/hackathonProgramPreview";
 import { Accent, PageBg, Space, Text as ThemeText, Radius, Type } from "../../lib/theme";
 import type { HackathonProgramHome } from "../../types/hackathon-program";
 import { LinearGradient } from "expo-linear-gradient";
@@ -40,7 +39,6 @@ export default function HackathonProgramHomeScreen() {
   const [data, setData] = useState<HackathonProgramHome | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [isPreview, setIsPreview] = useState(false);
   const insets = useSafeAreaInsets();
 
   const load = useCallback(async () => {
@@ -50,15 +48,12 @@ export default function HackathonProgramHomeScreen() {
         JSON.stringify(home) === JSON.stringify(getEmptyHackathonProgramHome());
 
       if (isEmpty || !home.program || home.phases.length === 0) {
-        setData(getPreviewHackathonProgramHome());
-        setIsPreview(true);
+        setData(home);
       } else {
         setData(home);
-        setIsPreview(false);
       }
     } catch {
-      setData(getPreviewHackathonProgramHome());
-      setIsPreview(true);
+      setData(getEmptyHackathonProgramHome());
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -75,6 +70,16 @@ export default function HackathonProgramHomeScreen() {
     return (
       <View style={styles.loadingRoot}>
         <PathLabSkiaLoader size="large" />
+      </View>
+    );
+  }
+
+  if (!data.program || data.phases.length === 0) {
+    return (
+      <View style={styles.loadingRoot}>
+        <AppText style={styles.subtitle}>
+          No live hackathon program is available for this account yet.
+        </AppText>
       </View>
     );
   }
@@ -115,18 +120,6 @@ export default function HackathonProgramHomeScreen() {
           Track your progress, access team checkpoints, and complete structured evidence in each phase.
         </AppText>
       </View>
-
-      {isPreview && (
-        <GlassCard size="small" style={styles.previewCard}>
-          <View style={styles.previewHeader}>
-            <View style={[styles.statusDot, { backgroundColor: Accent.amber }]} />
-            <AppText variant="bold" style={styles.previewTitle}>Preview Mode</AppText>
-          </View>
-          <AppText style={styles.previewCopy}>
-            You are viewing sample data. Sign in with a valid participant account to see your real progress.
-          </AppText>
-        </GlassCard>
-      )}
 
       {/* Hero: Current Phase */}
       <View style={styles.section}>
@@ -494,4 +487,3 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
-

@@ -18,7 +18,6 @@ import * as DocumentPicker from "expo-document-picker";
 import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { supabase } from "../../../lib/supabase";
-import { getPreviewActivityDetail } from "../../../lib/hackathonProgramPreview";
 import { submitTextAnswer, submitFile } from "../../../lib/hackathon-submit";
 import { Space } from "../../../lib/theme";
 import type {
@@ -406,8 +405,7 @@ export default function HackathonActivityScreen() {
       (async () => {
         try {
           const dbData = await fetchActivity(nodeId!);
-          const data = dbData ?? getPreviewActivityDetail(nodeId!);
-          if (!cancelled) setActivity(data);
+          if (!cancelled) setActivity(dbData);
         } finally {
           if (!cancelled) setLoading(false);
         }
