@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { AppText } from "../../../components/AppText";
+import HackathonEvidenceComic from "../../../components/Hackathon/HackathonEvidenceComic";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { supabase } from "../../../lib/supabase";
 import { submitTextAnswer, submitFile } from "../../../lib/hackathon-submit";
@@ -78,6 +79,7 @@ function contentTypeLabel(type: string): string {
     case "short_video": return "VIDEO";
     case "text":        return "READING";
     case "image":       return "IMAGE";
+    case "infographic_comic": return "COMIC";
     case "pdf":         return "DOCUMENT";
     case "canva_slide": return "SLIDES";
     default:            return type.toUpperCase().replace(/_/g, " ");
@@ -169,6 +171,8 @@ function ContentBlock({ item }: { item: HackathonPhaseActivityContent }) {
   switch (item.content_type) {
     case "text":        return <TextBlock item={item} />;
     case "image":       return <ImageBlock item={item} />;
+    case "infographic_comic":
+      return <HackathonEvidenceComic item={item} />;
     case "video":
     case "short_video": return <VideoBlock item={item} />;
     case "npc_chat":    return <ChatBlock item={item} type="npc_chat" />;
