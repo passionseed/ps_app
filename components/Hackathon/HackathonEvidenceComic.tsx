@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import {
   Image,
   StyleSheet,
@@ -24,11 +24,10 @@ import {
   withTiming,
 } from "react-native-reanimated";
 import { AppText } from "../AppText";
-import { parseHackathonComicContent } from "../../lib/hackathonComic";
 import { Space } from "../../lib/theme";
 import type {
+  HackathonComicContent,
   HackathonComicPanel,
-  HackathonPhaseActivityContent,
 } from "../../types/hackathon-phase-activity";
 
 const CARD_BG = "rgba(13,18,25,0.95)";
@@ -44,7 +43,10 @@ const VIOLET = "#98A3FF";
 const PANEL_MEDIA_HEIGHT = 164;
 
 type HackathonEvidenceComicProps = {
-  item: HackathonPhaseActivityContent;
+  comic: HackathonComicContent;
+  title?: string | null;
+  description?: string | null;
+  fallbackUrl?: string | null;
 };
 
 function accentColor(accent: string): string {
@@ -128,6 +130,49 @@ function PanelAtmosphere({
   );
 }
 
+function EvidencePath({
+  width,
+  panelCount,
+  progress,
+}: {
+  width: number;
+  panelCount: number;
+  progress: SharedValue<number>;
+}) {
+  const lineX = width * 0.11;
+  const scanY = useDerivedValue(() =>
+    44 + progress.value * Math.max(panelCount - 1, 1) * (PANEL_MEDIA_HEIGHT + Space.md * 2.5),
+  );
+
+  return (
+    <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Rect
+        x={lineX}
+        y={PANEL_MEDIA_HEIGHT * 0.5}
+        width={2}
+        height={Math.max(panelCount - 1, 0) * (PANEL_MEDIA_HEIGHT + Space.md * 2.15)}
+        color="rgba(145,196,227,0.16)"
+      />
+      {Array.from({ length: panelCount }).map((_, index) => {
+        const cy =
+          PANEL_MEDIA_HEIGHT * 0.5 + index * (PANEL_MEDIA_HEIGHT + Space.md * 2.15);
+        return (
+          <Group key={`node-${index}`}>
+            <Circle cx={lineX + 1} cy={cy} r={5.5} color="rgba(145,196,227,0.22)">
+              <Blur blur={10} />
+            </Circle>
+            <Circle cx={lineX + 1} cy={cy} r={2.5} color={CYAN} />
+          </Group>
+        );
+      })}
+      <Circle cx={lineX + 1} cy={scanY} r={9} color="rgba(145,196,227,0.18)">
+        <Blur blur={18} />
+      </Circle>
+      <Circle cx={lineX + 1} cy={scanY} r={3} color={CYAN} />
+    </Canvas>
+  );
+}
+
 function EvidencePanel({
   index,
   panel,
@@ -196,13 +241,12 @@ function EvidencePanel({
 }
 
 export default function HackathonEvidenceComic({
-  item,
+  comic,
+  title,
+  description,
+  fallbackUrl = null,
 }: HackathonEvidenceComicProps) {
   const { width } = useWindowDimensions();
-  const comic = useMemo(
-    () => parseHackathonComicContent(item.metadata, item.content_title, item.content_body),
-    [item.content_body, item.content_title, item.metadata],
-  );
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -217,34 +261,20 @@ export default function HackathonEvidenceComic({
     };
   }, [progress]);
 
-  if (!comic) {
-    return (
-      <View style={styles.root}>
-        {item.content_title ? (
-          <AppText variant="bold" style={styles.title}>
-            {item.content_title}
-          </AppText>
-        ) : null}
-        <AppText style={styles.description}>
-          {item.content_body ?? "Comic content is not available yet."}
-        </AppText>
-      </View>
-    );
-  }
-
   const panelWidth = Math.max(width - Space.lg * 4, 240);
 
   return (
     <View style={styles.root}>
+      <EvidencePath width={panelWidth} panelCount={comic.panels.length} progress={progress} />
       <View style={styles.header}>
         <AppText style={styles.kicker}>Evidence Comic</AppText>
-        {item.content_title ? (
+        {title ? (
           <AppText variant="bold" style={styles.title}>
-            {item.content_title}
+            {title}
           </AppText>
         ) : null}
         <AppText style={styles.description}>
-          {item.content_body ??
+          {description ??
             "See how raw signals turn into a validated pain point with a clear target user."}
         </AppText>
       </View>
@@ -255,7 +285,7 @@ export default function HackathonEvidenceComic({
             key={panel.id}
             index={index}
             panel={panel}
-            fallbackUrl={item.content_url}
+            fallbackUrl={fallbackUrl}
             progress={progress}
             width={panelWidth}
           />
@@ -297,6 +327,7 @@ const styles = StyleSheet.create({
   },
   panels: {
     gap: Space.md,
+    paddingLeft: Space.lg,
   },
   panel: {
     backgroundColor: PANEL_BG,
