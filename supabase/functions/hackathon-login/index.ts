@@ -25,19 +25,39 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-function verifyPassword(password: string, stored: string): boolean {
-  const [saltHex, hashHex] = stored.split(":");
-  const expectedHash = hexToBytes(hashHex);
+function verifyPassword(password: string, stored: string, email: string): boolean {
+  try {
+    const [saltHex, hashHex] = stored.split(":");
+    if (!saltHex || !hashHex) {
+      console.log(`[${email}] Invalid stored hash format:`, stored);
+      return false;
+    }
+    const expectedHash = hexToBytes(hashHex);
+    const saltBytes = hexToBytes(saltHex);
+    
+    const encoder = new TextEncoder();
+    const passwordBytes = encoder.encode(password);
 
-  // Node.js crypto.scryptSync(password, salt, 64) with N=16384 (default), r=8, p=1
-  // @noble/hashes scrypt matches Node.js crypto output exactly
-  const derived = scrypt(
-    new TextEncoder().encode(password),
-    new TextEncoder().encode(saltHex),
-    { N: 16384, r: 8, p: 1, dkLen: 64 },
-  );
+    // Try method 1: Salt as hex string chars (legacy?)
+    const derived1 = scrypt(passwordBytes, encoder.encode(saltHex), { N: 16384, r: 8, p: 1, dkLen: 64 });
+    if (timingSafeEqual(derived1, expectedHash)) {
+      console.log(`[${email}] SUCCESS: Matched using salt-as-chars (method 1)`);
+      return true;
+    }
 
-  return timingSafeEqual(derived, expectedHash);
+    // Try method 2: Salt as actual bytes (standard)
+    const derived2 = scrypt(passwordBytes, saltBytes, { N: 16384, r: 8, p: 1, dkLen: 64 });
+    if (timingSafeEqual(derived2, expectedHash)) {
+      console.log(`[${email}] SUCCESS: Matched using salt-as-bytes (method 2)`);
+      return true;
+    }
+
+    console.log(`[${email}] FAILED: Both salt hashing methods mismatched`);
+    return false;
+  } catch (e) {
+    console.error(`[${email}] Error in verifyPassword:`, e);
+    return false;
+  }
 }
 
 function generateToken(): string {
@@ -78,7 +98,7 @@ serve(async (req) => {
       );
     }
 
-    if (!verifyPassword(password, participant.password_hash)) {
+    if (!verifyPassword(password, participant.password_hash, email)) {
       return new Response(
         JSON.stringify({ error: "Invalid email or password" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },

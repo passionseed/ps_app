@@ -339,15 +339,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmailPassword = async (email: string, password: string) => {
     console.log("[Auth] signInWithEmailPassword start", { email });
 
-    const webApiUrl = process.env.EXPO_PUBLIC_WEB_API_URL ?? "https://pseed.vercel.app";
-    const res = await fetch(`${webApiUrl}/api/hackathon/login`, {
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const loginUrl = `${supabaseUrl}/functions/v1/hackathon-login`;
+    console.log("[Auth] Calling login endpoint:", loginUrl);
+    
+    const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    
+    const res = await fetch(loginUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "apikey": supabaseKey || "",
+        "Authorization": `Bearer ${supabaseKey}`
+      },
       body: JSON.stringify({ email: email.trim(), password }),
     });
 
-    const body = await res.json() as { participant?: { id: string; name: string; email: string; university: string; role: string; team_name: string | null }; token?: string; error?: string };
-    console.log("[Auth] hackathon-login result", { status: res.status, participantId: body.participant?.id, error: body.error });
+    const body = await res.json() as any;
+    console.log("[Auth] hackathon-login result", { status: res.status, body });
 
     if (!res.ok || !body.participant || !body.token) {
       throw new Error(body.error ?? "Invalid email or password");
