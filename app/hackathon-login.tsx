@@ -8,7 +8,9 @@ import {
   Text,
   TextInput,
   View,
+  Dimensions,
 } from "react-native";
+import { Canvas, Circle as SkiaCircle, Blur } from "@shopify/react-native-skia";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Ellipse, Path } from "react-native-svg";
 import { router } from "expo-router";
@@ -61,6 +63,9 @@ function JellyfishSvg() {
   );
 }
 
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const SCREEN_HEIGHT = Dimensions.get("window").height;
+
 export default function HackathonLoginScreen() {
   const { signInWithEmailPassword } = useAuth();
   const insets = useSafeAreaInsets();
@@ -88,10 +93,18 @@ export default function HackathonLoginScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Ambient glow orbs */}
-      <View style={styles.glowCyan} pointerEvents="none" />
-      <View style={styles.glowPurple} pointerEvents="none" />
-      <View style={styles.glowBlue} pointerEvents="none" />
+      {/* Ambient glow orbs via Skia */}
+      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+        <SkiaCircle cx={50} cy={50} r={110} color="rgba(145,196,227,0.055)">
+          <Blur blur={80} />
+        </SkiaCircle>
+        <SkiaCircle cx={SCREEN_WIDTH - 20} cy={SCREEN_HEIGHT - 60} r={100} color="rgba(165,148,186,0.08)">
+          <Blur blur={90} />
+        </SkiaCircle>
+        <SkiaCircle cx={SCREEN_WIDTH * 0.4} cy={SCREEN_HEIGHT * 0.4} r={80} color="rgba(101,171,252,0.04)">
+          <Blur blur={80} />
+        </SkiaCircle>
+      </Canvas>
 
       {/* Star particles */}
       <View style={[styles.star, { top: "18%", left: "15%", width: 2, height: 2, opacity: 0.4 }]} pointerEvents="none" />
@@ -187,23 +200,6 @@ export default function HackathonLoginScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
-
-  // Glow orbs
-  glowCyan: {
-    position: "absolute", top: -60, left: -60,
-    width: 220, height: 220, borderRadius: 110,
-    backgroundColor: CYAN, opacity: 0.055,
-  },
-  glowPurple: {
-    position: "absolute", bottom: 40, right: -40,
-    width: 170, height: 170, borderRadius: 85,
-    backgroundColor: "#A594BA", opacity: 0.08,
-  },
-  glowBlue: {
-    position: "absolute", top: "40%", left: "40%",
-    width: 120, height: 120, borderRadius: 60,
-    backgroundColor: BLUE, opacity: 0.03,
-  },
 
   // Stars
   star: {
