@@ -129,26 +129,28 @@ UPDATE public.hackathon_program_phases
 SET due_at = '2026-04-26T23:59:59Z'
 WHERE id = 'f1000000-0000-0000-0000-000000000010';
 
--- Activity 1: Watch intro video
+-- Activity 1: Comic promise page
 INSERT INTO public.hackathon_phase_activities (
   id, phase_id, title, instructions, display_order, estimated_minutes, is_required, is_draft
 ) VALUES (
   'fa000000-0000-0000-0000-000000000001',
   'f1000000-0000-0000-0000-000000000010',
-  'Customer Discovery Overview',
-  'Watch this short video to understand what customer discovery means and why it matters.',
-  0, 5, true, false
+  'Show the Outcome',
+  'Show the outcome first: what the participant will get, who they could become, the skills they will build, how those skills help them fix the problem, and the challenge they will face.',
+  0, 1, true, false
 ) ON CONFLICT (phase_id, display_order) DO NOTHING;
 
 INSERT INTO public.hackathon_phase_activity_content (
-  id, activity_id, content_type, content_title, content_url, display_order
+  id, activity_id, content_type, content_title, content_body, content_url, display_order, metadata
 ) VALUES (
   'fb000000-0000-0000-0000-000000000001',
   'fa000000-0000-0000-0000-000000000001',
-  'video',
-  'What is Customer Discovery?',
-  'https://www.youtube.com/watch?v=IVhPCOKu7Rs',
-  0
+  'text',
+  'Evidence First',
+  'See how vague signals become a validated pain point, a clear target user, and a guide-backed next step.',
+  null,
+  0,
+  '{"variant":"evidence_first","panels":[{"id":"noise","order":1,"headline":"Most teams start with a vague idea.","body":"Trends, guesses, and half-formed assumptions all sound important at first.","image_key":"phase1-noise","accent":"amber"},{"id":"evidence","order":2,"headline":"Real interviews reveal repeated pain.","body":"Patterns matter more than opinions. We look for friction people already feel.","image_key":"phase1-evidence","accent":"cyan"},{"id":"validation","order":3,"headline":"A good problem becomes specific.","body":"One clear person. One real pain. One concrete context.","image_key":"phase1-validation","accent":"blue"},{"id":"outcome","order":4,"headline":"By the end of Phase 1, you leave with evidence.","body":"A validated pain point, a clear target user, and a guide for what to do next.","image_key":"phase1-outcome","accent":"cyan"}]}'::jsonb
 ) ON CONFLICT (activity_id, display_order) DO NOTHING;
 
 -- Activity 2: Read the brief
