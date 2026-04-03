@@ -21,7 +21,6 @@ import {
   getHackathonModuleDetail,
   getModuleActivityProgress,
 } from "../../../lib/hackathonProgram";
-import { getPreviewModuleDetail } from "../../../lib/hackathonProgramPreview";
 import { Radius, Space } from "../../../lib/theme";
 import { supabase } from "../../../lib/supabase";
 import type { MapNode } from "../../../types/map";
@@ -67,7 +66,7 @@ export default function HackathonModuleScreen() {
             getHackathonModuleDetail(moduleId!),
             supabase.auth.getUser(),
           ]);
-          const resolvedMod = mod ?? getPreviewModuleDetail(moduleId!);
+          const resolvedMod = mod;
           if (cancelled) return;
           setModule(resolvedMod);
 
@@ -81,7 +80,7 @@ export default function HackathonModuleScreen() {
           }
         } catch {
           if (!cancelled) {
-            setModule(getPreviewModuleDetail(moduleId!));
+            setModule(null);
           }
         } finally {
           if (!cancelled) setLoading(false);
@@ -97,6 +96,14 @@ export default function HackathonModuleScreen() {
     return (
       <View style={styles.loadingRoot}>
         <ActivityIndicator size="large" color={CYAN} />
+      </View>
+    );
+  }
+
+  if (!module) {
+    return (
+      <View style={styles.loadingRoot}>
+        <AppText style={{ color: WHITE40 }}>Module not found.</AppText>
       </View>
     );
   }
