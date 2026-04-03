@@ -22,6 +22,7 @@ export interface HackathonPhaseActivity {
   estimated_minutes: number | null;
   is_required: boolean;
   is_draft: boolean;
+  submission_scope: "individual" | "team";
   created_at: string;
   updated_at: string;
 }

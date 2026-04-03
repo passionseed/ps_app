@@ -403,6 +403,19 @@ export default function HackathonHomeScreen() {
             <AppText variant="bold" style={styles.teamName}>
               {data.team.name ?? data.team.team_name ?? "Not assigned to a team yet"}
             </AppText>
+            {data.team.members && data.team.members.length > 0 && (
+              <View style={styles.memberList}>
+                {data.team.members.map((member) => (
+                  <View key={member.participant_id} style={styles.memberRow}>
+                    <View style={styles.memberDot} />
+                    <View style={styles.memberInfo}>
+                      <AppText style={styles.memberName}>{member.name}</AppText>
+                      <AppText style={styles.memberMeta}>{member.university} · {member.track}</AppText>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
@@ -606,6 +619,28 @@ const styles = StyleSheet.create({
   },
   teamId: { fontSize: 11, color: WHITE28, fontFamily: "BaiJamjuree_400Regular" },
   teamName: { fontSize: 24, color: WHITE, fontFamily: "BaiJamjuree_700Bold" },
+
+  memberList: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(145,196,227,0.1)",
+    paddingTop: Space.md,
+    gap: Space.sm,
+  },
+  memberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  memberDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: CYAN45,
+    flexShrink: 0,
+  },
+  memberInfo: { flex: 1, gap: 1 },
+  memberName: { fontSize: 14, color: WHITE, fontFamily: "BaiJamjuree_500Medium" },
+  memberMeta: { fontSize: 11, color: WHITE28, fontFamily: "BaiJamjuree_400Regular" },
 
   challengeLinkCard: {
     flexDirection: "row",

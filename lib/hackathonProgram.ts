@@ -318,7 +318,7 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
     let enrollment: HackathonTeamProgramEnrollment | null = null;
 
     if (membership) {
-      const [{ data: teamData }, { data: enrollmentData }] = await Promise.all([
+      const [{ data: teamData }, { data: enrollmentData }, { data: memberRows }] = await Promise.all([
         supabase.from("hackathon_teams").select("*").eq("id", membership.team_id).maybeSingle(),
         supabase
           .from("hackathon_team_program_enrollments")
@@ -326,8 +326,29 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
           .eq("team_id", membership.team_id)
           .eq("program_id", (program as any).id)
           .maybeSingle(),
+        supabase
+          .from("hackathon_team_members")
+          .select("participant_id")
+          .eq("team_id", membership.team_id),
       ]);
-      team = (teamData as HackathonTeam | null) ?? null;
+
+      if (teamData) {
+        const memberIds = (memberRows ?? []).map((r: any) => r.participant_id);
+        let members: import("../types/hackathon-program").HackathonTeamMember[] = [];
+        if (memberIds.length > 0) {
+          const { data: participantDetails } = await supabase
+            .from("hackathon_participants")
+            .select("id, name, university, track")
+            .in("id", memberIds);
+          members = (participantDetails ?? []).map((p: any) => ({
+            participant_id: p.id,
+            name: p.name,
+            university: p.university,
+            track: p.track,
+          }));
+        }
+        team = { ...(teamData as HackathonTeam), members };
+      }
       enrollment = (enrollmentData as HackathonTeamProgramEnrollment | null) ?? null;
     }
 
