@@ -87,14 +87,20 @@ function contentTypeLabel(type: string): string {
   }
 }
 
-function isComicContent(item: HackathonPhaseActivityContent): boolean {
-  if (item.content_type === "infographic_comic") return true;
-  if (item.content_type !== "text") return false;
+function getComicContent(item: HackathonPhaseActivityContent) {
+  if (item.content_type !== "infographic_comic" && item.content_type !== "text") {
+    return null;
+  }
+
   return parseHackathonComicContent(
     item.metadata,
     item.content_title,
     item.content_body,
-  ) !== null;
+  );
+}
+
+function isComicContent(item: HackathonPhaseActivityContent): boolean {
+  return getComicContent(item) !== null;
 }
 
 function primaryContentType(content: HackathonPhaseActivityContent[]): string {
@@ -179,8 +185,16 @@ function ChatBlock({ item, type }: { item: HackathonPhaseActivityContent; type: 
 }
 
 function ContentBlock({ item }: { item: HackathonPhaseActivityContent }) {
-  if (isComicContent(item)) {
-    return <HackathonEvidenceComic item={item} />;
+  const comic = getComicContent(item);
+  if (comic) {
+    return (
+      <HackathonEvidenceComic
+        comic={comic}
+        title={item.content_title}
+        description={item.content_body}
+        fallbackUrl={item.content_url}
+      />
+    );
   }
 
   switch (item.content_type) {
