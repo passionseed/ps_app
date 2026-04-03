@@ -339,13 +339,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmailPassword = async (email: string, password: string) => {
     console.log("[Auth] signInWithEmailPassword start", { email });
 
-    const { url: supabaseUrl, anonKey } = getSupabaseRuntimeConfig();
-    const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/hackathon-login`, {
+    const webApiUrl = process.env.EXPO_PUBLIC_WEB_API_URL ?? "https://pseed.vercel.app";
+    const res = await fetch(`${webApiUrl}/api/hackathon/login`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${anonKey}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim(), password }),
     });
 

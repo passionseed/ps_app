@@ -38,6 +38,7 @@ export async function getPhaseWithActivities(
         estimated_minutes,
         is_required,
         is_draft,
+        submission_scope,
         created_at,
         updated_at,
         hackathon_phase_activity_content (
@@ -79,6 +80,7 @@ export async function getPhaseWithActivities(
         (x: any, y: any) => x.display_order - y.display_order
       ),
       assessment: a.hackathon_phase_activity_assessments?.[0] ?? null,
+      submission_scope: (a.submission_scope ?? "individual") as "individual" | "team",
     }));
 
   return {
@@ -125,6 +127,7 @@ export async function getProgramPhasesWithActivities(
         estimated_minutes,
         is_required,
         is_draft,
+        submission_scope,
         created_at,
         updated_at,
         hackathon_phase_activity_content (

@@ -119,12 +119,20 @@ export interface HackathonTeamProgramEnrollment {
   updated_at: string;
 }
 
+export interface HackathonTeamMember {
+  participant_id: string;
+  name: string;
+  university: string;
+  track: string;
+}
+
 export interface HackathonTeam {
   id: string;
   name?: string | null;
   team_name?: string | null;
   created_at?: string;
   updated_at?: string;
+  members?: HackathonTeamMember[];
 }
 
 export interface HackathonTeamMembership {
