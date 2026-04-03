@@ -116,4 +116,44 @@ describe("parseHackathonComicContent", () => {
       ),
     ).toBeNull();
   });
+
+  it("handles nullable content text and mixed panel entries safely", () => {
+    const comic = parseHackathonComicContent(
+      {
+        panels: [
+          "skip-me",
+          {
+            id: 101,
+            display_order: "2",
+            image_url: "https://cdn.example.com/panel-2.png",
+          },
+          {
+            id: "panel-1",
+            order: "1",
+            headline: "Noise",
+            body: "Messy inputs everywhere.",
+            imageUrl: "https://cdn.example.com/panel-1.png",
+          },
+        ],
+      } as any,
+      null,
+      null,
+    );
+
+    expect(comic?.panels).toHaveLength(2);
+    expect(comic?.panels[0]).toMatchObject({
+      id: "panel-1",
+      order: 1,
+      headline: "Noise",
+      body: "Messy inputs everywhere.",
+      imageKey: "https://cdn.example.com/panel-1.png",
+    });
+    expect(comic?.panels[1]).toMatchObject({
+      id: "101",
+      order: 2,
+      headline: "Panel 1",
+      body: "",
+      imageKey: "https://cdn.example.com/panel-2.png",
+    });
+  });
 });
