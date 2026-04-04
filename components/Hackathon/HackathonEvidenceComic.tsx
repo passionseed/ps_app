@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import {
   Image,
+  type ImageSourcePropType,
   StyleSheet,
   View,
   useWindowDimensions,
@@ -49,6 +50,13 @@ type HackathonEvidenceComicProps = {
   fallbackUrl?: string | null;
 };
 
+const COMIC_IMAGE_ASSETS: Record<string, ImageSourcePropType> = {
+  "phase1-noise": require("../../assets/images/hackathon-phase1-comic/phase1-noise.png"),
+  "phase1-evidence": require("../../assets/images/hackathon-phase1-comic/phase1-evidence.png"),
+  "phase1-validation": require("../../assets/images/hackathon-phase1-comic/phase1-validation.png"),
+  "phase1-outcome": require("../../assets/images/hackathon-phase1-comic/phase1-outcome.png"),
+};
+
 function accentColor(accent: string): string {
   switch (accent) {
     case "amber":
@@ -63,21 +71,28 @@ function accentColor(accent: string): string {
   }
 }
 
-function resolvePanelImageUrl(
+function resolvePanelImageSource(
   panel: HackathonComicPanel,
   fallbackUrl: string | null,
-): string | null {
-  if (!panel.imageKey) return fallbackUrl;
+) : ImageSourcePropType | null {
+  if (panel.imageKey && COMIC_IMAGE_ASSETS[panel.imageKey]) {
+    return COMIC_IMAGE_ASSETS[panel.imageKey];
+  }
+
+  if (!panel.imageKey) {
+    return fallbackUrl ? { uri: fallbackUrl } : null;
+  }
+
   if (
     panel.imageKey.startsWith("http://") ||
     panel.imageKey.startsWith("https://") ||
     panel.imageKey.startsWith("file://") ||
     panel.imageKey.startsWith("/")
   ) {
-    return panel.imageKey;
+    return { uri: panel.imageKey };
   }
 
-  return fallbackUrl;
+  return fallbackUrl ? { uri: fallbackUrl } : null;
 }
 
 function PanelAtmosphere({
@@ -187,14 +202,14 @@ function EvidencePanel({
   width: number;
 }) {
   const accent = accentColor(panel.accent);
-  const imageUrl = resolvePanelImageUrl(panel, fallbackUrl);
+  const imageSource = resolvePanelImageSource(panel, fallbackUrl);
 
   return (
     <View style={[styles.panel, { width, alignSelf: "center" }]}>
       <View style={styles.mediaFrame}>
-        {imageUrl ? (
+        {imageSource ? (
           <Image
-            source={{ uri: imageUrl }}
+            source={imageSource}
             style={styles.panelImage}
             resizeMode="cover"
             accessibilityLabel={panel.headline}
