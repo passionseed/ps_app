@@ -11,8 +11,8 @@ describe("parseHackathonComicContent", () => {
           {
             id: "outcome",
             order: 4,
-            headline: "By the end of Phase 1, you leave with evidence.",
-            body: "A validated pain point, a clear target user, and a guide for what to do next.",
+            headline: "You'll walk away with a validated problem.",
+            body: "A validated pain point, a clear target user, and a guide-backed next step.",
             image_key: "phase1-outcome",
             accent: "cyan",
           },
@@ -42,8 +42,8 @@ describe("parseHackathonComicContent", () => {
           },
         ],
       },
-      "Show the Outcome",
-      "Show the outcome first: what the participant will get, who they could become, the skills they will build, how those skills help them fix the problem, and the challenge they will face.",
+      "What You'll Walk Away With",
+      "By the end of Phase 1, you'll know how to find a good problem, validate a real pain point, and define the right target user with our guide.",
     );
 
     expect(comic?.variant).toBe("evidence_first");
@@ -76,16 +76,16 @@ describe("parseHackathonComicContent", () => {
           },
         ],
       },
-      "Show the Outcome",
-      "A validated pain point, a clear target user, and a guide for what to do next.",
+      "What You'll Walk Away With",
+      "A validated pain point, a clear target user, and a guide-backed next step.",
     );
 
     expect(comic?.panels).toHaveLength(2);
     expect(comic?.panels[0]).toMatchObject({
       id: "panel-a",
       order: 1,
-      headline: "Show the Outcome",
-      body: "A validated pain point, a clear target user, and a guide for what to do next.",
+      headline: "What You'll Walk Away With",
+      body: "A validated pain point, a clear target user, and a guide-backed next step.",
       imageKey: null,
       accent: "cyan",
     });
@@ -100,18 +100,18 @@ describe("parseHackathonComicContent", () => {
   });
 
   it("returns null for unsupported metadata shapes", () => {
-    expect(parseHackathonComicContent(null as any, "Show the Outcome", "Body")).toBeNull();
+    expect(parseHackathonComicContent(null as any, "What You'll Walk Away With", "Body")).toBeNull();
     expect(
       parseHackathonComicContent(
         { kind: "not-a-comic" } as any,
-        "Show the Outcome",
+        "What You'll Walk Away With",
         "Body",
       ),
     ).toBeNull();
     expect(
       parseHackathonComicContent(
         { panels: "nope" } as any,
-        "Show the Outcome",
+        "What You'll Walk Away With",
         "Body",
       ),
     ).toBeNull();

@@ -5,9 +5,9 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,6 +22,11 @@ import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { supabase } from "../../../lib/supabase";
 import { submitTextAnswer, submitFile } from "../../../lib/hackathon-submit";
 import { Space } from "../../../lib/theme";
+import Animated, {
+  type SharedValue,
+  useAnimatedScrollHandler,
+  useSharedValue,
+} from "react-native-reanimated";
 import type {
   HackathonPhaseActivityDetail,
   HackathonPhaseActivityContent,
@@ -184,15 +189,26 @@ function ChatBlock({ item, type }: { item: HackathonPhaseActivityContent; type: 
   );
 }
 
-function ContentBlock({ item }: { item: HackathonPhaseActivityContent }) {
+function ContentBlock({
+  item,
+  scrollY,
+  viewportHeight,
+  contentSectionY,
+}: {
+  item: HackathonPhaseActivityContent;
+  scrollY: SharedValue<number>;
+  viewportHeight: number;
+  contentSectionY: number;
+}) {
   const comic = getComicContent(item);
   if (comic) {
     return (
       <HackathonEvidenceComic
         comic={comic}
-        title={item.content_title}
-        description={item.content_body}
         fallbackUrl={item.content_url}
+        scrollY={scrollY}
+        viewportHeight={viewportHeight}
+        contentSectionY={contentSectionY}
       />
     );
   }
@@ -421,6 +437,8 @@ function AssessmentBlock({
 export default function HackathonActivityScreen() {
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
   const insets = useSafeAreaInsets();
+  const { height: viewportHeight } = useWindowDimensions();
+  const scrollY = useSharedValue(0);
   const [activity, setActivity] = useState<HackathonPhaseActivityDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [answer, setAnswer] = useState("");
@@ -428,6 +446,11 @@ export default function HackathonActivityScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [contentSectionY, setContentSectionY] = useState(0);
+
+  const onScroll = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -504,10 +527,12 @@ export default function HackathonActivityScreen() {
         />
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -532,9 +557,18 @@ export default function HackathonActivityScreen() {
 
         {/* Content blocks */}
         {activity.content.length > 0 ? (
-          <View style={styles.contentSection}>
+          <View
+            style={styles.contentSection}
+            onLayout={(event) => setContentSectionY(event.nativeEvent.layout.y)}
+          >
             {activity.content.map((item) => (
-              <ContentBlock key={item.id} item={item} />
+              <ContentBlock
+                key={item.id}
+                item={item}
+                scrollY={scrollY}
+                viewportHeight={viewportHeight}
+                contentSectionY={contentSectionY}
+              />
             ))}
           </View>
         ) : (
@@ -581,7 +615,7 @@ export default function HackathonActivityScreen() {
             </AppText>
           )}
         </Pressable>
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
