@@ -16,6 +16,7 @@ import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { JourneyNodeGraph } from "../../../components/Hackathon/JourneyNodeGraph";
 import { ProgressGateCard } from "../../../components/Hackathon/ProgressGateCard";
 import { ResponsibilityBanner } from "../../../components/Hackathon/ResponsibilityBanner";
+import { getHackathonActivityHref } from "../../../lib/hackathonActivityRoute";
 import {
   buildModuleProgressSnapshot,
   getHackathonModuleDetail,
@@ -220,7 +221,7 @@ export default function HackathonModuleScreen() {
                 key={node.id}
                 onPress={() => {
                   if (!locked) {
-                    router.push(`/(hackathon)/activity/${node.id}`);
+                    router.push(getHackathonActivityHref(node.id));
                   }
                 }}
                 style={({ pressed }) => [

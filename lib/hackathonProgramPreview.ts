@@ -232,8 +232,8 @@ export function getPreviewPhaseWithActivities(phaseId: string): HackathonPhaseWi
       {
         id: "preview-act-1",
         phase_id: phase.id,
-        title: "Show the Outcome",
-        instructions: "Show the outcome first: what the participant will get, who they could become, the skills they will build, how those skills help them fix the problem, and the challenge they will face.",
+        title: "What You'll Walk Away With",
+        instructions: "By the end of Phase 1, you'll know how to find a good problem, validate a real pain point, and define the right target user with our guide.",
         display_order: 1,
         estimated_minutes: 1,
         is_required: true,
@@ -246,9 +246,9 @@ export function getPreviewPhaseWithActivities(phaseId: string): HackathonPhaseWi
             id: "c1",
             activity_id: "preview-act-1",
             content_type: "text",
-            content_title: "Evidence First",
+            content_title: "What You'll Walk Away With",
             content_url: null,
-            content_body: "See how vague signals become a validated pain point, a clear target user, and a guide-backed next step.",
+            content_body: "By the end of this phase, you'll know how to find a good problem, validate a real pain point, and define the right target user with our guide.",
             display_order: 1,
             metadata: {
               variant: "evidence_first",
@@ -280,8 +280,8 @@ export function getPreviewPhaseWithActivities(phaseId: string): HackathonPhaseWi
                 {
                   id: "outcome",
                   order: 4,
-                  headline: "By the end of Phase 1, you leave with evidence.",
-                  body: "A validated pain point, a clear target user, and a guide for what to do next.",
+                  headline: "You'll walk away with a validated problem.",
+                  body: "A validated pain point, a clear target user, and a guide-backed next step.",
                   image_key: "phase1-outcome",
                   accent: "cyan",
                 },

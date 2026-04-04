@@ -1,53 +1,43 @@
-import { useEffect } from "react";
+import { useState } from "react";
 import {
   Image,
   type ImageSourcePropType,
+  type LayoutChangeEvent,
   StyleSheet,
-  View,
   useWindowDimensions,
+  View,
 } from "react-native";
-import {
-  Blur,
-  Canvas,
-  Circle,
-  Group,
-  LinearGradient,
-  Rect,
-  vec,
-} from "@shopify/react-native-skia";
-import {
-  cancelAnimation,
-  Easing,
+import { Canvas, Circle, Group, LinearGradient, Rect, vec } from "@shopify/react-native-skia";
+import Animated, {
+  Extrapolation,
+  interpolate,
   type SharedValue,
-  useDerivedValue,
-  useSharedValue,
-  withRepeat,
-  withTiming,
+  useAnimatedStyle,
 } from "react-native-reanimated";
 import { AppText } from "../AppText";
+import { getHackathonComicPanelPhase } from "../../lib/hackathonComicScene";
 import { Space } from "../../lib/theme";
 import type {
   HackathonComicContent,
   HackathonComicPanel,
 } from "../../types/hackathon-phase-activity";
 
-const CARD_BG = "rgba(13,18,25,0.95)";
 const PANEL_BG = "rgba(7,12,20,0.94)";
-const BORDER = "rgba(74,107,130,0.35)";
 const WHITE = "#FFFFFF";
 const WHITE80 = "rgba(255,255,255,0.8)";
+const WHITE92 = "rgba(255,255,255,0.92)";
 const WHITE60 = "rgba(255,255,255,0.6)";
 const CYAN = "#91C4E3";
 const BLUE = "#65ABFC";
 const AMBER = "#E7B75E";
 const VIOLET = "#98A3FF";
-const PANEL_MEDIA_HEIGHT = 164;
 
 type HackathonEvidenceComicProps = {
   comic: HackathonComicContent;
-  title?: string | null;
-  description?: string | null;
   fallbackUrl?: string | null;
+  scrollY: SharedValue<number>;
+  viewportHeight: number;
+  contentSectionY: number;
 };
 
 const COMIC_IMAGE_ASSETS: Record<string, ImageSourcePropType> = {
@@ -74,7 +64,7 @@ function accentColor(accent: string): string {
 function resolvePanelImageSource(
   panel: HackathonComicPanel,
   fallbackUrl: string | null,
-) : ImageSourcePropType | null {
+): ImageSourcePropType | null {
   if (panel.imageKey && COMIC_IMAGE_ASSETS[panel.imageKey]) {
     return COMIC_IMAGE_ASSETS[panel.imageKey];
   }
@@ -96,48 +86,32 @@ function resolvePanelImageSource(
 }
 
 function PanelAtmosphere({
-  index,
   accent,
   width,
   height,
-  progress,
 }: {
-  index: number;
   accent: string;
   width: number;
   height: number;
-  progress: SharedValue<number>;
 }) {
-  const glowA = useDerivedValue(() =>
-    width * (0.18 + 0.08 * Math.sin(progress.value * Math.PI + index * 0.5)),
-  );
-  const glowB = useDerivedValue(() =>
-    width * (0.84 + 0.06 * Math.cos(progress.value * Math.PI + index * 0.35)),
-  );
-  const scanX = useDerivedValue(() => width * (-0.35 + progress.value * 1.5));
-
   return (
     <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
       <Rect x={0} y={0} width={width} height={height}>
         <LinearGradient
           start={vec(0, 0)}
           end={vec(width, height)}
-          colors={["rgba(5,10,18,0.05)", "rgba(8,18,32,0.24)", "rgba(3,7,14,0.08)"]}
+          colors={["rgba(4,8,14,0.08)", "rgba(8,14,24,0.04)", "rgba(3,6,12,0.12)"]}
         />
       </Rect>
 
-      <Group opacity={0.95}>
-        <Circle cx={glowA} cy={height * 0.28} r={height * 0.44} color={`${accent}2E`}>
-          <Blur blur={48} />
-        </Circle>
-        <Circle cx={glowB} cy={height * 0.76} r={height * 0.36} color="rgba(101,171,252,0.18)">
-          <Blur blur={56} />
-        </Circle>
-        <Rect x={scanX} y={0} width={width * 0.18} height={height}>
+      <Group opacity={0.92}>
+        <Circle cx={width * 0.16} cy={height * 0.24} r={height * 0.22} color={`${accent}1F`} />
+        <Circle cx={width * 0.84} cy={height * 0.72} r={height * 0.18} color="rgba(101,171,252,0.1)" />
+        <Rect x={0} y={height * 0.46} width={width} height={height * 0.54}>
           <LinearGradient
-            start={vec(0, 0)}
-            end={vec(width * 0.18, 0)}
-            colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.08)", "rgba(255,255,255,0)"]}
+            start={vec(0, height * 0.46)}
+            end={vec(0, height)}
+            colors={["rgba(5,10,18,0)", "rgba(5,10,18,0.18)", "rgba(5,10,18,0.82)"]}
           />
         </Rect>
       </Group>
@@ -145,75 +119,79 @@ function PanelAtmosphere({
   );
 }
 
-function EvidencePath({
-  width,
-  panelCount,
-  progress,
-}: {
-  width: number;
-  panelCount: number;
-  progress: SharedValue<number>;
-}) {
-  const lineX = width * 0.11;
-  const scanY = useDerivedValue(() =>
-    44 + progress.value * Math.max(panelCount - 1, 1) * (PANEL_MEDIA_HEIGHT + Space.md * 2.5),
-  );
-
-  return (
-    <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Rect
-        x={lineX}
-        y={PANEL_MEDIA_HEIGHT * 0.5}
-        width={2}
-        height={Math.max(panelCount - 1, 0) * (PANEL_MEDIA_HEIGHT + Space.md * 2.15)}
-        color="rgba(145,196,227,0.16)"
-      />
-      {Array.from({ length: panelCount }).map((_, index) => {
-        const cy =
-          PANEL_MEDIA_HEIGHT * 0.5 + index * (PANEL_MEDIA_HEIGHT + Space.md * 2.15);
-        return (
-          <Group key={`node-${index}`}>
-            <Circle cx={lineX + 1} cy={cy} r={5.5} color="rgba(145,196,227,0.22)">
-              <Blur blur={10} />
-            </Circle>
-            <Circle cx={lineX + 1} cy={cy} r={2.5} color={CYAN} />
-          </Group>
-        );
-      })}
-      <Circle cx={lineX + 1} cy={scanY} r={9} color="rgba(145,196,227,0.18)">
-        <Blur blur={18} />
-      </Circle>
-      <Circle cx={lineX + 1} cy={scanY} r={3} color={CYAN} />
-    </Canvas>
-  );
-}
-
 function EvidencePanel({
-  index,
   panel,
   fallbackUrl,
-  progress,
+  scrollY,
+  panelTop,
   width,
+  height,
+  viewportHeight,
 }: {
-  index: number;
   panel: HackathonComicPanel;
   fallbackUrl: string | null;
-  progress: SharedValue<number>;
+  scrollY: SharedValue<number>;
+  panelTop: number;
   width: number;
+  height: number;
+  viewportHeight: number;
 }) {
   const accent = accentColor(panel.accent);
   const imageSource = resolvePanelImageSource(panel, fallbackUrl);
 
+  const imageStyle = useAnimatedStyle(() => {
+    const phase = getHackathonComicPanelPhase({
+      scrollY: scrollY.value,
+      panelTop,
+      panelHeight: height,
+      viewportHeight,
+    });
+
+    return {
+      transform: [
+        {
+          translateX: interpolate(phase, [-1, 0, 1], [-10, 0, 14], Extrapolation.CLAMP),
+        },
+        {
+          translateY: interpolate(phase, [-1, 0, 1], [-10, 0, 18], Extrapolation.CLAMP),
+        },
+        {
+          scale: interpolate(Math.abs(phase), [0, 1], [1, 1.06], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+
+  const captionStyle = useAnimatedStyle(() => {
+    const phase = getHackathonComicPanelPhase({
+      scrollY: scrollY.value,
+      panelTop,
+      panelHeight: height,
+      viewportHeight,
+    });
+
+    return {
+      opacity: interpolate(Math.abs(phase), [0, 0.95], [1, 0.8], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(phase, [-1, 0, 1], [-8, 0, 10], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+
   return (
-    <View style={[styles.panel, { width, alignSelf: "center" }]}>
+    <View style={[styles.panel, { width, height }]}>
       <View style={styles.mediaFrame}>
         {imageSource ? (
-          <Image
-            source={imageSource}
-            style={styles.panelImage}
-            resizeMode="cover"
-            accessibilityLabel={panel.headline}
-          />
+          <Animated.View style={[styles.panelImageMotion, imageStyle]}>
+            <Image
+              source={imageSource}
+              style={styles.panelImage}
+              resizeMode="cover"
+              accessibilityLabel={panel.headline}
+            />
+          </Animated.View>
         ) : (
           <View style={styles.placeholderMedia}>
             <AppText variant="bold" style={styles.placeholderTitle}>
@@ -225,31 +203,18 @@ function EvidencePanel({
           </View>
         )}
 
-        <PanelAtmosphere
-          index={index}
-          accent={accent}
-          width={width}
-          height={PANEL_MEDIA_HEIGHT}
-          progress={progress}
-        />
+        <PanelAtmosphere accent={accent} width={width} height={height} />
 
-        <View style={[styles.panelTag, { borderColor: `${accent}66`, backgroundColor: `${accent}24` }]}>
-          <AppText style={[styles.panelTagText, { color: accent }]}>
-            Panel {index + 1}
-          </AppText>
-        </View>
-      </View>
-
-      <View style={styles.copyBlock}>
-        <View style={[styles.accentRule, { backgroundColor: accent }]} />
-        <View style={styles.copyText}>
-          <AppText variant="bold" style={styles.panelHeadline}>
-            {panel.headline}
-          </AppText>
-          <AppText style={styles.panelBody}>
-            {panel.body}
-          </AppText>
-        </View>
+        <Animated.View style={[styles.captionWrap, captionStyle]}>
+          <View style={styles.copyText}>
+            <AppText variant="bold" style={styles.panelHeadline}>
+              {panel.headline}
+            </AppText>
+            <AppText style={styles.panelBody}>
+              {panel.body}
+            </AppText>
+          </View>
+        </Animated.View>
       </View>
     </View>
   );
@@ -257,52 +222,35 @@ function EvidencePanel({
 
 export default function HackathonEvidenceComic({
   comic,
-  title,
-  description,
   fallbackUrl = null,
+  scrollY,
+  viewportHeight,
+  contentSectionY,
 }: HackathonEvidenceComicProps) {
-  const { width } = useWindowDimensions();
-  const progress = useSharedValue(0);
+  const { width: viewportWidth } = useWindowDimensions();
+  const [componentY, setComponentY] = useState(0);
 
-  useEffect(() => {
-    progress.value = withRepeat(
-      withTiming(1, { duration: 5200, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true,
-    );
-    return () => {
-      cancelAnimation(progress);
-      progress.value = 0;
-    };
-  }, [progress]);
+  const panelWidth = Math.max(viewportWidth, 320);
+  const sectionHeight = Math.max(Math.round(viewportHeight * 0.82), 560);
+  const panelGap = Space.md;
 
-  const panelWidth = Math.max(width - Space.lg * 4, 240);
+  function handleLayout(event: LayoutChangeEvent) {
+    setComponentY(event.nativeEvent.layout.y);
+  }
 
   return (
-    <View style={styles.root}>
-      <EvidencePath width={panelWidth} panelCount={comic.panels.length} progress={progress} />
-      <View style={styles.header}>
-        <AppText style={styles.kicker}>Evidence Comic</AppText>
-        {title ? (
-          <AppText variant="bold" style={styles.title}>
-            {title}
-          </AppText>
-        ) : null}
-        <AppText style={styles.description}>
-          {description ??
-            "See how raw signals turn into a validated pain point with a clear target user."}
-        </AppText>
-      </View>
-
+    <View style={styles.root} onLayout={handleLayout}>
       <View style={styles.panels}>
         {comic.panels.map((panel, index) => (
           <EvidencePanel
             key={panel.id}
-            index={index}
             panel={panel}
             fallbackUrl={fallbackUrl}
-            progress={progress}
+            scrollY={scrollY}
+            panelTop={contentSectionY + componentY + index * (sectionHeight + panelGap)}
             width={panelWidth}
+            height={sectionHeight}
+            viewportHeight={viewportHeight}
           />
         ))}
       </View>
@@ -312,55 +260,27 @@ export default function HackathonEvidenceComic({
 
 const styles = StyleSheet.create({
   root: {
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 16,
-    padding: Space.lg,
-    gap: Space.lg,
-    overflow: "hidden",
-  },
-  header: {
-    gap: Space.sm,
-  },
-  kicker: {
-    fontSize: 10,
-    lineHeight: 14,
-    color: "rgba(145,196,227,0.58)",
-    textTransform: "uppercase",
-    letterSpacing: 2.2,
-  },
-  title: {
-    fontSize: 16,
-    lineHeight: 21,
-    color: WHITE,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: WHITE60,
+    marginHorizontal: -Space.lg,
   },
   panels: {
     gap: Space.md,
-    paddingLeft: Space.lg,
   },
   panel: {
     backgroundColor: PANEL_BG,
     borderWidth: 1,
     borderColor: "rgba(95,123,148,0.18)",
-    borderRadius: 18,
-    padding: Space.sm,
-    gap: Space.md,
+    borderRadius: 26,
     overflow: "hidden",
   },
   mediaFrame: {
-    height: PANEL_MEDIA_HEIGHT,
-    borderRadius: 14,
+    flex: 1,
     overflow: "hidden",
     backgroundColor: "rgba(9,15,24,0.9)",
   },
-  panelImage: {
+  panelImageMotion: {
     ...StyleSheet.absoluteFillObject,
+  },
+  panelImage: {
     width: "100%",
     height: "100%",
   },
@@ -382,44 +302,26 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: WHITE60,
   },
-  panelTag: {
+  captionWrap: {
     position: "absolute",
-    top: Space.sm,
-    left: Space.sm,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  panelTagText: {
-    fontSize: 10,
-    lineHeight: 12,
-    textTransform: "uppercase",
-    letterSpacing: 1.4,
-  },
-  copyBlock: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: Space.md,
-    paddingHorizontal: 2,
-  },
-  accentRule: {
-    width: 3,
-    alignSelf: "stretch",
-    borderRadius: 999,
+    left: Space.lg,
+    right: Space.lg,
+    bottom: Space.xl,
   },
   copyText: {
-    flex: 1,
     gap: Space.xs,
   },
   panelHeadline: {
-    fontSize: 17,
-    lineHeight: 22,
-    color: WHITE,
+    fontSize: 18,
+    lineHeight: 23,
+    color: WHITE92,
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
   panelBody: {
     fontSize: 13,
-    lineHeight: 20,
+    lineHeight: 19,
     color: WHITE80,
   },
 });

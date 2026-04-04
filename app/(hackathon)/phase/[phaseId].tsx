@@ -11,6 +11,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
+import { getHackathonActivityHref } from "../../../lib/hackathonActivityRoute";
 import { getPhaseWithActivities } from "../../../lib/hackathonPhaseActivity";
 import { readHackathonParticipant } from "../../../lib/hackathon-mode";
 import { Space } from "../../../lib/theme";
@@ -224,7 +225,7 @@ export default function HackathonPhaseScreen() {
                   activityCardStyle(activity.status),
                   pressed && { opacity: 0.85 },
                 ]}
-                onPress={() => router.push(`/(hackathon)/activity/${activity.id}`)}
+                onPress={() => router.push(getHackathonActivityHref(activity.id))}
               >
                 <View style={styles.activityCardLeft}>
                   <StatusDot status={activity.status} />

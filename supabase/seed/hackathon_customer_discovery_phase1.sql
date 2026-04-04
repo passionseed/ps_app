@@ -135,8 +135,8 @@ INSERT INTO public.hackathon_phase_activities (
 ) VALUES (
   'fa000000-0000-0000-0000-000000000001',
   'f1000000-0000-0000-0000-000000000010',
-  'Show the Outcome',
-  'Show the outcome first: what the participant will get, who they could become, the skills they will build, how those skills help them fix the problem, and the challenge they will face.',
+  'What You''ll Walk Away With',
+  'By the end of Phase 1, you''ll know how to find a good problem, validate a real pain point, and define the right target user with our guide.',
   0, 1, true, false
 ) ON CONFLICT (phase_id, display_order) DO NOTHING;
 
@@ -146,11 +146,11 @@ INSERT INTO public.hackathon_phase_activity_content (
   'fb000000-0000-0000-0000-000000000001',
   'fa000000-0000-0000-0000-000000000001',
   'text',
-  'Evidence First',
-  'See how vague signals become a validated pain point, a clear target user, and a guide-backed next step.',
+  'What You''ll Walk Away With',
+  'By the end of this phase, you''ll know how to find a good problem, validate a real pain point, and define the right target user with our guide.',
   null,
   0,
-  '{"variant":"evidence_first","panels":[{"id":"noise","order":1,"headline":"Most teams start with a vague idea.","body":"Trends, guesses, and half-formed assumptions all sound important at first.","image_key":"phase1-noise","accent":"amber"},{"id":"evidence","order":2,"headline":"Real interviews reveal repeated pain.","body":"Patterns matter more than opinions. We look for friction people already feel.","image_key":"phase1-evidence","accent":"cyan"},{"id":"validation","order":3,"headline":"A good problem becomes specific.","body":"One clear person. One real pain. One concrete context.","image_key":"phase1-validation","accent":"blue"},{"id":"outcome","order":4,"headline":"By the end of Phase 1, you leave with evidence.","body":"A validated pain point, a clear target user, and a guide for what to do next.","image_key":"phase1-outcome","accent":"cyan"}]}'::jsonb
+  '{"variant":"evidence_first","panels":[{"id":"noise","order":1,"headline":"Most teams start with a vague idea.","body":"Trends, guesses, and half-formed assumptions all sound important at first.","image_key":"phase1-noise","accent":"amber"},{"id":"evidence","order":2,"headline":"Real interviews reveal repeated pain.","body":"Patterns matter more than opinions. We look for friction people already feel.","image_key":"phase1-evidence","accent":"cyan"},{"id":"validation","order":3,"headline":"A good problem becomes specific.","body":"One clear person. One real pain. One concrete context.","image_key":"phase1-validation","accent":"blue"},{"id":"outcome","order":4,"headline":"You''ll walk away with a validated problem.","body":"A validated pain point, a clear target user, and a guide-backed next step.","image_key":"phase1-outcome","accent":"cyan"}]}'::jsonb
 ) ON CONFLICT (activity_id, display_order) DO NOTHING;
 
 -- Activity 2: Read the brief

@@ -161,7 +161,6 @@ function RootNavigator() {
       <Stack.Screen name="index" />
       <Stack.Screen name="hackathon-login" />
       <Stack.Screen name="(hackathon)" />
-      <Stack.Screen name="(hackathon)/activity/[nodeId]" options={{ headerShown: false }} />
       <Stack.Screen name="hackathon/challenges" options={{ presentation: "card" }} />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="(tabs)" />
