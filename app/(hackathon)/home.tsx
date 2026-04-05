@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, Dimensions, Text } from "react-native";
+import { View, StyleSheet, ScrollView, Dimensions, Text, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { AppText } from "../../components/AppText";
 import { Space } from "../../lib/theme";
 import { LinearGradient } from "expo-linear-gradient";
@@ -33,6 +34,7 @@ const ITEMS: TimelineItem[] = [
 
 export default function HackathonHomeScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0 });
 
   useEffect(() => {
@@ -113,23 +115,11 @@ export default function HackathonHomeScreen() {
         </View>
 
         {/* Placeholders */}
-        <View style={styles.placeholderCard}>
-          <AppText variant="bold" style={styles.placeholderTitle}>Global Progress</AppText>
-          <AppText style={styles.placeholderText}>Track your team's overall hackathon completion.</AppText>
-          <AppText variant="bold" style={styles.placeholderBadge}>Coming Soon</AppText>
-        </View>
-
-        <View style={styles.placeholderCard}>
+        <Pressable style={styles.placeholderCard} onPress={() => router.push("/(hackathon)/mentor-booking")}>
           <AppText variant="bold" style={styles.placeholderTitle}>Mentor Booking</AppText>
           <AppText style={styles.placeholderText}>Schedule 1:1 help with technical and business mentors.</AppText>
-          <AppText variant="bold" style={styles.placeholderBadge}>Coming Soon</AppText>
-        </View>
-
-        <View style={styles.placeholderCard}>
-          <AppText variant="bold" style={styles.placeholderTitle}>Live Leaderboard</AppText>
-          <AppText style={styles.placeholderText}>See top teams and your current placement.</AppText>
-          <AppText variant="bold" style={styles.placeholderBadge}>Coming Soon</AppText>
-        </View>
+          <AppText variant="bold" style={styles.placeholderBadgeCyan}>Book Now →</AppText>
+        </Pressable>
 
       </ScrollView>
     </View>
@@ -281,5 +271,6 @@ const styles = StyleSheet.create({
   placeholderTitle: { fontSize: 16, color: WHITE, fontFamily: "BaiJamjuree_700Bold" },
   placeholderText: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "BaiJamjuree_400Regular" },
   placeholderBadge: { fontSize: 10, color: AMBER, textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold" },
+  placeholderBadgeCyan: { fontSize: 10, color: CYAN, textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold" },
 });
 

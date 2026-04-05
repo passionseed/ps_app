@@ -274,6 +274,7 @@ export default function HackathonLayout() {
       <Tabs.Screen name="module/[moduleId]" options={{ href: null }} />
       <Tabs.Screen name="activity/[nodeId]" options={{ href: null }} />
       <Tabs.Screen name="reflection/[phaseId]" options={{ href: null }} />
+      <Tabs.Screen name="mentor-booking" options={{ href: null }} />
     </Tabs>
     </View>
   );
