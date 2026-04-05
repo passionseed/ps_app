@@ -1,19 +1,27 @@
-import React, { useCallback, useRef, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Dimensions, RefreshControl } from "react-native";
+import React, { useCallback, useState, useEffect } from "react";
+import { View, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, router } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import Svg, { Circle as SvgCircle, Polyline } from "react-native-svg";
+import Svg, { Circle as SvgCircle } from "react-native-svg";
 import { AppText } from "../../components/AppText";
 import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJellyfishLoader";
 import { Space } from "../../lib/theme";
-import {
-  buildJourneyActivityNodes,
-  getCurrentHackathonProgramHome,
-} from "../../lib/hackathonProgram";
+import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
 import { getProgramPhaseActivitySummaries } from "../../lib/hackathonPhaseActivity";
+import { fetchActivitySubmissionStatuses } from "../../lib/hackathon-submit";
 import type { HackathonProgramHome, HackathonProgramPhase } from "../../types/hackathon-program";
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withDelay,
+} from "react-native-reanimated";
 
 // Tokens
 const BG = "transparent";
@@ -24,13 +32,6 @@ const BLUE = "#65ABFC";
 const CYAN45 = "rgba(145,196,227,0.45)";
 const CYAN60 = "rgba(145,196,227,0.6)";
 const WHITE28 = "rgba(255,255,255,0.28)";
-const WHITE06 = "rgba(255,255,255,0.06)";
-
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const CARD_PADDING = Space.xl;
-const PEEK_WIDTH = 28;
-const CARD_GAP = Space.md;
-const CARD_WIDTH = SCREEN_WIDTH - CARD_PADDING * 2 - PEEK_WIDTH - 32;
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -38,7 +39,6 @@ function formatDate(dateStr: string | null): string {
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
-// ── Standard Circular Progress ──
 function CircularProgress({ percent, size = 64, strokeWidth = 6 }: { percent: number; size?: number; strokeWidth?: number }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -79,7 +79,7 @@ function CircularProgress({ percent, size = 64, strokeWidth = 6 }: { percent: nu
   );
 }
 
-// ── Redesigned Phase Card ──
+// ── Shared Types ──
 type PhaseCard = {
   phase: HackathonProgramPhase;
   activityTitles: string[];
@@ -88,163 +88,155 @@ type PhaseCard = {
   isActive: boolean;
 };
 
-function PhaseCardView({ card, onPress }: { card: PhaseCard; onPress: () => void }) {
-  const dueDate = formatDate(card.phase.due_at ?? card.phase.ends_at);
-  const pct = card.activityCount > 0 ? Math.round((card.completedCount / card.activityCount) * 100) : 0;
-  
-  // Format phase number (e.g., "01")
-  const phaseNumString = String(card.phase.phase_number).padStart(2, "0");
+// ── Pulse Indicator ──
+function ActivePulse() {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0.8);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(withTiming(1.4, { duration: 1500 }), withTiming(1, { duration: 1500 })),
+      -1,
+      true
+    );
+    opacity.value = withRepeat(
+      withSequence(withTiming(0, { duration: 1500 }), withTiming(0.8, { duration: 1500 })),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
 
   return (
-    <Pressable style={({ pressed }) => [styles.cardContainer, pressed && { opacity: 0.9 }]} onPress={onPress}>
-      <BlurView intensity={40} tint="dark" style={styles.cardBlur}>
-        <LinearGradient 
-          colors={['rgba(20, 28, 41, 0.9)', 'rgba(8, 14, 22, 0.95)']} 
-          start={{ x: 0, y: 0 }} 
-          end={{ x: 1, y: 1 }} 
-          style={styles.cardInner}
-        >
-          {/* Giant background number hint */}
-          <AppText variant="bold" style={styles.cardBgNumber} pointerEvents="none">
-            {phaseNumString}
-          </AppText>
-
-          <View style={styles.cardTopRow}>
-            <View style={{ flex: 1, paddingRight: Space.md }}>
-              <AppText style={styles.phaseLabel}>PHASE {phaseNumString}</AppText>
-              <AppText variant="bold" style={styles.phaseName} numberOfLines={2}>
-                {card.phase.title}
-              </AppText>
-              {dueDate ? (
-                <View style={styles.dateBadge}>
-                  <AppText style={styles.phaseDue}>Due: {dueDate}</AppText>
-                </View>
-              ) : null}
-            </View>
-
-            {/* Circular Progress Ring */}
-            <View style={styles.progressRingWrapper}>
-              <CircularProgress percent={pct} size={58} strokeWidth={5} />
-            </View>
-          </View>
-
-          <View style={styles.cardFooter}>
-            <View style={styles.statsRow}>
-              <View style={styles.statBox}>
-                <AppText style={styles.statVal}>{card.activityCount}</AppText>
-                <AppText style={styles.statLabel}>Tasks</AppText>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBox}>
-                <AppText style={styles.statVal}>{card.completedCount}</AppText>
-                <AppText style={styles.statLabel}>Done</AppText>
-              </View>
-            </View>
-            <View style={styles.actionBtn}>
-              <AppText variant="bold" style={styles.actionBtnText}>ENTER</AppText>
-            </View>
-          </View>
-          
-        </LinearGradient>
-      </BlurView>
-    </Pressable>
+    <View style={{ width: 20, height: 20, alignItems: "center", justifyContent: "center" }}>
+      <Animated.View style={[
+        { position: "absolute", width: 24, height: 24, borderRadius: 12, backgroundColor: CYAN45 },
+        animatedStyle
+      ]} />
+      <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: CYAN, shadowColor: CYAN, shadowRadius: 8, shadowOpacity: 1, shadowOffset: { width: 0, height: 0 } }} />
+    </View>
   );
 }
 
-// ── Vertical Learning Journey Node ──
-type NodeStatus = "completed" | "active" | "locked";
-
-type ActivityData = {
-  id: string;
-  title: string;
-  stepLabel: string;
-  status: NodeStatus;
-};
-
-function ActivityPathNode({ activity, isLast }: { activity: ActivityData, isLast: boolean }) {
-  const isCompleted = activity.status === "completed";
-  const isActive = activity.status === "active";
+// ── Vertical Phase Card ──
+function AnimatedVerticalPhaseCard({ card, index, isLast }: { card: PhaseCard; index: number; isLast: boolean }) {
+  const dueDate = formatDate(card.phase.due_at ?? card.phase.ends_at);
+  const pct = card.activityCount > 0 ? Math.round((card.completedCount / card.activityCount) * 100) : 0;
+  const phaseNumString = String(card.phase.phase_number).padStart(2, "0");
   
-  return (
-    <View style={styles.pathNodeContainer}>
-      {/* Node Visualization Column */}
-      <View style={styles.pathNodeGraphCol}>
-        {isCompleted && (
-          <View style={[styles.pathDot, styles.pathDotCompleted]}>
-            <Svg width="12" height="12" viewBox="0 0 16 16">
-              <Polyline points="3,8 7,12 13,4" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
-          </View>
-        )}
-        
-        {isActive && (
-          <View style={styles.pathDotActiveWrapper}>
-            <View style={styles.pathDotActivePulse} />
-            <View style={[styles.pathDot, styles.pathDotActive]} />
-          </View>
-        )}
-        
-        {(!isCompleted && !isActive) && (
-          <View style={[styles.pathDot, styles.pathDotLocked]} />
-        )}
+  const isCompleted = pct === 100;
+  const isLocked = !card.isActive && !isCompleted && index > 0; // Simplified lock logic
 
-        {/* Vertical Line Connecting Nodes */}
+  return (
+    <Animated.View 
+      entering={FadeInDown.delay(index * 150 + 100).springify()} 
+      style={styles.verticalTimelineRow}
+    >
+      {/* Left Timeline Indicator */}
+      <View style={styles.timelineIndicatorCol}>
+        {card.isActive ? (
+          <ActivePulse />
+        ) : isCompleted ? (
+          <View style={styles.timelineDotCompleted}><AppText style={{ fontSize: 10 }}>✓</AppText></View>
+        ) : (
+          <View style={styles.timelineDotLocked} />
+        )}
+        
         {!isLast && (
-          <View style={[
-            styles.pathLine, 
-            isCompleted ? styles.pathLineCompleted : styles.pathLineLocked
-          ]} />
+          <View style={[styles.timelineLine, isCompleted ? { backgroundColor: CYAN45 } : { backgroundColor: "rgba(255,255,255,0.1)" }]} />
         )}
       </View>
 
-      {/* Activity Card Column */}
+      {/* Right Phase Card */}
       <Pressable 
-        style={[styles.activityCardWrapper, (!isCompleted && !isActive) && { opacity: 0.6 }]}
-        disabled={activity.status === "locked"}
+        style={({ pressed }) => [styles.verticalCardWrapper, pressed && { opacity: 0.9 }, isLocked && { opacity: 0.5 }]} 
+        onPress={() => !isLocked && router.push(`/(hackathon)/phase/${card.phase.id}`)}
       >
-        <BlurView intensity={20} tint="dark" style={styles.activityCardBlur}>
-          <LinearGradient
-            colors={[
-              isActive ? 'rgba(101, 171, 252, 0.15)' : 'rgba(255, 255, 255, 0.03)', 
-              'rgba(255, 255, 255, 0.01)'
-            ]}
-            style={[styles.activityCardInner, isActive && styles.activityCardInnerActive]}
+        <BlurView intensity={40} tint="dark" style={styles.cardBlur}>
+          <LinearGradient 
+            colors={card.isActive ? ['rgba(20, 28, 41, 0.9)', 'rgba(8, 14, 22, 0.95)'] : ['rgba(255,255,255,0.03)', 'rgba(255,255,255,0.01)']} 
+            style={[styles.cardInner, card.isActive && { borderColor: "rgba(145,196,227,0.3)" }]}
           >
-            <View style={styles.activityCardHeader}>
-              <AppText style={styles.activityType}>{activity.stepLabel}</AppText>
-            </View>
-            <AppText variant="bold" style={styles.activityTitle}>{activity.title}</AppText>
-            
-            {isActive && (
-              <View style={styles.activityActionRow}>
-                <AppText variant="bold" style={styles.activityActionText}>CONTINUE</AppText>
-                <AppText style={styles.activityActionArrow}>→</AppText>
+            <AppText variant="bold" style={styles.cardBgNumber} pointerEvents="none">
+              {phaseNumString}
+            </AppText>
+
+            <View style={styles.cardTopRow}>
+              <View style={{ flex: 1, paddingRight: Space.md }}>
+                <AppText style={styles.phaseLabel}>PHASE {phaseNumString}</AppText>
+                <AppText variant="bold" style={styles.phaseName} numberOfLines={2}>
+                  {card.phase.title}
+                </AppText>
+                {dueDate && (
+                  <AppText style={styles.phaseDue}>Due: {dueDate}</AppText>
+                )}
               </View>
-            )}
+
+              {!isLocked && (
+                <View style={styles.progressRingWrapper}>
+                  <CircularProgress percent={pct} size={54} strokeWidth={4} />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.cardFooter}>
+              <View style={styles.statsRow}>
+                <View style={styles.statBox}>
+                  <AppText style={styles.statVal}>{card.activityCount}</AppText>
+                  <AppText style={styles.statLabel}>Tasks</AppText>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statBox}>
+                  <AppText style={styles.statVal}>{card.completedCount}</AppText>
+                  <AppText style={styles.statLabel}>Done</AppText>
+                </View>
+              </View>
+              {!isLocked ? (
+                <View style={[styles.actionBtn, isCompleted && { backgroundColor: "rgba(255,255,255,0.1)", borderColor: "transparent" }]}>
+                  <AppText variant="bold" style={[styles.actionBtnText, isCompleted && { color: WHITE }]}>
+                    {isCompleted ? "REVIEW" : "ENTER"}
+                  </AppText>
+                </View>
+              ) : (
+                <View style={styles.lockedBtn}>
+                  <AppText variant="bold" style={styles.lockedBtnText}>LOCKED</AppText>
+                </View>
+              )}
+            </View>
+            
           </LinearGradient>
         </BlurView>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
-// ── Main Screen ──
-// ── Coming Soon Phase Card ──
-function PhaseComingSoonCardView() {
+// ── Header Stats Component ──
+function JourneyImpactHeader() {
   return (
-    <View style={[styles.cardContainer, { opacity: 0.6 }]}>
-      <BlurView intensity={20} tint="dark" style={styles.cardBlur}>
-        <LinearGradient 
-          colors={['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.01)']} 
-          start={{ x: 0, y: 0 }} 
-          end={{ x: 1, y: 1 }} 
-          style={[styles.cardInner, { justifyContent: 'center', alignItems: 'center', borderColor: "transparent" }]}
-        >
-          <AppText variant="bold" style={{ fontSize: 24, color: WHITE28, marginBottom: 8, fontFamily: "BaiJamjuree_700Bold", letterSpacing: 1 }}>COMING SOON</AppText>
-          <AppText style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", fontFamily: "BaiJamjuree_500Medium" }}>More challenges await!</AppText>
-        </LinearGradient>
-      </BlurView>
-    </View>
+    <Animated.View entering={FadeIn.duration(600)} style={styles.impactContainer}>
+      <AppText variant="bold" style={styles.impactTitle}>JOURNEY IMPACT</AppText>
+      <View style={styles.impactGrid}>
+        <View style={styles.impactBox}>
+          <AppText variant="bold" style={styles.impactVal}>14</AppText>
+          <AppText style={styles.impactLabel}>USERS{'\n'}SPOKEN TO</AppText>
+        </View>
+        <View style={styles.impactDivider} />
+        <View style={styles.impactBox}>
+          <AppText variant="bold" style={styles.impactVal}>3</AppText>
+          <AppText style={styles.impactLabel}>PROBLEMS{'\n'}VALIDATED</AppText>
+        </View>
+        <View style={styles.impactDivider} />
+        <View style={[styles.impactBox, styles.impactHighlight]}>
+          <AppText variant="bold" style={styles.impactHighlightVal}>TOP 5%</AppText>
+          <AppText style={styles.impactHighlightLabel}>TEAM{'\n'}RANK</AppText>
+        </View>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -254,8 +246,6 @@ export default function HackathonJourneyScreen() {
   const [phaseCards, setPhaseCards] = useState<PhaseCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
     try {
@@ -266,21 +256,40 @@ export default function HackathonJourneyScreen() {
       } else {
         setData(home);
         const phaseSummaries = await getProgramPhaseActivitySummaries(home.program.id);
+        
+        const allActivityIds = phaseSummaries.flatMap(p => p.activities.map(a => a.id));
+        const submissionStatuses = await fetchActivitySubmissionStatuses(allActivityIds);
+
         const currentPhaseId = home.enrollment?.current_phase_id;
+        
+        let foundActive = false;
         const cards: PhaseCard[] = home.phases.map((phase) => {
           const phaseData = phaseSummaries.find((p) => p.id === phase.id);
           const activities = phaseData?.activities ?? [];
+          const isPhaseActive = phase.id === currentPhaseId;
+          if (isPhaseActive) foundActive = true;
+          
+          const completedCount = activities.filter(a => {
+            const status = submissionStatuses[a.id];
+            return status === "submitted" || status === "graded" || status === "completed";
+          }).length;
+          
           return {
             phase,
             activityTitles: activities.map((a) => a.title),
             activityCount: activities.length,
-            completedCount: 0,
-            isActive: phase.id === currentPhaseId,
+            completedCount,
+            isActive: isPhaseActive,
           };
         });
+        
+        // If no active phase is matched via current_phase_id, default to the first incomplete
+        if (!foundActive && cards.length > 0) {
+          const firstIncomplete = cards.find(c => c.completedCount < c.activityCount) || cards[0];
+          firstIncomplete.isActive = true;
+        }
+
         setPhaseCards(cards);
-        const currentIndex = cards.findIndex((c) => c.isActive);
-        if (currentIndex > 0) setActiveIndex(currentIndex);
       }
     } catch {
       setData({
@@ -298,12 +307,6 @@ export default function HackathonJourneyScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  function scrollTo(index: number) {
-    const clamped = Math.max(0, Math.min(index, phaseCards.length));
-    setActiveIndex(clamped);
-    scrollRef.current?.scrollTo({ x: clamped * (CARD_WIDTH + CARD_GAP), animated: true });
-  }
-
   if (loading || !data) {
     return (
       <View style={styles.loadingRoot}>
@@ -313,94 +316,61 @@ export default function HackathonJourneyScreen() {
     );
   }
 
-  const activePhase = phaseCards[activeIndex];
-  const activePhaseActivities: ActivityData[] = activePhase
-    ? buildJourneyActivityNodes(
-        activePhase.activityTitles,
-        activePhase.completedCount,
-      ).map((activity, index) => ({
-        id: activity.id,
-        title: activity.title,
-        status:
-          activity.state === "completed"
-            ? "completed"
-            : activity.state === "current"
-              ? "active"
-              : "locked",
-        stepLabel: `Step ${index + 1}`,
-      }))
-    : [];
-
   return (
     <View style={styles.root}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.md }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={CYAN} />}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <AppText variant="bold" style={styles.title}>Your Journey</AppText>
+        <View style={styles.headerRow}>
+          <View>
+            <AppText variant="bold" style={styles.title}>Your Journey</AppText>
+            <AppText style={styles.subtitle}>Track your learning & progress</AppText>
+          </View>
+          <View style={styles.avatarCircle}>
+            <AppText style={{ fontSize: 18 }}>👽</AppText>
+          </View>
         </View>
 
-        {/* Phases Carousel */}
-        {phaseCards.length > 0 ? (
-          <View style={styles.carouselSection}>
-            <ScrollView 
-              ref={scrollRef} 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              scrollEnabled={true}
-              snapToInterval={CARD_WIDTH + CARD_GAP}
-              snapToAlignment="start"
-              decelerationRate="fast"
-              style={{ flex: 1 }} 
-              contentContainerStyle={styles.cardsContent}
-            >
-              {phaseCards.map((card) => (
-                <PhaseCardView key={card.phase.id} card={card} onPress={() => router.push(`/(hackathon)/phase/${card.phase.id}`)} />
-              ))}
-              <PhaseComingSoonCardView />
-            </ScrollView>
+        <JourneyImpactHeader />
 
-            <View style={styles.dots}>
-              {phaseCards.map((_, i) => (
-                <View key={i} style={[styles.dot, i === activeIndex && styles.dotActive]} />
-              ))}
-              <View style={[styles.dot, phaseCards.length === activeIndex && styles.dotActive]} />
-            </View>
+        {/* Vertical Phases */}
+        {phaseCards.length > 0 ? (
+          <View style={styles.timelineSection}>
+            {phaseCards.map((card, index) => (
+              <AnimatedVerticalPhaseCard 
+                key={card.phase.id} 
+                card={card} 
+                index={index} 
+                isLast={index === phaseCards.length - 1} 
+              />
+            ))}
+            
+            {/* Coming Soon Node */}
+            <Animated.View entering={FadeInDown.delay(phaseCards.length * 150 + 100).springify()} style={styles.verticalTimelineRow}>
+              <View style={styles.timelineIndicatorCol}>
+                <View style={[styles.timelineDotLocked, { borderColor: "rgba(255,255,255,0.05)" }]} />
+              </View>
+              <View style={[styles.verticalCardWrapper, { opacity: 0.4 }]}>
+                <BlurView intensity={20} tint="dark" style={styles.cardBlur}>
+                  <LinearGradient 
+                    colors={['rgba(255, 255, 255, 0.02)', 'transparent']} 
+                    style={[styles.cardInner, { alignItems: 'center', justifyContent: 'center', minHeight: 100 }]}
+                  >
+                    <AppText variant="bold" style={{ fontSize: 16, color: WHITE28, letterSpacing: 1 }}>COMING SOON</AppText>
+                    <AppText style={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>More challenges await!</AppText>
+                  </LinearGradient>
+                </BlurView>
+              </View>
+            </Animated.View>
           </View>
         ) : (
           <View style={styles.emptyPhases}>
             <AppText style={{ color: WHITE28 }}>No phases available yet.</AppText>
           </View>
         )}
-
-        {/* Vertical Activity Path */}
-        <View style={styles.pathSection}>
-          <View style={styles.pathSectionHeader}>
-            <AppText variant="bold" style={styles.pathSectionTitle}>
-              {activePhase ? activePhase.phase.title : "Curriculum activities"}
-            </AppText>
-            <AppText style={styles.pathSectionSubtitle}>
-              Complete these steps to finish this phase.
-            </AppText>
-          </View>
-
-          <View style={styles.pathList}>
-            {activePhaseActivities.length > 0 ? activePhaseActivities.map((activity, index) => (
-              <ActivityPathNode
-                key={activity.id}
-                activity={activity}
-                isLast={index === activePhaseActivities.length - 1}
-              />
-            )) : (
-              <View style={styles.emptyPhases}>
-                <AppText style={{ color: WHITE28 }}>No activities available yet.</AppText>
-              </View>
-            )}
-          </View>
-        </View>
-
       </ScrollView>
     </View>
   );
@@ -409,43 +379,45 @@ export default function HackathonJourneyScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   scroll: { flex: 1 },
-  content: { padding: Space.xl, paddingBottom: 140, gap: Space.lg },
+  content: { padding: Space.xl, paddingBottom: 140, gap: Space.xl },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG, gap: Space.md },
-  loadingText: {
-    color: CYAN,
-    fontSize: 14,
-    fontFamily: "BaiJamjuree_500Medium",
-    letterSpacing: 0.4,
-  },
+  loadingText: { color: CYAN, fontSize: 14, fontFamily: "BaiJamjuree_500Medium", letterSpacing: 0.4 },
   
-  header: {
-    paddingHorizontal: Space.xs,
-    marginBottom: Space.sm,
-  },
-  eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: Space.xs },
   title: { fontSize: 32, lineHeight: 40, color: WHITE, fontFamily: "BaiJamjuree_700Bold", marginTop: 4 },
+  subtitle: { fontSize: 14, color: "rgba(255,255,255,0.5)", marginTop: 2 },
+  avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
 
-  carouselSection: { gap: Space.md, marginBottom: Space.xl },
-  carouselRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  chevron: { padding: Space.xs, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 8 },
-  chevronText: { fontSize: 16, color: WHITE, fontFamily: "BaiJamjuree_400Regular" },
-  cardsContent: { flexDirection: "row", gap: Space.md, paddingRight: Space["2xl"] },
-  rightSide: { flexDirection: "row", alignItems: "center" },
-  peek: { width: PEEK_WIDTH, height: 220, borderRadius: 16, backgroundColor: WHITE06, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
-  
-  cardContainer: { width: CARD_WIDTH, borderRadius: 18, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 4 },
+  // Impact Header
+  impactContainer: { backgroundColor: "rgba(255,255,255,0.02)", borderRadius: 20, padding: Space.lg, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
+  impactTitle: { fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 2, marginBottom: Space.md },
+  impactGrid: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  impactBox: { flex: 1, alignItems: "center" },
+  impactVal: { fontSize: 24, color: WHITE, fontFamily: "BaiJamjuree_700Bold", marginBottom: 2 },
+  impactLabel: { fontSize: 9, color: "rgba(255,255,255,0.5)", textAlign: "center", letterSpacing: 0.5, lineHeight: 12 },
+  impactDivider: { width: 1, height: 32, backgroundColor: "rgba(255,255,255,0.1)" },
+  impactHighlight: { backgroundColor: "rgba(157, 129, 172, 0.1)", borderRadius: 12, paddingVertical: 10, borderWidth: 1, borderColor: "rgba(157, 129, 172, 0.3)" },
+  impactHighlightVal: { fontSize: 18, color: "#9D81AC", fontFamily: "BaiJamjuree_700Bold", marginBottom: 2 },
+  impactHighlightLabel: { fontSize: 9, color: "rgba(157, 129, 172, 0.8)", textAlign: "center", letterSpacing: 0.5, lineHeight: 12 },
+
+  // Timeline
+  timelineSection: { marginTop: Space.sm },
+  verticalTimelineRow: { flexDirection: "row", alignItems: "stretch", minHeight: 140 },
+  timelineIndicatorCol: { width: 36, alignItems: "center", paddingTop: 20 },
+  timelineDotCompleted: { width: 20, height: 20, borderRadius: 10, backgroundColor: CYAN, alignItems: "center", justifyContent: "center", shadowColor: CYAN, shadowRadius: 8, shadowOpacity: 0.5, shadowOffset: { width: 0, height: 0 } },
+  timelineDotLocked: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(0,0,0,0.5)" },
+  timelineLine: { width: 2, flex: 1, marginVertical: 8, borderRadius: 1 },
+
+  // Cards
+  verticalCardWrapper: { flex: 1, paddingBottom: Space.xl },
   cardBlur: { flex: 1, borderRadius: 18, overflow: "hidden" },
   cardInner: { flex: 1, padding: Space.lg, gap: Space.md, borderWidth: 1, borderColor: "rgba(255,255,255,0.06)", borderRadius: 18 },
-  cardGlow: { position: "absolute", top: -30, right: -30, width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(145,196,227,0.06)" },
-  cardBgNumber: { position: "absolute", right: -10, top: -20, fontSize: 130, color: "rgba(255,255,255,0.02)", fontFamily: "BaiJamjuree_700Bold", zIndex: -1 },
-  
+  cardBgNumber: { position: "absolute", right: -15, top: -25, fontSize: 110, color: "rgba(255,255,255,0.03)", fontFamily: "BaiJamjuree_700Bold", zIndex: -1 },
   cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", zIndex: 1 },
-  phaseLabel: { fontSize: 10, textTransform: "uppercase", letterSpacing: 2, color: CYAN45, fontFamily: "BaiJamjuree_600SemiBold", marginBottom: 4 },
-  phaseName: { fontSize: 22, lineHeight: 28, color: WHITE, fontFamily: "BaiJamjuree_700Bold", marginBottom: 8 },
-  dateBadge: { backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: Space.sm, paddingVertical: 4, borderRadius: 8, alignSelf: "flex-start" },
+  phaseLabel: { fontSize: 10, textTransform: "uppercase", letterSpacing: 2, color: CYAN45, fontFamily: "BaiJamjuree_700Bold", marginBottom: 4 },
+  phaseName: { fontSize: 20, lineHeight: 26, color: WHITE, fontFamily: "BaiJamjuree_700Bold", marginBottom: 6 },
   phaseDue: { fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "BaiJamjuree_500Medium" },
-  
-  progressRingWrapper: { alignItems: "center", justifyContent: "center", width: 64, height: 64 },
+  progressRingWrapper: { alignItems: "center", justifyContent: "center", width: 54, height: 54 },
   
   cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)", paddingTop: Space.md, marginTop: Space.sm, zIndex: 1 },
   statsRow: { flexDirection: "row", alignItems: "center" },
@@ -456,151 +428,9 @@ const styles = StyleSheet.create({
   
   actionBtn: { backgroundColor: "rgba(101,171,252,0.12)", paddingHorizontal: Space.md, paddingVertical: Space.sm, borderRadius: 12, borderWidth: 1, borderColor: "rgba(101,171,252,0.2)" },
   actionBtnText: { fontSize: 11, color: BLUE, fontFamily: "BaiJamjuree_700Bold", letterSpacing: 1.5, textTransform: "uppercase" },
+  lockedBtn: { paddingHorizontal: Space.md, paddingVertical: Space.sm, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "transparent" },
+  lockedBtnText: { fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "BaiJamjuree_700Bold", letterSpacing: 1.5, textTransform: "uppercase" },
 
-  dots: { flexDirection: "row", justifyContent: "center", gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.15)" },
-  dotActive: { backgroundColor: CYAN60, width: 14 },
   emptyPhases: { padding: Space.xl, backgroundColor: "rgba(255,255,255,0.02)", borderRadius: 16, alignItems: "center" },
-
-  // Vertical Path Styles
-  pathSection: {
-    paddingHorizontal: Space.sm,
-  },
-  pathSectionHeader: {
-    marginBottom: Space.xl,
-  },
-  pathSectionTitle: {
-    fontSize: 22,
-    color: WHITE,
-    marginBottom: 4,
-  },
-  pathSectionSubtitle: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.4)",
-  },
-  pathList: {
-    flexDirection: "column",
-  },
-  pathNodeContainer: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    minHeight: 110,
-  },
-  pathNodeGraphCol: {
-    width: 40,
-    alignItems: "center",
-  },
-  pathDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-  },
-  pathDotCompleted: {
-    backgroundColor: CYAN,
-    borderColor: CYAN,
-    shadowColor: CYAN,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-  },
-  pathDotActiveWrapper: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pathDotActivePulse: {
-    position: "absolute",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(101, 171, 252, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(101, 171, 252, 0.4)",
-  },
-  pathDotActive: {
-    backgroundColor: CARD_BG,
-    borderColor: BLUE,
-  },
-  pathDotLocked: {
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderColor: "rgba(255, 255, 255, 0.15)",
-  },
-  pathLine: {
-    width: 2,
-    flex: 1,
-    marginVertical: 4,
-  },
-  pathLineCompleted: {
-    backgroundColor: "rgba(145, 196, 227, 0.4)",
-  },
-  pathLineLocked: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  
-  activityCardWrapper: {
-    flex: 1,
-    paddingLeft: Space.lg,
-    paddingBottom: Space.xl,
-    marginTop: -4,
-  },
-  activityCardBlur: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  activityCardInner: {
-    padding: Space.lg,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-  },
-  activityCardInnerActive: {
-    borderColor: "rgba(101, 171, 252, 0.4)",
-  },
-  activityCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: Space.sm,
-  },
-  activityType: {
-    fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: 1.5,
-    color: "rgba(255, 255, 255, 0.5)",
-    fontFamily: "BaiJamjuree_500Medium",
-  },
-  activityDuration: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.3)",
-  },
-  activityTitle: {
-    fontSize: 18,
-    color: WHITE,
-  },
-  activityActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: Space.md,
-    backgroundColor: "rgba(101, 171, 252, 0.15)",
-    alignSelf: "flex-start",
-    paddingHorizontal: Space.md,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: Space.xs,
-  },
-  activityActionText: {
-    fontSize: 11,
-    color: BLUE,
-    letterSpacing: 1,
-  },
-  activityActionArrow: {
-    fontSize: 14,
-    color: BLUE,
-    fontWeight: "bold",
-  },
 });
+
