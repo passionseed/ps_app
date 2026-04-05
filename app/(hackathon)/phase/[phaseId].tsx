@@ -155,7 +155,7 @@ export default function HackathonPhaseScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <AppText style={styles.eyebrow}>Phase {String(phase.phase_number).padStart(2, "0")}</AppText>
+          <AppText style={styles.eyebrow}>เฟส {String(phase.phase_number).padStart(2, "0")}</AppText>
           <AppText variant="bold" style={styles.title}>{phase.title}</AppText>
           {phase.description ? (
             <AppText style={styles.subtitle}>{phase.description}</AppText>
@@ -165,7 +165,7 @@ export default function HackathonPhaseScreen() {
             <View style={styles.progressBarBg}>
               <View style={[styles.progressBarFill, { width: `${pct}%` }]} />
             </View>
-            <AppText style={styles.progressText}>{completedCount} of {totalCount} completed</AppText>
+            <AppText style={styles.progressText}>สำเร็จ {completedCount} จาก {totalCount}</AppText>
           </View>
         </View>
 
@@ -216,7 +216,7 @@ function ActivityCard({ activity, index }: { activity: ActivityWithStatus, index
             <StatusIcon status={activity.status} />
             <View style={styles.activityCardBody}>
               <View style={styles.activityHeaderRow}>
-                <AppText style={styles.stepLabel}>Step {index + 1}</AppText>
+                <AppText style={styles.stepLabel}>ขั้นตอน {index + 1}</AppText>
                 <AppText style={[styles.statusBadge, statusBadgeStyle(activity.status)]}>
                   {formatStatus(activity.status)}
                 </AppText>
@@ -234,10 +234,10 @@ function ActivityCard({ activity, index }: { activity: ActivityWithStatus, index
               
               <View style={styles.activityMeta}>
                 <AppText style={[styles.metaChip, activity.submission_scope === "team" && styles.metaChipTeam]}>
-                  {activity.submission_scope === "team" ? "👥 Team" : "👤 Individual"}
+                  {activity.submission_scope === "team" ? "👥 ทีม" : "👤 เดี่ยว"}
                 </AppText>
                 {activity.estimated_minutes ? (
-                  <AppText style={styles.metaChip}>⏱️ {activity.estimated_minutes} min</AppText>
+                  <AppText style={styles.metaChip}>⏱️ {activity.estimated_minutes} นาที</AppText>
                 ) : null}
                 {activity.assessment ? (
                   <AppText style={styles.metaChip}>📝 {formatAssessment(activity.assessment.assessment_type)}</AppText>
@@ -308,13 +308,19 @@ function statusBadgeStyle(status: ActivityStatus) {
 }
 
 function formatStatus(status: ActivityStatus) {
-  return status.replace(/_/g, " ").toUpperCase();
+  switch (status) {
+    case "passed": return "ผ่านแล้ว";
+    case "submitted": return "ส่งแล้ว";
+    case "draft": return "แบบร่าง";
+    case "revision_required": return "ต้องแก้ไข";
+    default: return "ยังไม่เริ่ม";
+  }
 }
 
 function formatAssessment(type: string) {
-  if (type === "text_answer") return "Text";
-  if (type === "file_upload") return "Upload";
-  if (type === "image_upload") return "Image";
+  if (type === "text_answer") return "ข้อความ";
+  if (type === "file_upload") return "อัปโหลดไฟล์";
+  if (type === "image_upload") return "รูปภาพ";
   return type.replace(/_/g, " ");
 }
 
