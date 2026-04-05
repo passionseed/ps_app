@@ -1,6 +1,6 @@
 // app/(hackathon)/activity/[nodeId].tsx
 // Hackathon phase activity screen — fetches from hackathon_phase_activities
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -15,17 +15,33 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { AppText } from "../../../components/AppText";
+import { HackathonSwipeDonut } from "../../../components/Hackathon/HackathonSwipeDonut";
+import { WaterFlowHint } from "../../../components/Hackathon/WaterFlowHint";
 import HackathonEvidenceComic from "../../../components/Hackathon/HackathonEvidenceComic";
+import HackathonWebtoon from "../../../components/Hackathon/HackathonWebtoon";
 import { parseHackathonComicContent } from "../../../lib/hackathonComic";
+import { parseHackathonWebtoonContent } from "../../../lib/hackathonWebtoon";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { supabase } from "../../../lib/supabase";
-import { submitTextAnswer, submitFile } from "../../../lib/hackathon-submit";
+import {
+  submitTextAnswer,
+  submitFile,
+  fetchActivitySubmissions,
+  type SubmissionRecord,
+} from "../../../lib/hackathon-submit";
 import { Space } from "../../../lib/theme";
 import Animated, {
   type SharedValue,
   useAnimatedScrollHandler,
   useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  Extrapolation,
+  interpolate,
+  runOnJS,
 } from "react-native-reanimated";
 import type {
   HackathonPhaseActivityDetail,
@@ -79,15 +95,16 @@ async function fetchActivity(id: string): Promise<HackathonPhaseActivityDetail |
 // ── Content type label ────────────────────────────────────────────
 function contentTypeLabel(type: string): string {
   switch (type) {
-    case "npc_chat":    return "NPC CONVERSATION";
-    case "ai_chat":     return "AI CHAT";
-    case "video":       return "VIDEO";
-    case "short_video": return "VIDEO";
-    case "text":        return "READING";
-    case "image":       return "IMAGE";
-    case "infographic_comic": return "COMIC";
-    case "pdf":         return "DOCUMENT";
-    case "canva_slide": return "SLIDES";
+    case "npc_chat":    return "พูดคุยกับ NPC";
+    case "ai_chat":     return "พูดคุยกับ AI";
+    case "video":       return "วิดีโอ";
+    case "short_video": return "วิดีโอ";
+    case "text":        return "บทความ";
+    case "image":       return "รูปภาพ";
+    case "infographic_comic": return "การ์ตูน";
+    case "webtoon":     return "เว็บตูน";
+    case "pdf":         return "เอกสาร";
+    case "canva_slide": return "สไลด์";
     default:            return type.toUpperCase().replace(/_/g, " ");
   }
 }
@@ -108,9 +125,23 @@ function isComicContent(item: HackathonPhaseActivityContent): boolean {
   return getComicContent(item) !== null;
 }
 
+function getWebtoonContent(item: HackathonPhaseActivityContent) {
+  if (item.content_type !== "webtoon") {
+    return null;
+  }
+
+  return parseHackathonWebtoonContent(item.metadata);
+}
+
+function isWebtoonContent(item: HackathonPhaseActivityContent): boolean {
+  return getWebtoonContent(item) !== null;
+}
+
 function primaryContentType(content: HackathonPhaseActivityContent[]): string {
-  if (content.length === 0) return "activity";
-  return isComicContent(content[0]) ? "COMIC" : contentTypeLabel(content[0].content_type);
+  if (content.length === 0) return "กิจกรรม";
+  if (isComicContent(content[0])) return "การ์ตูน";
+  if (isWebtoonContent(content[0])) return "เว็บตูน";
+  return contentTypeLabel(content[0].content_type);
 }
 
 // ── Content renderers ─────────────────────────────────────────────
@@ -123,7 +154,7 @@ function TextBlock({ item }: { item: HackathonPhaseActivityContent }) {
       {item.content_body ? (
         <AppText style={styles.bodyText}>{item.content_body}</AppText>
       ) : (
-        <AppText style={[styles.bodyText, { color: WHITE28 }]}>No content.</AppText>
+        <AppText style={[styles.bodyText, { color: WHITE28 }]}>ไม่มีเนื้อหา</AppText>
       )}
     </View>
   );
@@ -142,7 +173,7 @@ function ImageBlock({ item }: { item: HackathonPhaseActivityContent }) {
           resizeMode="contain"
         />
       ) : (
-        <AppText style={[styles.bodyText, { color: WHITE28 }]}>No image URL.</AppText>
+        <AppText style={[styles.bodyText, { color: WHITE28 }]}>ไม่มีลิงก์รูปภาพ</AppText>
       )}
     </View>
   );
@@ -162,14 +193,14 @@ function VideoBlock({ item }: { item: HackathonPhaseActivityContent }) {
           </AppText>
         </View>
       ) : (
-        <AppText style={[styles.bodyText, { color: WHITE28 }]}>No video URL.</AppText>
+        <AppText style={[styles.bodyText, { color: WHITE28 }]}>ไม่มีลิงก์วิดีโอ</AppText>
       )}
     </View>
   );
 }
 
 function ChatBlock({ item, type }: { item: HackathonPhaseActivityContent; type: "npc_chat" | "ai_chat" }) {
-  const label = type === "npc_chat" ? "NPC Conversation" : "AI Chat";
+  const label = type === "npc_chat" ? "พูดคุยกับ NPC" : "พูดคุยกับ AI";
   const icon  = type === "npc_chat" ? "🤖" : "✨";
   return (
     <View style={[styles.contentBlock, styles.chatBlock]}>
@@ -179,11 +210,11 @@ function ChatBlock({ item, type }: { item: HackathonPhaseActivityContent; type: 
       </AppText>
       <AppText style={[styles.bodyText, { textAlign: "center", color: WHITE55 }]}>
         {type === "npc_chat"
-          ? "An interactive conversation experience."
-          : "Chat with AI to explore this topic."}
+          ? "ประสบการณ์การสนทนาโต้ตอบ"
+          : "พูดคุยกับ AI เพื่อสำรวจหัวข้อนี้"}
       </AppText>
       <View style={styles.chatComingSoon}>
-        <AppText style={styles.chatComingSoonText}>Coming soon</AppText>
+        <AppText style={styles.chatComingSoonText}>เร็วๆ นี้</AppText>
       </View>
     </View>
   );
@@ -213,6 +244,16 @@ function ContentBlock({
     );
   }
 
+  const webtoon = getWebtoonContent(item);
+  if (webtoon) {
+    return (
+      <HackathonWebtoon
+        webtoon={webtoon}
+        fallbackUrl={item.content_url}
+      />
+    );
+  }
+
   switch (item.content_type) {
     case "text":        return <TextBlock item={item} />;
     case "image":       return <ImageBlock item={item} />;
@@ -227,7 +268,7 @@ function ContentBlock({
             <AppText variant="bold" style={styles.contentBlockTitle}>{item.content_title}</AppText>
           ) : null}
           <AppText style={[styles.bodyText, { color: WHITE28 }]}>
-            Content type "{item.content_type}" — coming soon.
+            เนื้อหาประเภท "{item.content_type}" — กำลังจะมาเร็วๆ นี้
           </AppText>
         </View>
       );
@@ -269,7 +310,7 @@ function ImageUploadBlock({
       onUploaded(res.url ?? asset.uri);
     } catch (e: any) {
       setUploadState("error");
-      setError(e.message ?? "Upload failed");
+      setError(e.message ?? "การอัปโหลดล้มเหลว");
     }
   }
 
@@ -290,20 +331,20 @@ function ImageUploadBlock({
           )}
           {uploadState !== "uploading" && (
             <Pressable style={styles.changeBtn} onPress={pick}>
-              <AppText style={styles.changeBtnText}>Change</AppText>
+              <AppText style={styles.changeBtnText}>เปลี่ยนรูปภาพ</AppText>
             </Pressable>
           )}
         </View>
       ) : (
         <Pressable style={styles.uploadEmptyBtn} onPress={pick}>
           <AppText style={styles.uploadEmptyIcon}>📷</AppText>
-          <AppText style={styles.uploadEmptyLabel}>Tap to add photo</AppText>
+          <AppText style={styles.uploadEmptyLabel}>แตะเพื่อเพิ่มรูปภาพ</AppText>
         </Pressable>
       )}
       {uploadState === "error" && error ? (
         <View style={styles.uploadError}>
           <AppText style={styles.uploadErrorText}>{error}</AppText>
-          <Pressable onPress={pick}><AppText style={styles.retryText}>Retry</AppText></Pressable>
+          <Pressable onPress={pick}><AppText style={styles.retryText}>ลองใหม่</AppText></Pressable>
         </View>
       ) : null}
     </View>
@@ -348,7 +389,7 @@ function FileUploadBlock({
       onUploaded(res.url ?? asset.uri);
     } catch (e: any) {
       setUploadState("error");
-      setError(e.message ?? "Upload failed");
+      setError(e.message ?? "การอัปโหลดล้มเหลว");
     }
   }
 
@@ -362,20 +403,20 @@ function FileUploadBlock({
           {uploadState === "done" && <AppText style={styles.fileDone}>✓</AppText>}
           {uploadState !== "uploading" && (
             <Pressable onPress={pick}>
-              <AppText style={styles.changeBtnText}>Change</AppText>
+              <AppText style={styles.changeBtnText}>เปลี่ยนไฟล์</AppText>
             </Pressable>
           )}
         </View>
       ) : (
         <Pressable style={styles.uploadEmptyBtn} onPress={pick}>
           <AppText style={styles.uploadEmptyIcon}>📎</AppText>
-          <AppText style={styles.uploadEmptyLabel}>Tap to attach file</AppText>
+          <AppText style={styles.uploadEmptyLabel}>แตะเพื่อแนบไฟล์</AppText>
         </Pressable>
       )}
       {uploadState === "error" && error ? (
         <View style={styles.uploadError}>
           <AppText style={styles.uploadErrorText}>{error}</AppText>
-          <Pressable onPress={pick}><AppText style={styles.retryText}>Retry</AppText></Pressable>
+          <Pressable onPress={pick}><AppText style={styles.retryText}>ลองใหม่</AppText></Pressable>
         </View>
       ) : null}
     </View>
@@ -396,22 +437,32 @@ function AssessmentBlock({
   onChange: (v: string) => void;
   onFileUploaded: (url: string) => void;
 }) {
-  const label = assessment.assessment_type === "text_answer"
-    ? "Your answer"
+  const metadata = assessment.metadata as any;
+  const defaultLabel = assessment.assessment_type === "text_answer"
+    ? "คำตอบของคุณ"
     : assessment.assessment_type === "image_upload"
-    ? "Your photo"
-    : "Your file";
+    ? "รูปภาพของคุณ"
+    : "ไฟล์ของคุณ";
+    
+  const label = metadata?.submission_label || defaultLabel;
+  const prompt = metadata?.prompt;
+  const placeholder = metadata?.placeholder || "พิมพ์คำตอบของคุณที่นี่...";
 
   return (
     <View style={styles.assessmentBlock}>
       <AppText style={styles.assessmentLabel}>
         {label}{assessment.points_possible ? ` · ${assessment.points_possible} pts` : ""}
       </AppText>
+      {prompt ? (
+        <AppText style={{ fontSize: 15, color: WHITE, marginBottom: 8, lineHeight: 22 }}>
+          {prompt}
+        </AppText>
+      ) : null}
       {assessment.assessment_type === "text_answer" ? (
         <TextInput
           style={styles.textArea}
           multiline
-          placeholder="Write your response here..."
+          placeholder={placeholder}
           placeholderTextColor={WHITE28}
           value={value}
           onChangeText={onChange}
@@ -433,13 +484,59 @@ function AssessmentBlock({
   );
 }
 
+function PastSubmissionsList({ submissions }: { submissions: SubmissionRecord[] }) {
+  if (submissions.length === 0) return null;
+  return (
+    <View style={styles.pastSubmissionsBlock}>
+      <AppText style={styles.assessmentLabel}>ประวัติการส่ง</AppText>
+      {submissions.map((sub) => (
+        <View key={sub.id} style={styles.pastSubmissionCard}>
+          <AppText style={styles.pastSubmissionTime}>
+            {new Date(sub.submitted_at).toLocaleString('th-TH')}
+          </AppText>
+          {sub.text_answer ? (
+            <AppText style={styles.bodyText}>{sub.text_answer}</AppText>
+          ) : null}
+          {sub.image_url ? (
+            <Image source={{ uri: sub.image_url }} style={styles.pastSubmissionImage} resizeMode="contain" />
+          ) : null}
+          {sub.file_urls?.[0] ? (
+            <AppText style={styles.pastSubmissionFile}>📁 {sub.file_urls[0].split('/').pop()}</AppText>
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 // ── Main screen ───────────────────────────────────────────────────
 export default function HackathonActivityScreen() {
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
+  
+  const [siblings, setSiblings] = useState<{id: string, title: string}[]>([]);
+  
+  const SWIPE_NEXT_THRESHOLD = 120;
+  const PULL_HINT_SLIDE_PX = 104;
+
+  const lastPrevNavAtRef = useRef(0);
+  const swipePrevEnabledSV = useSharedValue(0);
+  const swipeNextEnabledSV = useSharedValue(0);
+  const lastPrevHapticMilestoneSV = useSharedValue(0);
+  const lastNextHapticMilestoneSV = useSharedValue(0);
+  const prevSwipeThresholdSV = useSharedValue(0);
+  const nextSwipeThresholdSV = useSharedValue(0);
+  const nextSwipeProgress = useSharedValue(0);
+  const bottomReadyProgress = useSharedValue(0);
+  const nextSwipePulse = useSharedValue(1);
+
+  const prevSwipeProgress = useSharedValue(0);
+  const prevReadyProgress = useSharedValue(0);
+  const prevSwipePulse = useSharedValue(1);
   const insets = useSafeAreaInsets();
   const { height: viewportHeight } = useWindowDimensions();
   const scrollY = useSharedValue(0);
   const [activity, setActivity] = useState<HackathonPhaseActivityDetail | null>(null);
+  const [pastSubmissions, setPastSubmissions] = useState<SubmissionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [answer, setAnswer] = useState("");
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -448,9 +545,151 @@ export default function HackathonActivityScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [contentSectionY, setContentSectionY] = useState(0);
 
+  const buttonScale = useSharedValue(1);
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }],
+  }));
+
+  const triggerSwipeHaptic = useCallback((milestone: number) => {
+    if (milestone <= 0) return;
+    void Haptics.impactAsync(
+      milestone >= 4
+        ? Haptics.ImpactFeedbackStyle.Medium
+        : Haptics.ImpactFeedbackStyle.Light,
+    ).catch(() => {});
+  }, []);
+
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
+    
+    const scrollY_val = event.contentOffset.y;
+    const contentH = event.contentSize.height;
+    const viewportH = event.layoutMeasurement.height;
+
+    const maxScrollY = Math.max(0, contentH - viewportH);
+
+    if (swipePrevEnabledSV.value === 1) {
+      const overscrollTop = scrollY_val < 0 ? -scrollY_val : 0;
+      if (overscrollTop > 0) {
+        prevReadyProgress.value = 1;
+        const p = Math.min(overscrollTop / SWIPE_NEXT_THRESHOLD, 1);
+        prevSwipeProgress.value = p;
+
+        const milestone = p >= 1 ? 4 : Math.min(3, Math.floor(p * 4));
+        if (milestone > lastPrevHapticMilestoneSV.value && milestone > 0) {
+          lastPrevHapticMilestoneSV.value = milestone;
+          runOnJS(triggerSwipeHaptic)(milestone);
+        }
+
+        if (p >= 1 && prevSwipeThresholdSV.value === 0) {
+          prevSwipeThresholdSV.value = 1;
+          prevSwipePulse.value = withSequence(
+            withSpring(1.06, { damping: 12, stiffness: 260 }),
+            withSpring(1, { damping: 14, stiffness: 200 }),
+          );
+        } else if (p < 1 && prevSwipeThresholdSV.value === 1) {
+          prevSwipeThresholdSV.value = 0;
+          prevSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+        }
+      } else {
+        prevReadyProgress.value = 0;
+        lastPrevHapticMilestoneSV.value = 0;
+        prevSwipeThresholdSV.value = 0;
+        if (prevSwipeProgress.value > 0) {
+          prevSwipeProgress.value = 0;
+          prevSwipePulse.value = 1;
+        }
+      }
+    }
+
+    if (swipeNextEnabledSV.value === 1) {
+      const overscrollY = scrollY_val - maxScrollY;
+      if (overscrollY > 0) {
+        bottomReadyProgress.value = 1;
+        const p = Math.min(overscrollY / SWIPE_NEXT_THRESHOLD, 1);
+        nextSwipeProgress.value = p;
+
+        const milestone = p >= 1 ? 4 : Math.min(3, Math.floor(p * 4));
+        if (milestone > lastNextHapticMilestoneSV.value && milestone > 0) {
+          lastNextHapticMilestoneSV.value = milestone;
+          runOnJS(triggerSwipeHaptic)(milestone);
+        }
+
+        if (p >= 1 && nextSwipeThresholdSV.value === 0) {
+          nextSwipeThresholdSV.value = 1;
+          nextSwipePulse.value = withSequence(
+            withSpring(1.06, { damping: 12, stiffness: 260 }),
+            withSpring(1, { damping: 14, stiffness: 200 }),
+          );
+        } else if (p < 1 && nextSwipeThresholdSV.value === 1) {
+          nextSwipeThresholdSV.value = 0;
+          nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+        }
+      } else {
+        bottomReadyProgress.value = 0;
+        lastNextHapticMilestoneSV.value = 0;
+        nextSwipeThresholdSV.value = 0;
+        if (nextSwipeProgress.value > 0) {
+          nextSwipeProgress.value = 0;
+          nextSwipePulse.value = 1;
+        }
+      }
+    }
   });
+
+  const prevPullOverlayStyle = useAnimatedStyle(() => {
+    const p = prevSwipeProgress.value;
+    return {
+      opacity: interpolate(p, [0, 0.04, 0.18, 1], [0, 0.88, 1, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(
+            p,
+            [0, 1],
+            [-PULL_HINT_SLIDE_PX, 0],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
+
+  const nextPullOverlayStyle = useAnimatedStyle(() => {
+    const p = nextSwipeProgress.value;
+    return {
+      opacity: interpolate(p, [0, 0.04, 0.18, 1], [0, 0.88, 1, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(
+            p,
+            [0, 1],
+            [PULL_HINT_SLIDE_PX, 0],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
+
+  const handleSwipeToNext = () => {
+    const currentIndex = siblings.findIndex(s => s.id === nodeId);
+    if (currentIndex >= 0 && currentIndex < siblings.length - 1) {
+      router.replace(`/activity/${siblings[currentIndex + 1].id}`);
+    } else if (currentIndex === siblings.length - 1) {
+      router.back(); // Go back to activities list
+    }
+  };
+
+  const handleSwipeToPrevious = () => {
+    const now = Date.now();
+    if (now - lastPrevNavAtRef.current < 450) return;
+    lastPrevNavAtRef.current = now;
+
+    const currentIndex = siblings.findIndex(s => s.id === nodeId);
+    if (currentIndex > 0) {
+      router.replace(`/activity/${siblings[currentIndex - 1].id}`);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -458,8 +697,28 @@ export default function HackathonActivityScreen() {
       setLoading(true);
       (async () => {
         try {
-          const dbData = await fetchActivity(nodeId!);
-          if (!cancelled) setActivity(dbData);
+          const [dbData, submissions] = await Promise.all([
+            fetchActivity(nodeId!),
+            fetchActivitySubmissions(nodeId!),
+          ]);
+          if (!cancelled) {
+            setActivity(dbData);
+            setPastSubmissions(submissions);
+
+            if (dbData && dbData.phase_id) {
+              const { data: sibs } = await supabase
+                .from("hackathon_phase_activities")
+                .select("id, title")
+                .eq("phase_id", dbData.phase_id)
+                .order("display_order", { ascending: true });
+              if (sibs && !cancelled) {
+                setSiblings(sibs);
+                const currentIndex = sibs.findIndex(s => s.id === nodeId);
+                swipePrevEnabledSV.value = currentIndex > 0 ? 1 : 0;
+                swipeNextEnabledSV.value = 1; // allow swipe next to go back if last
+              }
+            }
+          }
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -483,11 +742,17 @@ export default function HackathonActivityScreen() {
       if (activity.assessment.assessment_type === "text_answer") {
         await submitTextAnswer(activity.id, activity.assessment.id, answer);
       }
-      // image/file already uploaded on pick — just mark done
+      
+      const newSubmissions = await fetchActivitySubmissions(activity.id);
+      setPastSubmissions(newSubmissions);
+      setAnswer("");
+      setUploadedUrl(null);
+      
       setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 3000);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
-      setSubmitError(e.message ?? "Submission failed");
+      setSubmitError(e.message ?? "การส่งคำตอบล้มเหลว");
     } finally {
       setSubmitting(false);
     }
@@ -496,7 +761,7 @@ export default function HackathonActivityScreen() {
   if (loading) {
     return (
       <View style={styles.loadingRoot}>
-        <AppText style={{ color: CYAN }}>Loading...</AppText>
+        <AppText style={{ color: CYAN }}>กำลังโหลด...</AppText>
       </View>
     );
   }
@@ -504,12 +769,16 @@ export default function HackathonActivityScreen() {
   if (!activity) {
     return (
       <View style={styles.loadingRoot}>
-        <AppText style={{ color: WHITE28 }}>Activity not found.</AppText>
+        <AppText style={{ color: WHITE28 }}>ไม่พบกิจกรรมนี้</AppText>
       </View>
     );
   }
 
   const typeLabel = primaryContentType(activity.content);
+
+  const currentIndex = siblings.findIndex(s => s.id === nodeId);
+  const previousTitle = currentIndex > 0 ? siblings[currentIndex - 1].title : "";
+  const nextTitle = currentIndex >= 0 && currentIndex < siblings.length - 1 ? siblings[currentIndex + 1].title : "กลับสู่แผนที่";
 
   return (
     <View style={styles.root}>
@@ -527,16 +796,67 @@ export default function HackathonActivityScreen() {
         />
       </View>
 
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.pullOverlayTop,
+          { paddingTop: insets.top + 16 },
+          prevPullOverlayStyle,
+        ]}
+      >
+        {swipePrevEnabledSV.value === 1 ? (
+          <HackathonSwipeDonut
+            direction="previous"
+            progress={prevSwipeProgress}
+            readyProgress={prevReadyProgress}
+            pulseScale={prevSwipePulse}
+            label="ก่อนหน้า"
+            titleHint={previousTitle}
+          />
+        ) : null}
+      </Animated.View>
+
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.pullOverlayBottom,
+          { paddingBottom: Math.max(insets.bottom, 4) + 12 },
+          nextPullOverlayStyle,
+        ]}
+      >
+        {swipeNextEnabledSV.value === 1 ? (
+          <HackathonSwipeDonut
+            direction="next"
+            progress={nextSwipeProgress}
+            readyProgress={bottomReadyProgress}
+            pulseScale={nextSwipePulse}
+            label="ถัดไป"
+            titleHint={nextTitle}
+          />
+        ) : null}
+      </Animated.View>
+
       <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        onScrollEndDrag={(e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          const scrollY_val = contentOffset.y;
+          if (swipePrevEnabledSV.value === 1 && scrollY_val < -SWIPE_NEXT_THRESHOLD * 0.6) {
+            handleSwipeToPrevious();
+          }
+          const maxScrollY = Math.max(0, contentSize.height - layoutMeasurement.height);
+          const overscrollY = scrollY_val - maxScrollY;
+          if (swipeNextEnabledSV.value === 1 && overscrollY > SWIPE_NEXT_THRESHOLD * 0.6) {
+            handleSwipeToNext();
+          }
+        }}
       >
         {/* Header */}
         <View style={styles.header}>
-          <AppText style={styles.eyebrow}>{typeLabel}</AppText>
           <AppText variant="bold" style={styles.title}>{activity.title}</AppText>
           {activity.instructions ? (
             <AppText style={styles.instructions}>{activity.instructions}</AppText>
@@ -544,12 +864,12 @@ export default function HackathonActivityScreen() {
           <View style={styles.metaRow}>
             {activity.estimated_minutes ? (
               <View style={styles.metaChip}>
-                <AppText style={styles.metaChipText}>~{activity.estimated_minutes} min</AppText>
+                <AppText style={styles.metaChipText}>~{activity.estimated_minutes} นาที</AppText>
               </View>
             ) : null}
             {activity.is_required ? (
               <View style={styles.metaChip}>
-                <AppText style={styles.metaChipText}>Required</AppText>
+                <AppText style={styles.metaChipText}>บังคับ</AppText>
               </View>
             ) : null}
           </View>
@@ -586,9 +906,15 @@ export default function HackathonActivityScreen() {
             activityId={activity.id}
             value={answer}
             onChange={setAnswer}
-            onFileUploaded={(url) => setUploadedUrl(url)}
+            onFileUploaded={(url) => {
+              setUploadedUrl(url);
+              fetchActivitySubmissions(activity.id).then(setPastSubmissions);
+            }}
           />
         ) : null}
+
+        {/* Past Submissions */}
+        <PastSubmissionsList submissions={pastSubmissions} />
 
         {/* Submit error */}
         {submitError ? (
@@ -598,23 +924,53 @@ export default function HackathonActivityScreen() {
         ) : null}
 
         {/* Submit button */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.submitBtn,
-            (!canSubmit || submitting) && { opacity: 0.5 },
-            pressed && canSubmit && !submitting && { opacity: 0.8 },
-          ]}
-          disabled={!canSubmit || submitting}
-          onPress={handleSubmit}
-        >
-          {submitting ? (
-            <ActivityIndicator color={BG} />
-          ) : (
-            <AppText variant="bold" style={styles.submitBtnText}>
-              {submitted ? "Submitted ✓" : activity.assessment ? "Submit →" : "Mark complete →"}
-            </AppText>
-          )}
-        </Pressable>
+        <Animated.View style={buttonAnimatedStyle}>
+          <Pressable
+            style={[
+              styles.button41,
+              (!canSubmit || submitting) && { opacity: 0.5 },
+            ]}
+            disabled={!canSubmit || submitting}
+            onPressIn={() => {
+              if (canSubmit && !submitting) buttonScale.value = withSpring(0.95);
+            }}
+            onPressOut={() => {
+              buttonScale.value = withSpring(1);
+            }}
+            onPress={handleSubmit}
+          >
+            {({ pressed }) => (
+              <>
+                <LinearGradient
+                  colors={["rgba(255, 255, 255, 0.11)", "transparent"]}
+                  start={{ x: 0.5, y: -0.05 }}
+                  end={{ x: 0.5, y: 1.15 }}
+                  style={styles.button41Gradient}
+                />
+                <View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    pressed && canSubmit && !submitting ? { backgroundColor: "rgba(255, 255, 255, 0.05)" } : null,
+                  ]}
+                />
+                {submitting ? (
+                  <ActivityIndicator color={WHITE} />
+                ) : (
+                  <AppText variant="bold" style={styles.button41Text}>
+                    {submitted ? "ส่งแล้ว ✓" : activity.assessment ? "ส่งคำตอบ →" : "ทำเครื่องหมายว่าเสร็จสิ้น →"}
+                  </AppText>
+                )}
+              </>
+            )}
+          </Pressable>
+        </Animated.View>
+
+        {/* Static Swipe Hint */}
+        {siblings.length > 0 && (
+          <WaterFlowHint 
+            label={currentIndex < siblings.length - 1 ? "ปัดขึ้นเพื่อไปกิจกรรมถัดไป" : "ปัดขึ้นเพื่อกลับสู่แผนที่"}
+          />
+        )}
       </Animated.ScrollView>
     </View>
   );
@@ -622,8 +978,27 @@ export default function HackathonActivityScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
+  pullOverlayTop: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 25,
+    alignItems: "center",
+    overflow: "visible",
+  },
+  pullOverlayBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 25,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    overflow: "visible",
+  },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: Space.lg, paddingBottom: 96, gap: Space.xl },
+  content: { paddingHorizontal: Space.lg, paddingBottom: 160, gap: Space.xl },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
 
   glowCyan: {
@@ -698,6 +1073,20 @@ const styles = StyleSheet.create({
     marginTop: Space.sm,
   },
   chatComingSoonText: { fontSize: 11, color: CYAN45 },
+
+  // Past Submissions
+  pastSubmissionsBlock: { gap: Space.sm, marginTop: Space.md },
+  pastSubmissionCard: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 12,
+    padding: Space.md,
+    gap: 4,
+  },
+  pastSubmissionTime: { fontSize: 11, color: WHITE55, marginBottom: 4 },
+  pastSubmissionImage: { width: "100%", height: 150, borderRadius: 8, marginTop: 4 },
+  pastSubmissionFile: { fontSize: 13, color: CYAN },
 
   // Assessment
   assessmentBlock: { gap: Space.sm },
@@ -781,11 +1170,39 @@ const styles = StyleSheet.create({
   retryText: { fontSize: 12, color: CYAN },
 
   // Submit
-  submitBtn: {
-    backgroundColor: BLUE,
-    borderRadius: 16,
-    paddingVertical: Space.lg,
+  button41: {
+    paddingVertical: 12,
+    paddingHorizontal: 26,
+    borderRadius: 14,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
     alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.14)",
+    borderTopColor: "rgba(255, 255, 255, 0.4)",
+    borderBottomColor: "rgba(255, 255, 255, 0.11)",
   },
-  submitBtnText: { fontSize: 15, color: BG, letterSpacing: 0.5 },
+  button41Gradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  button41Text: { 
+    fontSize: 16, 
+    color: WHITE, 
+    letterSpacing: 0.5,
+  },
+  staticSwipeHint: {
+    alignItems: "center",
+    marginTop: Space.xl,
+    opacity: 0.6,
+  },
+  staticSwipeHintArrow: {
+    fontSize: 24,
+    color: CYAN45,
+    marginBottom: 4,
+  },
+  staticSwipeHintText: {
+    fontSize: 13,
+    color: WHITE55,
+  },
 });
