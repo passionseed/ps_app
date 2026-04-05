@@ -186,3 +186,46 @@ export async function getProgramPhasesWithActivities(
     };
   });
 }
+
+type HackathonProgramPhaseActivitySummary = {
+  id: string;
+  activities: Array<{
+    id: string;
+    title: string;
+    display_order: number;
+  }>;
+};
+
+export async function getProgramPhaseActivitySummaries(
+  programId: string
+): Promise<HackathonProgramPhaseActivitySummary[]> {
+  const supabase = await getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("hackathon_program_phases")
+    .select(`
+      id,
+      hackathon_phase_activities (
+        id,
+        title,
+        display_order,
+        is_draft
+      )
+    `)
+    .eq("program_id", programId)
+    .order("phase_number");
+
+  if (error || !data) return [];
+
+  return data.map((phase) => ({
+    id: phase.id,
+    activities: ((phase.hackathon_phase_activities as any[]) ?? [])
+      .filter((activity) => !activity.is_draft)
+      .sort((a, b) => a.display_order - b.display_order)
+      .map((activity) => ({
+        id: activity.id,
+        title: activity.title,
+        display_order: activity.display_order,
+      })),
+  }));
+}

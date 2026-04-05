@@ -68,6 +68,11 @@ function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
   const activeRouteName = state.routes[state.index]?.name;
   let activeVisibleIndex = visibleRoutes.findIndex(r => r.name === activeRouteName);
 
+  // Hide tab bar on nested screens (activity, phase, module, etc.)
+  if (!TAB_THEMES[activeRouteName as TabRoute]) {
+    return null;
+  }
+
   // If navigating to a nested hidden screen, fallback to 0 or leave indicator where it was
   const animatedIndex = useSharedValue(activeVisibleIndex >= 0 ? activeVisibleIndex : 0);
 
