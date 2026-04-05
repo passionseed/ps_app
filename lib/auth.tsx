@@ -339,19 +339,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmailPassword = async (email: string, password: string) => {
     console.log("[Auth] signInWithEmailPassword start", { email });
 
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    const loginUrl = `${supabaseUrl}/functions/v1/hackathon-login`;
+    const loginUrl = `${process.env.EXPO_PUBLIC_WEB_API_URL}/api/hackathon/login`;
     console.log("[Auth] Calling login endpoint:", loginUrl);
-    
-    const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    
+
     const res = await fetch(loginUrl, {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "apikey": supabaseKey || "",
-        "Authorization": `Bearer ${supabaseKey}`
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim(), password }),
     });
 
