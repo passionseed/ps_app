@@ -4,22 +4,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, router } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import Svg, { Circle as SvgCircle, Line, Polyline, Text as SvgText, Path } from "react-native-svg";
+import Svg, { Circle as SvgCircle, Polyline } from "react-native-svg";
 import { AppText } from "../../components/AppText";
+import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJellyfishLoader";
 import { Space } from "../../lib/theme";
 import {
   buildJourneyActivityNodes,
   getCurrentHackathonProgramHome,
-  getEmptyHackathonProgramHome,
 } from "../../lib/hackathonProgram";
-import { getProgramPhasesWithActivities } from "../../lib/hackathonPhaseActivity";
+import { getProgramPhaseActivitySummaries } from "../../lib/hackathonPhaseActivity";
 import type { HackathonProgramHome, HackathonProgramPhase } from "../../types/hackathon-program";
 
 // Tokens
 const BG = "transparent";
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
-const AMBER = "#F59E0B";
 const CARD_BG = "rgba(13,18,25,0.95)";
 const BLUE = "#65ABFC";
 const CYAN45 = "rgba(145,196,227,0.45)";
@@ -38,12 +37,6 @@ function formatDate(dateStr: string | null): string {
   const d = new Date(dateStr);
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
-
-type NodeState = "completed" | "current" | "upcoming";
-type ActivityNode = {
-  title: string;
-  state: NodeState;
-};
 
 // ── Standard Circular Progress ──
 function CircularProgress({ percent, size = 64, strokeWidth = 6 }: { percent: number; size?: number; strokeWidth?: number }) {
@@ -267,16 +260,15 @@ export default function HackathonJourneyScreen() {
   const load = useCallback(async () => {
     try {
       const home = await getCurrentHackathonProgramHome();
-      const isEmpty = JSON.stringify(home) === JSON.stringify(getEmptyHackathonProgramHome());
-      if (isEmpty || !home.program || home.phases.length === 0) {
+      if (!home.program || home.phases.length === 0) {
         setData(home);
         setPhaseCards([]);
       } else {
         setData(home);
-        const phasesWithActivities = await getProgramPhasesWithActivities(home.program.id);
+        const phaseSummaries = await getProgramPhaseActivitySummaries(home.program.id);
         const currentPhaseId = home.enrollment?.current_phase_id;
         const cards: PhaseCard[] = home.phases.map((phase) => {
-          const phaseData = phasesWithActivities.find((p) => p.id === phase.id);
+          const phaseData = phaseSummaries.find((p) => p.id === phase.id);
           const activities = phaseData?.activities ?? [];
           return {
             phase,
@@ -291,7 +283,12 @@ export default function HackathonJourneyScreen() {
         if (currentIndex > 0) setActiveIndex(currentIndex);
       }
     } catch {
-      setData(getEmptyHackathonProgramHome());
+      setData({
+        team: null,
+        enrollment: null,
+        program: null,
+        phases: [],
+      });
       setPhaseCards([]);
     } finally {
       setLoading(false);
@@ -310,7 +307,8 @@ export default function HackathonJourneyScreen() {
   if (loading || !data) {
     return (
       <View style={styles.loadingRoot}>
-        <AppText style={{ color: CYAN }}>Loading...</AppText>
+        <HackathonJellyfishLoader />
+        <AppText style={styles.loadingText}>Loading your journey...</AppText>
       </View>
     );
   }
@@ -412,7 +410,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   scroll: { flex: 1 },
   content: { padding: Space.xl, paddingBottom: 140, gap: Space.lg },
-  loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG },
+  loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: BG, gap: Space.md },
+  loadingText: {
+    color: CYAN,
+    fontSize: 14,
+    fontFamily: "BaiJamjuree_500Medium",
+    letterSpacing: 0.4,
+  },
   
   header: {
     paddingHorizontal: Space.xs,

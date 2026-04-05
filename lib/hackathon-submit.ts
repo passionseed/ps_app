@@ -1,34 +1,34 @@
-import { readHackathonToken } from "./hackathon-mode";
-
-const WEB_API_URL = process.env.EXPO_PUBLIC_WEB_API_URL ?? "https://pseed.vercel.app";
+import { readHackathonParticipant } from "./hackathon-mode";
+import { supabase } from "./supabase";
 
 export type SubmitResult = {
   submissionId: string;
   url: string | null;
 };
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const token = await readHackathonToken();
-  if (!token) throw new Error("Not logged in");
-  return { Authorization: `Bearer ${token}` };
-}
-
 export async function submitTextAnswer(
   activityId: string,
   assessmentId: string,
   textAnswer: string
 ): Promise<SubmitResult> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${WEB_API_URL}/api/hackathon/submit`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ activityId, assessmentId, textAnswer }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as any).error ?? `Submit failed (${res.status})`);
-  }
-  return res.json();
+  const participant = await readHackathonParticipant();
+  if (!participant) throw new Error("Not logged in");
+
+  const { data, error } = await supabase
+    .from("hackathon_phase_activity_submissions")
+    .insert({
+      participant_id: participant.id,
+      activity_id: activityId,
+      assessment_id: assessmentId,
+      text_answer: textAnswer,
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return { submissionId: data.id, url: null };
 }
 
 export type ActivitySubmissionStatus = {
@@ -36,21 +36,48 @@ export type ActivitySubmissionStatus = {
   status: string;
 };
 
+export type SubmissionRecord = {
+  id: string;
+  text_answer?: string;
+  image_url?: string;
+  file_urls?: string[];
+  submitted_at: string;
+};
+
+export async function fetchActivitySubmissions(
+  activityId: string
+): Promise<SubmissionRecord[]> {
+  const participant = await readHackathonParticipant();
+  if (!participant) return [];
+
+  const { data, error } = await supabase
+    .from("hackathon_phase_activity_submissions")
+    .select("id, text_answer, image_url, file_urls, submitted_at")
+    .eq("participant_id", participant.id)
+    .eq("activity_id", activityId)
+    .order("submitted_at", { ascending: false });
+
+  if (error || !data) return [];
+  return data as SubmissionRecord[];
+}
+
 export async function fetchActivitySubmissionStatuses(
   activityIds: string[]
 ): Promise<Record<string, string>> {
   if (activityIds.length === 0) return {};
-  const token = await readHackathonToken();
-  if (!token) return {};
-  const params = activityIds.join(",");
-  const res = await fetch(
-    `${WEB_API_URL}/api/hackathon/submissions?activityIds=${encodeURIComponent(params)}`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  if (!res.ok) return {};
-  const json = await res.json();
+  const participant = await readHackathonParticipant();
+  if (!participant) return {};
+
+  const { data, error } = await supabase
+    .from("hackathon_phase_activity_submissions")
+    .select("activity_id, status")
+    .eq("participant_id", participant.id)
+    .in("activity_id", activityIds);
+
+  if (error || !data) return {};
+
   const map: Record<string, string> = {};
-  for (const s of json.submissions ?? []) {
+  for (const s of data) {
     map[s.activity_id] = s.status;
   }
   return map;
@@ -63,24 +90,42 @@ export async function submitFile(
   fileName: string,
   mimeType: string
 ): Promise<SubmitResult> {
-  const headers = await getAuthHeaders();
-  const formData = new FormData();
-  formData.append("activityId", activityId);
-  formData.append("assessmentId", assessmentId);
-  formData.append("file", {
-    uri: fileUri,
-    name: fileName,
-    type: mimeType,
-  } as any);
+  const participant = await readHackathonParticipant();
+  if (!participant) throw new Error("Not logged in");
 
-  const res = await fetch(`${WEB_API_URL}/api/hackathon/submit`, {
-    method: "POST",
-    headers,
-    body: formData,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as any).error ?? `Upload failed (${res.status})`);
-  }
-  return res.json();
+  const ext = fileName.split('.').pop() ?? "bin";
+  const path = `${participant.id}/${activityId}/${Date.now()}.${ext}`;
+
+  const res = await fetch(fileUri);
+  const blob = await res.blob();
+
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from("hackathon_submissions")
+    .upload(path, blob, { contentType: mimeType });
+
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data: publicUrlData } = supabase.storage
+    .from("hackathon_submissions")
+    .getPublicUrl(path);
+    
+  const fileUrl = publicUrlData.publicUrl;
+  const isImage = mimeType.startsWith("image/");
+
+  const { data, error } = await supabase
+    .from("hackathon_phase_activity_submissions")
+    .insert({
+      participant_id: participant.id,
+      activity_id: activityId,
+      assessment_id: assessmentId,
+      image_url: isImage ? fileUrl : null,
+      file_urls: isImage ? null : [fileUrl],
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return { submissionId: data.id, url: fileUrl };
 }

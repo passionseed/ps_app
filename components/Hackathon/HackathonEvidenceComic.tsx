@@ -45,6 +45,11 @@ const COMIC_IMAGE_ASSETS: Record<string, ImageSourcePropType> = {
   "phase1-evidence": require("../../assets/images/hackathon-phase1-comic/phase1-evidence.png"),
   "phase1-validation": require("../../assets/images/hackathon-phase1-comic/phase1-validation.png"),
   "phase1-outcome": require("../../assets/images/hackathon-phase1-comic/phase1-outcome.png"),
+  "walkaway_p1": require("../../assets/images/hackathon-phase1-comic/walkaway_p1.png"),
+  "walkaway_p2": require("../../assets/images/hackathon-phase1-comic/walkaway_p2.png"),
+  "walkaway_p3": require("../../assets/images/hackathon-phase1-comic/walkaway_p3.png"),
+  "walkaway_p4": require("../../assets/images/hackathon-phase1-comic/walkaway_p4.png"),
+  "walkaway_p5": require("../../assets/images/hackathon-phase1-comic/walkaway_p5.png"),
 };
 
 function accentColor(accent: string): string {
