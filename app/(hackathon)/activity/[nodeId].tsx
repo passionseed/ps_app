@@ -1107,6 +1107,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     minHeight: 140,
     textAlignVertical: "top",
+    fontFamily: "BaiJamjuree_400Regular",
   },
 
   // Upload blocks
