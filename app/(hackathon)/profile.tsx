@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     color: CYAN,
     textTransform: "uppercase",
     letterSpacing: 2,
-    fontFamily: "BaiJamjuree_600SemiBold",
+    fontFamily: "BaiJamjuree_700Bold",
   },
   title: {
     fontSize: 30,
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     color: CYAN,
     textTransform: "uppercase",
     letterSpacing: 1.5,
-    fontFamily: "BaiJamjuree_600SemiBold",
+    fontFamily: "BaiJamjuree_700Bold",
   },
   infoValue: {
     fontSize: 15,
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     color: WHITE,
-    fontFamily: "BaiJamjuree_600SemiBold",
+    fontFamily: "BaiJamjuree_700Bold",
   },
   rosterList: {
     gap: Space.md,
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   rosterName: {
     fontSize: 15,
     color: WHITE,
-    fontFamily: "BaiJamjuree_600SemiBold",
+    fontFamily: "BaiJamjuree_700Bold",
   },
   rosterMeta: {
     fontSize: 12,
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     color: CYAN,
     textTransform: "uppercase",
     letterSpacing: 1,
-    fontFamily: "BaiJamjuree_600SemiBold",
+    fontFamily: "BaiJamjuree_700Bold",
   },
   qValue: {
     fontSize: 14,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   linkBtnText: {
     color: CYAN,
     fontSize: 12,
-    fontFamily: "BaiJamjuree_600SemiBold",
+    fontFamily: "BaiJamjuree_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },

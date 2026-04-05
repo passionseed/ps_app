@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
 
   header: { gap: Space.sm },
-  eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2.5, fontFamily: "BaiJamjuree_600SemiBold" },
+  eyebrow: { fontSize: 11, color: CYAN, textTransform: "uppercase", letterSpacing: 2.5, fontFamily: "BaiJamjuree_700Bold" },
   title: {
     fontSize: 32, lineHeight: 40, color: WHITE, fontFamily: "BaiJamjuree_700Bold",
     textShadowColor: "rgba(145,196,227,0.25)",
@@ -397,9 +397,9 @@ const styles = StyleSheet.create({
   },
   activityCardBody: { flex: 1, gap: 6 },
   activityHeaderRow: { flexDirection: "row", alignItems: "center", gap: Space.sm, marginBottom: 2 },
-  stepLabel: { fontSize: 10, textTransform: "uppercase", letterSpacing: 1.5, color: "rgba(255, 255, 255, 0.4)", fontFamily: "BaiJamjuree_600SemiBold" },
+  stepLabel: { fontSize: 10, textTransform: "uppercase", letterSpacing: 1.5, color: "rgba(255, 255, 255, 0.4)", fontFamily: "BaiJamjuree_700Bold" },
   statusBadge: { fontSize: 9, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: "hidden", fontFamily: "BaiJamjuree_700Bold", letterSpacing: 0.5 },
-  activityTitle: { fontSize: 18, color: WHITE, fontFamily: "BaiJamjuree_600SemiBold" },
+  activityTitle: { fontSize: 18, color: WHITE, fontFamily: "BaiJamjuree_700Bold" },
   activityInstructions: { fontSize: 13, lineHeight: 19, color: "rgba(255, 255, 255, 0.6)", fontFamily: "BaiJamjuree_400Regular" },
   activityMeta: { flexDirection: "row", flexWrap: "wrap", gap: Space.xs, marginTop: 6 },
   metaChip: {
