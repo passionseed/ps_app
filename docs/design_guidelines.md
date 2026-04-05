@@ -4,12 +4,13 @@ This document serves as the canonical reference for the visual design tokens, la
 
 ## 1. Global Themes & Colors
 
-The design uses a clean, bright aesthetic with high contrast, white cards on soft backgrounds, and vibrant semantic accenting.
+The design uses a clean, bright aesthetic with high contrast, white cards on soft backgrounds, and vibrant semantic accenting. For specific immersive experiences (like the Hackathon), an alternative Bioluminescent theme is used.
 
 ### Backgrounds
 - **Primary Page Background**: `#F8F9FA` or `#F3F4F6` (Very Light Cool Grey / Off-white)
   - *Rationale*: Provides a subtle contrast to make the pure white content cards pop without being heavy.
 - **Surface**: `#FFFFFF` (Pure White) for cards and main content containers.
+- **Hackathon / Immersive**: `#03050a` (Deep Space) for root backgrounds, with `rgba(13,18,25,0.95)` for cards.
 
 ### Semantic Accent Colors
 | Category | Color (HEX) | Use Case |
@@ -21,6 +22,8 @@ The design uses a clean, bright aesthetic with high contrast, white cards on sof
 | **Alignment/Success** | `#10B981` (Green) | "Alignment" (Globe) metric, success states. |
 | **Passion/Energy** | `#F97316` (Orange) | "Passion" (Fire) metric. |
 | **Destructive** | `#EF4444` (Red) | Delete icons (Trash can). |
+| **Immersive Glow** | `#91C4E3` (Cyan) | Used in the Hackathon theme for text highlights, glowing orbs, and animated hints. |
+| **Immersive Action** | `#9D81AC` (Muted Purple) | Used in the Hackathon theme for swipe navigation donuts and progress rings. |
 
 ### Text Hierarchy
 - **Primary**: `#111827` (Deep Slate / Black) - Headers, titles, primary labels.
@@ -66,6 +69,11 @@ The UI relies heavily on clean, distinct cards rather than heavy glassmorphism.
 - **Primary Bottom CTA**: Large, full-width with heavy padding. Color: Lime (`#BFFF00`). Text: Black. High visibility.
 - **Action Pills**: Small, fully rounded (`borderRadius: 999px`). Color: Black. Text: White. Used in headers (e.g., Save).
 - **Ghost/Icon Actions**: Arrow icons for reordering, red trash icons for deletion. Minimal hit areas with no background.
+- **Immersive Glassy Buttons (Button 41)**: Used in the Hackathon theme. Black translucent background `rgba(0,0,0,0.25)` with a subtle white linear gradient border (`LinearGradient`), creating a premium "glass" aesthetic.
+
+### Immersive Navigation (Hackathon Theme)
+- **Swipe-to-Navigate Donut**: A circular progress indicator that gradually fills as the user overscrolls past the top or bottom edge of a ScrollView. Employs haptic feedback and Skia rendering to provide a fluid, premium transition between activities.
+- **Water Flow Hint**: Animated, staggered chevrons fading in from bottom to top, signaling the pull-to-scroll gesture contextually.
 
 ### Tags / Badges
 - Used inside cards (e.g., "PLAN B", "EDUCATION", "EXPERIENCE").

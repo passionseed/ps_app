@@ -2,11 +2,13 @@
 
 Use this file when the user wants comic content stored in hackathon activity data.
 
-## Current runtime shape
+## Current runtime shapes
 
-The current hackathon activity screen reads comics from a `text` content row plus `metadata.panels[]`.
+The app supports two main comic formats for hackathon activities: **Caption Comic** and **Webtoon**.
 
-Default safe shape:
+### Format 1: Caption Comic (Legacy)
+
+Reads comics from a `text` (or `infographic_comic`) content row plus `metadata.panels[]`. Features an overlay with Thai captions.
 
 ```json
 {
@@ -25,6 +27,37 @@ Default safe shape:
         "body": "Thai or English supporting line",
         "image_key": "portrait-panel-key",
         "accent": "cyan"
+      }
+    ]
+  }
+}
+```
+
+### Format 2: Webtoon (Image-Only, Chunked)
+
+Reads webtoon slices from a `webtoon` content row plus `metadata.chunks[]`. Features a seamless vertical scroll with no text overlay.
+
+> **Note on Swipe Navigation**: Hackathon activities use an overscroll swipe navigation mechanism (`HackathonSwipeDonut`) and an animated pull hint (`WaterFlowHint`). When generating or cropping webtoon chunks, ensure the final chunk leaves enough visual breathing room at the bottom, so users can comfortably "pull up to go next" without obstructing critical comic details.
+
+```json
+{
+  "title": "What You'll Walk Away With",
+  "instructions": "By the end of Phase 1, you'll know how to find a good problem, validate a real pain point, and define the right target user with our guide.",
+  "content_type": "webtoon",
+  "content_title": "What You'll Walk Away With",
+  "content_body": null,
+  "metadata": {
+    "variant": "webtoon",
+    "chunks": [
+      {
+        "id": "c1",
+        "order": 1,
+        "image_key": "webtoon1-1"
+      },
+      {
+        "id": "c2",
+        "order": 2,
+        "image_key": "webtoon1-2"
       }
     ]
   }

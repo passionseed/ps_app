@@ -11,6 +11,10 @@ Turn rough learning content into a strong portrait comic package: concept, panel
 
 Default to premium cinematic comic art for mobile. The artwork direction stays in English. The on-panel caption or dialogue stays in Thai unless the user asks otherwise.
 
+The skill supports two formats: **Caption Comic** (images with React Native text overlay) and **Webtoon** (tall continuous images sliced into vertical chunks with no text overlay).
+
+**Theme & UX Note:** Hackathon comics exist in an immersive **Bioluminescent Theme** (`#03050a` space backgrounds, glowing cyan/purple accents, glassy components). The activity screen utilizes a **Pull-to-Scroll Swipe Navigation** mechanism to progress. When building visual payloads, especially Webtoons, design the bottom chunk so important art isn't obscured by the user pulling up to proceed to the next activity.
+
 This skill currently supports direct writeback for hackathon activity content only.
 
 ## Workflow
@@ -125,9 +129,9 @@ Do not assume seed IDs match production.
 
 ### 3. Use the current runtime-safe comic shape
 
-The current hackathon activity screen parses comic metadata from a schema-safe `text` content row.
+The current hackathon activity screen parses comic metadata from either a schema-safe `text` content row (for Caption Comics) or a `webtoon` content row (for Webtoons).
 
-Default DB shape:
+Default DB shape for Caption Comic:
 
 - `hackathon_phase_activities.title`
 - `hackathon_phase_activities.instructions`
@@ -145,6 +149,11 @@ Each panel should usually include:
 - `body`
 - `image_key` or `image_url`
 - `accent`
+
+Default DB shape for Webtoon:
+- `content_type = 'webtoon'`
+- `metadata.variant = 'webtoon'`
+- `metadata.chunks[]` with `id`, `order`, and `image_key`
 
 Read [references/hackathon-db-shape.md](references/hackathon-db-shape.md) before producing or applying a live patch.
 
