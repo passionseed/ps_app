@@ -66,7 +66,7 @@ This comic starts in uncertainty and ends in clarity. The learner sees how scatt
 - Reserve lower-third negative space for Thai caption overlay
 ```
 
-## Hackathon payload example
+## Hackathon payload example (Caption Comic)
 
 ```json
 {
@@ -89,6 +89,29 @@ This comic starts in uncertainty and ends in clarity. The learner sees how scatt
           "image_key": "phase1-setup",
           "accent": "amber"
         }
+      ]
+    }
+  }
+}
+```
+
+## Hackathon payload example (Webtoon)
+
+```json
+{
+  "activity": {
+    "title": "What You'll Walk Away With",
+    "instructions": "By the end of Phase 1, you'll know how to find a good problem, validate a real pain point, and define the right target user with our guide."
+  },
+  "content": {
+    "content_type": "webtoon",
+    "content_title": "What You'll Walk Away With",
+    "content_body": null,
+    "metadata": {
+      "variant": "webtoon",
+      "chunks": [
+        { "id": "c1", "order": 1, "image_key": "webtoon1-1" },
+        { "id": "c2", "order": 2, "image_key": "webtoon1-2" }
       ]
     }
   }

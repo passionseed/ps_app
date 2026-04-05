@@ -7,7 +7,8 @@ export type HackathonPhaseActivityContentType =
   | 'pdf'
   | 'ai_chat'
   | 'npc_chat'
-  | 'infographic_comic';
+  | 'infographic_comic'
+  | 'webtoon';
 
 export interface HackathonComicPanelMetadata {
   id?: string;
@@ -43,6 +44,32 @@ export interface HackathonComicPanel {
 export interface HackathonComicContent {
   variant: string;
   panels: HackathonComicPanel[];
+}
+
+export interface HackathonWebtoonChunkMetadata {
+  id?: string;
+  order?: number;
+  image_key?: string;
+}
+
+export interface HackathonWebtoonMetadata {
+  variant?: string;
+  original_width?: number;
+  original_height?: number;
+  chunks?: HackathonWebtoonChunkMetadata[];
+}
+
+export interface HackathonWebtoonChunk {
+  id: string;
+  order: number;
+  imageKey: string | null;
+}
+
+export interface HackathonWebtoonContent {
+  variant: string;
+  originalWidth: number | null;
+  originalHeight: number | null;
+  chunks: HackathonWebtoonChunk[];
 }
 
 export type HackathonPhaseActivityAssessmentType =
