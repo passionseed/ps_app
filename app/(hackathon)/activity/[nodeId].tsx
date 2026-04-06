@@ -1,6 +1,6 @@
 // app/(hackathon)/activity/[nodeId].tsx
 // Hackathon phase activity screen — fetches from hackathon_phase_activities
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -521,6 +521,7 @@ export default function HackathonActivityScreen() {
   const lastPrevNavAtRef = useRef(0);
   const swipePrevEnabledSV = useSharedValue(0);
   const swipeNextEnabledSV = useSharedValue(0);
+  const isSubmittedSV = useSharedValue(0);
   const lastPrevHapticMilestoneSV = useSharedValue(0);
   const lastNextHapticMilestoneSV = useSharedValue(0);
   const prevSwipeThresholdSV = useSharedValue(0);
@@ -549,6 +550,10 @@ export default function HackathonActivityScreen() {
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
   }));
+
+  useEffect(() => {
+    isSubmittedSV.value = pastSubmissions.length > 0 ? 1 : 0;
+  }, [pastSubmissions]);
 
   const triggerSwipeHaptic = useCallback((milestone: number) => {
     if (milestone <= 0) return;
@@ -603,36 +608,45 @@ export default function HackathonActivityScreen() {
     }
 
     if (swipeNextEnabledSV.value === 1) {
-      const overscrollY = scrollY_val - maxScrollY;
-      if (overscrollY > 0) {
-        bottomReadyProgress.value = 1;
-        const p = Math.min(overscrollY / SWIPE_NEXT_THRESHOLD, 1);
-        nextSwipeProgress.value = p;
+      if (isSubmittedSV.value === 1) {
+        const overscrollY = scrollY_val - maxScrollY;
+        if (overscrollY > 0) {
+          bottomReadyProgress.value = 1;
+          const p = Math.min(overscrollY / SWIPE_NEXT_THRESHOLD, 1);
+          nextSwipeProgress.value = p;
 
-        const milestone = p >= 1 ? 4 : Math.min(3, Math.floor(p * 4));
-        if (milestone > lastNextHapticMilestoneSV.value && milestone > 0) {
-          lastNextHapticMilestoneSV.value = milestone;
-          runOnJS(triggerSwipeHaptic)(milestone);
-        }
+          const milestone = p >= 1 ? 4 : Math.min(3, Math.floor(p * 4));
+          if (milestone > lastNextHapticMilestoneSV.value && milestone > 0) {
+            lastNextHapticMilestoneSV.value = milestone;
+            runOnJS(triggerSwipeHaptic)(milestone);
+          }
 
-        if (p >= 1 && nextSwipeThresholdSV.value === 0) {
-          nextSwipeThresholdSV.value = 1;
-          nextSwipePulse.value = withSequence(
-            withSpring(1.06, { damping: 12, stiffness: 260 }),
-            withSpring(1, { damping: 14, stiffness: 200 }),
-          );
-        } else if (p < 1 && nextSwipeThresholdSV.value === 1) {
+          if (p >= 1 && nextSwipeThresholdSV.value === 0) {
+            nextSwipeThresholdSV.value = 1;
+            nextSwipePulse.value = withSequence(
+              withSpring(1.06, { damping: 12, stiffness: 260 }),
+              withSpring(1, { damping: 14, stiffness: 200 }),
+            );
+          } else if (p < 1 && nextSwipeThresholdSV.value === 1) {
+            nextSwipeThresholdSV.value = 0;
+            nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+          }
+        } else {
+          bottomReadyProgress.value = 0;
+          lastNextHapticMilestoneSV.value = 0;
           nextSwipeThresholdSV.value = 0;
-          nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+          if (nextSwipeProgress.value > 0) {
+            nextSwipeProgress.value = 0;
+            nextSwipePulse.value = 1;
+          }
         }
       } else {
+        // not submitted — always keep next progress zeroed
         bottomReadyProgress.value = 0;
-        lastNextHapticMilestoneSV.value = 0;
+        nextSwipeProgress.value = 0;
         nextSwipeThresholdSV.value = 0;
-        if (nextSwipeProgress.value > 0) {
-          nextSwipeProgress.value = 0;
-          nextSwipePulse.value = 1;
-        }
+        lastNextHapticMilestoneSV.value = 0;
+        nextSwipePulse.value = 1;
       }
     }
   });
@@ -673,6 +687,14 @@ export default function HackathonActivityScreen() {
 
   const handleSwipeToNext = () => {
     const currentIndex = siblings.findIndex(s => s.id === nodeId);
+    const isSubmitted = pastSubmissions.length > 0;
+    console.log(`[SwipeNext] activity="${activity?.title}" index=${currentIndex} submissions=${pastSubmissions.length} isSubmitted=${isSubmitted}`);
+
+    if (!isSubmitted) {
+      console.log(`[SwipeNext] BLOCKED — current activity not submitted yet`);
+      return;
+    }
+
     if (currentIndex >= 0 && currentIndex < siblings.length - 1) {
       router.replace(`/activity/${siblings[currentIndex + 1].id}`);
     } else if (currentIndex === siblings.length - 1) {
@@ -821,19 +843,23 @@ export default function HackathonActivityScreen() {
         style={[
           styles.pullOverlayBottom,
           { paddingBottom: Math.max(insets.bottom, 4) + 12 },
-          nextPullOverlayStyle,
+          pastSubmissions.length > 0 ? nextPullOverlayStyle : undefined,
         ]}
       >
-        {swipeNextEnabledSV.value === 1 ? (
-          <HackathonSwipeDonut
-            direction="next"
-            progress={nextSwipeProgress}
-            readyProgress={bottomReadyProgress}
-            pulseScale={nextSwipePulse}
-            label="ถัดไป"
-            titleHint={nextTitle}
-          />
-        ) : null}
+        {pastSubmissions.length > 0 ? (
+          swipeNextEnabledSV.value === 1 ? (
+            <HackathonSwipeDonut
+              direction="next"
+              progress={nextSwipeProgress}
+              readyProgress={bottomReadyProgress}
+              pulseScale={nextSwipePulse}
+              label="ถัดไป"
+              titleHint={nextTitle}
+            />
+          ) : null
+        ) : (
+          <AppText style={styles.lockedNextHint}>จบภารกิจนี้ก่อนไปต่อ</AppText>
+        )}
       </Animated.View>
 
       <Animated.ScrollView
@@ -853,6 +879,15 @@ export default function HackathonActivityScreen() {
           if (swipeNextEnabledSV.value === 1 && overscrollY > SWIPE_NEXT_THRESHOLD * 0.6) {
             handleSwipeToNext();
           }
+          // Reset all progress values so overlays don't get stuck
+          prevSwipeProgress.value = 0;
+          prevReadyProgress.value = 0;
+          prevSwipeThresholdSV.value = 0;
+          prevSwipePulse.value = 1;
+          nextSwipeProgress.value = 0;
+          bottomReadyProgress.value = 0;
+          nextSwipeThresholdSV.value = 0;
+          nextSwipePulse.value = 1;
         }}
       >
         {/* Header */}
@@ -965,9 +1000,9 @@ export default function HackathonActivityScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Static Swipe Hint */}
-        {siblings.length > 0 && (
-          <WaterFlowHint 
+        {/* Static Swipe Hint — only show when submitted */}
+        {siblings.length > 0 && pastSubmissions.length > 0 && (
+          <WaterFlowHint
             label={currentIndex < siblings.length - 1 ? "ปัดขึ้นเพื่อไปกิจกรรมถัดไป" : "ปัดขึ้นเพื่อกลับสู่แผนที่"}
           />
         )}
@@ -996,6 +1031,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     overflow: "visible",
+  },
+  lockedNextHint: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.35)",
+    fontFamily: "BaiJamjuree_500Medium",
+    letterSpacing: 0.3,
+    marginBottom: 8,
   },
   scroll: { flex: 1 },
   content: { paddingHorizontal: Space.lg, paddingBottom: 160, gap: Space.xl },
