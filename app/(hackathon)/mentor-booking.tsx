@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -7,13 +7,19 @@ import {
   TextInput,
   ActivityIndicator,
   Pressable,
-  Image,
+  Modal,
+  Dimensions,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppText } from "../../components/AppText";
 import { Space } from "../../lib/theme";
 import { readHackathonToken } from "../../lib/hackathon-mode";
+
+const { width: SCREEN_W } = Dimensions.get("window");
+const CARD_W = (SCREEN_W - Space.xl * 2 - Space.md) / 2;
+const PHOTO_H = CARD_W * 1.15;
 
 const WHITE = "#FFFFFF";
 const WHITE70 = "rgba(255,255,255,0.7)";
@@ -22,7 +28,8 @@ const CYAN = "#91C4E3";
 const CYAN_DIM = "rgba(145,196,227,0.15)";
 const CYAN_FILL = "rgba(145,196,227,0.2)";
 const BG = "#010108";
-const CARD_BG = "rgba(13,18,25,0.6)";
+const CARD_BG = "#0d1219";
+const MODAL_BG = "#070c12";
 
 type MentorProfile = {
   id: string;
@@ -36,110 +43,152 @@ type MentorProfile = {
 };
 
 function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function generateNext14Days(): string[] {
-  const days: string[] = [];
-  const now = new Date();
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(now);
-    d.setDate(now.getDate() + i);
-    const day = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    days.push(day);
-  }
-  return days;
+
+// ── Mentor card (grid item) ─────────────────────────────────────────────────
+
+function MentorCard({ mentor, onPress }: { mentor: MentorProfile; onPress: () => void }) {
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={styles.card}>
+      {/* Photo */}
+      <View style={styles.photoWrap}>
+        {mentor.photo_url ? (
+          <Image source={{ uri: mentor.photo_url }} style={styles.photo} contentFit="cover" transition={200} />
+        ) : (
+          <View style={[styles.photo, styles.photoFallback]}>
+            <AppText variant="bold" style={styles.initials}>{getInitials(mentor.full_name)}</AppText>
+          </View>
+        )}
+        {/* Session type badge */}
+        <View style={[styles.typeBadge, mentor.session_type === "group" ? styles.typeBadgeGroup : styles.typeBadgeHealthcare]}>
+          <AppText style={styles.typeBadgeText}>{mentor.session_type === "group" ? "Group" : "Healthcare"}</AppText>
+        </View>
+      </View>
+
+      {/* Info */}
+      <View style={styles.cardBody}>
+        <AppText variant="bold" style={styles.cardName} numberOfLines={1}>{mentor.full_name}</AppText>
+        <AppText style={styles.cardProfession} numberOfLines={1}>{mentor.profession}</AppText>
+        {!!mentor.institution && (
+          <AppText style={styles.cardInstitution} numberOfLines={1}>{mentor.institution}</AppText>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
 }
 
-function generateTimeSlots(): string[] {
+// Fallback: generate all hourly slots 8am–8pm for the next 14 days
+function generateAllSlots(): string[] {
   const slots: string[] = [];
-  for (let h = 8; h <= 20; h++) {
-    const hour = h % 12 === 0 ? 12 : h % 12;
-    const ampm = h < 12 ? "AM" : "PM";
-    slots.push(`${hour}:00 ${ampm}`);
+  const now = new Date();
+  for (let day = 0; day < 14; day++) {
+    for (let hour = 8; hour <= 20; hour++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + day);
+      d.setHours(hour, 0, 0, 0);
+      if (d.getTime() > now.getTime() + 30 * 60 * 1000) {
+        slots.push(d.toISOString());
+      }
+    }
   }
   return slots;
 }
 
-const DATE_OPTIONS = generateNext14Days();
-const TIME_OPTIONS = generateTimeSlots();
+// ── Booking modal ───────────────────────────────────────────────────────────
 
-export default function MentorBookingScreen() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
+// A slot returned from the API: ISO string datetime
+type AvailableSlot = string;
 
-  const [mentors, setMentors] = useState<MentorProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+// Group slots by date label
+function groupSlotsByDate(slots: AvailableSlot[]): Map<string, AvailableSlot[]> {
+  const map = new Map<string, AvailableSlot[]>();
+  for (const iso of slots) {
+    const d = new Date(iso);
+    const label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    if (!map.has(label)) map.set(label, []);
+    map.get(label)!.push(iso);
+  }
+  return map;
+}
+
+function formatSlotTime(iso: string, durationMinutes: number): { start: string; end: string } {
+  const d = new Date(iso);
+  const endD = new Date(d.getTime() + durationMinutes * 60 * 1000);
+  const fmt = (dt: Date) => dt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return { start: fmt(d), end: fmt(endD) };
+}
+
+function BookingModal({
+  mentor,
+  onClose,
+}: {
+  mentor: MentorProfile;
+  onClose: () => void;
+}) {
+  const [duration, setDuration] = useState<30 | 60>(30);
+  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(DATE_OPTIONS[0]);
-  const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[0]);
-  const [duration, setDuration] = useState<30 | 60>(30);
-  const [notes, setNotes] = useState("");
-
-  const [submitting, setSubmitting] = useState(false);
-  const [successId, setSuccessId] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-
+  // Fetch available slots whenever duration changes
   useEffect(() => {
-    fetch("https://www.passionseed.org/api/hackathon/mentor/public")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load mentors");
-        return res.json();
+    setSlotsLoading(true);
+    setSlotsError(null);
+    setSelectedDate(null);
+    setSelectedSlot(null);
+
+    const controller = new AbortController();
+    fetch(
+      `https://www.passionseed.org/api/hackathon/student/mentor-slots?mentor_id=${mentor.id}&duration=${duration}`,
+      { signal: controller.signal }
+    )
+      .then(async (res) => {
+        // If endpoint isn't deployed yet, fall back to showing all slots
+        if (res.status === 404) return { slots: null };
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? `Server error ${res.status}`);
+        return data;
       })
       .then((data) => {
-        setMentors(data.mentors ?? []);
-        setLoading(false);
+        // null slots = endpoint not available, generate all slots for next 14 days
+        const slots: AvailableSlot[] = data.slots ?? generateAllSlots();
+        setAvailableSlots(slots);
+        // Auto-select first available date
+        if (slots.length > 0) {
+          const firstDate = new Date(slots[0]).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+          setSelectedDate(firstDate);
+        }
+        setSlotsLoading(false);
       })
-      .catch((err) => {
-        setError(err.message ?? "Something went wrong");
-        setLoading(false);
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === "AbortError") return;
+        const msg = err instanceof Error ? err.message : "Could not load availability";
+        setSlotsError(msg);
+        setSlotsLoading(false);
       });
-  }, []);
 
-  function handleToggle(mentorId: string) {
-    if (expandedId === mentorId) {
-      setExpandedId(null);
-    } else {
-      setExpandedId(mentorId);
-      setSubmitError(null);
-      setSuccessId(null);
-      setSelectedDate(DATE_OPTIONS[0]);
-      setSelectedTime(TIME_OPTIONS[0]);
-      setDuration(30);
-      setNotes("");
-    }
-  }
+    return () => controller.abort();
+  }, [mentor.id, duration]);
 
-  async function handleBook(mentor: MentorProfile) {
+  const slotsByDate = groupSlotsByDate(availableSlots);
+  const dateOptions = Array.from(slotsByDate.keys());
+  const timeSlotsForDate = selectedDate ? (slotsByDate.get(selectedDate) ?? []) : [];
+
+  async function handleBook() {
+    if (!selectedSlot) { setError("Please select a time slot."); return; }
     setSubmitting(true);
-    setSubmitError(null);
+    setError(null);
     try {
       const token = await readHackathonToken();
-      if (!token) {
-        setSubmitError("You are not logged in.");
-        setSubmitting(false);
-        return;
-      }
-
-      // Build ISO datetime from selected date + time labels
-      const dateIndex = DATE_OPTIONS.indexOf(selectedDate);
-      const timeIndex = TIME_OPTIONS.indexOf(selectedTime);
-      const slotDate = new Date();
-      slotDate.setDate(slotDate.getDate() + dateIndex);
-      slotDate.setHours(8 + timeIndex, 0, 0, 0);
-
-      if (slotDate <= new Date()) {
-        setSubmitError("Please select a future time slot.");
-        setSubmitting(false);
-        return;
-      }
+      if (!token) { setError("You are not logged in."); setSubmitting(false); return; }
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
@@ -147,13 +196,10 @@ export default function MentorBookingScreen() {
       try {
         res = await fetch("https://www.passionseed.org/api/hackathon/student/book-mentor", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             mentor_id: mentor.id,
-            slot_datetime: slotDate.toISOString(),
+            slot_datetime: selectedSlot,
             duration_minutes: duration,
             notes: notes.trim() || undefined,
           }),
@@ -167,18 +213,178 @@ export default function MentorBookingScreen() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? "Booking failed");
       }
-
-      setSuccessId(mentor.id);
-      setNotes("");
+      setSuccess(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Booking failed";
-      setSubmitError(message);
+      setError(err instanceof Error ? err.message : "Booking failed");
       setSubmitting(false);
     }
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: BG }]}>
+    <Modal animationType="slide" transparent presentationStyle="overFullScreen" onRequestClose={onClose}>
+      <View style={modal.overlay}>
+        <View style={modal.sheet}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={modal.scrollContent}>
+
+            {/* Photo banner */}
+            <View style={modal.photoBanner}>
+              {mentor.photo_url ? (
+                <Image source={{ uri: mentor.photo_url }} style={modal.bannerImg} contentFit="cover" transition={200} />
+              ) : (
+                <View style={[modal.bannerImg, modal.bannerFallback]}>
+                  <AppText variant="bold" style={modal.bannerInitials}>{getInitials(mentor.full_name)}</AppText>
+                </View>
+              )}
+              {/* Close btn */}
+              <Pressable onPress={onClose} style={modal.closeBtn} hitSlop={12}>
+                <AppText style={modal.closeBtnText}>✕</AppText>
+              </Pressable>
+            </View>
+
+            {/* Name + bio */}
+            <View style={modal.infoSection}>
+              <AppText variant="bold" style={modal.name}>{mentor.full_name}</AppText>
+              {!!mentor.bio && (
+                <AppText style={modal.bio}>{mentor.bio}</AppText>
+              )}
+
+              {/* Institution pill */}
+              {!!mentor.institution && (
+                <View style={modal.institutionRow}>
+                  <View style={modal.institutionPill}>
+                    <AppText style={modal.institutionText}>{mentor.institution}</AppText>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Divider */}
+            <View style={modal.divider} />
+
+            {success ? (
+              <View style={modal.successBox}>
+                <AppText variant="bold" style={modal.successTitle}>Booking request sent!</AppText>
+                <AppText style={modal.successSub}>The mentor will confirm your session shortly.</AppText>
+                <TouchableOpacity style={modal.doneBtn} onPress={onClose}>
+                  <AppText variant="bold" style={modal.doneBtnText}>Done</AppText>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={modal.formSection}>
+                {/* Duration — pick first so slots update */}
+                <AppText style={modal.fieldLabel}>Duration</AppText>
+                <View style={modal.durationRow}>
+                  {([30, 60] as const).map((d) => (
+                    <TouchableOpacity key={d} onPress={() => setDuration(d)}
+                      style={[modal.durationBtn, duration === d && modal.durationBtnSelected]}>
+                      <AppText style={[modal.durationText, duration === d && modal.durationTextSelected]}>{d} min</AppText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {slotsLoading ? (
+                  <View style={modal.slotsLoadingBox}>
+                    <ActivityIndicator color={CYAN} />
+                    <AppText style={modal.slotsLoadingText}>Loading availability…</AppText>
+                  </View>
+                ) : slotsError ? (
+                  <AppText style={modal.errorText}>{slotsError}</AppText>
+                ) : availableSlots.length === 0 ? (
+                  <View style={modal.noSlotsBox}>
+                    <AppText style={modal.noSlotsText}>No available slots in the next 14 days.</AppText>
+                  </View>
+                ) : (
+                  <>
+                    {/* Date */}
+                    <AppText style={modal.fieldLabel}>Select Date</AppText>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={modal.pillScroll} contentContainerStyle={modal.pillRow}>
+                      {dateOptions.map((d) => (
+                        <TouchableOpacity key={d} onPress={() => { setSelectedDate(d); setSelectedSlot(null); }}
+                          style={[modal.pill, selectedDate === d && modal.pillSelected]}>
+                          <AppText style={[modal.pillText, selectedDate === d && modal.pillTextSelected]}>{d}</AppText>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
+                    {/* Time */}
+                    <AppText style={modal.fieldLabel}>Select Time</AppText>
+                    <View style={modal.timeList}>
+                      {timeSlotsForDate.map((iso) => {
+                        const isSelected = selectedSlot === iso;
+                        const { start, end } = formatSlotTime(iso, duration);
+                        return (
+                          <TouchableOpacity key={iso} onPress={() => setSelectedSlot(iso)}
+                            style={[modal.timeRow, isSelected && modal.timeRowSelected]}>
+                            <View style={[modal.timeIconWrap, isSelected && modal.timeIconWrapSelected]}>
+                              <AppText style={modal.timeIcon}>⏱</AppText>
+                            </View>
+                            <AppText style={[modal.timeRangeText, isSelected && modal.timeRangeTextSelected]}>
+                              {start} – {end}
+                            </AppText>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
+
+                {/* Notes */}
+                <AppText style={modal.fieldLabel}>Notes (optional)</AppText>
+                <TextInput
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="What would you like help with?"
+                  placeholderTextColor={WHITE40}
+                  style={modal.notesInput}
+                  multiline
+                  numberOfLines={3}
+                />
+
+                {!!error && <AppText style={modal.errorText}>{error}</AppText>}
+
+                {/* Book button */}
+                <TouchableOpacity onPress={handleBook} disabled={submitting || !selectedSlot}
+                  style={[modal.bookBtn, (submitting || !selectedSlot) && modal.bookBtnDisabled]}>
+                  {submitting
+                    ? <ActivityIndicator color={BG} size="small" />
+                    : <AppText variant="bold" style={modal.bookBtnText}>Book Session</AppText>
+                  }
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ── Main screen ─────────────────────────────────────────────────────────────
+
+export default function MentorBookingScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  const [mentors, setMentors] = useState<MentorProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMentor, setSelectedMentor] = useState<MentorProfile | null>(null);
+
+  useEffect(() => {
+    fetch("https://www.passionseed.org/api/hackathon/mentor/public")
+      .then((res) => { if (!res.ok) throw new Error("Failed to load mentors"); return res.json(); })
+      .then((data) => { setMentors(data.mentors ?? []); setLoading(false); })
+      .catch((err) => { setError(err.message ?? "Something went wrong"); setLoading(false); });
+  }, []);
+
+  // Pair mentors into rows of 2
+  const rows: MentorProfile[][] = [];
+  for (let i = 0; i < mentors.length; i += 2) {
+    rows.push(mentors.slice(i, i + 2));
+  }
+
+  return (
+    <View style={styles.root}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.md }]}>
         {/* Header */}
         <View style={styles.header}>
@@ -189,431 +395,253 @@ export default function MentorBookingScreen() {
           <AppText style={styles.subtitle}>Schedule 1:1 help with technical and business mentors.</AppText>
         </View>
 
-        {/* Loading */}
-        {loading && (
-          <View style={styles.center}>
-            <ActivityIndicator color={CYAN} size="large" />
-          </View>
-        )}
-
-        {/* Error */}
-        {!loading && error && (
-          <View style={styles.center}>
-            <AppText style={styles.errorText}>{error}</AppText>
-          </View>
-        )}
-
-        {/* Mentor list */}
+        {loading && <View style={styles.center}><ActivityIndicator color={CYAN} size="large" /></View>}
+        {!loading && error && <View style={styles.center}><AppText style={styles.errorText}>{error}</AppText></View>}
         {!loading && !error && mentors.length === 0 && (
-          <View style={styles.center}>
-            <AppText style={{ color: WHITE40 }}>No mentors available yet.</AppText>
-          </View>
+          <View style={styles.center}><AppText style={{ color: WHITE40 }}>No mentors available yet.</AppText></View>
         )}
 
-        {!loading && !error && mentors.map((mentor) => {
-          const isExpanded = expandedId === mentor.id;
-          const isSuccess = successId === mentor.id;
-
-          return (
-            <View key={mentor.id} style={styles.card}>
-              {/* Card Header */}
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={() => handleToggle(mentor.id)}
-                style={styles.cardHeader}
-              >
-                {/* Avatar */}
-                <View style={styles.avatarWrap}>
-                  {mentor.photo_url ? (
-                    <Image source={{ uri: mentor.photo_url }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatarFallback}>
-                      <AppText variant="bold" style={styles.avatarInitials}>
-                        {getInitials(mentor.full_name)}
-                      </AppText>
-                    </View>
-                  )}
-                </View>
-
-                {/* Info */}
-                <View style={styles.cardInfo}>
-                  <AppText variant="bold" style={styles.mentorName}>{mentor.full_name}</AppText>
-                  <AppText style={styles.mentorProfession}>{mentor.profession}</AppText>
-                  {!!mentor.institution && (
-                    <AppText style={styles.mentorInstitution}>{mentor.institution}</AppText>
-                  )}
-                </View>
-
-                {/* Badge */}
-                <View style={[
-                  styles.badge,
-                  mentor.session_type === "group" ? styles.badgeGroup : styles.badgeHealthcare,
-                ]}>
-                  <AppText style={styles.badgeText}>
-                    {mentor.session_type === "group" ? "Group" : "1:1"}
-                  </AppText>
-                </View>
-              </TouchableOpacity>
-
-              {/* Expanded booking form */}
-              {isExpanded && (
-                <View style={styles.formWrap}>
-                  {/* Bio */}
-                  {!!mentor.bio && (
-                    <AppText style={styles.bioText}>{mentor.bio}</AppText>
-                  )}
-
-                  {isSuccess ? (
-                    <View style={styles.successBox}>
-                      <AppText variant="bold" style={styles.successText}>
-                        Booking request sent!
-                      </AppText>
-                      <AppText style={styles.successSub}>
-                        The mentor will confirm your session.
-                      </AppText>
-                    </View>
-                  ) : (
-                    <>
-                      {/* Date picker */}
-                      <AppText style={styles.fieldLabel}>Select Date</AppText>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.pillScroll}
-                        contentContainerStyle={styles.pillRow}
-                      >
-                        {DATE_OPTIONS.map((d) => (
-                          <TouchableOpacity
-                            key={d}
-                            onPress={() => setSelectedDate(d)}
-                            style={[
-                              styles.pill,
-                              selectedDate === d && styles.pillSelected,
-                            ]}
-                          >
-                            <AppText style={[
-                              styles.pillText,
-                              selectedDate === d && styles.pillTextSelected,
-                            ]}>
-                              {d}
-                            </AppText>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-
-                      {/* Time picker */}
-                      <AppText style={styles.fieldLabel}>Select Time</AppText>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.pillScroll}
-                        contentContainerStyle={styles.pillRow}
-                      >
-                        {TIME_OPTIONS.map((t) => (
-                          <TouchableOpacity
-                            key={t}
-                            onPress={() => setSelectedTime(t)}
-                            style={[
-                              styles.pill,
-                              selectedTime === t && styles.pillSelected,
-                            ]}
-                          >
-                            <AppText style={[
-                              styles.pillText,
-                              selectedTime === t && styles.pillTextSelected,
-                            ]}>
-                              {t}
-                            </AppText>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-
-                      {/* Duration */}
-                      <AppText style={styles.fieldLabel}>Duration</AppText>
-                      <View style={styles.durationRow}>
-                        {([30, 60] as const).map((d) => (
-                          <TouchableOpacity
-                            key={d}
-                            onPress={() => setDuration(d)}
-                            style={[
-                              styles.durationBtn,
-                              duration === d && styles.durationBtnSelected,
-                            ]}
-                          >
-                            <AppText style={[
-                              styles.durationText,
-                              duration === d && styles.durationTextSelected,
-                            ]}>
-                              {d} min
-                            </AppText>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-
-                      {/* Notes */}
-                      <AppText style={styles.fieldLabel}>Notes (optional)</AppText>
-                      <TextInput
-                        value={notes}
-                        onChangeText={setNotes}
-                        placeholder="What would you like help with?"
-                        placeholderTextColor={WHITE40}
-                        style={styles.notesInput}
-                        multiline
-                        numberOfLines={3}
-                      />
-
-                      {/* Submit error */}
-                      {!!submitError && (
-                        <AppText style={styles.errorText}>{submitError}</AppText>
-                      )}
-
-                      {/* Book button */}
-                      <TouchableOpacity
-                        onPress={() => handleBook(mentor)}
-                        disabled={submitting}
-                        style={[styles.bookBtn, submitting && styles.bookBtnDisabled]}
-                      >
-                        {submitting ? (
-                          <ActivityIndicator color={BG} size="small" />
-                        ) : (
-                          <AppText variant="bold" style={styles.bookBtnText}>Book Session</AppText>
-                        )}
-                      </TouchableOpacity>
-                    </>
-                  )}
-                </View>
-              )}
-            </View>
-          );
-        })}
+        {/* Grid */}
+        {!loading && !error && rows.map((row, i) => (
+          <View key={i} style={styles.row}>
+            {row.map((mentor) => (
+              <MentorCard key={mentor.id} mentor={mentor} onPress={() => setSelectedMentor(mentor)} />
+            ))}
+            {/* Fill empty slot if odd count */}
+            {row.length === 1 && <View style={styles.cardPlaceholder} />}
+          </View>
+        ))}
       </ScrollView>
+
+      {/* Booking modal */}
+      {selectedMentor && (
+        <BookingModal mentor={selectedMentor} onClose={() => setSelectedMentor(null)} />
+      )}
     </View>
   );
 }
 
+// ── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  content: {
-    padding: Space.xl,
-    paddingBottom: 120,
-    gap: Space.lg,
-  },
-  header: {
-    marginBottom: Space.xs,
-  },
-  backBtn: {
-    marginBottom: Space.md,
-  },
-  backLabel: {
-    color: CYAN,
-    fontSize: 14,
-  },
-  title: {
-    fontSize: 26,
-    color: WHITE,
-    marginBottom: Space.xs,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: WHITE70,
-  },
-  center: {
-    alignItems: "center",
-    paddingVertical: Space["2xl"],
-  },
+  root: { flex: 1, backgroundColor: BG },
+  content: { padding: Space.xl, paddingBottom: 120, gap: Space.lg },
+  header: { marginBottom: Space.xs },
+  backBtn: { marginBottom: Space.md },
+  backLabel: { color: CYAN, fontSize: 14 },
+  title: { fontSize: 26, color: WHITE, marginBottom: Space.xs },
+  subtitle: { fontSize: 14, color: WHITE70 },
+  center: { alignItems: "center", paddingVertical: Space["2xl"] },
+  errorText: { color: "#F87171", fontSize: 13 },
+  row: { flexDirection: "row", gap: Space.md },
+
+  // Card
   card: {
+    width: CARD_W,
     backgroundColor: CARD_BG,
-    borderRadius: 16,
+    borderRadius: 20,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: CYAN_DIM,
-    overflow: "hidden",
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: Space.lg,
-    gap: Space.md,
-  },
-  avatarWrap: {
-    width: 52,
-    height: 52,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1.5,
-    borderColor: CYAN_DIM,
-  },
-  avatarFallback: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(145,196,227,0.15)",
-    borderWidth: 1.5,
-    borderColor: CYAN_DIM,
+  cardPlaceholder: { width: CARD_W },
+  photoWrap: { width: CARD_W, height: PHOTO_H, position: "relative" },
+  photo: { width: CARD_W, height: PHOTO_H },
+  photoFallback: {
+    backgroundColor: "rgba(145,196,227,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarInitials: {
-    fontSize: 18,
-    color: CYAN,
-  },
-  cardInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  mentorName: {
-    fontSize: 16,
-    color: WHITE,
-  },
-  mentorProfession: {
-    fontSize: 13,
-    color: WHITE70,
-  },
-  mentorInstitution: {
-    fontSize: 12,
-    color: WHITE40,
-  },
-  badge: {
+  initials: { fontSize: 32, color: CYAN },
+  typeBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
-    alignSelf: "flex-start",
   },
-  badgeHealthcare: {
-    backgroundColor: "rgba(59,130,246,0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(59,130,246,0.4)",
-  },
-  badgeGroup: {
-    backgroundColor: "rgba(139,92,246,0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.4)",
-  },
-  badgeText: {
-    fontSize: 11,
-    color: WHITE70,
-    fontFamily: "BaiJamjuree_500Medium",
-  },
+  typeBadgeHealthcare: { backgroundColor: "rgba(59,130,246,0.75)" },
+  typeBadgeGroup: { backgroundColor: "rgba(139,92,246,0.75)" },
+  typeBadgeText: { fontSize: 11, color: WHITE, fontFamily: "BaiJamjuree_700Bold" },
+  cardBody: { padding: 12, gap: 3 },
+  cardName: { fontSize: 14, color: WHITE },
+  cardProfession: { fontSize: 12, color: WHITE70 },
+  cardInstitution: { fontSize: 11, color: WHITE40 },
+});
 
-  formWrap: {
-    paddingHorizontal: Space.lg,
-    paddingBottom: Space.lg,
+const modal = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: MODAL_BG,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: "92%",
     borderTopWidth: 1,
-    borderTopColor: CYAN_DIM,
-    paddingTop: Space.md,
-    gap: Space.sm,
+    borderColor: CYAN_DIM,
   },
-  bioText: {
-    fontSize: 13,
-    color: WHITE70,
-    lineHeight: 19,
-    marginBottom: Space.xs,
+  scrollContent: { paddingBottom: 48 },
+
+  // Banner
+  photoBanner: { width: "100%", height: 280, position: "relative" },
+  bannerImg: { width: "100%", height: 280 },
+  bannerFallback: {
+    backgroundColor: "rgba(145,196,227,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  fieldLabel: {
-    fontSize: 12,
-    color: CYAN,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    marginTop: Space.xs,
-    fontFamily: "BaiJamjuree_500Medium",
+  bannerInitials: { fontSize: 56, color: CYAN },
+  closeBtn: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  pillScroll: {
-    flexGrow: 0,
-  },
-  pillRow: {
-    flexDirection: "row",
-    gap: Space.xs,
-    paddingVertical: Space.xs,
-  },
-  pill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  closeBtnText: { color: WHITE, fontSize: 14 },
+
+  // Info
+  infoSection: { paddingHorizontal: 24, paddingTop: 20, gap: 8 },
+  name: { fontSize: 24, color: WHITE },
+  bio: { fontSize: 14, color: WHITE70, lineHeight: 21 },
+  institutionRow: { flexDirection: "row", marginTop: 4 },
+  institutionPill: {
+    backgroundColor: "rgba(145,196,227,0.12)",
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: CYAN,
+    borderColor: CYAN_DIM,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+  },
+  institutionText: { fontSize: 13, color: CYAN, fontFamily: "BaiJamjuree_500Medium" },
+
+  divider: { height: 1, backgroundColor: CYAN_DIM, marginVertical: 20, marginHorizontal: 24 },
+
+  // Form
+  formSection: { paddingHorizontal: 24, gap: Space.sm },
+  fieldLabel: {
+    fontSize: 11,
+    color: CYAN,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    fontFamily: "BaiJamjuree_700Bold",
+    marginTop: 4,
+  },
+  pillScroll: { flexGrow: 0 },
+  pillRow: { flexDirection: "row", gap: 8, paddingVertical: 4 },
+  pill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.35)",
     backgroundColor: "transparent",
   },
-  pillSelected: {
-    backgroundColor: CYAN_FILL,
-  },
-  pillText: {
-    fontSize: 12,
-    color: WHITE70,
-  },
-  pillTextSelected: {
-    color: WHITE,
-  },
-  durationRow: {
+  pillSelected: { backgroundColor: CYAN_FILL, borderColor: CYAN },
+  pillText: { fontSize: 13, color: WHITE70, fontFamily: "BaiJamjuree_500Medium" },
+  pillTextSelected: { color: WHITE },
+
+  // Slots loading / empty
+  slotsLoadingBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 16 },
+  slotsLoadingText: { color: WHITE40, fontSize: 13 },
+  noSlotsBox: { paddingVertical: 16 },
+  noSlotsText: { color: WHITE40, fontSize: 13 },
+
+  // Time list
+  timeList: { gap: 8 },
+  timeRow: {
     flexDirection: "row",
-    gap: Space.sm,
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: "rgba(145,196,227,0.06)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.12)",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
   },
+  timeRowSelected: {
+    backgroundColor: CYAN,
+    borderColor: CYAN,
+  },
+  timeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "rgba(145,196,227,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timeIconWrapSelected: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  timeIcon: { fontSize: 18 },
+  timeIconSelected: {},
+  timeRangeText: {
+    fontSize: 15,
+    color: WHITE70,
+    fontFamily: "BaiJamjuree_500Medium",
+  },
+  timeRangeTextSelected: {
+    color: BG,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+
+  durationRow: { flexDirection: "row", gap: 12 },
   durationBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 11,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: CYAN,
+    borderColor: "rgba(145,196,227,0.35)",
     alignItems: "center",
-    backgroundColor: "transparent",
   },
-  durationBtnSelected: {
-    backgroundColor: CYAN_FILL,
-  },
-  durationText: {
-    fontSize: 14,
-    color: WHITE70,
-  },
-  durationTextSelected: {
-    color: WHITE,
-  },
+  durationBtnSelected: { backgroundColor: CYAN_FILL, borderColor: CYAN },
+  durationText: { fontSize: 14, color: WHITE70, fontFamily: "BaiJamjuree_500Medium" },
+  durationTextSelected: { color: WHITE },
+
   notesInput: {
     backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
     borderColor: "rgba(145,196,227,0.2)",
-    borderRadius: 10,
+    borderRadius: 12,
     color: WHITE,
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 14,
-    padding: Space.md,
+    padding: 14,
     minHeight: 80,
     textAlignVertical: "top",
   },
-  errorText: {
-    color: "#F87171",
-    fontSize: 13,
-  },
+  errorText: { color: "#F87171", fontSize: 13 },
+
   bookBtn: {
     backgroundColor: CYAN,
-    borderRadius: 12,
+    borderRadius: 50,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  bookBtnDisabled: { opacity: 0.6 },
+  bookBtnText: { color: BG, fontSize: 16 },
+
+  // Success
+  successBox: { paddingHorizontal: 24, paddingTop: 8, alignItems: "center", gap: 12 },
+  successTitle: { fontSize: 20, color: CYAN },
+  successSub: { fontSize: 14, color: WHITE70, textAlign: "center" },
+  doneBtn: {
+    marginTop: 8,
+    backgroundColor: CYAN,
+    borderRadius: 50,
     paddingVertical: 14,
-    alignItems: "center",
-    marginTop: Space.xs,
+    paddingHorizontal: 48,
   },
-  bookBtnDisabled: {
-    opacity: 0.6,
-  },
-  bookBtnText: {
-    color: BG,
-    fontSize: 15,
-  },
-  successBox: {
-    backgroundColor: "rgba(145,196,227,0.1)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.3)",
-    padding: Space.lg,
-    alignItems: "center",
-    gap: Space.xs,
-    marginTop: Space.sm,
-  },
-  successText: {
-    fontSize: 16,
-    color: CYAN,
-  },
-  successSub: {
-    fontSize: 13,
-    color: WHITE70,
-  },
+  doneBtnText: { color: BG, fontSize: 15 },
 });
