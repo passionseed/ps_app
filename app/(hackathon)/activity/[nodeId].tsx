@@ -19,17 +19,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import { AppText } from "../../../components/AppText";
 import { HackathonSwipeDonut } from "../../../components/Hackathon/HackathonSwipeDonut";
 import { WaterFlowHint } from "../../../components/Hackathon/WaterFlowHint";
+import { ActivityCommentsPreview } from "../../../components/Hackathon/ActivityCommentsPreview";
 import HackathonEvidenceComic from "../../../components/Hackathon/HackathonEvidenceComic";
 import HackathonWebtoon from "../../../components/Hackathon/HackathonWebtoon";
 import { parseHackathonComicContent } from "../../../lib/hackathonComic";
 import { parseHackathonWebtoonContent } from "../../../lib/hackathonWebtoon";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { supabase } from "../../../lib/supabase";
+import { readHackathonParticipant, type HackathonParticipant } from "../../../lib/hackathon-mode";
 import {
   submitTextAnswer,
   submitFile,
   fetchActivitySubmissions,
+  fetchTeammateActivitySubmissions,
   type SubmissionRecord,
+  type TeammateSubmissionRecord,
 } from "../../../lib/hackathon-submit";
 import { Space } from "../../../lib/theme";
 import Animated, {
@@ -490,21 +494,66 @@ function PastSubmissionsList({ submissions }: { submissions: SubmissionRecord[] 
     <View style={styles.pastSubmissionsBlock}>
       <AppText style={styles.assessmentLabel}>ประวัติการส่ง</AppText>
       {submissions.map((sub) => (
-        <View key={sub.id} style={styles.pastSubmissionCard}>
-          <AppText style={styles.pastSubmissionTime}>
-            {new Date(sub.submitted_at).toLocaleString('th-TH')}
-          </AppText>
-          {sub.text_answer ? (
-            <AppText style={styles.bodyText}>{sub.text_answer}</AppText>
-          ) : null}
-          {sub.image_url ? (
-            <Image source={{ uri: sub.image_url }} style={styles.pastSubmissionImage} resizeMode="contain" />
-          ) : null}
-          {sub.file_urls?.[0] ? (
-            <AppText style={styles.pastSubmissionFile}>📁 {sub.file_urls[0].split('/').pop()}</AppText>
-          ) : null}
-        </View>
+        <SubmissionCard key={sub.id} submission={sub} />
       ))}
+    </View>
+  );
+}
+
+function SubmissionCard({
+  submission,
+}: {
+  submission: SubmissionRecord | TeammateSubmissionRecord;
+}) {
+  const participantName =
+    "participant_name" in submission ? submission.participant_name : null;
+
+  return (
+    <View style={styles.pastSubmissionCard}>
+      {participantName ? (
+        <AppText variant="bold" style={styles.teammateName}>
+          {participantName}
+        </AppText>
+      ) : null}
+      <AppText style={styles.pastSubmissionTime}>
+        {new Date(submission.submitted_at).toLocaleString("th-TH")}
+      </AppText>
+      {submission.text_answer ? (
+        <AppText style={styles.bodyText}>{submission.text_answer}</AppText>
+      ) : null}
+      {submission.image_url ? (
+        <Image
+          source={{ uri: submission.image_url }}
+          style={styles.pastSubmissionImage}
+          resizeMode="contain"
+        />
+      ) : null}
+      {submission.file_urls?.[0] ? (
+        <AppText style={styles.pastSubmissionFile}>
+          📁 {submission.file_urls[0].split("/").pop()}
+        </AppText>
+      ) : null}
+    </View>
+  );
+}
+
+function TeammateSubmissionsList({
+  submissions,
+}: {
+  submissions: TeammateSubmissionRecord[];
+}) {
+  return (
+    <View style={styles.pastSubmissionsBlock}>
+      <AppText style={styles.assessmentLabel}>ผลงานของเพื่อนร่วมทีม</AppText>
+      {submissions.length === 0 ? (
+        <AppText style={styles.teammateEmptyText}>
+          ยังไม่มีการส่งจากเพื่อนร่วมทีม
+        </AppText>
+      ) : (
+        submissions.map((sub) => (
+          <SubmissionCard key={sub.id} submission={sub} />
+        ))
+      )}
     </View>
   );
 }
@@ -536,7 +585,9 @@ export default function HackathonActivityScreen() {
   const { height: viewportHeight } = useWindowDimensions();
   const scrollY = useSharedValue(0);
   const [activity, setActivity] = useState<HackathonPhaseActivityDetail | null>(null);
+  const [participant, setParticipant] = useState<HackathonParticipant | null>(null);
   const [pastSubmissions, setPastSubmissions] = useState<SubmissionRecord[]>([]);
+  const [teammateSubmissions, setTeammateSubmissions] = useState<TeammateSubmissionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [answer, setAnswer] = useState("");
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -691,19 +742,32 @@ export default function HackathonActivityScreen() {
     }
   };
 
+  async function refreshSubmissionState(activityId: string) {
+    const [submissions, teammateSubmissions] = await Promise.all([
+      fetchActivitySubmissions(activityId),
+      fetchTeammateActivitySubmissions(activityId),
+    ]);
+    setPastSubmissions(submissions);
+    setTeammateSubmissions(teammateSubmissions);
+  }
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       setLoading(true);
       (async () => {
         try {
-          const [dbData, submissions] = await Promise.all([
+          const [dbData, submissions, teammateSubmissions, participantData] = await Promise.all([
             fetchActivity(nodeId!),
             fetchActivitySubmissions(nodeId!),
+            fetchTeammateActivitySubmissions(nodeId!),
+            readHackathonParticipant(),
           ]);
           if (!cancelled) {
             setActivity(dbData);
+            setParticipant(participantData);
             setPastSubmissions(submissions);
+            setTeammateSubmissions(teammateSubmissions);
 
             if (dbData && dbData.phase_id) {
               const { data: sibs } = await supabase
@@ -732,6 +796,7 @@ export default function HackathonActivityScreen() {
       ? answer.trim().length > 0
       : uploadedUrl !== null
     : true;
+  const showTeammateSubmissions = pastSubmissions.length > 0;
 
   async function handleSubmit() {
     if (!activity) return;
@@ -742,9 +807,8 @@ export default function HackathonActivityScreen() {
       if (activity.assessment.assessment_type === "text_answer") {
         await submitTextAnswer(activity.id, activity.assessment.id, answer);
       }
-      
-      const newSubmissions = await fetchActivitySubmissions(activity.id);
-      setPastSubmissions(newSubmissions);
+
+      await refreshSubmissionState(activity.id);
       setAnswer("");
       setUploadedUrl(null);
       
@@ -908,13 +972,18 @@ export default function HackathonActivityScreen() {
             onChange={setAnswer}
             onFileUploaded={(url) => {
               setUploadedUrl(url);
-              fetchActivitySubmissions(activity.id).then(setPastSubmissions);
+              refreshSubmissionState(activity.id).catch(() => {});
             }}
           />
         ) : null}
 
         {/* Past Submissions */}
         <PastSubmissionsList submissions={pastSubmissions} />
+
+        {/* Teammate Submissions */}
+        {showTeammateSubmissions ? (
+          <TeammateSubmissionsList submissions={teammateSubmissions} />
+        ) : null}
 
         {/* Submit error */}
         {submitError ? (
@@ -965,9 +1034,21 @@ export default function HackathonActivityScreen() {
           </Pressable>
         </Animated.View>
 
+        {/* Comments Preview */}
+        {activity && participant && (
+          <>
+            <View style={styles.commentsDivider} />
+            <ActivityCommentsPreview
+              activityId={activity.id}
+              participantId={participant.id}
+              onSeeAll={() => router.push(`/activity/${activity.id}/comments`)}
+            />
+          </>
+        )}
+
         {/* Static Swipe Hint */}
         {siblings.length > 0 && (
-          <WaterFlowHint 
+          <WaterFlowHint
             label={currentIndex < siblings.length - 1 ? "ปัดขึ้นเพื่อไปกิจกรรมถัดไป" : "ปัดขึ้นเพื่อกลับสู่แผนที่"}
           />
         )}
@@ -1087,6 +1168,8 @@ const styles = StyleSheet.create({
   pastSubmissionTime: { fontSize: 11, color: WHITE55, marginBottom: 4 },
   pastSubmissionImage: { width: "100%", height: 150, borderRadius: 8, marginTop: 4 },
   pastSubmissionFile: { fontSize: 13, color: CYAN },
+  teammateName: { fontSize: 14, color: WHITE, marginBottom: 2 },
+  teammateEmptyText: { fontSize: 13, color: WHITE55, lineHeight: 20 },
 
   // Assessment
   assessmentBlock: { gap: Space.sm },
@@ -1205,5 +1288,12 @@ const styles = StyleSheet.create({
   staticSwipeHintText: {
     fontSize: 13,
     color: WHITE55,
+  },
+
+  // Comments section
+  commentsDivider: {
+    height: 1,
+    backgroundColor: "rgba(145, 196, 227, 0.3)",
+    marginVertical: 8,
   },
 });
