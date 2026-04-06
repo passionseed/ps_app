@@ -124,12 +124,14 @@ export interface HackathonTeamMember {
   name: string;
   university: string;
   track: string;
+  team_emoji?: string | null;
 }
 
 export interface HackathonTeam {
   id: string;
   name?: string | null;
   team_name?: string | null;
+  team_avatar_url?: string | null;
   created_at?: string;
   updated_at?: string;
   members?: HackathonTeamMember[];
