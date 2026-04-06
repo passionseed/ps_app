@@ -56,6 +56,8 @@ export interface HackathonWebtoonMetadata {
   variant?: string;
   original_width?: number;
   original_height?: number;
+  panel_width?: number;
+  panel_height?: number;
   chunks?: HackathonWebtoonChunkMetadata[];
 }
 
@@ -69,6 +71,8 @@ export interface HackathonWebtoonContent {
   variant: string;
   originalWidth: number | null;
   originalHeight: number | null;
+  panelWidth: number | null;
+  panelHeight: number | null;
   chunks: HackathonWebtoonChunk[];
 }
 

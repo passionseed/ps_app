@@ -1,3 +1,24 @@
+const { withGradleProperties } = require("@expo/config-plugins");
+
+const withHighMemoryGradle = (config) => {
+  return withGradleProperties(config, (props) => {
+    const existing = props.modResults.findIndex(
+      (item) => item.type === "property" && item.key === "org.gradle.jvmargs"
+    );
+    const entry = {
+      type: "property",
+      key: "org.gradle.jvmargs",
+      value: "-Xmx8192m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError",
+    };
+    if (existing >= 0) {
+      props.modResults[existing] = entry;
+    } else {
+      props.modResults.push(entry);
+    }
+    return props;
+  });
+};
+
 module.exports = {
   expo: {
     owner: "passionseed",
@@ -43,6 +64,7 @@ module.exports = {
       favicon: "./assets/favicon.png",
     },
     plugins: [
+      withHighMemoryGradle,
       [
         "expo-font",
         {

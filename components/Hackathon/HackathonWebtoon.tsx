@@ -52,10 +52,12 @@ function WebtoonChunk({
   chunk,
   fallbackUrl,
   width,
+  aspectRatio,
 }: {
   chunk: HackathonWebtoonChunk;
   fallbackUrl: string | null;
   width: number;
+  aspectRatio: number;
 }) {
   const imageSource = resolveChunkImageSource(chunk, fallbackUrl);
 
@@ -63,10 +65,6 @@ function WebtoonChunk({
     return null;
   }
 
-  // Use a default aspect ratio for the webtoon slices (1080x1152) if we don't know the exact one.
-  // webtoon1-4 is 1080x1154, which is extremely close (0.9375 vs 0.9358), so 1080/1152 works fine visually
-  // as React Native 'cover' or 'stretch' can handle subpixel differences.
-  const aspectRatio = 1080 / 1152;
   const chunkHeight = width / aspectRatio;
 
   return (
@@ -74,7 +72,7 @@ function WebtoonChunk({
       <Image
         source={imageSource}
         style={[styles.chunkImage, { width, height: chunkHeight }]}
-        resizeMode="cover"
+        resizeMode="stretch"
         accessibilityLabel={`Webtoon chunk ${chunk.order}`}
       />
     </View>
@@ -87,6 +85,11 @@ export default function HackathonWebtoon({
 }: HackathonWebtoonProps) {
   const { width: viewportWidth } = useWindowDimensions();
 
+  // Use panel dimensions from metadata, with fallbacks
+  const panelWidth = webtoon.panelWidth ?? 1080;
+  const panelHeight = webtoon.panelHeight ?? 1374;
+  const aspectRatio = panelWidth / panelHeight;
+
   return (
     <View style={styles.root}>
       {webtoon.chunks.map((chunk) => (
@@ -95,6 +98,7 @@ export default function HackathonWebtoon({
           chunk={chunk}
           fallbackUrl={fallbackUrl}
           width={viewportWidth}
+          aspectRatio={aspectRatio}
         />
       ))}
     </View>
