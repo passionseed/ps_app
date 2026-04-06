@@ -353,7 +353,7 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
 
     if (membership) {
       const [{ data: teamData }, { data: enrollmentData }, { data: memberRows }] = await Promise.all([
-        supabase.from("hackathon_teams").select("*").eq("id", membership.team_id).maybeSingle(),
+        supabase.from("hackathon_teams").select("id, name, team_name, team_avatar_url, created_at, updated_at").eq("id", membership.team_id).maybeSingle(),
         supabase
           .from("hackathon_team_program_enrollments")
           .select("*")
@@ -372,13 +372,14 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
         if (memberIds.length > 0) {
           const { data: participantDetails } = await supabase
             .from("hackathon_participants")
-            .select("id, name, university, track")
+            .select("id, name, university, track, team_emoji")
             .in("id", memberIds);
           members = (participantDetails ?? []).map((p: any) => ({
             participant_id: p.id,
             name: p.name,
             university: p.university,
             track: p.track,
+            team_emoji: p.team_emoji,
           }));
         }
         team = { ...(teamData as HackathonTeam), members };
