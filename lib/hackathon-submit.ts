@@ -44,6 +44,11 @@ export type SubmissionRecord = {
   submitted_at: string;
 };
 
+export type TeammateSubmissionRecord = SubmissionRecord & {
+  participant_id: string;
+  participant_name: string;
+};
+
 export async function fetchActivitySubmissions(
   activityId: string
 ): Promise<SubmissionRecord[]> {
@@ -59,6 +64,60 @@ export async function fetchActivitySubmissions(
 
   if (error || !data) return [];
   return data as SubmissionRecord[];
+}
+
+export async function fetchTeammateActivitySubmissions(
+  activityId: string
+): Promise<TeammateSubmissionRecord[]> {
+  const participant = await readHackathonParticipant();
+  if (!participant) return [];
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("hackathon_team_members")
+    .select("team_id")
+    .eq("participant_id", participant.id)
+    .maybeSingle();
+
+  if (membershipError || !membership?.team_id) return [];
+
+  const { data: members, error: membersError } = await supabase
+    .from("hackathon_team_members")
+    .select("participant_id")
+    .eq("team_id", membership.team_id);
+
+  if (membersError || !members) return [];
+
+  const teammateIds = members
+    .map((member) => member.participant_id)
+    .filter((id): id is string => Boolean(id) && id !== participant.id);
+
+  if (teammateIds.length === 0) return [];
+
+  const { data: submissions, error: submissionsError } = await supabase
+    .from("hackathon_phase_activity_submissions")
+    .select("id, participant_id, text_answer, image_url, file_urls, submitted_at")
+    .in("participant_id", teammateIds)
+    .eq("activity_id", activityId)
+    .order("submitted_at", { ascending: false });
+
+  if (submissionsError || !submissions) return [];
+
+  const { data: participants, error: participantsError } = await supabase
+    .from("hackathon_participants")
+    .select("id, name")
+    .in("id", teammateIds);
+
+  if (participantsError || !participants) return [];
+
+  const participantNameMap = new Map(
+    participants.map((row) => [row.id, row.name ?? "Teammate"])
+  );
+
+  return submissions.map((submission) => ({
+    ...(submission as SubmissionRecord),
+    participant_id: submission.participant_id,
+    participant_name: participantNameMap.get(submission.participant_id) ?? "Teammate",
+  }));
 }
 
 export async function fetchActivitySubmissionStatuses(
