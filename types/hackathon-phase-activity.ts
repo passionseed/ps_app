@@ -111,6 +111,7 @@ export interface HackathonPhaseActivityAssessment {
   id: string;
   activity_id: string;
   assessment_type: HackathonPhaseActivityAssessmentType;
+  display_order: number;
   points_possible: number | null;
   is_graded: boolean;
   metadata: Record<string, unknown>;
@@ -118,10 +119,10 @@ export interface HackathonPhaseActivityAssessment {
   updated_at: string;
 }
 
-/** Full activity with content and optional assessment — used for home screen display */
+/** Full activity with content and assessments — used for home screen display */
 export interface HackathonPhaseActivityDetail extends HackathonPhaseActivity {
   content: HackathonPhaseActivityContent[];
-  assessment: HackathonPhaseActivityAssessment | null;
+  assessments: HackathonPhaseActivityAssessment[];
 }
 
 /** Phase with its activities — used for home screen */
