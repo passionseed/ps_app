@@ -73,6 +73,8 @@ export function parseHackathonWebtoonContent(
     variant: toStringValue(metadata.variant) ?? "webtoon",
     originalWidth: toNumberValue(metadata.original_width),
     originalHeight: toNumberValue(metadata.original_height),
+    panelWidth: toNumberValue(metadata.panel_width),
+    panelHeight: toNumberValue(metadata.panel_height),
     chunks: normalizedChunks,
   };
 }
