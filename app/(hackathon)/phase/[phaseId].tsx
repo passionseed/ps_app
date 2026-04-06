@@ -254,8 +254,8 @@ function ActivityCard({ activity, index, locked }: { activity: ActivityWithStatu
                 {activity.estimated_minutes ? (
                   <AppText style={styles.metaChip}>⏱️ {activity.estimated_minutes} นาที</AppText>
                 ) : null}
-                {activity.assessment ? (
-                  <AppText style={styles.metaChip}>📝 {formatAssessment(activity.assessment.assessment_type)}</AppText>
+                {activity.assessments?.length > 0 ? (
+                  <AppText style={styles.metaChip}>📝 {activity.assessments.length > 1 ? `${activity.assessments.length} คำถาม` : formatAssessment(activity.assessments[0].assessment_type)}</AppText>
                 ) : null}
               </View>
             </View>

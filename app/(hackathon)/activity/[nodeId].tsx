@@ -74,7 +74,7 @@ async function fetchActivity(id: string): Promise<HackathonPhaseActivityDetail |
         content_url, content_body, display_order, metadata, created_at
       ),
       hackathon_phase_activity_assessments (
-        id, activity_id, assessment_type, points_possible,
+        id, activity_id, assessment_type, display_order, points_possible,
         is_graded, metadata, created_at, updated_at
       )
     `)
@@ -88,7 +88,9 @@ async function fetchActivity(id: string): Promise<HackathonPhaseActivityDetail |
     content: ((data as any).hackathon_phase_activity_content ?? []).sort(
       (a: any, b: any) => a.display_order - b.display_order
     ),
-    assessment: (data as any).hackathon_phase_activity_assessments ?? null,
+    assessments: ((data as any).hackathon_phase_activity_assessments ?? []).sort(
+      (a: any, b: any) => a.display_order - b.display_order
+    ),
   };
 }
 
@@ -539,8 +541,8 @@ export default function HackathonActivityScreen() {
   const [activity, setActivity] = useState<HackathonPhaseActivityDetail | null>(null);
   const [pastSubmissions, setPastSubmissions] = useState<SubmissionRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [answer, setAnswer] = useState("");
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -749,27 +751,37 @@ export default function HackathonActivityScreen() {
     }, [nodeId])
   );
 
-  const canSubmit = activity?.assessment
-    ? activity.assessment.assessment_type === "text_answer"
-      ? answer.trim().length > 0
-      : uploadedUrl !== null
-    : true;
+  const canSubmit = activity
+    ? activity.assessments.length === 0
+      ? true
+      : activity.assessments.every((a) =>
+          a.assessment_type === "text_answer"
+            ? (answers[a.id] ?? "").trim().length > 0
+            : uploadedUrls[a.id] != null
+        )
+    : false;
 
   async function handleSubmit() {
     if (!activity) return;
-    if (!activity.assessment) { router.back(); return; }
+    if (activity.assessments.length === 0) { router.back(); return; }
     setSubmitting(true);
     setSubmitError(null);
     try {
-      if (activity.assessment.assessment_type === "text_answer") {
-        await submitTextAnswer(activity.id, activity.assessment.id, answer);
-      }
-      
+      await Promise.all(
+        activity.assessments.map((a) => {
+          if (a.assessment_type === "text_answer") {
+            return submitTextAnswer(activity.id, a.id, answers[a.id] ?? "");
+          }
+          // file/image already uploaded via AssessmentBlock — nothing to do here
+          return Promise.resolve();
+        })
+      );
+
       const newSubmissions = await fetchActivitySubmissions(activity.id);
       setPastSubmissions(newSubmissions);
-      setAnswer("");
-      setUploadedUrl(null);
-      
+      setAnswers({});
+      setUploadedUrls({});
+
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -934,19 +946,20 @@ export default function HackathonActivityScreen() {
           </View>
         )}
 
-        {/* Assessment */}
-        {activity.assessment ? (
+        {/* Assessments */}
+        {activity.assessments.map((a) => (
           <AssessmentBlock
-            assessment={activity.assessment}
+            key={a.id}
+            assessment={a}
             activityId={activity.id}
-            value={answer}
-            onChange={setAnswer}
+            value={answers[a.id] ?? ""}
+            onChange={(v) => setAnswers((prev) => ({ ...prev, [a.id]: v }))}
             onFileUploaded={(url) => {
-              setUploadedUrl(url);
+              setUploadedUrls((prev) => ({ ...prev, [a.id]: url }));
               fetchActivitySubmissions(activity.id).then(setPastSubmissions);
             }}
           />
-        ) : null}
+        ))}
 
         {/* Past Submissions */}
         <PastSubmissionsList submissions={pastSubmissions} />
@@ -992,7 +1005,7 @@ export default function HackathonActivityScreen() {
                   <ActivityIndicator color={WHITE} />
                 ) : (
                   <AppText variant="bold" style={styles.button41Text}>
-                    {submitted ? "ส่งแล้ว ✓" : activity.assessment ? "ส่งคำตอบ →" : "ทำเครื่องหมายว่าเสร็จสิ้น →"}
+                    {submitted ? "ส่งแล้ว ✓" : activity.assessments.length > 0 ? "ส่งคำตอบ →" : "ทำเครื่องหมายว่าเสร็จสิ้น →"}
                   </AppText>
                 )}
               </>
