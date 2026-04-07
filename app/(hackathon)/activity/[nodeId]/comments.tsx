@@ -33,7 +33,7 @@ export default function CommentsScreen() {
           variant="dark"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.back();
+            router.replace(`/activity/${nodeId}`);
           }}
         />
         <AppText variant="bold" style={styles.title}>Comments</AppText>

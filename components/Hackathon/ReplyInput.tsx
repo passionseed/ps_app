@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     minHeight: 60,
     maxHeight: 80, // Max 2-3 lines
     paddingVertical: Space.xs,
-    fontFamily: "LibreFranklin_400Regular",
+    fontFamily: "BaiJamjuree_400Regular",
   },
   footer: {
     flexDirection: "row",
