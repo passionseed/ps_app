@@ -815,7 +815,6 @@ export default function HackathonActivityScreen() {
     }, [nodeId])
   );
 
-<<<<<<< HEAD
   const canSubmit = activity
     ? activity.assessments.length === 0
       ? true
@@ -825,6 +824,7 @@ export default function HackathonActivityScreen() {
             : uploadedUrls[a.id] != null
         )
     : false;
+  const showTeammateSubmissions = pastSubmissions.length > 0;
 
   async function handleSubmit() {
     if (!activity) return;
@@ -1083,7 +1083,6 @@ export default function HackathonActivityScreen() {
           </Pressable>
         </Animated.View>
 
-<<<<<<< HEAD
         {/* Comments Preview */}
         {activity && participant && (
           <>
@@ -1096,8 +1095,6 @@ export default function HackathonActivityScreen() {
           </>
         )}
 
-        {/* Static Swipe Hint */}
-        {siblings.length > 0 && (
         {/* Static Swipe Hint — only show when submitted */}
         {siblings.length > 0 && pastSubmissions.length > 0 && (
           <WaterFlowHint
