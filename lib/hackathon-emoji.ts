@@ -27,18 +27,16 @@ const ALL_EMOJIS = [...ANIMAL_EMOJIS, ...FOOD_EMOJIS, ...OBJECT_EMOJIS];
  * Returns a deterministic number between 0 and 1 based on the seed string.
  */
 function seededRandom(seed: string): number {
-  // Simple hash function to convert string to number
-  let hash = 0;
+  // djb2 variant — sensitive to every character including trailing digits
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
   for (let i = 0; i < seed.length; i++) {
-    const char = seed.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    const ch = seed.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
   }
-  
-  // Normalize to 0-1 range using modulo
-  // Use absolute value and divide by max 32-bit integer
-  const normalized = Math.abs(hash) / 2147483647;
-  return normalized;
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0) / 0xffffffff;
 }
 
 /**

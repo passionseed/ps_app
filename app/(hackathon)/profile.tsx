@@ -18,7 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import { AppText } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
 import { Space, Radius } from "../../lib/theme";
-import { useHackathonParticipant } from "../../lib/hackathon-mode";
+import { useHackathonParticipant, readHackathonParticipant } from "../../lib/hackathon-mode";
 import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
 import { supabase } from "../../lib/supabase";
 import { getInitialEmoji, getNextEmoji } from "../../lib/hackathon-emoji";
@@ -63,7 +63,8 @@ export default function HackathonProfileScreen() {
       let cancelled = false;
 
       async function loadProfileData() {
-        if (!participant?.id) {
+        const p = await readHackathonParticipant();
+        if (!p?.id) {
           setLoading(false);
           return;
         }
@@ -75,14 +76,14 @@ export default function HackathonProfileScreen() {
               supabase
                 .from("hackathon_pre_questionnaires")
                 .select("*")
-                .eq("participant_id", participant.id)
+                .eq("participant_id", p.id)
                 .maybeSingle(),
               supabase
                 .from("hackathon_participants")
                 .select(
                   "instagram_handle, discord_username, team_emoji, emoji_roll_count",
                 )
-                .eq("id", participant.id)
+                .eq("id", p.id)
                 .maybeSingle(),
             ]);
 
@@ -115,7 +116,7 @@ export default function HackathonProfileScreen() {
       return () => {
         cancelled = true;
       };
-    }, [participant?.id]),
+    }, []),
   );
 
   // Auto-roll emoji if not set
