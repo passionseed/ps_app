@@ -16,7 +16,7 @@ dotenv.config({ path: ".env" });
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_P2hKXtZ7_5WFqwtTirN4jJGFmhiKF75pQ";
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "REDACTED_RESEND_KEY";
 const SEGMENT_ID = "b8b1f255-f929-4680-8fdd-b3627dc79a53";
 
 interface HackathonParticipant {
