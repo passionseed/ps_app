@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
 import { AppText } from "../../components/AppText";
+import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJellyfishLoader";
 import { Space } from "../../lib/theme";
 import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
 import { fetchTeamImpact, type TeamImpact } from "../../lib/hackathon-submit";
@@ -39,16 +40,19 @@ export default function HackathonHomeScreen() {
   const [currentPhase, setCurrentPhase] = useState<HackathonProgramPhase | null>(null);
   const [impact, setImpact] = useState<TeamImpact | null>(null);
   const [mentorPreviews, setMentorPreviews] = useState<MentorPreview[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
+      setLoading(true);
       getCurrentHackathonProgramHome().then(async (home) => {
         setCurrentPhase(getCurrentPhase(home.phases));
         const teamId = home.team?.id;
         if (teamId) {
           fetchTeamImpact(teamId).then(setImpact).catch(() => {});
         }
-      }).catch(() => {});
+        setLoading(false);
+      }).catch(() => { setLoading(false); });
       fetch("https://www.passionseed.org/api/hackathon/mentor/public")
         .then((r) => r.json())
         .then((d) => setMentorPreviews((d.mentors ?? []).slice(0, 8)))
@@ -77,6 +81,15 @@ export default function HackathonHomeScreen() {
     const interval = setInterval(update, 60000);
     return () => clearInterval(interval);
   }, [currentPhase]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingRoot}>
+        <HackathonJellyfishLoader />
+        <AppText style={styles.loadingText}>Loading...</AppText>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -184,6 +197,8 @@ export default function HackathonHomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "transparent" },
+  loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", gap: Space.md },
+  loadingText: { color: CYAN, fontSize: 14, fontFamily: "BaiJamjuree_500Medium", letterSpacing: 0.4 },
   content: {
     padding: Space.xl,
     paddingBottom: 120,
