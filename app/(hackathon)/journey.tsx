@@ -10,7 +10,7 @@ import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJe
 import { Space } from "../../lib/theme";
 import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
 import { getProgramPhaseActivitySummaries } from "../../lib/hackathonPhaseActivity";
-import { fetchActivitySubmissionStatuses } from "../../lib/hackathon-submit";
+import { fetchActivitySubmissionStatuses, fetchTeamImpact, type TeamImpact } from "../../lib/hackathon-submit";
 import type { HackathonProgramHome, HackathonProgramPhase } from "../../types/hackathon-program";
 import Animated, {
   FadeInDown,
@@ -216,23 +216,29 @@ function AnimatedVerticalPhaseCard({ card, index, isLast }: { card: PhaseCard; i
 }
 
 // ── Header Stats Component ──
-function JourneyImpactHeader() {
+function JourneyImpactHeader({ impact }: { impact: TeamImpact | null }) {
   return (
     <Animated.View entering={FadeIn.duration(600)} style={styles.impactContainer}>
-      <AppText variant="bold" style={styles.impactTitle}>JOURNEY IMPACT</AppText>
+      <AppText variant="bold" style={styles.impactTitle}>YOUR TEAM IMPACT</AppText>
       <View style={styles.impactGrid}>
         <View style={styles.impactBox}>
-          <AppText variant="bold" style={styles.impactVal}>14</AppText>
-          <AppText style={styles.impactLabel}>USERS{'\n'}SPOKEN TO</AppText>
+          <AppText variant="bold" style={styles.impactVal}>
+            {impact?.activitiesCompleted ?? '—'}
+          </AppText>
+          <AppText style={styles.impactLabel}>ACTIVITIES{'\n'}COMPLETED</AppText>
         </View>
         <View style={styles.impactDivider} />
         <View style={styles.impactBox}>
-          <AppText variant="bold" style={styles.impactVal}>3</AppText>
-          <AppText style={styles.impactLabel}>PROBLEMS{'\n'}VALIDATED</AppText>
+          <AppText variant="bold" style={styles.impactVal}>
+            {impact?.score ?? '—'}
+          </AppText>
+          <AppText style={styles.impactLabel}>SCORE{'\n'}EARNED</AppText>
         </View>
         <View style={styles.impactDivider} />
         <View style={[styles.impactBox, styles.impactHighlight]}>
-          <AppText variant="bold" style={styles.impactHighlightVal}>TOP 5%</AppText>
+          <AppText variant="bold" style={styles.impactHighlightVal}>
+            {impact?.rank != null ? `#${impact.rank}` : '—'}
+          </AppText>
           <AppText style={styles.impactHighlightLabel}>TEAM{'\n'}RANK</AppText>
         </View>
       </View>
@@ -244,12 +250,16 @@ export default function HackathonJourneyScreen() {
   const insets = useSafeAreaInsets();
   const [data, setData] = useState<HackathonProgramHome | null>(null);
   const [phaseCards, setPhaseCards] = useState<PhaseCard[]>([]);
+  const [impact, setImpact] = useState<TeamImpact | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const home = await getCurrentHackathonProgramHome();
+      if (home.team?.id) {
+        fetchTeamImpact(home.team.id).then(setImpact).catch(() => {});
+      }
       if (!home.program || home.phases.length === 0) {
         setData(home);
         setPhaseCards([]);
@@ -334,7 +344,7 @@ export default function HackathonJourneyScreen() {
           </View>
         </View>
 
-        <JourneyImpactHeader />
+        <JourneyImpactHeader impact={impact} />
 
         {/* Vertical Phases */}
         {phaseCards.length > 0 ? (
