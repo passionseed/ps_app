@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet, ScrollView, Dimensions, Text, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { AppText } from "../../components/AppText";
 import { Space } from "../../lib/theme";
 import { LinearGradient } from "expo-linear-gradient";
+import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
+import type { HackathonProgramPhase } from "../../types/hackathon-program";
 
 const BG = "transparent";
 const WHITE = "#FFFFFF";
@@ -15,45 +18,56 @@ const CYAN = "#91C4E3";
 const CYAN_DIM = "rgba(145,196,227,0.3)";
 const AMBER = "#F59E0B";
 
-type TimelineItem = {
-  num: string;
-  title: string;
-  desc: string;
-  date: string;
-};
-
-const ITEMS: TimelineItem[] = [
-  { num: "01", title: "Registration", desc: "Sign up your team and prepare for the journey ahead.", date: "23 Feb – 5 Apr" },
-  { num: "02", title: "Opening Ceremony", desc: "Kickoff event to introduce the challenge and inspire participants.", date: "7 Apr" },
-  { num: "03", title: "Workshops & Hacking", desc: "Learn, build, and develop your preventive healthcare solution.", date: "7 Apr – 28 May" },
-  { num: "04", title: "1st Submission", desc: "Submit your prototype and presentation slides.", date: "29 May" },
-  { num: "05", title: "2nd Submission", desc: "Submit your project video presentation.", date: "6 Jun" },
-  { num: "06", title: "Final Pitch", desc: "Present your solution to judges and showcase your work.", date: "20 Jun" },
-  { num: "07", title: "Futurist Fest 2026", desc: "Connect with researchers, experts, and investors to grow your ideas.", date: "21 Jun" },
-];
+function getCurrentPhase(phases: HackathonProgramPhase[]): HackathonProgramPhase | null {
+  if (phases.length === 0) return null;
+  const sorted = [...phases].sort((a, b) => a.phase_number - b.phase_number);
+  const now = Date.now();
+  // First phase whose due date (or ends_at) is still in the future
+  const active = sorted.find((p) => {
+    const deadline = p.due_at ?? p.ends_at;
+    return deadline ? new Date(deadline).getTime() > now : true;
+  });
+  // If all are past, return the last one
+  return active ?? sorted[sorted.length - 1];
+}
 
 export default function HackathonHomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0 });
+  const [currentPhase, setCurrentPhase] = useState<HackathonProgramPhase | null>(null);
+  const [phases, setPhases] = useState<HackathonProgramPhase[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      getCurrentHackathonProgramHome().then((home) => {
+        setPhases(home.phases);
+        setCurrentPhase(getCurrentPhase(home.phases));
+      }).catch(() => {});
+    }, [])
+  );
 
   useEffect(() => {
-    // 7 April 2026 UTC/Local approximation for countdown
-    const target = new Date("2026-04-07T09:00:00").getTime();
-    
+    const deadline = currentPhase?.due_at ?? currentPhase?.ends_at;
+    const target = deadline ? new Date(deadline).getTime() : null;
+
     const update = () => {
-      const now = new Date().getTime();
+      if (!target) {
+        setTimeLeft({ d: 0, h: 0, m: 0 });
+        return;
+      }
+      const now = Date.now();
       const diff = Math.max(0, target - now);
       const d = Math.floor(diff / (1000 * 60 * 60 * 24));
       const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       setTimeLeft({ d, h, m });
     };
-    
+
     update();
     const interval = setInterval(update, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentPhase]);
 
   return (
     <View style={styles.root}>
@@ -72,47 +86,72 @@ export default function HackathonHomeScreen() {
         </View>
 
         {/* Countdown */}
-        <View style={styles.countdownContainer}>
-          <AppText style={styles.countdownEyebrow}>NEXT PHASE</AppText>
-          <AppText variant="bold" style={styles.countdownTitle}>Opening Ceremony</AppText>
-          <View style={styles.countdownBoxes}>
-            <View style={styles.countBox}>
-              <AppText variant="bold" style={styles.countVal}>{timeLeft.d}</AppText>
-              <AppText style={styles.countLabel}>DAYS</AppText>
-            </View>
-            <View style={styles.countBox}>
-              <AppText variant="bold" style={styles.countVal}>{timeLeft.h.toString().padStart(2, "0")}</AppText>
-              <AppText style={styles.countLabel}>HOURS</AppText>
-            </View>
-            <View style={styles.countBox}>
-              <AppText variant="bold" style={styles.countVal}>{timeLeft.m.toString().padStart(2, "0")}</AppText>
-              <AppText style={styles.countLabel}>MINS</AppText>
-            </View>
-          </View>
-        </View>
+        {currentPhase && (
+          <Pressable
+            style={styles.countdownContainer}
+            onPress={() => router.push(`/(hackathon)/phase/${currentPhase.id}`)}
+          >
+            <AppText style={styles.countdownEyebrow}>CURRENT PHASE</AppText>
+            <AppText variant="bold" style={styles.countdownTitle}>{currentPhase.title}</AppText>
+            {(currentPhase.due_at ?? currentPhase.ends_at) ? (
+              <View style={styles.countdownBoxes}>
+                <View style={styles.countBox}>
+                  <AppText variant="bold" style={styles.countVal}>{timeLeft.d}</AppText>
+                  <AppText style={styles.countLabel}>DAYS</AppText>
+                </View>
+                <View style={styles.countBox}>
+                  <AppText variant="bold" style={styles.countVal}>{timeLeft.h.toString().padStart(2, "0")}</AppText>
+                  <AppText style={styles.countLabel}>HOURS</AppText>
+                </View>
+                <View style={styles.countBox}>
+                  <AppText variant="bold" style={styles.countVal}>{timeLeft.m.toString().padStart(2, "0")}</AppText>
+                  <AppText style={styles.countLabel}>MINS</AppText>
+                </View>
+              </View>
+            ) : (
+              <AppText style={styles.countdownNoDue}>No due date set</AppText>
+            )}
+          </Pressable>
+        )}
 
         {/* Timeline */}
-        <View style={styles.timelineSection}>
-          <AppText variant="bold" style={styles.sectionTitle}>Master Timeline</AppText>
-          <View style={styles.timelineList}>
-            {ITEMS.map((item, i) => {
-              const isCurrent = i === 0; // Just for demo, first item or logic
-              return (
-                <View key={item.num} style={styles.timelineItem}>
-                  <View style={styles.timelineLeft}>
-                    <View style={[styles.timelineDot, isCurrent && styles.timelineDotActive]} />
-                    {i !== ITEMS.length - 1 && <View style={styles.timelineLine} />}
-                  </View>
-                  <View style={styles.timelineRight}>
-                    <AppText style={styles.timelineDate}>{item.date}</AppText>
-                    <AppText variant="bold" style={[styles.timelineItemTitle, isCurrent && { color: WHITE }]}>{item.title}</AppText>
-                    <AppText style={styles.timelineItemDesc}>{item.desc}</AppText>
-                  </View>
-                </View>
-              );
-            })}
+        {phases.length > 0 && (
+          <View style={styles.timelineSection}>
+            <AppText variant="bold" style={styles.sectionTitle}>Phases</AppText>
+            <View style={styles.timelineList}>
+              {[...phases]
+                .sort((a, b) => a.phase_number - b.phase_number)
+                .map((phase, i, arr) => {
+                  const isCurrent = currentPhase?.id === phase.id;
+                  const deadline = phase.due_at ?? phase.ends_at;
+                  const dateStr = deadline
+                    ? new Date(deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                    : null;
+                  return (
+                    <Pressable
+                      key={phase.id}
+                      style={styles.timelineItem}
+                      onPress={() => router.push(`/(hackathon)/phase/${phase.id}`)}
+                    >
+                      <View style={styles.timelineLeft}>
+                        <View style={[styles.timelineDot, isCurrent && styles.timelineDotActive]} />
+                        {i !== arr.length - 1 && <View style={styles.timelineLine} />}
+                      </View>
+                      <View style={styles.timelineRight}>
+                        {dateStr && <AppText style={styles.timelineDate}>Due: {dateStr}</AppText>}
+                        <AppText variant="bold" style={[styles.timelineItemTitle, isCurrent && { color: WHITE }]}>
+                          {String(phase.phase_number).padStart(2, "0")}. {phase.title}
+                        </AppText>
+                        {phase.description ? (
+                          <AppText style={styles.timelineItemDesc}>{phase.description}</AppText>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Placeholders */}
         <Pressable style={styles.placeholderCard} onPress={() => router.push("/(hackathon)/mentor-booking")}>
@@ -168,6 +207,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: WHITE,
     marginBottom: Space.lg,
+  },
+  countdownNoDue: {
+    fontSize: 13,
+    color: WHITE40,
+    fontFamily: "BaiJamjuree_400Regular",
+    marginTop: Space.xs,
   },
   countdownBoxes: {
     flexDirection: "row",
