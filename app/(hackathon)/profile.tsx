@@ -29,6 +29,7 @@ export default function HackathonProfileScreen() {
   const [questionnaire, setQuestionnaire] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
