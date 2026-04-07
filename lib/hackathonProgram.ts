@@ -353,7 +353,7 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
 
     if (membership) {
       const [{ data: teamData }, { data: enrollmentData }, { data: memberRows }] = await Promise.all([
-        supabase.from("hackathon_teams").select("id, name, team_name, team_avatar_url, created_at, updated_at").eq("id", membership.team_id).maybeSingle(),
+        supabase.from("hackathon_teams").select("id, name, team_avatar_url, created_at").eq("id", membership.team_id).maybeSingle(),
         supabase
           .from("hackathon_team_program_enrollments")
           .select("*")
