@@ -9,6 +9,8 @@ import {
   TextInput,
   View,
   Dimensions,
+  Keyboard,
+  Animated,
 } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -42,6 +44,31 @@ export default function HackathonLoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const logoHeight = new Animated.Value(226);
+  const logoOpacity = new Animated.Value(1);
+  const subtitleOpacity = new Animated.Value(1);
+  const subtitleHeight = new Animated.Value(1);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardWillShow", () => {
+      Animated.parallel([
+        Animated.timing(logoHeight, { toValue: 0, duration: 220, useNativeDriver: false }),
+        Animated.timing(logoOpacity, { toValue: 0, duration: 180, useNativeDriver: false }),
+        Animated.timing(subtitleOpacity, { toValue: 0, duration: 150, useNativeDriver: false }),
+        Animated.timing(subtitleHeight, { toValue: 0, duration: 180, useNativeDriver: false }),
+      ]).start();
+    });
+    const hide = Keyboard.addListener("keyboardWillHide", () => {
+      Animated.parallel([
+        Animated.timing(logoHeight, { toValue: 226, duration: 220, useNativeDriver: false }),
+        Animated.timing(logoOpacity, { toValue: 1, duration: 220, useNativeDriver: false }),
+        Animated.timing(subtitleOpacity, { toValue: 1, duration: 220, useNativeDriver: false }),
+        Animated.timing(subtitleHeight, { toValue: 1, duration: 220, useNativeDriver: false }),
+      ]).start();
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
   async function handleLogin() {
     if (loading) return;
     if (!email.trim() || !password.trim()) {
@@ -60,7 +87,7 @@ export default function HackathonLoginScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <Pressable style={styles.root} onPress={Keyboard.dismiss} accessible={false}>
       {/* Ambient glow orbs and Skia creature SVGs */}
       <HackathonBackground />
 
@@ -82,22 +109,26 @@ export default function HackathonLoginScreen() {
 
           {/* Header */}
           <View style={styles.header}>
-            <Image 
-              source={require("../assets/HackLogo.png")} 
-              style={{ width: 256, height: 226, marginBottom: 0, alignSelf: "center" }} 
-              contentFit="contain" 
-            />
-            <Text style={{ 
-              fontFamily: "ReenieBeanie_400Regular", 
-              fontSize: 28, 
-              color: WHITE, 
-              textAlign: "center", 
+            <Animated.View style={{ height: logoHeight, opacity: logoOpacity, overflow: "hidden", alignItems: "center" }}>
+              <Image
+                source={require("../assets/HackLogo.png")}
+                style={{ width: 256, height: 226, marginBottom: 0, alignSelf: "center" }}
+                contentFit="contain"
+              />
+            </Animated.View>
+            <Animated.Text style={{
+              fontFamily: "ReenieBeanie_400Regular",
+              fontSize: 28,
+              color: WHITE,
+              textAlign: "center",
               lineHeight: 38,
-              marginTop: -70, 
-              marginBottom: Space.lg 
+              marginTop: -70,
+              marginBottom: Space.lg,
+              opacity: subtitleOpacity,
+              transform: [{ scaleY: subtitleHeight }],
             }}>
               Preventive & Predictive Healthcare
-            </Text>
+            </Animated.Text>
             <AppText variant="bold" style={[styles.title, { textAlign: "left" }]}>
               Sign in
             </AppText>
@@ -154,7 +185,7 @@ export default function HackathonLoginScreen() {
           </AppText>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </Pressable>
   );
 }
 

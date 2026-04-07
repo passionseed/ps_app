@@ -1,6 +1,6 @@
 // app/(hackathon)/activity/[nodeId].tsx
 // Hackathon phase activity screen — fetches from hackathon_phase_activities
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -78,7 +78,7 @@ async function fetchActivity(id: string): Promise<HackathonPhaseActivityDetail |
         content_url, content_body, display_order, metadata, created_at
       ),
       hackathon_phase_activity_assessments (
-        id, activity_id, assessment_type, points_possible,
+        id, activity_id, assessment_type, display_order, points_possible,
         is_graded, metadata, created_at, updated_at
       )
     `)
@@ -92,7 +92,9 @@ async function fetchActivity(id: string): Promise<HackathonPhaseActivityDetail |
     content: ((data as any).hackathon_phase_activity_content ?? []).sort(
       (a: any, b: any) => a.display_order - b.display_order
     ),
-    assessment: (data as any).hackathon_phase_activity_assessments ?? null,
+    assessments: ((data as any).hackathon_phase_activity_assessments ?? []).sort(
+      (a: any, b: any) => a.display_order - b.display_order
+    ),
   };
 }
 
@@ -447,7 +449,7 @@ function AssessmentBlock({
     : assessment.assessment_type === "image_upload"
     ? "รูปภาพของคุณ"
     : "ไฟล์ของคุณ";
-    
+
   const label = metadata?.submission_label || defaultLabel;
   const prompt = metadata?.prompt;
   const placeholder = metadata?.placeholder || "พิมพ์คำตอบของคุณที่นี่...";
@@ -561,15 +563,16 @@ function TeammateSubmissionsList({
 // ── Main screen ───────────────────────────────────────────────────
 export default function HackathonActivityScreen() {
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
-  
+
   const [siblings, setSiblings] = useState<{id: string, title: string}[]>([]);
-  
+
   const SWIPE_NEXT_THRESHOLD = 120;
   const PULL_HINT_SLIDE_PX = 104;
 
   const lastPrevNavAtRef = useRef(0);
   const swipePrevEnabledSV = useSharedValue(0);
   const swipeNextEnabledSV = useSharedValue(0);
+  const isSubmittedSV = useSharedValue(0);
   const lastPrevHapticMilestoneSV = useSharedValue(0);
   const lastNextHapticMilestoneSV = useSharedValue(0);
   const prevSwipeThresholdSV = useSharedValue(0);
@@ -589,8 +592,8 @@ export default function HackathonActivityScreen() {
   const [pastSubmissions, setPastSubmissions] = useState<SubmissionRecord[]>([]);
   const [teammateSubmissions, setTeammateSubmissions] = useState<TeammateSubmissionRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [answer, setAnswer] = useState("");
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -600,6 +603,10 @@ export default function HackathonActivityScreen() {
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
   }));
+
+  useEffect(() => {
+    isSubmittedSV.value = pastSubmissions.length > 0 ? 1 : 0;
+  }, [pastSubmissions]);
 
   const triggerSwipeHaptic = useCallback((milestone: number) => {
     if (milestone <= 0) return;
@@ -612,7 +619,7 @@ export default function HackathonActivityScreen() {
 
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
-    
+
     const scrollY_val = event.contentOffset.y;
     const contentH = event.contentSize.height;
     const viewportH = event.layoutMeasurement.height;
@@ -654,36 +661,45 @@ export default function HackathonActivityScreen() {
     }
 
     if (swipeNextEnabledSV.value === 1) {
-      const overscrollY = scrollY_val - maxScrollY;
-      if (overscrollY > 0) {
-        bottomReadyProgress.value = 1;
-        const p = Math.min(overscrollY / SWIPE_NEXT_THRESHOLD, 1);
-        nextSwipeProgress.value = p;
+      if (isSubmittedSV.value === 1) {
+        const overscrollY = scrollY_val - maxScrollY;
+        if (overscrollY > 0) {
+          bottomReadyProgress.value = 1;
+          const p = Math.min(overscrollY / SWIPE_NEXT_THRESHOLD, 1);
+          nextSwipeProgress.value = p;
 
-        const milestone = p >= 1 ? 4 : Math.min(3, Math.floor(p * 4));
-        if (milestone > lastNextHapticMilestoneSV.value && milestone > 0) {
-          lastNextHapticMilestoneSV.value = milestone;
-          runOnJS(triggerSwipeHaptic)(milestone);
-        }
+          const milestone = p >= 1 ? 4 : Math.min(3, Math.floor(p * 4));
+          if (milestone > lastNextHapticMilestoneSV.value && milestone > 0) {
+            lastNextHapticMilestoneSV.value = milestone;
+            runOnJS(triggerSwipeHaptic)(milestone);
+          }
 
-        if (p >= 1 && nextSwipeThresholdSV.value === 0) {
-          nextSwipeThresholdSV.value = 1;
-          nextSwipePulse.value = withSequence(
-            withSpring(1.06, { damping: 12, stiffness: 260 }),
-            withSpring(1, { damping: 14, stiffness: 200 }),
-          );
-        } else if (p < 1 && nextSwipeThresholdSV.value === 1) {
+          if (p >= 1 && nextSwipeThresholdSV.value === 0) {
+            nextSwipeThresholdSV.value = 1;
+            nextSwipePulse.value = withSequence(
+              withSpring(1.06, { damping: 12, stiffness: 260 }),
+              withSpring(1, { damping: 14, stiffness: 200 }),
+            );
+          } else if (p < 1 && nextSwipeThresholdSV.value === 1) {
+            nextSwipeThresholdSV.value = 0;
+            nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+          }
+        } else {
+          bottomReadyProgress.value = 0;
+          lastNextHapticMilestoneSV.value = 0;
           nextSwipeThresholdSV.value = 0;
-          nextSwipePulse.value = withSpring(1, { damping: 15, stiffness: 200 });
+          if (nextSwipeProgress.value > 0) {
+            nextSwipeProgress.value = 0;
+            nextSwipePulse.value = 1;
+          }
         }
       } else {
+        // not submitted — always keep next progress zeroed
         bottomReadyProgress.value = 0;
-        lastNextHapticMilestoneSV.value = 0;
+        nextSwipeProgress.value = 0;
         nextSwipeThresholdSV.value = 0;
-        if (nextSwipeProgress.value > 0) {
-          nextSwipeProgress.value = 0;
-          nextSwipePulse.value = 1;
-        }
+        lastNextHapticMilestoneSV.value = 0;
+        nextSwipePulse.value = 1;
       }
     }
   });
@@ -724,6 +740,14 @@ export default function HackathonActivityScreen() {
 
   const handleSwipeToNext = () => {
     const currentIndex = siblings.findIndex(s => s.id === nodeId);
+    const isSubmitted = pastSubmissions.length > 0;
+    console.log(`[SwipeNext] activity="${activity?.title}" index=${currentIndex} submissions=${pastSubmissions.length} isSubmitted=${isSubmitted}`);
+
+    if (!isSubmitted) {
+      console.log(`[SwipeNext] BLOCKED — current activity not submitted yet`);
+      return;
+    }
+
     if (currentIndex >= 0 && currentIndex < siblings.length - 1) {
       router.replace(`/activity/${siblings[currentIndex + 1].id}`);
     } else if (currentIndex === siblings.length - 1) {
@@ -791,27 +815,38 @@ export default function HackathonActivityScreen() {
     }, [nodeId])
   );
 
-  const canSubmit = activity?.assessment
-    ? activity.assessment.assessment_type === "text_answer"
-      ? answer.trim().length > 0
-      : uploadedUrl !== null
-    : true;
-  const showTeammateSubmissions = pastSubmissions.length > 0;
+<<<<<<< HEAD
+  const canSubmit = activity
+    ? activity.assessments.length === 0
+      ? true
+      : activity.assessments.every((a) =>
+          a.assessment_type === "text_answer"
+            ? (answers[a.id] ?? "").trim().length > 0
+            : uploadedUrls[a.id] != null
+        )
+    : false;
 
   async function handleSubmit() {
     if (!activity) return;
-    if (!activity.assessment) { router.back(); return; }
+    if (activity.assessments.length === 0) { router.back(); return; }
     setSubmitting(true);
     setSubmitError(null);
     try {
-      if (activity.assessment.assessment_type === "text_answer") {
-        await submitTextAnswer(activity.id, activity.assessment.id, answer);
-      }
+      await Promise.all(
+        activity.assessments.map((a) => {
+          if (a.assessment_type === "text_answer") {
+            return submitTextAnswer(activity.id, a.id, answers[a.id] ?? "");
+          }
+          // file/image already uploaded via AssessmentBlock — nothing to do here
+          return Promise.resolve();
+        })
+      );
 
-      await refreshSubmissionState(activity.id);
-      setAnswer("");
-      setUploadedUrl(null);
-      
+      const newSubmissions = await fetchActivitySubmissions(activity.id);
+      setPastSubmissions(newSubmissions);
+      setAnswers({});
+      setUploadedUrls({});
+
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -885,19 +920,23 @@ export default function HackathonActivityScreen() {
         style={[
           styles.pullOverlayBottom,
           { paddingBottom: Math.max(insets.bottom, 4) + 12 },
-          nextPullOverlayStyle,
+          pastSubmissions.length > 0 ? nextPullOverlayStyle : undefined,
         ]}
       >
-        {swipeNextEnabledSV.value === 1 ? (
-          <HackathonSwipeDonut
-            direction="next"
-            progress={nextSwipeProgress}
-            readyProgress={bottomReadyProgress}
-            pulseScale={nextSwipePulse}
-            label="ถัดไป"
-            titleHint={nextTitle}
-          />
-        ) : null}
+        {pastSubmissions.length > 0 ? (
+          swipeNextEnabledSV.value === 1 ? (
+            <HackathonSwipeDonut
+              direction="next"
+              progress={nextSwipeProgress}
+              readyProgress={bottomReadyProgress}
+              pulseScale={nextSwipePulse}
+              label="ถัดไป"
+              titleHint={nextTitle}
+            />
+          ) : null
+        ) : (
+          <AppText style={styles.lockedNextHint}>จบภารกิจนี้ก่อนไปต่อ</AppText>
+        )}
       </Animated.View>
 
       <Animated.ScrollView
@@ -917,6 +956,15 @@ export default function HackathonActivityScreen() {
           if (swipeNextEnabledSV.value === 1 && overscrollY > SWIPE_NEXT_THRESHOLD * 0.6) {
             handleSwipeToNext();
           }
+          // Reset all progress values so overlays don't get stuck
+          prevSwipeProgress.value = 0;
+          prevReadyProgress.value = 0;
+          prevSwipeThresholdSV.value = 0;
+          prevSwipePulse.value = 1;
+          nextSwipeProgress.value = 0;
+          bottomReadyProgress.value = 0;
+          nextSwipeThresholdSV.value = 0;
+          nextSwipePulse.value = 1;
         }}
       >
         {/* Header */}
@@ -963,19 +1011,20 @@ export default function HackathonActivityScreen() {
           </View>
         )}
 
-        {/* Assessment */}
-        {activity.assessment ? (
+        {/* Assessments */}
+        {activity.assessments.map((a) => (
           <AssessmentBlock
-            assessment={activity.assessment}
+            key={a.id}
+            assessment={a}
             activityId={activity.id}
-            value={answer}
-            onChange={setAnswer}
+            value={answers[a.id] ?? ""}
+            onChange={(v) => setAnswers((prev) => ({ ...prev, [a.id]: v }))}
             onFileUploaded={(url) => {
-              setUploadedUrl(url);
-              refreshSubmissionState(activity.id).catch(() => {});
+              setUploadedUrls((prev) => ({ ...prev, [a.id]: url }));
+              fetchActivitySubmissions(activity.id).then(setPastSubmissions);
             }}
           />
-        ) : null}
+        ))}
 
         {/* Past Submissions */}
         <PastSubmissionsList submissions={pastSubmissions} />
@@ -1026,7 +1075,7 @@ export default function HackathonActivityScreen() {
                   <ActivityIndicator color={WHITE} />
                 ) : (
                   <AppText variant="bold" style={styles.button41Text}>
-                    {submitted ? "ส่งแล้ว ✓" : activity.assessment ? "ส่งคำตอบ →" : "ทำเครื่องหมายว่าเสร็จสิ้น →"}
+                    {submitted ? "ส่งแล้ว ✓" : activity.assessments.length > 0 ? "ส่งคำตอบ →" : "ทำเครื่องหมายว่าเสร็จสิ้น →"}
                   </AppText>
                 )}
               </>
@@ -1034,6 +1083,7 @@ export default function HackathonActivityScreen() {
           </Pressable>
         </Animated.View>
 
+<<<<<<< HEAD
         {/* Comments Preview */}
         {activity && participant && (
           <>
@@ -1048,6 +1098,8 @@ export default function HackathonActivityScreen() {
 
         {/* Static Swipe Hint */}
         {siblings.length > 0 && (
+        {/* Static Swipe Hint — only show when submitted */}
+        {siblings.length > 0 && pastSubmissions.length > 0 && (
           <WaterFlowHint
             label={currentIndex < siblings.length - 1 ? "ปัดขึ้นเพื่อไปกิจกรรมถัดไป" : "ปัดขึ้นเพื่อกลับสู่แผนที่"}
           />
@@ -1077,6 +1129,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     overflow: "visible",
+  },
+  lockedNextHint: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.35)",
+    fontFamily: "BaiJamjuree_500Medium",
+    letterSpacing: 0.3,
+    marginBottom: 8,
   },
   scroll: { flex: 1 },
   content: { paddingHorizontal: Space.lg, paddingBottom: 160, gap: Space.xl },
@@ -1270,9 +1329,9 @@ const styles = StyleSheet.create({
   button41Gradient: {
     ...StyleSheet.absoluteFillObject,
   },
-  button41Text: { 
-    fontSize: 16, 
-    color: WHITE, 
+  button41Text: {
+    fontSize: 16,
+    color: WHITE,
     letterSpacing: 0.5,
   },
   staticSwipeHint: {
