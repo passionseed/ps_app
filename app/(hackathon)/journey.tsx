@@ -222,6 +222,13 @@ function JourneyImpactHeader({ impact }: { impact: TeamImpact | null }) {
       <AppText variant="bold" style={styles.impactTitle}>YOUR TEAM IMPACT</AppText>
       <View style={styles.impactGrid}>
         <View style={styles.impactBox}>
+          <AppText variant="bold" style={[styles.impactVal, { color: CYAN }]}>
+            {impact?.rank != null ? `#${impact.rank}` : '—'}
+          </AppText>
+          <AppText style={styles.impactLabel}>TEAM{'\n'}RANK</AppText>
+        </View>
+        <View style={styles.impactDivider} />
+        <View style={styles.impactBox}>
           <AppText variant="bold" style={styles.impactVal}>
             {impact?.activitiesCompleted ?? '—'}
           </AppText>
@@ -233,13 +240,6 @@ function JourneyImpactHeader({ impact }: { impact: TeamImpact | null }) {
             {impact?.score ?? '—'}
           </AppText>
           <AppText style={styles.impactLabel}>SCORE{'\n'}EARNED</AppText>
-        </View>
-        <View style={styles.impactDivider} />
-        <View style={[styles.impactBox, styles.impactHighlight]}>
-          <AppText variant="bold" style={styles.impactHighlightVal}>
-            {impact?.rank != null ? `#${impact.rank}` : '—'}
-          </AppText>
-          <AppText style={styles.impactHighlightLabel}>TEAM{'\n'}RANK</AppText>
         </View>
       </View>
     </Animated.View>

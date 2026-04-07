@@ -10,6 +10,8 @@ import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
 import { fetchTeamImpact, type TeamImpact } from "../../lib/hackathon-submit";
 import type { HackathonProgramPhase } from "../../types/hackathon-program";
 
+type MentorPreview = { id: string; full_name: string; photo_url?: string };
+
 const WHITE = "#FFFFFF";
 const WHITE70 = "rgba(255,255,255,0.7)";
 const WHITE40 = "rgba(255,255,255,0.4)";
@@ -36,6 +38,7 @@ export default function HackathonHomeScreen() {
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0 });
   const [currentPhase, setCurrentPhase] = useState<HackathonProgramPhase | null>(null);
   const [impact, setImpact] = useState<TeamImpact | null>(null);
+  const [mentorPreviews, setMentorPreviews] = useState<MentorPreview[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -46,6 +49,10 @@ export default function HackathonHomeScreen() {
           fetchTeamImpact(teamId).then(setImpact).catch(() => {});
         }
       }).catch(() => {});
+      fetch("https://www.passionseed.org/api/hackathon/mentor/public")
+        .then((r) => r.json())
+        .then((d) => setMentorPreviews((d.mentors ?? []).slice(0, 8)))
+        .catch(() => {});
     }, [])
   );
 
@@ -122,6 +129,13 @@ export default function HackathonHomeScreen() {
           <AppText variant="bold" style={styles.impactTitle}>YOUR TEAM IMPACT</AppText>
           <View style={styles.impactGrid}>
             <View style={styles.impactBox}>
+              <AppText variant="bold" style={[styles.impactVal, { color: CYAN }]}>
+                {impact?.rank != null ? `#${impact.rank}` : '—'}
+              </AppText>
+              <AppText style={styles.impactLabel}>TEAM{'\n'}RANK</AppText>
+            </View>
+            <View style={styles.impactDivider} />
+            <View style={styles.impactBox}>
               <AppText variant="bold" style={styles.impactVal}>
                 {impact?.activitiesCompleted ?? '—'}
               </AppText>
@@ -134,20 +148,32 @@ export default function HackathonHomeScreen() {
               </AppText>
               <AppText style={styles.impactLabel}>SCORE{'\n'}EARNED</AppText>
             </View>
-            <View style={styles.impactDivider} />
-            <View style={[styles.impactBox, styles.impactHighlight]}>
-              <AppText variant="bold" style={styles.impactHighlightVal}>
-                {impact?.rank != null ? `#${impact.rank}` : '—'}
-              </AppText>
-              <AppText style={styles.impactHighlightLabel}>TEAM{'\n'}RANK</AppText>
-            </View>
           </View>
         </View>
 
         {/* Placeholders */}
         <Pressable style={styles.placeholderCard} onPress={() => router.push("/(hackathon)/mentor-booking")}>
           <AppText variant="bold" style={styles.placeholderTitle}>Mentor Booking</AppText>
-          <AppText style={styles.placeholderText}>Schedule 1:1 help with technical and business mentors.</AppText>
+          {mentorPreviews.length > 0 && (
+            <View style={styles.mentorAvatarRow}>
+              {mentorPreviews.slice(0, 5).map((m, i) => (
+                <View key={m.id} style={[styles.mentorAvatarWrap, { marginLeft: i === 0 ? 0 : -10, zIndex: 10 - i }]}>
+                  {m.photo_url ? (
+                    <Image source={{ uri: m.photo_url }} style={styles.mentorAvatar} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.mentorAvatar, styles.mentorAvatarFallback]}>
+                      <AppText style={styles.mentorAvatarInitial}>{m.full_name.charAt(0).toUpperCase()}</AppText>
+                    </View>
+                  )}
+                </View>
+              ))}
+              {mentorPreviews.length > 5 && (
+                <View style={[styles.mentorAvatarWrap, styles.mentorAvatarMore, { marginLeft: -10 }]}>
+                  <AppText style={styles.mentorAvatarMoreText}>+{mentorPreviews.length - 5}</AppText>
+                </View>
+              )}
+            </View>
+          )}
           <AppText variant="bold" style={styles.placeholderBadgeCyan}>Book Now →</AppText>
         </Pressable>
 
@@ -239,11 +265,6 @@ const styles = StyleSheet.create({
   },
 
   impactContainer: {
-    backgroundColor: "rgba(13,18,25,0.6)",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.15)",
-    padding: Space.lg,
     gap: Space.md,
   },
   impactTitle: {
@@ -310,5 +331,44 @@ const styles = StyleSheet.create({
   placeholderText: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "BaiJamjuree_400Regular" },
   placeholderBadge: { fontSize: 10, color: AMBER, textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold" },
   placeholderBadgeCyan: { fontSize: 10, color: CYAN, textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold" },
+  mentorAvatarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  mentorAvatarWrap: {
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "rgba(13,18,25,0.9)",
+  },
+  mentorAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  mentorAvatarFallback: {
+    backgroundColor: CYAN_DIM,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mentorAvatarInitial: {
+    fontSize: 13,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  mentorAvatarMore: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(145,196,227,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mentorAvatarMoreText: {
+    fontSize: 10,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
 });
 
