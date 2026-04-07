@@ -95,9 +95,32 @@ export const ActivityCommentsFull: React.FC<ActivityCommentsFullProps> = ({
   // Handlers
   const handleAddComment = useCallback(async (content: string) => {
     try {
+      // Optimistically add comment to UI immediately
+      const tempComment: CommentWithReplies = {
+        id: `temp-${Date.now()}`,
+        activity_id: activityId,
+        participant_id: participantId,
+        content,
+        engagement_score: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_edited: false,
+        deleted_at: null,
+        replies: [],
+        participant: {
+          id: participantId,
+          display_name: "You",
+          avatar_url: undefined,
+        },
+      };
+      setComments((prev) => [tempComment, ...prev]);
+
+      // Actually create the comment
       await createActivityComment(activityId, participantId, content);
-      // Real-time subscription will update the list
+      // Real-time subscription will update with actual data
     } catch (err) {
+      // Remove temp comment on error
+      setComments((prev) => prev.filter((c) => !c.id.startsWith("temp-")));
       Alert.alert(
         "Error",
         err instanceof Error ? err.message : "Failed to add comment"
@@ -134,12 +157,45 @@ export const ActivityCommentsFull: React.FC<ActivityCommentsFullProps> = ({
 
   const handleAddReply = useCallback(async (commentId: string, content: string) => {
     try {
-      await createCommentReply(commentId, participantId, content);
+      // Optimistically add reply to UI immediately
+      const tempReply: ReplyWithParticipant = {
+        id: `temp-${Date.now()}`,
+        comment_id: commentId,
+        participant_id: participantId,
+        content,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_edited: false,
+        deleted_at: null,
+        participant: {
+          id: participantId,
+          display_name: "You",
+          avatar_url: undefined,
+        },
+      };
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, replies: [...c.replies, tempReply] }
+            : c
+        )
+      );
       setReplyingToCommentId(null);
       // Ensure the comment stays expanded to show the new reply
       setExpandedCommentId(commentId);
-      // Real-time subscription will update the list
+
+      // Actually create the reply
+      await createCommentReply(commentId, participantId, content);
+      // Real-time subscription will update with actual data
     } catch (err) {
+      // Remove temp reply on error
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, replies: c.replies.filter((r) => !r.id.startsWith("temp-")) }
+            : c
+        )
+      );
       Alert.alert(
         "Error",
         err instanceof Error ? err.message : "Failed to add reply"
