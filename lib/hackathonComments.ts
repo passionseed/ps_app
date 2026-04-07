@@ -202,10 +202,10 @@ export async function getActivityComments(
     .select(
       `
       *,
-      participant:hackathon_participants(id, display_name, avatar_url),
-      replies:hackathon_activity_comment_replies(
+      hackathon_participants!participant_id(id, display_name, avatar_url),
+      hackathon_activity_comment_replies(
         *,
-        participant:hackathon_participants(id, display_name, avatar_url)
+        hackathon_participants!participant_id(id, display_name, avatar_url)
       )
     `
     )
@@ -223,13 +223,17 @@ export async function getActivityComments(
     throw new Error(`Failed to fetch comments: ${error.message}`);
   }
 
-  // Filter out deleted replies from the nested data
+  // Transform data to match expected format and filter deleted replies
   const comments = (data || []).map((comment: any) => {
-    const filteredReplies = (comment.replies || []).filter(
+    const filteredReplies = (comment.hackathon_activity_comment_replies || []).filter(
       (reply: any) => !reply.deleted_at
-    );
+    ).map((reply: any) => ({
+      ...reply,
+      participant: reply.hackathon_participants
+    }));
     return {
       ...comment,
+      participant: comment.hackathon_participants,
       replies: filteredReplies,
     };
   });
@@ -250,7 +254,7 @@ export async function getCommentReplies(
     .select(
       `
       *,
-      participant:hackathon_participants(id, display_name, avatar_url)
+      hackathon_participants!participant_id(id, display_name, avatar_url)
     `
     )
     .eq("comment_id", commentId)
@@ -261,7 +265,13 @@ export async function getCommentReplies(
     throw new Error(`Failed to fetch replies: ${error.message}`);
   }
 
-  return (data || []) as ReplyWithParticipant[];
+  // Transform data to match expected format
+  const replies = (data || []).map((reply: any) => ({
+    ...reply,
+    participant: reply.hackathon_participants
+  }));
+
+  return replies as ReplyWithParticipant[];
 }
 
 // =============================================================================
