@@ -56,6 +56,7 @@ export async function getPhaseWithActivities(
           id,
           activity_id,
           assessment_type,
+          display_order,
           points_possible,
           is_graded,
           metadata,
@@ -79,7 +80,9 @@ export async function getPhaseWithActivities(
       content: (a.hackathon_phase_activity_content ?? []).sort(
         (x: any, y: any) => x.display_order - y.display_order
       ),
-      assessment: a.hackathon_phase_activity_assessments?.[0] ?? null,
+      assessments: (a.hackathon_phase_activity_assessments ?? []).sort(
+        (x: any, y: any) => x.display_order - y.display_order
+      ),
       submission_scope: (a.submission_scope ?? "individual") as "individual" | "team",
     }));
 
@@ -145,6 +148,7 @@ export async function getProgramPhasesWithActivities(
           id,
           activity_id,
           assessment_type,
+          display_order,
           points_possible,
           is_graded,
           metadata,
@@ -169,7 +173,9 @@ export async function getProgramPhasesWithActivities(
         content: (a.hackathon_phase_activity_content ?? []).sort(
           (x: any, y: any) => x.display_order - y.display_order
         ),
-        assessment: a.hackathon_phase_activity_assessments?.[0] ?? null,
+        assessments: (a.hackathon_phase_activity_assessments ?? []).sort(
+          (x: any, y: any) => x.display_order - y.display_order
+        ),
       }));
 
     return {

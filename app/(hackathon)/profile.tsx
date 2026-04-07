@@ -1,5 +1,15 @@
 import { useCallback, useState, useEffect } from "react";
-import { StyleSheet, View, Pressable, ScrollView, ActivityIndicator, Linking, TextInput, Alert, Image } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+  Linking,
+  TextInput,
+  Alert,
+  Image,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
@@ -59,19 +69,22 @@ export default function HackathonProfileScreen() {
         }
 
         try {
-          const [homeData, { data: qData }, { data: participantData }] = await Promise.all([
-            getCurrentHackathonProgramHome(),
-            supabase
-              .from("hackathon_pre_questionnaires")
-              .select("*")
-              .eq("participant_id", participant.id)
-              .maybeSingle(),
-            supabase
-              .from("hackathon_participants")
-              .select("instagram_handle, discord_username, team_emoji, emoji_roll_count")
-              .eq("id", participant.id)
-              .maybeSingle(),
-          ]);
+          const [homeData, { data: qData }, { data: participantData }] =
+            await Promise.all([
+              getCurrentHackathonProgramHome(),
+              supabase
+                .from("hackathon_pre_questionnaires")
+                .select("*")
+                .eq("participant_id", participant.id)
+                .maybeSingle(),
+              supabase
+                .from("hackathon_participants")
+                .select(
+                  "instagram_handle, discord_username, team_emoji, emoji_roll_count",
+                )
+                .eq("id", participant.id)
+                .maybeSingle(),
+            ]);
 
           if (!cancelled) {
             setTeam(homeData.team);
@@ -102,7 +115,7 @@ export default function HackathonProfileScreen() {
       return () => {
         cancelled = true;
       };
-    }, [participant?.id])
+    }, [participant?.id]),
   );
 
   // Auto-roll emoji if not set
@@ -131,7 +144,9 @@ export default function HackathonProfileScreen() {
           setTeam({
             ...team,
             members: team.members.map((m) =>
-              m.participant_id === participant.id ? { ...m, team_emoji: emoji } : m
+              m.participant_id === participant.id
+                ? { ...m, team_emoji: emoji }
+                : m,
             ),
           });
         }
@@ -171,7 +186,11 @@ export default function HackathonProfileScreen() {
     if (!team?.id || !participant?.id) return;
     setRollingEmoji(true);
 
-    const { emoji, newRollCount } = getNextEmoji(team.id, participant.id, emojiRollCount);
+    const { emoji, newRollCount } = getNextEmoji(
+      team.id,
+      participant.id,
+      emojiRollCount,
+    );
 
     try {
       const { error } = await supabase
@@ -187,7 +206,9 @@ export default function HackathonProfileScreen() {
           setTeam({
             ...team,
             members: team.members.map((m) =>
-              m.participant_id === participant.id ? { ...m, team_emoji: emoji } : m
+              m.participant_id === participant.id
+                ? { ...m, team_emoji: emoji }
+                : m,
             ),
           });
         }
@@ -205,9 +226,13 @@ export default function HackathonProfileScreen() {
   const handleUploadTeamAvatar = async () => {
     if (!team?.id) return;
 
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert("Permission Required", "Please allow access to your photos to upload a team avatar.");
+      Alert.alert(
+        "Permission Required",
+        "Please allow access to your photos to upload a team avatar.",
+      );
       return;
     }
 
@@ -286,16 +311,30 @@ export default function HackathonProfileScreen() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.xl }]}>
-        <AppText variant="bold" style={styles.eyebrow}>YOUR PROFILE</AppText>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + Space.xl },
+        ]}
+      >
+        <AppText variant="bold" style={styles.eyebrow}>
+          YOUR PROFILE
+        </AppText>
         <View style={styles.titleRow}>
-          {teamEmoji && <AppText style={styles.titleEmoji}>{teamEmoji}</AppText>}
-          <AppText variant="bold" style={styles.title}>{participant?.name ?? "Participant"}</AppText>
+          {teamEmoji && (
+            <AppText style={styles.titleEmoji}>{teamEmoji}</AppText>
+          )}
+          <AppText variant="bold" style={styles.title}>
+            {participant?.name ?? "Participant"}
+          </AppText>
         </View>
 
         {/* Basic Info Card */}
         <View style={styles.infoCard}>
-          <LinearGradient colors={[DARK_BG, "rgba(8, 14, 22, 0.8)"]} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={[DARK_BG, "rgba(8, 14, 22, 0.8)"]}
+            style={StyleSheet.absoluteFill}
+          />
           <InfoRow label="EMAIL" value={participant?.email ?? "—"} />
           <View style={styles.divider} />
           <InfoRow label="UNIVERSITY" value={participant?.university ?? "—"} />
@@ -306,14 +345,24 @@ export default function HackathonProfileScreen() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={CYAN} />
-            <AppText style={styles.loadingText}>Loading profile data...</AppText>
+            <AppText style={styles.loadingText}>
+              Loading profile data...
+            </AppText>
           </View>
         ) : (
           <>
             {/* Social Media Card */}
             <View style={styles.sectionCard}>
-              <LinearGradient colors={["rgba(145, 196, 227, 0.05)", "rgba(145, 196, 227, 0.01)"]} style={StyleSheet.absoluteFill} />
-              <AppText variant="bold" style={styles.sectionTitle}>Social Media</AppText>
+              <LinearGradient
+                colors={[
+                  "rgba(145, 196, 227, 0.05)",
+                  "rgba(145, 196, 227, 0.01)",
+                ]}
+                style={StyleSheet.absoluteFill}
+              />
+              <AppText variant="bold" style={styles.sectionTitle}>
+                Social Media
+              </AppText>
 
               <View style={styles.socialInputRow}>
                 <AppText style={styles.socialIcon}>📷</AppText>
@@ -342,65 +391,104 @@ export default function HackathonProfileScreen() {
               </View>
 
               <Pressable
-                style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.7 }, savingSocial && { opacity: 0.5 }]}
+                style={({ pressed }) => [
+                  styles.saveBtn,
+                  pressed && { opacity: 0.7 },
+                  savingSocial && { opacity: 0.5 },
+                ]}
                 onPress={handleSaveSocial}
                 disabled={savingSocial}
               >
                 {savingSocial ? (
                   <ActivityIndicator color={CYAN} size="small" />
                 ) : (
-                  <AppText variant="bold" style={styles.saveBtnText}>Save Changes</AppText>
+                  <AppText variant="bold" style={styles.saveBtnText}>
+                    Save Changes
+                  </AppText>
                 )}
               </Pressable>
             </View>
 
             {/* Team Emoji Card */}
             <View style={styles.sectionCard}>
-              <LinearGradient colors={["rgba(145, 196, 227, 0.05)", "rgba(145, 196, 227, 0.01)"]} style={StyleSheet.absoluteFill} />
-              <AppText variant="bold" style={styles.sectionTitle}>Your Team Emoji</AppText>
+              <LinearGradient
+                colors={[
+                  "rgba(145, 196, 227, 0.05)",
+                  "rgba(145, 196, 227, 0.01)",
+                ]}
+                style={StyleSheet.absoluteFill}
+              />
+              <AppText variant="bold" style={styles.sectionTitle}>
+                Your Team Emoji
+              </AppText>
 
               <View style={styles.emojiDisplay}>
                 <AppText style={styles.emojiLarge}>{teamEmoji || "❓"}</AppText>
               </View>
 
               <Pressable
-                style={({ pressed }) => [styles.rollBtn, pressed && { opacity: 0.7 }, rollingEmoji && { opacity: 0.5 }]}
+                style={({ pressed }) => [
+                  styles.rollBtn,
+                  pressed && { opacity: 0.7 },
+                  rollingEmoji && { opacity: 0.5 },
+                ]}
                 onPress={handleRollEmoji}
                 disabled={rollingEmoji}
               >
                 {rollingEmoji ? (
                   <ActivityIndicator color={WHITE} size="small" />
                 ) : (
-                  <AppText variant="bold" style={styles.rollBtnText}>Roll Again</AppText>
+                  <AppText variant="bold" style={styles.rollBtnText}>
+                    Roll Again
+                  </AppText>
                 )}
               </Pressable>
 
-              <AppText style={styles.rollCountText}>You've rolled {emojiRollCount} times</AppText>
+              <AppText style={styles.rollCountText}>
+                You've rolled {emojiRollCount} times
+              </AppText>
             </View>
 
             {/* Team Card */}
             {team ? (
               <View style={styles.sectionCard}>
-                <LinearGradient colors={["rgba(145, 196, 227, 0.05)", "rgba(145, 196, 227, 0.01)"]} style={StyleSheet.absoluteFill} />
+                <LinearGradient
+                  colors={[
+                    "rgba(145, 196, 227, 0.05)",
+                    "rgba(145, 196, 227, 0.01)",
+                  ]}
+                  style={StyleSheet.absoluteFill}
+                />
 
                 <View style={styles.teamHeader}>
                   {/* Team Avatar */}
                   {teamAvatarUrl ? (
-                    <Image source={{ uri: teamAvatarUrl }} style={styles.teamAvatar} />
+                    <Image
+                      source={{ uri: teamAvatarUrl }}
+                      style={styles.teamAvatar}
+                    />
                   ) : (
                     <View style={styles.teamAvatarPlaceholder}>
-                      <AppText variant="bold" style={styles.teamInitials}>{getTeamInitials()}</AppText>
+                      <AppText variant="bold" style={styles.teamInitials}>
+                        {getTeamInitials()}
+                      </AppText>
                     </View>
                   )}
 
                   <View style={styles.teamNameContainer}>
-                    <AppText variant="bold" style={styles.sectionTitle}>Team: {team.team_name || "Unnamed Team"}</AppText>
+                    <AppText variant="bold" style={styles.sectionTitle}>
+                      Team: {team.team_name || "Unnamed Team"}
+                    </AppText>
                   </View>
                 </View>
 
                 {/* Upload Avatar Button */}
                 <Pressable
-                  style={({ pressed }) => [styles.uploadBtn, pressed && { opacity: 0.7 }, uploadingAvatar && { opacity: 0.5 }]}
+                  style={({ pressed }) => [
+                    styles.uploadBtn,
+                    pressed && { opacity: 0.7 },
+                    uploadingAvatar && { opacity: 0.5 },
+                  ]}
                   onPress={handleUploadTeamAvatar}
                   disabled={uploadingAvatar}
                 >
@@ -426,7 +514,9 @@ export default function HackathonProfileScreen() {
                         </AppText>
                         {(member.university || member.track) && (
                           <AppText style={styles.rosterMeta}>
-                            {[member.track, member.university].filter(Boolean).join(" • ")}
+                            {[member.track, member.university]
+                              .filter(Boolean)
+                              .join(" • ")}
                           </AppText>
                         )}
                       </View>
@@ -441,48 +531,104 @@ export default function HackathonProfileScreen() {
               </View>
             ) : (
               <View style={styles.placeholderCard}>
-                <AppText variant="bold" style={styles.placeholderTitle}>Team Roster</AppText>
-                <AppText style={styles.placeholderText}>You are not assigned to a team yet.</AppText>
+                <AppText variant="bold" style={styles.placeholderTitle}>
+                  Team Roster
+                </AppText>
+                <AppText style={styles.placeholderText}>
+                  You are not assigned to a team yet.
+                </AppText>
               </View>
             )}
 
             {/* Pre-Hackathon Questionnaire */}
             {questionnaire ? (
               <View style={styles.sectionCard}>
-                <LinearGradient colors={["rgba(145, 196, 227, 0.05)", "rgba(145, 196, 227, 0.01)"]} style={StyleSheet.absoluteFill} />
-                <AppText variant="bold" style={styles.sectionTitle}>Pre-Hackathon Profile</AppText>
+                <LinearGradient
+                  colors={[
+                    "rgba(145, 196, 227, 0.05)",
+                    "rgba(145, 196, 227, 0.01)",
+                  ]}
+                  style={StyleSheet.absoluteFill}
+                />
+                <AppText variant="bold" style={styles.sectionTitle}>
+                  Pre-Hackathon Profile
+                </AppText>
                 <View style={styles.qList}>
-                  {questionnaire.dream_faculty ? <QItem label="Dream Faculty" value={questionnaire.dream_faculty} /> : null}
-                  {questionnaire.team_role_preference ? <QItem label="Preferred Role" value={questionnaire.team_role_preference} /> : null}
-                  {questionnaire.ai_proficiency ? <QItem label="AI Proficiency" value={questionnaire.ai_proficiency} /> : null}
-                  {questionnaire.why_hackathon ? <QItem label="Goal" value={questionnaire.why_hackathon} /> : null}
-                  {questionnaire.loves ? <QItem label="Passions" value={questionnaire.loves} /> : null}
-                  {questionnaire.good_at ? <QItem label="Strengths" value={questionnaire.good_at} /> : null}
+                  {questionnaire.dream_faculty ? (
+                    <QItem
+                      label="Dream Faculty"
+                      value={questionnaire.dream_faculty}
+                    />
+                  ) : null}
+                  {questionnaire.team_role_preference ? (
+                    <QItem
+                      label="Preferred Role"
+                      value={questionnaire.team_role_preference}
+                    />
+                  ) : null}
+                  {questionnaire.ai_proficiency ? (
+                    <QItem
+                      label="AI Proficiency"
+                      value={questionnaire.ai_proficiency}
+                    />
+                  ) : null}
+                  {questionnaire.why_hackathon ? (
+                    <QItem label="Goal" value={questionnaire.why_hackathon} />
+                  ) : null}
+                  {questionnaire.loves ? (
+                    <QItem label="Passions" value={questionnaire.loves} />
+                  ) : null}
+                  {questionnaire.good_at ? (
+                    <QItem label="Strengths" value={questionnaire.good_at} />
+                  ) : null}
                 </View>
               </View>
             ) : (
               <View style={styles.placeholderCard}>
-                <AppText variant="bold" style={styles.placeholderTitle}>Pre-Hackathon Profile</AppText>
-                <AppText style={styles.placeholderText}>You haven't filled out your pre-hackathon questionnaire yet.</AppText>
+                <AppText variant="bold" style={styles.placeholderTitle}>
+                  Pre-Hackathon Profile
+                </AppText>
+                <AppText style={styles.placeholderText}>
+                  You haven't filled out your pre-hackathon questionnaire yet.
+                </AppText>
                 <Pressable
-                  style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
-                  onPress={() => Linking.openURL("https://www.passionseed.org/hackathon/onboarding")}
+                  style={({ pressed }) => [
+                    styles.linkBtn,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  onPress={() =>
+                    Linking.openURL(
+                      "https://www.passionseed.org/hackathon/onboarding",
+                    )
+                  }
                 >
-                  <AppText variant="bold" style={styles.linkBtnText}>Complete Questionnaire</AppText>
+                  <AppText variant="bold" style={styles.linkBtnText}>
+                    Complete Questionnaire
+                  </AppText>
                 </Pressable>
               </View>
             )}
 
             {/* Knowledge Vault Placeholder */}
             <View style={styles.placeholderCard}>
-              <AppText variant="bold" style={styles.placeholderTitle}>Knowledge Vault</AppText>
-              <AppText style={styles.placeholderText}>Your completed activities, generated ideas, and reflections in one place.</AppText>
-              <AppText variant="bold" style={styles.placeholderBadge}>Coming Soon</AppText>
+              <AppText variant="bold" style={styles.placeholderTitle}>
+                Knowledge Vault
+              </AppText>
+              <AppText style={styles.placeholderText}>
+                Your completed activities, generated ideas, and reflections in
+                one place.
+              </AppText>
+              <AppText variant="bold" style={styles.placeholderBadge}>
+                Coming Soon
+              </AppText>
             </View>
 
             {/* Sign Out */}
             <Pressable
-              style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.75 }]}
+              style={({ pressed }) => [
+                styles.signOutBtn,
+                pressed && { opacity: 0.75 },
+              ]}
               onPress={() => signOutHackathon()}
             >
               <AppText style={styles.signOutText}>Sign Out</AppText>
@@ -494,11 +640,24 @@ export default function HackathonProfileScreen() {
   );
 }
 
-function InfoRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function InfoRow({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
   return (
     <View style={styles.infoRow}>
       <AppText style={styles.infoLabel}>{label}</AppText>
-      <AppText variant="bold" style={[styles.infoValue, accent && { color: CYAN }]}>{value}</AppText>
+      <AppText
+        variant="bold"
+        style={[styles.infoValue, accent && { color: CYAN }]}
+      >
+        {value}
+      </AppText>
     </View>
   );
 }
@@ -777,9 +936,24 @@ const styles = StyleSheet.create({
     gap: Space.xs,
     marginTop: Space.sm,
   },
-  placeholderTitle: { fontSize: 16, color: WHITE, fontFamily: "BaiJamjuree_700Bold" },
-  placeholderText: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "BaiJamjuree_400Regular" },
-  placeholderBadge: { fontSize: 10, color: AMBER, textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold" },
+  placeholderTitle: {
+    fontSize: 16,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  placeholderText: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.45)",
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  placeholderBadge: {
+    fontSize: 10,
+    color: AMBER,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    marginTop: Space.xs,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
   linkBtn: {
     backgroundColor: "rgba(145,196,227,0.15)",
     borderWidth: 1,
