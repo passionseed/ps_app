@@ -145,6 +145,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(145,196,227,0.2)",
     minHeight: 80,
     maxHeight: 120,
+    fontFamily: "BaiJamjuree_400Regular",
   },
   inputFocused: {
     borderColor: CYAN,
