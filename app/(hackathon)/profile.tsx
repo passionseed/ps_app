@@ -301,12 +301,13 @@ export default function HackathonProfileScreen() {
 
   // Get team initials for placeholder
   const getTeamInitials = () => {
-    if (!team?.team_name) return "??";
-    const words = team.team_name.split(" ");
+    const displayName = team?.team_name || team?.name;
+    if (!displayName) return "??";
+    const words = displayName.split(" ");
     if (words.length >= 2) {
       return (words[0][0] + words[1][0]).toUpperCase();
     }
-    return team.team_name.slice(0, 2).toUpperCase();
+    return displayName.slice(0, 2).toUpperCase();
   };
 
   return (
@@ -477,7 +478,7 @@ export default function HackathonProfileScreen() {
 
                   <View style={styles.teamNameContainer}>
                     <AppText variant="bold" style={styles.sectionTitle}>
-                      Team: {team.team_name || "Unnamed Team"}
+                      Team: {team.team_name || team.name || "Unnamed Team"}
                     </AppText>
                   </View>
                 </View>
