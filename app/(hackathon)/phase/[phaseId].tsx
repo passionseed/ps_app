@@ -172,13 +172,21 @@ export default function HackathonPhaseScreen() {
         {/* Activity list */}
         {activities.length > 0 && (
           <View style={styles.activitySection}>
-            {activities.map((activity, i) => (
-              <ActivityCard 
-                key={activity.id} 
-                activity={activity} 
-                index={i} 
-              />
-            ))}
+            {activities.map((activity, i) => {
+              const prev = i > 0 ? activities[i - 1] : null;
+              const locked = prev !== null && prev.status !== "submitted" && prev.status !== "passed";
+              if (locked) {
+                console.log(`[PhaseScreen] Activity ${i + 1} "${activity.title}" is LOCKED — prev activity "${prev!.title}" status: ${prev!.status}`);
+              }
+              return (
+                <ActivityCard
+                  key={activity.id}
+                  activity={activity}
+                  index={i}
+                  locked={locked}
+                />
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -186,7 +194,7 @@ export default function HackathonPhaseScreen() {
   );
 }
 
-function ActivityCard({ activity, index }: { activity: ActivityWithStatus, index: number }) {
+function ActivityCard({ activity, index, locked }: { activity: ActivityWithStatus, index: number, locked: boolean }) {
   const isCompleted = activity.status === "passed" || activity.status === "submitted";
   const isDraft = activity.status === "draft";
   const isRevision = activity.status === "revision_required";
@@ -195,9 +203,16 @@ function ActivityCard({ activity, index }: { activity: ActivityWithStatus, index
     <Pressable
       style={({ pressed }) => [
         styles.activityCardWrapper,
-        pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+        locked && { opacity: 0.4 },
+        !locked && pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
       ]}
-      onPress={() => router.push(getHackathonActivityHref(activity.id))}
+      onPress={() => {
+        if (locked) {
+          console.log(`[PhaseScreen] Tap blocked — activity "${activity.title}" is locked`);
+          return;
+        }
+        router.push(getHackathonActivityHref(activity.id));
+      }}
     >
       <BlurView intensity={30} tint="dark" style={styles.cardBlur}>
         <LinearGradient
@@ -239,15 +254,15 @@ function ActivityCard({ activity, index }: { activity: ActivityWithStatus, index
                 {activity.estimated_minutes ? (
                   <AppText style={styles.metaChip}>⏱️ {activity.estimated_minutes} นาที</AppText>
                 ) : null}
-                {activity.assessment ? (
-                  <AppText style={styles.metaChip}>📝 {formatAssessment(activity.assessment.assessment_type)}</AppText>
+                {activity.assessments?.length > 0 ? (
+                  <AppText style={styles.metaChip}>📝 {activity.assessments.length > 1 ? `${activity.assessments.length} คำถาม` : formatAssessment(activity.assessments[0].assessment_type)}</AppText>
                 ) : null}
               </View>
             </View>
           </View>
           
           <View style={styles.arrowContainer}>
-            <AppText style={styles.arrow}>→</AppText>
+            <AppText style={styles.arrow}>{locked ? "🔒" : "→"}</AppText>
           </View>
         </LinearGradient>
       </BlurView>
