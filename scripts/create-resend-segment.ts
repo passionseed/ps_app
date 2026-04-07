@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
 dotenv.config({ path: ".env" });
 
-const RESEND_API_KEY = "re_P2hKXtZ7_5WFqwtTirN4jJGFmhiKF75pQ";
+const RESEND_API_KEY = "REDACTED_RESEND_KEY";
 
 async function createSegment() {
   const response = await fetch("https://api.resend.com/segments", {
