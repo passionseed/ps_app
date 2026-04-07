@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet, ScrollView, Dimensions, Text, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, Text, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
 import { AppText } from "../../components/AppText";
 import { Space } from "../../lib/theme";
-import { LinearGradient } from "expo-linear-gradient";
 import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
+import { fetchTeamImpact, type TeamImpact } from "../../lib/hackathon-submit";
 import type { HackathonProgramPhase } from "../../types/hackathon-program";
 
-const BG = "transparent";
 const WHITE = "#FFFFFF";
 const WHITE70 = "rgba(255,255,255,0.7)";
 const WHITE40 = "rgba(255,255,255,0.4)";
@@ -36,13 +35,16 @@ export default function HackathonHomeScreen() {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0 });
   const [currentPhase, setCurrentPhase] = useState<HackathonProgramPhase | null>(null);
-  const [phases, setPhases] = useState<HackathonProgramPhase[]>([]);
+  const [impact, setImpact] = useState<TeamImpact | null>(null);
 
   useFocusEffect(
     useCallback(() => {
-      getCurrentHackathonProgramHome().then((home) => {
-        setPhases(home.phases);
+      getCurrentHackathonProgramHome().then(async (home) => {
         setCurrentPhase(getCurrentPhase(home.phases));
+        const teamId = home.team?.id;
+        if (teamId) {
+          fetchTeamImpact(teamId).then(setImpact).catch(() => {});
+        }
       }).catch(() => {});
     }, [])
   );
@@ -111,47 +113,36 @@ export default function HackathonHomeScreen() {
             ) : (
               <AppText style={styles.countdownNoDue}>No due date set</AppText>
             )}
+            <AppText style={styles.countdownCta}>Continue Journey →</AppText>
           </Pressable>
         )}
 
-        {/* Timeline */}
-        {phases.length > 0 && (
-          <View style={styles.timelineSection}>
-            <AppText variant="bold" style={styles.sectionTitle}>Phases</AppText>
-            <View style={styles.timelineList}>
-              {[...phases]
-                .sort((a, b) => a.phase_number - b.phase_number)
-                .map((phase, i, arr) => {
-                  const isCurrent = currentPhase?.id === phase.id;
-                  const deadline = phase.due_at ?? phase.ends_at;
-                  const dateStr = deadline
-                    ? new Date(deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-                    : null;
-                  return (
-                    <Pressable
-                      key={phase.id}
-                      style={styles.timelineItem}
-                      onPress={() => router.push(`/(hackathon)/phase/${phase.id}`)}
-                    >
-                      <View style={styles.timelineLeft}>
-                        <View style={[styles.timelineDot, isCurrent && styles.timelineDotActive]} />
-                        {i !== arr.length - 1 && <View style={styles.timelineLine} />}
-                      </View>
-                      <View style={styles.timelineRight}>
-                        {dateStr && <AppText style={styles.timelineDate}>Due: {dateStr}</AppText>}
-                        <AppText variant="bold" style={[styles.timelineItemTitle, isCurrent && { color: WHITE }]}>
-                          {String(phase.phase_number).padStart(2, "0")}. {phase.title}
-                        </AppText>
-                        {phase.description ? (
-                          <AppText style={styles.timelineItemDesc}>{phase.description}</AppText>
-                        ) : null}
-                      </View>
-                    </Pressable>
-                  );
-                })}
+        {/* Team Impact */}
+        <View style={styles.impactContainer}>
+          <AppText variant="bold" style={styles.impactTitle}>YOUR TEAM IMPACT</AppText>
+          <View style={styles.impactGrid}>
+            <View style={styles.impactBox}>
+              <AppText variant="bold" style={styles.impactVal}>
+                {impact?.activitiesCompleted ?? '—'}
+              </AppText>
+              <AppText style={styles.impactLabel}>ACTIVITIES{'\n'}COMPLETED</AppText>
+            </View>
+            <View style={styles.impactDivider} />
+            <View style={styles.impactBox}>
+              <AppText variant="bold" style={styles.impactVal}>
+                {impact?.score ?? '—'}
+              </AppText>
+              <AppText style={styles.impactLabel}>SCORE{'\n'}EARNED</AppText>
+            </View>
+            <View style={styles.impactDivider} />
+            <View style={[styles.impactBox, styles.impactHighlight]}>
+              <AppText variant="bold" style={styles.impactHighlightVal}>
+                {impact?.rank != null ? `#${impact.rank}` : '—'}
+              </AppText>
+              <AppText style={styles.impactHighlightLabel}>TEAM{'\n'}RANK</AppText>
             </View>
           </View>
-        )}
+        </View>
 
         {/* Placeholders */}
         <Pressable style={styles.placeholderCard} onPress={() => router.push("/(hackathon)/mentor-booking")}>
@@ -166,7 +157,7 @@ export default function HackathonHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+  root: { flex: 1, backgroundColor: "transparent" },
   content: {
     padding: Space.xl,
     paddingBottom: 120,
@@ -208,6 +199,14 @@ const styles = StyleSheet.create({
     color: WHITE,
     marginBottom: Space.lg,
   },
+  countdownCta: {
+    fontSize: 11,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginTop: Space.xl,
+  },
   countdownNoDue: {
     fontSize: 13,
     color: WHITE40,
@@ -239,70 +238,64 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  sectionTitle: {
-    fontSize: 20,
-    color: WHITE,
-    marginBottom: Space.lg,
+  impactContainer: {
+    backgroundColor: "rgba(13,18,25,0.6)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.15)",
+    padding: Space.lg,
+    gap: Space.md,
   },
-  timelineSection: {
-    marginTop: Space.xs,
+  impactTitle: {
+    fontSize: 10,
+    color: CYAN,
+    letterSpacing: 2,
+    fontFamily: "BaiJamjuree_700Bold",
   },
-  timelineList: {
-    paddingLeft: Space.xs,
-  },
-  timelineItem: {
+  impactGrid: {
     flexDirection: "row",
-    minHeight: 80,
-  },
-  timelineLeft: {
-    width: 32,
     alignItems: "center",
   },
-  timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "rgba(145,196,227,0.2)",
-    borderWidth: 2,
-    borderColor: "rgba(145,196,227,0.4)",
-    zIndex: 2,
-  },
-  timelineDotActive: {
-    backgroundColor: CYAN,
-    borderColor: "#FFFFFF",
-    shadowColor: CYAN,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-  },
-  timelineLine: {
-    width: 2,
+  impactBox: {
     flex: 1,
-    backgroundColor: "rgba(145,196,227,0.15)",
-    marginTop: 4,
-    marginBottom: 4,
+    alignItems: "center",
+    gap: 4,
   },
-  timelineRight: {
-    flex: 1,
-    paddingBottom: Space.xl,
-    paddingLeft: Space.sm,
-    marginTop: -4,
+  impactVal: {
+    fontSize: 28,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
   },
-  timelineDate: {
-    fontSize: 12,
-    color: CYAN,
-    marginBottom: 2,
+  impactLabel: {
+    fontSize: 10,
+    color: WHITE40,
+    textAlign: "center",
+    letterSpacing: 0.5,
     fontFamily: "BaiJamjuree_500Medium",
   },
-  timelineItemTitle: {
-    fontSize: 16,
-    color: WHITE70,
-    marginBottom: 4,
+  impactDivider: {
+    width: 1,
+    height: 48,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
-  timelineItemDesc: {
-    fontSize: 13,
-    color: WHITE40,
-    lineHeight: 18,
+  impactHighlight: {
+    backgroundColor: "rgba(145,196,227,0.08)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.2)",
+    paddingVertical: Space.sm,
+  },
+  impactHighlightVal: {
+    fontSize: 20,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  impactHighlightLabel: {
+    fontSize: 10,
+    color: WHITE70,
+    textAlign: "center",
+    letterSpacing: 0.5,
+    fontFamily: "BaiJamjuree_500Medium",
   },
 
   placeholderCard: {
