@@ -17,21 +17,10 @@ type HackathonWebtoonProps = {
   fallbackUrl?: string | null;
 };
 
-const WEBTOON_IMAGE_ASSETS: Record<string, ImageSourcePropType> = {
-  "webtoon1-1": require("../../assets/images/hackathon-phase1-comic/webtoon1-1.png"),
-  "webtoon1-2": require("../../assets/images/hackathon-phase1-comic/webtoon1-2.png"),
-  "webtoon1-3": require("../../assets/images/hackathon-phase1-comic/webtoon1-3.png"),
-  "webtoon1-4": require("../../assets/images/hackathon-phase1-comic/webtoon1-4.png"),
-};
-
 function resolveChunkImageSource(
   chunk: HackathonWebtoonChunk,
   fallbackUrl: string | null,
 ): ImageSourcePropType | null {
-  if (chunk.imageKey && WEBTOON_IMAGE_ASSETS[chunk.imageKey]) {
-    return WEBTOON_IMAGE_ASSETS[chunk.imageKey];
-  }
-
   if (!chunk.imageKey) {
     return fallbackUrl ? { uri: fallbackUrl } : null;
   }
