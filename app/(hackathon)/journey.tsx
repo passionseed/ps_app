@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle as SvgCircle } from "react-native-svg";
 import { AppText } from "../../components/AppText";
 import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJellyfishLoader";
+import { trackHackathonAlienButtonClick } from "../../lib/hackathonAlienClicks";
 import { Space } from "../../lib/theme";
 import {
   getCachedHackathonJourneyBundle,
@@ -327,6 +328,11 @@ export default function HackathonJourneyScreen() {
           <Pressable
             style={({ pressed }) => [styles.avatarCircle, pressed && { opacity: 0.8 }]}
             onPress={() => {
+              void trackHackathonAlienButtonClick({
+                source: "journey_header_alien_button",
+                teamId: data.team?.id ?? null,
+                targetUrl: ALIEN_VIDEO_URL,
+              });
               void Linking.openURL(ALIEN_VIDEO_URL);
             }}
           >
