@@ -1,4 +1,5 @@
 import { readHackathonParticipant } from "./hackathon-mode";
+import { computeTeamRank } from "./hackathonRanking";
 import { supabase } from "./supabase";
 
 export type SubmitResult = {
@@ -334,7 +335,7 @@ export type TeamImpact = {
 export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
   const participant = await readHackathonParticipant();
 
-  const [scoreResult, submissionsResult, allScoresResult] = await Promise.all([
+  const [scoreResult, submissionsResult, allScoresResult, allTeamsResult] = await Promise.all([
     // Team score
     supabase
       .from("hackathon_team_scores")
@@ -364,6 +365,11 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
       .from("hackathon_team_scores")
       .select("team_id, total_score")
       .order("total_score", { ascending: false }),
+
+    // All teams so teams with no score yet still receive a visible rank
+    supabase
+      .from("hackathon_teams")
+      .select("id"),
   ]);
 
   const score = scoreResult.data?.total_score ?? 0;
@@ -373,14 +379,13 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
   const uniqueActivities = new Set(submissions.map((s: any) => s.activity_id));
   const activitiesCompleted = uniqueActivities.size;
 
-  // Rank: what percentile is this team in (among teams that have scored)?
+  // Rank: 1 + number of teams with a strictly higher score.
+  // Teams with the same score share the same rank, including teams still at 0.
   const allScores: { team_id: string; total_score: number }[] =
     (allScoresResult.data as any) ?? [];
-  let rank: number | null = null;
-  if (allScores.length > 0 && score > 0) {
-    const myIndex = allScores.findIndex((s) => s.team_id === teamId);
-    rank = myIndex === -1 ? allScores.length : myIndex + 1;
-  }
+  const allTeamIds = ((allTeamsResult.data as Array<{ id: string }> | null) ?? [])
+    .map((team) => team.id);
+  const rank = computeTeamRank(teamId, allTeamIds, allScores);
 
   return { activitiesCompleted, score, rank };
 }

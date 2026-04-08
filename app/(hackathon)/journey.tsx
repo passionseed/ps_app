@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, RefreshControl, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, router } from "expo-router";
 import { BlurView } from "expo-blur";
@@ -37,6 +37,7 @@ const BLUE = "#65ABFC";
 const CYAN45 = "rgba(145,196,227,0.45)";
 const CYAN60 = "rgba(145,196,227,0.6)";
 const WHITE28 = "rgba(255,255,255,0.28)";
+const ALIEN_VIDEO_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -323,9 +324,14 @@ export default function HackathonJourneyScreen() {
             <AppText variant="bold" style={styles.title}>Your Journey</AppText>
             <AppText style={styles.subtitle}>Track your learning & progress</AppText>
           </View>
-          <View style={styles.avatarCircle}>
+          <Pressable
+            style={({ pressed }) => [styles.avatarCircle, pressed && { opacity: 0.8 }]}
+            onPress={() => {
+              void Linking.openURL(ALIEN_VIDEO_URL);
+            }}
+          >
             <AppText style={{ fontSize: 18 }}>👽</AppText>
-          </View>
+          </Pressable>
         </View>
 
         <JourneyImpactHeader impact={impact} />

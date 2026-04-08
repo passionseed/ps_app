@@ -1,0 +1,4 @@
+interface:
+  display_name: "Thai Cinematic Comics"
+  short_description: "Portrait comic generation for Thai app content"
+  default_prompt: "Use $thai-cinematic-comic-generation to turn this learning topic into a cinematic portrait comic with Thai captions."
