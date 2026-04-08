@@ -1,269 +1,114 @@
-INSERT INTO public.hackathon_programs (id, slug, title, description, status)
-VALUES (
-  'f1000000-0000-0000-0000-000000000001',
-  'super-seed-hackathon',
-  'Super Seed Hackathon',
-  'Three hackathon phases delivered as a playlist of team-based PathLab modules.',
-  'active'
-)
-ON CONFLICT (slug) DO NOTHING;
-
-INSERT INTO public.hackathon_program_phases (
-  id,
-  program_id,
-  slug,
-  title,
-  description,
-  phase_number,
-  starts_at,
-  ends_at
-)
-VALUES (
-  'f1000000-0000-0000-0000-000000000010',
-  'f1000000-0000-0000-0000-000000000001',
-  'phase-1-customer-discovery',
-  'Phase 1: Customer Discovery',
-  'Systems-thinking customer discovery: understand the system, gather interview evidence, map leverage points, and decide whether to proceed.',
-  1,
-  '2026-04-07T00:00:00Z',
-  '2026-04-26T23:59:59Z'
-)
-ON CONFLICT (program_id, slug) DO NOTHING;
-
-UPDATE public.hackathon_program_phases
-SET
+update public.hackathon_program_phases
+set
   title = 'Phase 1: Customer Discovery',
   description = 'Systems-thinking customer discovery: understand the system, gather interview evidence, map leverage points, and decide whether to proceed.',
   due_at = '2026-04-26T23:59:59Z'
-WHERE id = 'f1000000-0000-0000-0000-000000000010';
-
-INSERT INTO public.hackathon_phase_playlists (
-  id,
-  phase_id,
-  slug,
-  title,
-  description,
-  display_order
-)
-VALUES (
-  'f1000000-0000-0000-0000-000000000020',
-  'f1000000-0000-0000-0000-000000000010',
-  'customer-discovery-core',
-  'Systems Thinking Core Playlist',
-  'Start from the desired outcome, gather evidence from reality, synthesize the system, and make a clear decision.',
-  1
-)
-ON CONFLICT (phase_id, slug) DO NOTHING;
-
-UPDATE public.hackathon_phase_playlists
-SET
-  title = 'Systems Thinking Core Playlist',
-  description = 'Start from the desired outcome, gather evidence from reality, synthesize the system, and make a clear decision.'
-WHERE id = 'f1000000-0000-0000-0000-000000000020';
-
-INSERT INTO public.hackathon_phase_modules (
-  id,
-  playlist_id,
-  slug,
-  title,
-  summary,
-  display_order,
-  workflow_scope,
-  gate_rule,
-  review_mode,
-  required_member_count
-)
-VALUES
-  (
-    'f1000000-0000-0000-0000-000000000101',
-    'f1000000-0000-0000-0000-000000000020',
-    'interview-mindset',
-    'Start With the End',
-    'See the Problem Proof Pack and what strong Phase 1 evidence looks like.',
-    1,
-    'individual',
-    'all_members_complete',
-    'auto',
-    4
-  ),
-  (
-    'f1000000-0000-0000-0000-000000000102',
-    'f1000000-0000-0000-0000-000000000020',
-    'real-customer-evidence',
-    'See the System',
-    'Learn to notice actors, incentives, workarounds, and loops before you interview.',
-    2,
-    'hybrid',
-    'all_members_complete',
-    'auto',
-    4
-  ),
-  (
-    'f1000000-0000-0000-0000-000000000103',
-    'f1000000-0000-0000-0000-000000000020',
-    'pain-point-definition',
-    'Interview and Evidence',
-    'Collect and upload real interview evidence grounded in concrete behavior.',
-    3,
-    'hybrid',
-    'all_members_complete',
-    'auto',
-    4
-  ),
-  (
-    'f1000000-0000-0000-0000-000000000104',
-    'f1000000-0000-0000-0000-000000000020',
-    'persona-jtbd',
-    'System Synthesis',
-    'Turn evidence into a shared system map with loops, bottlenecks, and leverage points.',
-    4,
-    'team',
-    'team_submission_pass',
-    'auto_then_mentor',
-    4
-  ),
-  (
-    'f1000000-0000-0000-0000-000000000105',
-    'f1000000-0000-0000-0000-000000000020',
-    'research-reflection',
-    'Decision and Proof Pack',
-    'Make a Proceed, Pivot, or Kill decision and prepare the mentor-ready proof pack.',
-    5,
-    'team',
-    'mentor_pass',
-    'mentor',
-    4
-  )
-ON CONFLICT (playlist_id, slug) DO NOTHING;
-
-UPDATE public.hackathon_phase_modules
-SET
-  title = 'Start With the End',
-  summary = 'See the Problem Proof Pack and what strong Phase 1 evidence looks like.',
-  workflow_scope = 'individual',
-  gate_rule = 'all_members_complete',
-  review_mode = 'auto',
-  required_member_count = 4
-WHERE id = 'f1000000-0000-0000-0000-000000000101';
-
-UPDATE public.hackathon_phase_modules
-SET
-  title = 'See the System',
-  summary = 'Learn to notice actors, incentives, workarounds, and loops before you interview.',
-  workflow_scope = 'hybrid',
-  gate_rule = 'all_members_complete',
-  review_mode = 'auto',
-  required_member_count = 4
-WHERE id = 'f1000000-0000-0000-0000-000000000102';
-
-UPDATE public.hackathon_phase_modules
-SET
-  title = 'Interview and Evidence',
-  summary = 'Collect and upload real interview evidence grounded in concrete behavior.',
-  workflow_scope = 'hybrid',
-  gate_rule = 'all_members_complete',
-  review_mode = 'auto',
-  required_member_count = 4
-WHERE id = 'f1000000-0000-0000-0000-000000000103';
-
-UPDATE public.hackathon_phase_modules
-SET
-  title = 'System Synthesis',
-  summary = 'Turn evidence into a shared system map with loops, bottlenecks, and leverage points.',
-  workflow_scope = 'team',
-  gate_rule = 'team_submission_pass',
-  review_mode = 'auto_then_mentor',
-  required_member_count = 4
-WHERE id = 'f1000000-0000-0000-0000-000000000104';
-
-UPDATE public.hackathon_phase_modules
-SET
-  title = 'Decision and Proof Pack',
-  summary = 'Make a Proceed, Pivot, or Kill decision and prepare the mentor-ready proof pack.',
-  workflow_scope = 'team',
-  gate_rule = 'mentor_pass',
-  review_mode = 'mentor',
-  required_member_count = 4
-WHERE id = 'f1000000-0000-0000-0000-000000000105';
+where id = '099eb24b-5f7c-4c2f-b971-dd5451fa743f';
 
 delete from public.hackathon_phase_activity_content
 where activity_id in (
   select id
   from public.hackathon_phase_activities
-  where phase_id = 'f1000000-0000-0000-0000-000000000010'
+  where phase_id = '099eb24b-5f7c-4c2f-b971-dd5451fa743f'
 );
 
 delete from public.hackathon_phase_activity_assessments
 where activity_id in (
   select id
   from public.hackathon_phase_activities
-  where phase_id = 'f1000000-0000-0000-0000-000000000010'
+  where phase_id = '099eb24b-5f7c-4c2f-b971-dd5451fa743f'
 );
 
 delete from public.hackathon_phase_activities
-where phase_id = 'f1000000-0000-0000-0000-000000000010';
+where phase_id = '099eb24b-5f7c-4c2f-b971-dd5451fa743f';
 
-INSERT INTO public.hackathon_phase_activities (
+insert into public.hackathon_phase_activities (
   id, phase_id, title, instructions, display_order, estimated_minutes, is_required, is_draft
 )
-VALUES
+values
   (
-    'fa000000-0000-0000-0000-000000000001',
-    'f1000000-0000-0000-0000-000000000010',
+    gen_random_uuid(),
+    '099eb24b-5f7c-4c2f-b971-dd5451fa743f',
     'What You''ll Walk Away With',
     'Start with the end in mind. By the end of Phase 1, your team should leave with a Problem Proof Pack and a clear Proceed, Pivot, or Kill decision.',
-    0, 5, true, false
+    1,
+    5,
+    true,
+    false
   ),
   (
-    'fa000000-0000-0000-0000-000000000002',
-    'f1000000-0000-0000-0000-000000000010',
+    gen_random_uuid(),
+    '099eb24b-5f7c-4c2f-b971-dd5451fa743f',
     'See the System, Not Just the Symptom',
     'Use a systems-thinking lens before you interview anyone. Look for actors, friction, incentives, workarounds, and loops instead of chasing one root cause.',
-    1, 15, true, false
+    2,
+    15,
+    true,
+    false
   ),
   (
-    'fa000000-0000-0000-0000-000000000003',
-    'f1000000-0000-0000-0000-000000000010',
+    gen_random_uuid(),
+    '099eb24b-5f7c-4c2f-b971-dd5451fa743f',
     'Interview Real Humans',
     'Talk to real people and trace what actually happened. Focus on behavior, sequence, friction, workarounds, and tradeoffs.',
-    2, 45, true, false
+    3,
+    45,
+    true,
+    false
   ),
   (
-    'fa000000-0000-0000-0000-000000000004',
-    'f1000000-0000-0000-0000-000000000010',
+    gen_random_uuid(),
+    '099eb24b-5f7c-4c2f-b971-dd5451fa743f',
     'Upload Evidence',
     'Upload the strongest evidence from your interviews so your claims can be inspected by teammates and mentors.',
-    3, 15, true, false
+    4,
+    15,
+    true,
+    false
   ),
   (
-    'fa000000-0000-0000-0000-000000000005',
-    'f1000000-0000-0000-0000-000000000010',
+    gen_random_uuid(),
+    '099eb24b-5f7c-4c2f-b971-dd5451fa743f',
     'Map the System',
     'Turn the raw evidence into structure. Show the actors, recurring pain points, workarounds, incentives, constraints, loops, and leverage points.',
-    4, 25, true, false
+    5,
+    25,
+    true,
+    false
   ),
   (
-    'fa000000-0000-0000-0000-000000000006',
-    'f1000000-0000-0000-0000-000000000010',
+    gen_random_uuid(),
+    '099eb24b-5f7c-4c2f-b971-dd5451fa743f',
     'Decision Gate: Proceed / Pivot / Kill',
     'Decide what the evidence means. This is where your team commits to Proceed, Pivot, or Kill and prepares the reasoning mentors should react to.',
-    5, 20, true, false
+    6,
+    20,
+    true,
+    false
   ),
   (
-    'fa000000-0000-0000-0000-000000000007',
-    'f1000000-0000-0000-0000-000000000010',
+    gen_random_uuid(),
+    '099eb24b-5f7c-4c2f-b971-dd5451fa743f',
     'Submit Problem Proof Pack',
     'Submit the final Phase 1 artifact: target user, system map, interview evidence, problem statement, and decision. This is the mentor-ready package for review.',
-    6, 30, true, false
+    7,
+    30,
+    true,
+    false
   );
 
-INSERT INTO public.hackathon_phase_activity_content (
+with activity_lookup as (
+  select id, title
+  from public.hackathon_phase_activities
+  where phase_id = '099eb24b-5f7c-4c2f-b971-dd5451fa743f'
+)
+insert into public.hackathon_phase_activity_content (
   id, activity_id, content_type, content_title, content_body, content_url, display_order, metadata
 )
-VALUES
+values
   (
-    'fb000000-0000-0000-0000-000000000001',
-    'fa000000-0000-0000-0000-000000000001',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'What You''ll Walk Away With'),
     'webtoon',
     'Phase 1 Promise Page',
     null,
@@ -272,8 +117,8 @@ VALUES
     '{"variant":"webtoon","originalWidth":981,"originalHeight":32768,"panelWidth":981,"panelHeight":1280,"chunks":[{"id":"c1","order":1,"imageKey":"phase1-act1-00","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-00.png"},{"id":"c2","order":2,"imageKey":"phase1-act1-01","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-01.png"},{"id":"c3","order":3,"imageKey":"phase1-act1-02","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-02.png"},{"id":"c4","order":4,"imageKey":"phase1-act1-03","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-03.png"},{"id":"c5","order":5,"imageKey":"phase1-act1-04","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-04.png"},{"id":"c6","order":6,"imageKey":"phase1-act1-05","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-05.png"},{"id":"c7","order":7,"imageKey":"phase1-act1-06","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-06.png"},{"id":"c8","order":8,"imageKey":"phase1-act1-07","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-07.png"},{"id":"c9","order":9,"imageKey":"phase1-act1-08","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-08.png"},{"id":"c10","order":10,"imageKey":"phase1-act1-09","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-09.png"},{"id":"c11","order":11,"imageKey":"phase1-act1-10","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-10.png"},{"id":"c12","order":12,"imageKey":"phase1-act1-11","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-11.png"},{"id":"c13","order":13,"imageKey":"phase1-act1-12","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-12.png"},{"id":"c14","order":14,"imageKey":"phase1-act1-13","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-13.png"},{"id":"c15","order":15,"imageKey":"phase1-act1-14","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-14.png"},{"id":"c16","order":16,"imageKey":"phase1-act1-15","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-15.png"},{"id":"c17","order":17,"imageKey":"phase1-act1-16","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-16.png"},{"id":"c18","order":18,"imageKey":"phase1-act1-17","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-17.png"},{"id":"c19","order":19,"imageKey":"phase1-act1-18","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-18.png"},{"id":"c20","order":20,"imageKey":"phase1-act1-19","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-19.png"},{"id":"c21","order":21,"imageKey":"phase1-act1-20","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-20.png"},{"id":"c22","order":22,"imageKey":"phase1-act1-21","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-21.png"},{"id":"c23","order":23,"imageKey":"phase1-act1-22","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-22.png"},{"id":"c24","order":24,"imageKey":"phase1-act1-23","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-23.png"},{"id":"c25","order":25,"imageKey":"phase1-act1-24","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-24.png"},{"id":"c26","order":26,"imageKey":"phase1-act1-25","imageUrl":"https://iikrvgjfkuijcpvdwzvv.supabase.co/storage/v1/object/public/webtoons/phase1-act1/phase1-act1-25.png"}]}'::jsonb
   ),
   (
-    'fb000000-0000-0000-0000-000000000002',
-    'fa000000-0000-0000-0000-000000000001',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'What You''ll Walk Away With'),
     'text',
     'What success looks like',
     'By the end of Phase 1, your team should be able to say: We understand the system, we have evidence from real people, and we know whether this problem is worth solving.' || E'\n\n' ||
@@ -289,8 +134,8 @@ VALUES
     '{"stage":"outcome_first","mentor_role":"review_after_pack"}'::jsonb
   ),
   (
-    'fb000000-0000-0000-0000-000000000003',
-    'fa000000-0000-0000-0000-000000000002',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'See the System, Not Just the Symptom'),
     'text',
     'Systems Thinking Primer',
     'Before you interview anyone, train your eye to see the system.' || E'\n\n' ||
@@ -308,8 +153,8 @@ VALUES
     '{"tool":"loopy_or_equivalent","artifact":"system_map_v1"}'::jsonb
   ),
   (
-    'fb000000-0000-0000-0000-000000000004',
-    'fa000000-0000-0000-0000-000000000003',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Interview Real Humans'),
     'text',
     'Interview Guide',
     'Do not teach or use 5 Whys here. Teach students to trace the system through real behavior.' || E'\n\n' ||
@@ -328,8 +173,8 @@ VALUES
     '{"target_interviews":"5-10","focus":"behavior_not_opinion"}'::jsonb
   ),
   (
-    'fb000000-0000-0000-0000-000000000005',
-    'fa000000-0000-0000-0000-000000000004',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Upload Evidence'),
     'text',
     'Evidence Bundle Guidance',
     'Upload the raw evidence that proves the problem is real. Think like a mentor reviewing your work: can they see what people said, did, and struggled with?' || E'\n\n' ||
@@ -339,8 +184,8 @@ VALUES
     '{"review_audience":"team_and_mentors","artifact":"evidence_bundle"}'::jsonb
   ),
   (
-    'fb000000-0000-0000-0000-000000000006',
-    'fa000000-0000-0000-0000-000000000005',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Map the System'),
     'text',
     'System Synthesis Guide',
     'Turn your evidence into structure.' || E'\n\n' ||
@@ -357,8 +202,8 @@ VALUES
     '{"artifact":"system_map_v2","mentor_focus":"loops_workarounds_leverage_point"}'::jsonb
   ),
   (
-    'fb000000-0000-0000-0000-000000000007',
-    'fa000000-0000-0000-0000-000000000006',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Decision Gate: Proceed / Pivot / Kill'),
     'text',
     'Decision Gate Guidance',
     'Now decide what the evidence means.' || E'\n\n' ||
@@ -371,8 +216,8 @@ VALUES
     '{"decision_options":["Proceed","Pivot","Kill"],"mentor_role":"react_to_reasoning"}'::jsonb
   ),
   (
-    'fb000000-0000-0000-0000-000000000008',
-    'fa000000-0000-0000-0000-000000000007',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Submit Problem Proof Pack'),
     'text',
     'Problem Proof Pack Checklist',
     'Your final submission should contain:' || E'\n' ||
@@ -387,13 +232,18 @@ VALUES
     '{"artifact":"problem_proof_pack","mentor_role":"phase_gate_review"}'::jsonb
   );
 
-INSERT INTO public.hackathon_phase_activity_assessments (
+with activity_lookup as (
+  select id, title
+  from public.hackathon_phase_activities
+  where phase_id = '099eb24b-5f7c-4c2f-b971-dd5451fa743f'
+)
+insert into public.hackathon_phase_activity_assessments (
   id, activity_id, assessment_type, display_order, points_possible, is_graded, metadata
 )
-VALUES
+values
   (
-    'fc000000-0000-0000-0000-000000000000',
-    'fa000000-0000-0000-0000-000000000001',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'What You''ll Walk Away With'),
     'text_answer',
     0,
     null,
@@ -401,8 +251,8 @@ VALUES
     '{"submission_label":"มุมมองตั้งต้นของคุณ","prompt":"ตอบสั้นๆ ทั้ง 2 ข้อ\n1. ตอนนี้ทีมของคุณกำลังสนใจจะแก้ปัญหาหรือความท้าทายอะไรใน hackathon นี้? คุณคิดว่านี่เป็น wicked problem ไหม? เพราะอะไร\n2. คุณรู้สึกอย่างไรกับปัญหาที่เลือกตอนนี้: ง่ายไป ยากไป น่ากลัว ท้อ น่าตื่นเต้น หรือยังไม่ชัด? อะไรทำให้คุณรู้สึกแบบนั้น","placeholder":"1. ปัญหาหรือความท้าทายที่ทีมสนใจ:\nฉันคิดว่านี่เป็น / ไม่เป็น wicked problem เพราะ...\n\n2. ตอนนี้ฉันรู้สึกว่า:\nเหตุผลคือ..."}'::jsonb
   ),
   (
-    'fc000000-0000-0000-0000-000000000001',
-    'fa000000-0000-0000-0000-000000000002',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'See the System, Not Just the Symptom'),
     'image_upload',
     0,
     null,
@@ -410,8 +260,8 @@ VALUES
     '{"submission_label":"Rough System Map v1","prompt":"Upload a sketch or screenshot of your first-pass system map. Show actors, sequence, friction, workarounds, and at least one loop or repeated pattern."}'::jsonb
   ),
   (
-    'fc000000-0000-0000-0000-000000000002',
-    'fa000000-0000-0000-0000-000000000004',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Upload Evidence'),
     'file_upload',
     0,
     null,
@@ -419,8 +269,8 @@ VALUES
     '{"submission_label":"Interview evidence bundle","prompt":"Upload one clean bundle of interview notes, transcripts, screenshots, or field notes that proves the problem is real.","accepted_types":["pdf","docx","pptx"]}'::jsonb
   ),
   (
-    'fc000000-0000-0000-0000-000000000003',
-    'fa000000-0000-0000-0000-000000000005',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Map the System'),
     'image_upload',
     0,
     null,
@@ -428,8 +278,8 @@ VALUES
     '{"submission_label":"System Map v2","prompt":"Upload your synthesized system map showing actors, loops, bottlenecks, and your best current leverage point."}'::jsonb
   ),
   (
-    'fc000000-0000-0000-0000-000000000004',
-    'fa000000-0000-0000-0000-000000000005',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Map the System'),
     'text_answer',
     1,
     null,
@@ -437,8 +287,8 @@ VALUES
     '{"submission_label":"Leverage point explanation","prompt":"What keeps this problem alive in the system? Where is the leverage point? What changed between System Map v1 and v2?","placeholder":"Name the loop or pattern, explain the leverage point, and describe the strongest insight from your synthesis."}'::jsonb
   ),
   (
-    'fc000000-0000-0000-0000-000000000005',
-    'fa000000-0000-0000-0000-000000000006',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Decision Gate: Proceed / Pivot / Kill'),
     'text_answer',
     0,
     null,
@@ -446,8 +296,8 @@ VALUES
     '{"submission_label":"Proceed / Pivot / Kill decision","prompt":"Start with one word: Proceed, Pivot, or Kill. Then answer: What is the strongest evidence this problem is real? What keeps it alive in the system? Where is the leverage point? Why is this your decision? What evidence would make you change your mind?","placeholder":"Proceed / Pivot / Kill ..."}'::jsonb
   ),
   (
-    'fc000000-0000-0000-0000-000000000006',
-    'fa000000-0000-0000-0000-000000000007',
+    gen_random_uuid(),
+    (select id from activity_lookup where title = 'Submit Problem Proof Pack'),
     'text_answer',
     0,
     null,
