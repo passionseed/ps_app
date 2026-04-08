@@ -266,8 +266,14 @@ export default function HackathonJourneyScreen() {
   const [impact, setImpact] = useState<TeamImpact | null>(
     cachedBundle?.impact ?? null,
   );
+  const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0 });
   const [loading, setLoading] = useState(!cachedBundle);
   const [refreshing, setRefreshing] = useState(false);
+  const currentPhaseCard =
+    phaseCards.find((card) => card.isActive) ??
+    phaseCards.find((card) => card.phase.status === "released") ??
+    null;
+  const currentPhase = currentPhaseCard?.phase ?? null;
 
   const load = useCallback(async () => {
     const cached = getCachedHackathonJourneyBundle();
@@ -302,6 +308,28 @@ export default function HackathonJourneyScreen() {
   }, [refreshing]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useEffect(() => {
+    const deadline = currentPhase?.due_at ?? currentPhase?.ends_at;
+    const target = deadline ? new Date(deadline).getTime() : null;
+
+    const update = () => {
+      if (!target) {
+        setTimeLeft({ d: 0, h: 0, m: 0 });
+        return;
+      }
+
+      const diff = Math.max(0, target - Date.now());
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      setTimeLeft({ d, h, m });
+    };
+
+    update();
+    const interval = setInterval(update, 60_000);
+    return () => clearInterval(interval);
+  }, [currentPhase]);
 
   if (loading || !data) {
     return (
@@ -340,6 +368,42 @@ export default function HackathonJourneyScreen() {
           </Pressable>
         </View>
 
+        {currentPhase ? (
+          <Pressable
+            style={styles.countdownContainer}
+            onPressIn={() => void preloadHackathonPhaseBundle(currentPhase.id)}
+            onPress={() => router.push(`/(hackathon)/phase/${currentPhase.id}`)}
+          >
+            <AppText style={styles.countdownEyebrow}>CURRENT PHASE</AppText>
+            <AppText variant="bold" style={styles.countdownTitle}>
+              {currentPhase.title}
+            </AppText>
+            {(currentPhase.due_at ?? currentPhase.ends_at) ? (
+              <View style={styles.countdownBoxes}>
+                <View style={styles.countBox}>
+                  <AppText variant="bold" style={styles.countVal}>{timeLeft.d}</AppText>
+                  <AppText style={styles.countLabel}>DAYS</AppText>
+                </View>
+                <View style={styles.countBox}>
+                  <AppText variant="bold" style={styles.countVal}>
+                    {timeLeft.h.toString().padStart(2, "0")}
+                  </AppText>
+                  <AppText style={styles.countLabel}>HOURS</AppText>
+                </View>
+                <View style={styles.countBox}>
+                  <AppText variant="bold" style={styles.countVal}>
+                    {timeLeft.m.toString().padStart(2, "0")}
+                  </AppText>
+                  <AppText style={styles.countLabel}>MINS</AppText>
+                </View>
+              </View>
+            ) : (
+              <AppText style={styles.countdownNoDue}>No due date set</AppText>
+            )}
+            <AppText style={styles.countdownCta}>Continue Journey →</AppText>
+          </Pressable>
+        ) : null}
+
         <JourneyImpactHeader impact={impact} />
 
         {/* Vertical Phases */}
@@ -353,24 +417,6 @@ export default function HackathonJourneyScreen() {
                 isLast={index === phaseCards.length - 1} 
               />
             ))}
-            
-            {/* Coming Soon Node */}
-            <Animated.View entering={FadeInDown.delay(phaseCards.length * 150 + 100).springify()} style={styles.verticalTimelineRow}>
-              <View style={styles.timelineIndicatorCol}>
-                <View style={[styles.timelineDotLocked, { borderColor: "rgba(255,255,255,0.05)" }]} />
-              </View>
-              <View style={[styles.verticalCardWrapper, { opacity: 0.4 }]}>
-                <BlurView intensity={20} tint="dark" style={styles.cardBlur}>
-                  <LinearGradient 
-                    colors={['rgba(255, 255, 255, 0.02)', 'transparent']} 
-                    style={[styles.cardInner, { alignItems: 'center', justifyContent: 'center', minHeight: 100 }]}
-                  >
-                    <AppText variant="bold" style={{ fontSize: 16, color: WHITE28, letterSpacing: 1 }}>COMING SOON</AppText>
-                    <AppText style={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>More challenges await!</AppText>
-                  </LinearGradient>
-                </BlurView>
-              </View>
-            </Animated.View>
           </View>
         ) : (
           <View style={styles.emptyPhases}>
@@ -393,6 +439,69 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, lineHeight: 40, color: WHITE, fontFamily: "BaiJamjuree_700Bold", marginTop: 4 },
   subtitle: { fontSize: 14, color: "rgba(255,255,255,0.5)", marginTop: 2 },
   avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+
+  countdownContainer: {
+    alignItems: "center",
+    backgroundColor: "rgba(13,18,25,0.6)",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: CYAN45,
+    padding: Space.xl,
+  },
+  countdownEyebrow: {
+    fontSize: 10,
+    color: CYAN,
+    letterSpacing: 2,
+    marginBottom: Space.xs,
+    fontFamily: "BaiJamjuree_500Medium",
+  },
+  countdownTitle: {
+    fontSize: 22,
+    color: WHITE,
+    marginBottom: Space.lg,
+    textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  countdownBoxes: {
+    flexDirection: "row",
+    gap: Space.md,
+  },
+  countBox: {
+    backgroundColor: "rgba(145,196,227,0.1)",
+    borderRadius: 12,
+    width: 72,
+    height: 72,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.2)",
+  },
+  countVal: {
+    fontSize: 24,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  countLabel: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 2,
+    letterSpacing: 1,
+    fontFamily: "BaiJamjuree_500Medium",
+  },
+  countdownNoDue: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.4)",
+    fontFamily: "BaiJamjuree_400Regular",
+    marginTop: Space.xs,
+  },
+  countdownCta: {
+    fontSize: 11,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginTop: Space.xl,
+  },
 
   // Impact Header
   impactContainer: { backgroundColor: "rgba(255,255,255,0.02)", borderRadius: 20, padding: Space.lg, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },

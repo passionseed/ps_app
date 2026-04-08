@@ -10,10 +10,8 @@ import { Space } from "../../lib/theme";
 import {
   getCachedHackathonHomeBundle,
   loadHackathonHomeBundle,
-  preloadHackathonPhaseBundle,
 } from "../../lib/hackathonScreenData";
 import type { TeamImpact } from "../../lib/hackathon-submit";
-import type { HackathonProgramPhase } from "../../types/hackathon-program";
 
 type MentorPreview = { id: string; full_name: string; photo_url?: string };
 
@@ -28,10 +26,6 @@ export default function HackathonHomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const cachedBundle = getCachedHackathonHomeBundle();
-  const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0 });
-  const [currentPhase, setCurrentPhase] = useState<HackathonProgramPhase | null>(
-    cachedBundle?.currentPhase ?? null,
-  );
   const [impact, setImpact] = useState<TeamImpact | null>(
     cachedBundle?.impact ?? null,
   );
@@ -42,7 +36,6 @@ export default function HackathonHomeScreen() {
     useCallback(() => {
       const cached = getCachedHackathonHomeBundle();
       if (cached) {
-        setCurrentPhase(cached.currentPhase);
         setImpact(cached.impact);
         setLoading(false);
       } else {
@@ -51,7 +44,6 @@ export default function HackathonHomeScreen() {
 
       loadHackathonHomeBundle()
         .then((bundle) => {
-          setCurrentPhase(bundle.currentPhase);
           setImpact(bundle.impact);
         })
         .finally(() => {
@@ -64,28 +56,6 @@ export default function HackathonHomeScreen() {
         .catch(() => {});
     }, [])
   );
-
-  useEffect(() => {
-    const deadline = currentPhase?.due_at ?? currentPhase?.ends_at;
-    const target = deadline ? new Date(deadline).getTime() : null;
-
-    const update = () => {
-      if (!target) {
-        setTimeLeft({ d: 0, h: 0, m: 0 });
-        return;
-      }
-      const now = Date.now();
-      const diff = Math.max(0, target - now);
-      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      setTimeLeft({ d, h, m });
-    };
-
-    update();
-    const interval = setInterval(update, 60000);
-    return () => clearInterval(interval);
-  }, [currentPhase]);
 
   if (loading) {
     return (
@@ -111,37 +81,6 @@ export default function HackathonHomeScreen() {
             Preventive & Predictive Healthcare
           </Text>
         </View>
-
-        {/* Countdown */}
-        {currentPhase && (
-          <Pressable
-            style={styles.countdownContainer}
-            onPressIn={() => void preloadHackathonPhaseBundle(currentPhase.id)}
-            onPress={() => router.push(`/(hackathon)/phase/${currentPhase.id}`)}
-          >
-            <AppText style={styles.countdownEyebrow}>CURRENT PHASE</AppText>
-            <AppText variant="bold" style={styles.countdownTitle}>{currentPhase.title}</AppText>
-            {(currentPhase.due_at ?? currentPhase.ends_at) ? (
-              <View style={styles.countdownBoxes}>
-                <View style={styles.countBox}>
-                  <AppText variant="bold" style={styles.countVal}>{timeLeft.d}</AppText>
-                  <AppText style={styles.countLabel}>DAYS</AppText>
-                </View>
-                <View style={styles.countBox}>
-                  <AppText variant="bold" style={styles.countVal}>{timeLeft.h.toString().padStart(2, "0")}</AppText>
-                  <AppText style={styles.countLabel}>HOURS</AppText>
-                </View>
-                <View style={styles.countBox}>
-                  <AppText variant="bold" style={styles.countVal}>{timeLeft.m.toString().padStart(2, "0")}</AppText>
-                  <AppText style={styles.countLabel}>MINS</AppText>
-                </View>
-              </View>
-            ) : (
-              <AppText style={styles.countdownNoDue}>No due date set</AppText>
-            )}
-            <AppText style={styles.countdownCta}>Continue Journey →</AppText>
-          </Pressable>
-        )}
 
         {/* Team Impact */}
         <View style={styles.impactContainer}>
@@ -224,65 +163,6 @@ const styles = StyleSheet.create({
     color: WHITE, 
     textAlign: "center", 
     marginTop: -45, 
-  },
-
-  countdownContainer: {
-    alignItems: "center",
-    backgroundColor: "rgba(13,18,25,0.6)",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: CYAN_DIM,
-    padding: Space.xl,
-  },
-  countdownEyebrow: {
-    fontSize: 10,
-    color: CYAN,
-    letterSpacing: 2,
-    marginBottom: Space.xs,
-    fontFamily: "BaiJamjuree_500Medium",
-  },
-  countdownTitle: {
-    fontSize: 22,
-    color: WHITE,
-    marginBottom: Space.lg,
-  },
-  countdownCta: {
-    fontSize: 11,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_700Bold",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    marginTop: Space.xl,
-  },
-  countdownNoDue: {
-    fontSize: 13,
-    color: WHITE40,
-    fontFamily: "BaiJamjuree_400Regular",
-    marginTop: Space.xs,
-  },
-  countdownBoxes: {
-    flexDirection: "row",
-    gap: Space.md,
-  },
-  countBox: {
-    backgroundColor: "rgba(145,196,227,0.1)",
-    borderRadius: 12,
-    width: 72,
-    height: 72,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.2)",
-  },
-  countVal: {
-    fontSize: 24,
-    color: WHITE,
-  },
-  countLabel: {
-    fontSize: 9,
-    color: WHITE70,
-    marginTop: 2,
-    letterSpacing: 1,
   },
 
   impactContainer: {

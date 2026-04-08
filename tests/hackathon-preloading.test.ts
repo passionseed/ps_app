@@ -31,9 +31,13 @@ describe("hackathon preloading", () => {
   });
 
   it("prefetches phase and activity screens before navigation", () => {
-    expect(homeScreenSource).toContain("preloadHackathonPhaseBundle(currentPhase.id)");
     expect(journeyScreenSource).toContain("preloadHackathonPhaseBundle(card.phase.id)");
     expect(phaseScreenSource).toContain("preloadHackathonActivityBundle(activity.id)");
+  });
+
+  it("keeps countdown ownership on journey instead of duplicating it on home", () => {
+    expect(journeyScreenSource).toContain("CURRENT PHASE");
+    expect(homeScreenSource).not.toContain("CURRENT PHASE");
   });
 
   it("preloads adjacent hackathon activities and keeps grouped routing", () => {

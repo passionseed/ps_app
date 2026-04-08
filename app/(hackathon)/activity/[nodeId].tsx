@@ -553,6 +553,8 @@ export default function HackathonActivityScreen() {
   const PULL_HINT_SLIDE_PX = 104;
 
   const lastPrevNavAtRef = useRef(0);
+  const [swipePrevEnabled, setSwipePrevEnabled] = useState(false);
+  const [swipeNextEnabled, setSwipeNextEnabled] = useState(false);
   const swipePrevEnabledSV = useSharedValue(0);
   const swipeNextEnabledSV = useSharedValue(0);
   const isSubmittedSV = useSharedValue(0);
@@ -803,8 +805,12 @@ export default function HackathonActivityScreen() {
     const currentAccessibleIndex = siblings.findIndex(
       (sibling) => sibling.id === nodeId,
     );
-    swipePrevEnabledSV.value = currentAccessibleIndex > 0 ? 1 : 0;
-    swipeNextEnabledSV.value = currentAccessibleIndex >= 0 ? 1 : 0;
+    const prevEnabled = currentAccessibleIndex > 0;
+    const nextEnabled = currentAccessibleIndex >= 0;
+    setSwipePrevEnabled(prevEnabled);
+    setSwipeNextEnabled(nextEnabled);
+    swipePrevEnabledSV.value = prevEnabled ? 1 : 0;
+    swipeNextEnabledSV.value = nextEnabled ? 1 : 0;
 
     if (currentAccessibleIndex > 0) {
       void preloadHackathonActivityBundle(siblings[currentAccessibleIndex - 1]!.id);
@@ -922,7 +928,7 @@ export default function HackathonActivityScreen() {
           prevPullOverlayStyle,
         ]}
       >
-        {swipePrevEnabledSV.value === 1 ? (
+        {swipePrevEnabled ? (
           <HackathonSwipeDonut
             direction="previous"
             progress={prevSwipeProgress}
@@ -943,7 +949,7 @@ export default function HackathonActivityScreen() {
         ]}
       >
         {pastSubmissions.length > 0 ? (
-          swipeNextEnabledSV.value === 1 ? (
+          swipeNextEnabled ? (
             <HackathonSwipeDonut
               direction="next"
               progress={nextSwipeProgress}
@@ -968,12 +974,12 @@ export default function HackathonActivityScreen() {
         onScrollEndDrag={(e) => {
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
           const scrollY_val = contentOffset.y;
-          if (swipePrevEnabledSV.value === 1 && scrollY_val < -SWIPE_NEXT_THRESHOLD * 0.6) {
+          if (swipePrevEnabled && scrollY_val < -SWIPE_NEXT_THRESHOLD * 0.6) {
             handleSwipeToPrevious();
           }
           const maxScrollY = Math.max(0, contentSize.height - layoutMeasurement.height);
           const overscrollY = scrollY_val - maxScrollY;
-          if (swipeNextEnabledSV.value === 1 && overscrollY > SWIPE_NEXT_THRESHOLD * 0.6) {
+          if (swipeNextEnabled && overscrollY > SWIPE_NEXT_THRESHOLD * 0.6) {
             handleSwipeToNext();
           }
           // Reset all progress values so overlays don't get stuck

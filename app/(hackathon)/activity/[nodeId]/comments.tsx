@@ -8,6 +8,7 @@ import { AppText } from "../../../../components/AppText";
 import { SkiaBackButton } from "../../../../components/navigation/SkiaBackButton";
 import { ActivityCommentsFull } from "../../../../components/Hackathon/ActivityCommentsFull";
 import { useHackathonParticipant } from "../../../../lib/hackathon-mode";
+import { isCommentModeratorRole } from "../../../../lib/hackathonCommentsPermissions";
 
 // ── Bioluminescent tokens ─────────────────────────────────────────
 const BG = "#03050a";
@@ -20,7 +21,7 @@ export default function CommentsScreen() {
   const participant = useHackathonParticipant();
 
   const participantId = participant?.id ?? "";
-  const isAdmin = participant?.role === "admin" || participant?.role === "organizer";
+  const isAdmin = isCommentModeratorRole(participant?.role);
 
   return (
     <View style={styles.root}>
