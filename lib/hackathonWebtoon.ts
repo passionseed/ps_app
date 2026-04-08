@@ -36,7 +36,11 @@ function normalizeChunk(
   return {
     id: toStringValue(chunk.id) ?? `chunk-${index + 1}`,
     order: toNumberValue(chunk.order) ?? index + 1,
-    imageKey: toStringValue(chunk.image_key),
+    imageKey:
+      toStringValue(chunk.image_url) ??
+      toStringValue(chunk.imageUrl) ??
+      toStringValue(chunk.image_key) ??
+      toStringValue(chunk.imageKey),
   };
 }
 
@@ -71,10 +75,18 @@ export function parseHackathonWebtoonContent(
 
   return {
     variant: toStringValue(metadata.variant) ?? "webtoon",
-    originalWidth: toNumberValue(metadata.original_width),
-    originalHeight: toNumberValue(metadata.original_height),
-    panelWidth: toNumberValue(metadata.panel_width),
-    panelHeight: toNumberValue(metadata.panel_height),
+    originalWidth:
+      toNumberValue(metadata.original_width) ??
+      toNumberValue(metadata.originalWidth),
+    originalHeight:
+      toNumberValue(metadata.original_height) ??
+      toNumberValue(metadata.originalHeight),
+    panelWidth:
+      toNumberValue(metadata.panel_width) ??
+      toNumberValue(metadata.panelWidth),
+    panelHeight:
+      toNumberValue(metadata.panel_height) ??
+      toNumberValue(metadata.panelHeight),
     chunks: normalizedChunks,
   };
 }

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   type ImageSourcePropType,
@@ -49,19 +49,49 @@ function WebtoonChunk({
   aspectRatio: number;
 }) {
   const imageSource = resolveChunkImageSource(chunk, fallbackUrl);
+  const [resolvedAspectRatio, setResolvedAspectRatio] = useState(aspectRatio);
+
+  useEffect(() => {
+    if (!imageSource || !("uri" in imageSource) || !imageSource.uri) {
+      setResolvedAspectRatio(aspectRatio);
+      return;
+    }
+
+    let cancelled = false;
+
+    Image.getSize(
+      imageSource.uri,
+      (naturalWidth, naturalHeight) => {
+        if (cancelled || naturalWidth <= 0 || naturalHeight <= 0) {
+          return;
+        }
+
+        setResolvedAspectRatio(naturalWidth / naturalHeight);
+      },
+      () => {
+        if (!cancelled) {
+          setResolvedAspectRatio(aspectRatio);
+        }
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [aspectRatio, imageSource]);
 
   if (!imageSource) {
     return null;
   }
 
-  const chunkHeight = width / aspectRatio;
+  const chunkHeight = width / resolvedAspectRatio;
 
   return (
     <View style={[styles.chunkContainer, { width, height: chunkHeight }]}>
       <Image
         source={imageSource}
         style={[styles.chunkImage, { width, height: chunkHeight }]}
-        resizeMode="stretch"
+        resizeMode="cover"
         accessibilityLabel={`Webtoon chunk ${chunk.order}`}
       />
     </View>
