@@ -8,6 +8,11 @@ import { getSupabaseRuntimeConfig } from "./runtime-config";
 import { resolveAppLanguage } from "./app-language";
 import { preloadDiscoverData } from "./pathlab";
 import {
+  clearHackathonScreenDataCache,
+  preloadHackathonHomeBundle,
+  preloadHackathonJourneyBundle,
+} from "./hackathonScreenData";
+import {
   type GuestLanguage,
   normalizeGuestLanguage,
   readGuestLanguage,
@@ -212,6 +217,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("[Auth] bootstrap hackathonMode:", hackathonMode);
         if (hackathonMode) {
           setIsHackathon(true);
+          void preloadHackathonHomeBundle();
+          void preloadHackathonJourneyBundle();
         }
         void preloadDiscoverData({
           userId: session?.user.id ?? null,
@@ -269,6 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsHackathon(false);
             void saveHackathonMode(false);
             void clearHackathonSession();
+            clearHackathonScreenDataCache();
           }
           setLoading(false);
           return;
@@ -362,13 +370,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await saveHackathonSession(body.token, body.participant);
     await saveHackathonMode(true);
+    clearHackathonScreenDataCache();
     setIsHackathon(true);
+    void preloadHackathonHomeBundle();
+    void preloadHackathonJourneyBundle();
   };
 
   const signOutHackathon = async () => {
     console.log("[Auth] signOutHackathon start");
     await clearHackathonSession();
     await saveHackathonMode(false);
+    clearHackathonScreenDataCache();
     setIsHackathon(false);
     console.log("[Auth] signOutHackathon done");
   };

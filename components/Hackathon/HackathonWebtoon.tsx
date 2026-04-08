@@ -1,140 +1,200 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import {
-  Image,
-  type ImageSourcePropType,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+  runOnJS,
+  type SharedValue,
+  useAnimatedReaction,
+} from "react-native-reanimated";
 import { Space } from "../../lib/theme";
+import {
+  collectWebtoonPrefetchUrls,
+  getWebtoonChunkHeight,
+  getWebtoonWindowRange,
+  resolveWebtoonChunkUrl,
+} from "../../lib/hackathonWebtoon";
 import type {
   HackathonWebtoonContent,
-  HackathonWebtoonChunk,
 } from "../../types/hackathon-phase-activity";
 
 type HackathonWebtoonProps = {
   webtoon: HackathonWebtoonContent;
   fallbackUrl?: string | null;
+  scrollY?: SharedValue<number>;
+  viewportHeight?: number;
+  contentSectionY?: number;
 };
 
-function resolveChunkImageSource(
-  chunk: HackathonWebtoonChunk,
-  fallbackUrl: string | null,
-): ImageSourcePropType | null {
-  if (!chunk.imageKey) {
-    return fallbackUrl ? { uri: fallbackUrl } : null;
-  }
-
-  if (
-    chunk.imageKey.startsWith("http://") ||
-    chunk.imageKey.startsWith("https://") ||
-    chunk.imageKey.startsWith("file://") ||
-    chunk.imageKey.startsWith("/")
-  ) {
-    return { uri: chunk.imageKey };
-  }
-
-  return fallbackUrl ? { uri: fallbackUrl } : null;
-}
-
-function WebtoonChunk({
-  chunk,
-  fallbackUrl,
-  width,
-  aspectRatio,
-}: {
-  chunk: HackathonWebtoonChunk;
-  fallbackUrl: string | null;
-  width: number;
-  aspectRatio: number;
-}) {
-  const imageSource = resolveChunkImageSource(chunk, fallbackUrl);
-  const [resolvedAspectRatio, setResolvedAspectRatio] = useState(aspectRatio);
-
-  useEffect(() => {
-    if (!imageSource || !("uri" in imageSource) || !imageSource.uri) {
-      setResolvedAspectRatio(aspectRatio);
-      return;
-    }
-
-    let cancelled = false;
-
-    Image.getSize(
-      imageSource.uri,
-      (naturalWidth, naturalHeight) => {
-        if (cancelled || naturalWidth <= 0 || naturalHeight <= 0) {
-          return;
-        }
-
-        setResolvedAspectRatio(naturalWidth / naturalHeight);
-      },
-      () => {
-        if (!cancelled) {
-          setResolvedAspectRatio(aspectRatio);
-        }
-      },
-    );
-
-    return () => {
-      cancelled = true;
-    };
-  }, [aspectRatio, imageSource]);
-
-  if (!imageSource) {
-    return null;
-  }
-
-  const chunkHeight = width / resolvedAspectRatio;
-
-  return (
-    <View style={[styles.chunkContainer, { width, height: chunkHeight }]}>
-      <Image
-        source={imageSource}
-        style={[styles.chunkImage, { width, height: chunkHeight }]}
-        resizeMode="cover"
-        accessibilityLabel={`Webtoon chunk ${chunk.order}`}
-      />
-    </View>
-  );
-}
+const SCROLL_BUCKET_PX = 160;
+const OVERSCAN_SCREENS = 1.25;
 
 export default function HackathonWebtoon({
   webtoon,
   fallbackUrl = null,
+  scrollY,
+  viewportHeight = 0,
+  contentSectionY = 0,
 }: HackathonWebtoonProps) {
   const { width: viewportWidth } = useWindowDimensions();
+  const [rootOffsetY, setRootOffsetY] = useState(0);
+  const [scrollBucketOffset, setScrollBucketOffset] = useState(0);
+  const [visibleRange, setVisibleRange] = useState(() => ({
+    startIndex: 0,
+    endIndex: Math.min(Math.max(0, webtoon.chunks.length - 1), 3),
+  }));
 
-  // Use panel dimensions from metadata, with fallbacks
   const panelWidth = webtoon.panelWidth ?? 1080;
   const panelHeight = webtoon.panelHeight ?? 1374;
-  const aspectRatio = panelWidth / panelHeight;
+  const fallbackAspectRatio =
+    panelWidth > 0 && panelHeight > 0 ? panelWidth / panelHeight : 1;
+
+  const chunkHeights = useMemo(
+    () =>
+      webtoon.chunks.map((chunk, index) =>
+        getWebtoonChunkHeight({
+          chunk,
+          containerWidth: viewportWidth,
+          fallbackAspectRatio,
+          chunkIndex: index,
+          totalChunks: webtoon.chunks.length,
+          panelWidth,
+          panelHeight,
+          originalHeight: webtoon.originalHeight,
+        }),
+      ),
+    [
+      fallbackAspectRatio,
+      panelHeight,
+      panelWidth,
+      viewportWidth,
+      webtoon.chunks,
+      webtoon.originalHeight,
+    ],
+  );
+
+  useAnimatedReaction(
+    () => {
+      if (!scrollY) {
+        return -1;
+      }
+
+      return Math.floor(scrollY.value / SCROLL_BUCKET_PX);
+    },
+    (bucket, previousBucket) => {
+      if (bucket < 0 || bucket === previousBucket) {
+        return;
+      }
+
+      runOnJS(setScrollBucketOffset)(bucket * SCROLL_BUCKET_PX);
+    },
+  );
+
+  useEffect(() => {
+    if (!(viewportHeight > 0) || !scrollY) {
+      setVisibleRange({
+        startIndex: 0,
+        endIndex: Math.max(0, webtoon.chunks.length - 1),
+      });
+      return;
+    }
+
+    const nextRange = getWebtoonWindowRange({
+      itemHeights: chunkHeights,
+      scrollOffset: Math.max(0, scrollBucketOffset - (contentSectionY + rootOffsetY)),
+      viewportHeight,
+      overscanScreens: OVERSCAN_SCREENS,
+    });
+
+    setVisibleRange((previousRange) => {
+      if (
+        previousRange.startIndex === nextRange.startIndex &&
+        previousRange.endIndex === nextRange.endIndex
+      ) {
+        return previousRange;
+      }
+
+      return nextRange;
+    });
+  }, [
+    chunkHeights,
+    contentSectionY,
+    rootOffsetY,
+    scrollBucketOffset,
+    scrollY,
+    viewportHeight,
+    webtoon.chunks.length,
+  ]);
+
+  useEffect(() => {
+    const urls = collectWebtoonPrefetchUrls({
+      chunks: webtoon.chunks,
+      visibleStartIndex: visibleRange.startIndex,
+      visibleEndIndex: visibleRange.endIndex,
+      fallbackUrl,
+      beforeCount: 2,
+      afterCount: 3,
+    });
+
+    if (urls.length === 0) {
+      return;
+    }
+
+    void ExpoImage.prefetch(urls, { cachePolicy: "memory-disk" }).catch(() => {});
+  }, [fallbackUrl, visibleRange.endIndex, visibleRange.startIndex, webtoon.chunks]);
 
   return (
-    <View style={styles.root}>
-      {webtoon.chunks.map((chunk) => (
-        <WebtoonChunk
-          key={chunk.id}
-          chunk={chunk}
-          fallbackUrl={fallbackUrl}
-          width={viewportWidth}
-          aspectRatio={aspectRatio}
-        />
-      ))}
+    <View
+      style={styles.root}
+      onLayout={(event) => setRootOffsetY(event.nativeEvent.layout.y)}
+    >
+      {webtoon.chunks.map((chunk, index) => {
+        const chunkHeight = chunkHeights[index] ?? 0;
+        const imageUrl = resolveWebtoonChunkUrl(chunk, fallbackUrl);
+        const shouldRenderImage =
+          index >= visibleRange.startIndex && index <= visibleRange.endIndex;
+
+        if (!shouldRenderImage || !imageUrl) {
+          return (
+            <View
+              key={chunk.id}
+              style={[styles.chunkContainer, { width: viewportWidth, height: chunkHeight }]}
+            />
+          );
+        }
+
+        return (
+          <View
+            key={chunk.id}
+            style={[styles.chunkContainer, { width: viewportWidth, height: chunkHeight }]}
+          >
+            <ExpoImage
+              source={{ uri: imageUrl }}
+              style={styles.chunkImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              recyclingKey={`${chunk.id}:${imageUrl}`}
+              transition={120}
+              accessibilityLabel={`Webtoon chunk ${chunk.order}`}
+            />
+          </View>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    // Negative horizontal margin to go edge-to-edge if the parent has padding
     marginHorizontal: -Space.lg,
     flexDirection: "column",
     backgroundColor: "#000",
   },
   chunkContainer: {
     overflow: "hidden",
+    backgroundColor: "#000",
   },
   chunkImage: {
-    // Images are stacked vertically without gaps
+    width: "100%",
+    height: "100%",
   },
 });
