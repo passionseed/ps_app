@@ -50,6 +50,9 @@ export interface HackathonWebtoonChunkMetadata {
   id?: string;
   order?: number;
   image_key?: string;
+  imageKey?: string;
+  image_url?: string;
+  imageUrl?: string;
 }
 
 export interface HackathonWebtoonMetadata {
