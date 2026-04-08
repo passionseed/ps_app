@@ -24,6 +24,7 @@ import {
   subscribeToActivityComments,
   unsubscribeFromActivityComments,
 } from "../../lib/hackathonComments";
+import { removeCommentFromList } from "../../lib/hackathonCommentsState";
 
 interface ActivityCommentsFullProps {
   activityId: string;
@@ -141,19 +142,26 @@ export const ActivityCommentsFull: React.FC<ActivityCommentsFullProps> = ({
   }, [participantId]);
 
   const handleDeleteComment = useCallback(async (commentId: string) => {
+    const previousComments = comments;
+    setComments((prev) => removeCommentFromList(prev, commentId));
+
     try {
       await deleteComment(commentId, participantId, isAdmin);
-      // Real-time subscription will update the list
+
       if (expandedCommentId === commentId) {
         setExpandedCommentId(null);
       }
+      if (replyingToCommentId === commentId) {
+        setReplyingToCommentId(null);
+      }
     } catch (err) {
+      setComments(previousComments);
       Alert.alert(
         "Error",
         err instanceof Error ? err.message : "Failed to delete comment"
       );
     }
-  }, [participantId, isAdmin, expandedCommentId]);
+  }, [comments, participantId, isAdmin, expandedCommentId, replyingToCommentId]);
 
   const handleAddReply = useCallback(async (commentId: string, content: string) => {
     try {
