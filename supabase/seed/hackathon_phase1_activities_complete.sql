@@ -250,6 +250,15 @@ values
     '{"submission_label":"Rough System Map v1","prompt":"Upload a sketch or screenshot of your first-pass system map. Show actors, sequence, friction, workarounds, and at least one loop or repeated pattern."}'::jsonb
   ),
   (
+    'fc100000-0000-0000-0000-000000000007',
+    'fa100000-0000-0000-0000-000000000002',
+    'text_answer',
+    1,
+    null,
+    false,
+    '{"submission_label":"What You Think Is Happening","prompt":"Answer all 3:\\n1. What loop or repeated pattern do you think is happening in this system?\\n2. What workaround did you include in your map?\\n3. What do you want to verify in interviews before you trust this map?","placeholder":"1. The loop or repeated pattern I see is...\\n\\n2. The workaround I included is...\\n\\n3. In interviews, I want to verify whether..."}'::jsonb
+  ),
+  (
     'fc100000-0000-0000-0000-000000000002',
     'fa100000-0000-0000-0000-000000000004',
     'file_upload',

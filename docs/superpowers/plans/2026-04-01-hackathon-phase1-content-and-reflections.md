@@ -69,24 +69,16 @@ Gamify uniqueness. Use `pgvector` to embed problem statements, rank them, and gr
 ## Task 4: Phase 1 Deep Learning Activities Sequence
 
 **Scope:**
-Write the massive SQL seed to inject exactly the 16 steps defined by the team into the exiting Activity Engine.
+Write the canonical SQL seed for the 7-activity Phase 1 systems-thinking flow in `supabase/seed/hackathon_phase1_activities_complete.sql`.
 
 - [ ] **4.1: Seed File Construction**
   - Create `supabase/seed/hackathon_phase1_activities_complete.sql`
   - Overwrite existing dummy Phase 1 activities with this exact sequence:
-    1. **1min Outcome**: Short text/infographic (`content_type: text/image`).
-    2. **5min Chatbot Interviewee**: Text prompt directing to AI simulation (`content_type: ai_chat` labeled "Interview AI").
-    3. **5min Mascot 5-Whys**: Video or text guide on 5-Whys (`content_type: short_video`).
-    4. **10min สัมภาษณ์ ai (AI as interviewer)**: `ai_chat` component.
-    5. **20min Create Persona**: Team workspace / `text_answer` assessment to enter Persona.
-    6. **30min Real Interview Guidelines**: Instructional docs (`content_type: pdf`/`text`).
-    7. **10min Upload Interview Evidence**: Assessment type `file_upload` (sound/video).
-    8. **10min AI Comment on Interview**: Native integration triggering AI feedback analysis.
-    9. **5min Problem Statement Guidelines**: `image` (infographic).
-    10. **30min Discuss In Group**: Text instructions.
-    11. **Updated Persona & Statement**: `text_answer` combined submission.
-    12. **AI Comment on Final Assets**: Automated rule in DB / Edge.
-    13. **5min NotebookLM Guidelines**: Video/Text tutorial.
-    14. **30min Submit 3 Trustful Sources**: Assessment type `text_answer` for links + data.
-    15. **30min Book Mentor**: Link text to calendly / internal scheduling.
-    16. **Submit Final Changes**: Mentor-gated standard workflow submission.
+    1. **What You'll Walk Away With**
+    2. **See the System, Not Just the Symptom**
+    3. **Interview Real Humans**
+    4. **Upload Evidence**
+    5. **Map the System**
+    6. **Decision Gate: Proceed / Pivot / Kill**
+    7. **Submit Problem Proof Pack**
+  - Use mentor review as the checkpoint after evidence and synthesis, not as a separate content step inside the activity list.

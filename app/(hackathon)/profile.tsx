@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 
 import { AppText } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
@@ -227,49 +228,45 @@ export default function HackathonProfileScreen() {
   const handleUploadTeamAvatar = async () => {
     if (!team?.id) return;
 
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert(
-        "Permission Required",
-        "Please allow access to your photos to upload a team avatar.",
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (result.canceled) return;
-
-    setUploadingAvatar(true);
-
     try {
-      const uri = result.assets[0].uri;
-      const fileExt = uri.split(".").pop() || "jpg";
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) {
+        Alert.alert("Error", "No image was selected.");
+        return;
+      }
+
+      setUploadingAvatar(true);
+
+      const uri = asset.uri;
+      const fileExt =
+        asset.mimeType?.split("/").pop()?.split("+")[0] ||
+        uri.split(".").pop()?.split("?")[0] ||
+        "jpg";
       const fileName = `avatar.${fileExt}`;
       const filePath = `${team.id}/${fileName}`;
+      const contentType = asset.mimeType || `image/${fileExt}`;
 
-      // Read file as blob
       const response = await fetch(uri);
-      const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
+      const arrayBuffer = await response.arrayBuffer();
 
       // Upload to Supabase storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("hackathon-team-avatars")
         .upload(filePath, arrayBuffer, {
-          contentType: `image/${fileExt}`,
+          contentType,
           upsert: true,
         });
 
       if (uploadError) {
+        console.error("[Profile] avatar upload failed", uploadError);
         Alert.alert("Error", "Failed to upload avatar.");
-        setUploadingAvatar(false);
         return;
       }
 
@@ -295,9 +292,9 @@ export default function HackathonProfileScreen() {
     } catch (err) {
       console.error("[Profile] upload avatar error", err);
       Alert.alert("Error", "Failed to upload avatar.");
+    } finally {
+      setUploadingAvatar(false);
     }
-
-    setUploadingAvatar(false);
   };
 
   // Get team initials for placeholder
@@ -421,7 +418,7 @@ export default function HackathonProfileScreen() {
                 style={StyleSheet.absoluteFill}
               />
               <AppText variant="bold" style={styles.sectionTitle}>
-                Your Team Emoji
+                Your Profile Emoji
               </AppText>
 
               <View style={styles.emojiDisplay}>
