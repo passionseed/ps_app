@@ -4,11 +4,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
   ViewStyle,
 } from "react-native";
 import { AppText } from "../AppText";
 import { getActivityComments } from "../../lib/hackathonComments";
 import { CommentWithReplies } from "../../types/hackathon-comments";
+import { getCommentParticipantBadge } from "../../lib/hackathonCommentParticipant";
 
 interface ActivityCommentsPreviewProps {
   activityId: string;
@@ -41,16 +43,31 @@ const CommentPreviewCard: React.FC<CommentPreviewCardProps> = (props: CommentPre
   const { comment } = props;
   const replyCount = comment.replies?.length || 0;
   const truncatedContent = truncateText(comment.content, MAX_PREVIEW_LENGTH);
+  const participantBadge = getCommentParticipantBadge(comment.participant);
 
   return (
     <View style={styles.previewCard}>
       {/* Header: Avatar placeholder and name */}
       <View style={styles.previewHeader}>
-        <View style={styles.previewAvatar}>
-          <AppText style={styles.previewAvatarInitial}>
-            {comment.participant.display_name.charAt(0).toUpperCase()}
-          </AppText>
-        </View>
+        {participantBadge.type === "avatar" ? (
+          <Image source={{ uri: participantBadge.value }} style={styles.previewAvatarImage} />
+        ) : (
+          <View
+            style={[
+              styles.previewAvatar,
+              participantBadge.type === "emoji" && styles.previewEmojiAvatar,
+            ]}
+          >
+            <AppText
+              style={[
+                styles.previewAvatarInitial,
+                participantBadge.type === "emoji" && styles.previewEmojiText,
+              ]}
+            >
+              {participantBadge.value}
+            </AppText>
+          </View>
+        )}
         <AppText variant="bold" style={styles.previewAuthorName}>
           {comment.participant.display_name}
         </AppText>
@@ -283,10 +300,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 8,
   },
+  previewAvatarImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(145, 196, 227, 0.2)",
+    marginRight: 8,
+  },
   previewAvatarInitial: {
     color: "#91C4E3",
     fontSize: 12,
     fontWeight: "600",
+  },
+  previewEmojiAvatar: {
+    backgroundColor: "rgba(145, 196, 227, 0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(145, 196, 227, 0.18)",
+  },
+  previewEmojiText: {
+    color: "#FFFFFF",
+    fontSize: 15,
   },
   previewAuthorName: {
     color: "#FFFFFF",
