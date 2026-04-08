@@ -16,7 +16,7 @@
       "id": "node_db_seed",
       "name": "Database Content Seeding",
       "agent_role": "task_backend_plan_api_v1",
-      "description": "Create SQL seeds: supabase/seed/hackathon_challenges.sql and replace Phase 1 mock data with the massive 16-step highly interactive sequence in hackathon_phase1_activities_complete.sql.",
+      "description": "Create SQL seeds: supabase/seed/hackathon_challenges.sql and replace Phase 1 mock data with the canonical 7-activity systems-thinking sequence in hackathon_phase1_activities_complete.sql.",
       "tasks": ["1.2", "4.1"]
     },
     {

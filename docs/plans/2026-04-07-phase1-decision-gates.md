@@ -6,19 +6,19 @@ Mode: Startup
 
 ## Problem Statement
 
-High school students don't know how to solve wicked problems. A linear 16-step checklist teaches them the wrong mental model — that customer discovery is a sequence of tasks, not a process of evidence-based decision making.
+High school students don't know how to solve wicked problems. A linear task checklist teaches them the wrong mental model — that customer discovery is a sequence of tasks, not a process of evidence-based decision making.
 
 ## Demand Evidence
 
 - 871 participants starting this week (April 7, 2026)
 - Nothing built yet for Phase 1 runtime — only first webtoon in progress
-- Current `_complete.sql` seed has 16 linear activities — wrong structure for wicked problems
+- Current `_complete.sql` seed now has a 7-activity flow with explicit decision gates
 - User confirmed: "high school student don't know how to solve wicked problem"
 
 ## Status Quo
 
 Without intervention, teams will:
-- Check off all 16 activities without understanding why
+- Check off activities without understanding why
 - Lock onto fake problems early
 - Waste Phases 2-3 building solutions nobody needs
 - Learn the wrong lesson about problem-solving (tasks = progress)
@@ -105,13 +105,13 @@ Keep 16 activities, add 3 decision checkpoints after activities 5, 10, 14.
 ## The Assignment
 
 **Ship the 3 checkpoints into the Phase 1 seed file today.** Then run the app locally and verify:
-1. Checkpoints appear at the right positions (after activities 5, 10, 14)
+1. Checkpoints appear at the right positions in the 7-activity flow
 2. Assessment types work (text answer, selector, confidence slider)
 3. The flow feels like decision points, not just more tasks
 
 ## What I Noticed
 
-You said "high school student don't know how to solve wicked problem" — that's the insight. The current 16-step list assumes they know *how* to do each step. They don't. The checkpoints force them to stop and ask "am I doing this right?" before they waste weeks on a fake problem.
+You said "high school student don't know how to solve wicked problem" — that's the insight. The current task flow assumes they know *how* to do each step. They don't. The checkpoints force them to stop and ask "am I doing this right?" before they waste weeks on a fake problem.
 
 You also said "we're just making the first webtoon" and "need to ship phase 1 this week" — that's the constraint. Approach C respects both. You're not rebuilding the engine; you're adding guardrails to the existing track.
 

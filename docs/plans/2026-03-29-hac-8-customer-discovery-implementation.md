@@ -451,7 +451,7 @@ git commit -m "feat(reflection): add phase reflection flow"
 ### Task 11: Seed Phase 1 content and mappings
 
 **Files:**
-- Create: `supabase/seed/hackathon_customer_discovery_phase1.sql`
+- Create/update: `supabase/seed/hackathon_customer_discovery_phase1.sql` as bootstrap/setup data only
 - Optionally create: `scripts/seed-hackathon-phase1.ts`
 
 **Step 1: Write the seed data**
@@ -461,16 +461,13 @@ Create:
 - phase
 - playlist/modules
 - seed/path mappings
-- initial activities and metadata for the five recommended modules
+- bootstrap/setup records only
+
+Keep the current Phase 1 activity/content/assessment flow in `supabase/seed/hackathon_phase1_activities_complete.sql`.
 
 **Step 2: Include only first-slice activities**
 
-Seed enough content to support:
-- Interview Mindset
-- Real Customer Evidence
-- Pain Point Definition
-- Persona + JTBD
-- Research + Reflection
+Seed enough scaffold to support the program structure without duplicating the current activity flow.
 
 **Step 3: Verify the seed file is additive and idempotent**
 

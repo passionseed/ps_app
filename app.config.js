@@ -41,6 +41,12 @@ module.exports = {
       bundleIdentifier: "com.passionseed.app",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        NSPhotoLibraryUsageDescription:
+          "Passion Seed uses your photo library so you can choose and upload images for your profile, team avatar, and submissions.",
+        NSPhotoLibraryAddUsageDescription:
+          "Passion Seed may save images you create or edit so you can keep them in your photo library.",
+        NSCameraUsageDescription:
+          "Passion Seed uses your camera so you can capture photos for submissions and profile content.",
       },
     },
     android: {

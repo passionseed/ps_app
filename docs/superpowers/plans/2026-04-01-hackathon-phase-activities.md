@@ -19,7 +19,7 @@
 
 ### Modified files
 - `types/hackathon-program.ts` — add `due_at` to `HackathonProgramPhase` interface
-- `supabase/seed/hackathon_customer_discovery_phase1.sql` — seed sample phase activities
+- `supabase/seed/hackathon_customer_discovery_phase1.sql` — seed sample phase bootstrap/setup data
 
 ---
 
@@ -512,14 +512,14 @@ git commit -m "feat: add hackathon phase activity API functions"
 
 ---
 
-## Task 4: Seed sample data
+## Task 4: Seed bootstrap data
 
 **Files:**
 - Modify: `/Users/pine/Documents/app_ps/ps_app/supabase/seed/hackathon_customer_discovery_phase1.sql`
 
-- [ ] **Step 1: Add sample activities to Phase 1**
+- [ ] **Step 1: Update bootstrap/setup records only**
 
-Append to the bottom of `supabase/seed/hackathon_customer_discovery_phase1.sql`:
+Append to the bottom of `supabase/seed/hackathon_customer_discovery_phase1.sql` only if you are updating the bootstrap/setup layer, not the full activity/content/assessment seed:
 
 ```sql
 -- Phase 1 activities (direct activity list, no day layer)
@@ -613,7 +613,7 @@ psql postgresql://postgres:postgres@localhost:54322/postgres -c \
    LEFT JOIN hackathon_phase_activity_assessments ass ON ass.activity_id = a.id
    ORDER BY a.display_order;"
 ```
-Expected: 3 rows with titles "Customer Discovery Overview", "Read the Problem Brief", "Submit Interview Notes".
+Expected: bootstrap/setup rows update cleanly. Do not use this file for the current 7-activity Phase 1 content flow.
 
 - [ ] **Step 4: Commit**
 
