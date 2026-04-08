@@ -4,6 +4,7 @@ import type {
   PathReviewMode,
 } from "./pathlab-content";
 import type { MapNode } from "./map";
+import type { HackathonReleaseStatus } from "./hackathon-release";
 
 export type HackathonSubmissionStatus =
   | "not_started"
@@ -36,6 +37,7 @@ export interface HackathonProgramPhase {
   title: string;
   description: string | null;
   phase_number: number;
+  status: HackathonReleaseStatus;
   starts_at: string | null;
   ends_at: string | null;
   due_at: string | null;

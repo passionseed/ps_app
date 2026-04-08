@@ -15,6 +15,7 @@ INSERT INTO public.hackathon_program_phases (
   title,
   description,
   phase_number,
+  status,
   starts_at,
   ends_at
 )
@@ -25,6 +26,7 @@ VALUES (
   'Phase 1: Customer Discovery',
   'Systems-thinking customer discovery: understand the system, gather interview evidence, map leverage points, and decide whether to proceed.',
   1,
+  'released',
   '2026-04-07T00:00:00Z',
   '2026-04-26T23:59:59Z'
 )
@@ -34,6 +36,7 @@ UPDATE public.hackathon_program_phases
 SET
   title = 'Phase 1: Customer Discovery',
   description = 'Systems-thinking customer discovery: understand the system, gather interview evidence, map leverage points, and decide whether to proceed.',
+  status = 'released',
   due_at = '2026-04-26T23:59:59Z'
 WHERE id = 'f1000000-0000-0000-0000-000000000010';
 

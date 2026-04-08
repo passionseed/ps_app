@@ -3,12 +3,13 @@ const { withGradleProperties } = require("@expo/config-plugins");
 const withHighMemoryGradle = (config) => {
   return withGradleProperties(config, (props) => {
     const existing = props.modResults.findIndex(
-      (item) => item.type === "property" && item.key === "org.gradle.jvmargs"
+      (item) => item.type === "property" && item.key === "org.gradle.jvmargs",
     );
     const entry = {
       type: "property",
       key: "org.gradle.jvmargs",
-      value: "-Xmx8192m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError",
+      value:
+        "-Xmx8192m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError",
     };
     if (existing >= 0) {
       props.modResults[existing] = entry;

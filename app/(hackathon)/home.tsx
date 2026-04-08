@@ -7,8 +7,12 @@ import { useFocusEffect } from "expo-router";
 import { AppText } from "../../components/AppText";
 import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJellyfishLoader";
 import { Space } from "../../lib/theme";
-import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
-import { fetchTeamImpact, type TeamImpact } from "../../lib/hackathon-submit";
+import {
+  getCachedHackathonHomeBundle,
+  loadHackathonHomeBundle,
+  preloadHackathonPhaseBundle,
+} from "../../lib/hackathonScreenData";
+import type { TeamImpact } from "../../lib/hackathon-submit";
 import type { HackathonProgramPhase } from "../../types/hackathon-program";
 
 type MentorPreview = { id: string; full_name: string; photo_url?: string };
@@ -20,39 +24,40 @@ const CYAN = "#91C4E3";
 const CYAN_DIM = "rgba(145,196,227,0.3)";
 const AMBER = "#F59E0B";
 
-function getCurrentPhase(phases: HackathonProgramPhase[]): HackathonProgramPhase | null {
-  if (phases.length === 0) return null;
-  const sorted = [...phases].sort((a, b) => a.phase_number - b.phase_number);
-  const now = Date.now();
-  // First phase whose due date (or ends_at) is still in the future
-  const active = sorted.find((p) => {
-    const deadline = p.due_at ?? p.ends_at;
-    return deadline ? new Date(deadline).getTime() > now : true;
-  });
-  // If all are past, return the last one
-  return active ?? sorted[sorted.length - 1];
-}
-
 export default function HackathonHomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const cachedBundle = getCachedHackathonHomeBundle();
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0 });
-  const [currentPhase, setCurrentPhase] = useState<HackathonProgramPhase | null>(null);
-  const [impact, setImpact] = useState<TeamImpact | null>(null);
+  const [currentPhase, setCurrentPhase] = useState<HackathonProgramPhase | null>(
+    cachedBundle?.currentPhase ?? null,
+  );
+  const [impact, setImpact] = useState<TeamImpact | null>(
+    cachedBundle?.impact ?? null,
+  );
   const [mentorPreviews, setMentorPreviews] = useState<MentorPreview[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedBundle);
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      getCurrentHackathonProgramHome().then(async (home) => {
-        setCurrentPhase(getCurrentPhase(home.phases));
-        const teamId = home.team?.id;
-        if (teamId) {
-          fetchTeamImpact(teamId).then(setImpact).catch(() => {});
-        }
+      const cached = getCachedHackathonHomeBundle();
+      if (cached) {
+        setCurrentPhase(cached.currentPhase);
+        setImpact(cached.impact);
         setLoading(false);
-      }).catch(() => { setLoading(false); });
+      } else {
+        setLoading(true);
+      }
+
+      loadHackathonHomeBundle()
+        .then((bundle) => {
+          setCurrentPhase(bundle.currentPhase);
+          setImpact(bundle.impact);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+
       fetch("https://www.passionseed.org/api/hackathon/mentor/public")
         .then((r) => r.json())
         .then((d) => setMentorPreviews((d.mentors ?? []).slice(0, 8)))
@@ -111,6 +116,7 @@ export default function HackathonHomeScreen() {
         {currentPhase && (
           <Pressable
             style={styles.countdownContainer}
+            onPressIn={() => void preloadHackathonPhaseBundle(currentPhase.id)}
             onPress={() => router.push(`/(hackathon)/phase/${currentPhase.id}`)}
           >
             <AppText style={styles.countdownEyebrow}>CURRENT PHASE</AppText>
@@ -386,4 +392,3 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_700Bold",
   },
 });
-

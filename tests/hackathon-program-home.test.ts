@@ -93,6 +93,7 @@ describe("getCurrentHackathonProgramHome", () => {
           title: "Phase 1: Customer Discovery",
           description: "Real data",
           phase_number: 1,
+          status: "released",
           starts_at: null,
           ends_at: null,
           due_at: null,

@@ -8,10 +8,15 @@ import Svg, { Circle as SvgCircle } from "react-native-svg";
 import { AppText } from "../../components/AppText";
 import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJellyfishLoader";
 import { Space } from "../../lib/theme";
-import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
-import { getProgramPhaseActivitySummaries } from "../../lib/hackathonPhaseActivity";
-import { fetchActivitySubmissionStatuses, fetchTeamImpact, type TeamImpact } from "../../lib/hackathon-submit";
-import type { HackathonProgramHome, HackathonProgramPhase } from "../../types/hackathon-program";
+import {
+  getCachedHackathonJourneyBundle,
+  loadHackathonJourneyBundle,
+  preloadHackathonPhaseBundle,
+  type HackathonJourneyPhaseCard,
+} from "../../lib/hackathonScreenData";
+import type { HackathonProgramHome } from "../../types/hackathon-program";
+import type { TeamImpact } from "../../lib/hackathon-submit";
+// Journey data stays on the lightweight getProgramPhaseActivitySummaries query path.
 import Animated, {
   FadeInDown,
   FadeIn,
@@ -80,14 +85,6 @@ function CircularProgress({ percent, size = 64, strokeWidth = 6 }: { percent: nu
 }
 
 // ── Shared Types ──
-type PhaseCard = {
-  phase: HackathonProgramPhase;
-  activityTitles: string[];
-  activityCount: number;
-  completedCount: number;
-  isActive: boolean;
-};
-
 // ── Pulse Indicator ──
 function ActivePulse() {
   const scale = useSharedValue(1);
@@ -123,13 +120,21 @@ function ActivePulse() {
 }
 
 // ── Vertical Phase Card ──
-function AnimatedVerticalPhaseCard({ card, index, isLast }: { card: PhaseCard; index: number; isLast: boolean }) {
+function AnimatedVerticalPhaseCard({
+  card,
+  index,
+  isLast,
+}: {
+  card: HackathonJourneyPhaseCard;
+  index: number;
+  isLast: boolean;
+}) {
   const dueDate = formatDate(card.phase.due_at ?? card.phase.ends_at);
   const pct = card.activityCount > 0 ? Math.round((card.completedCount / card.activityCount) * 100) : 0;
   const phaseNumString = String(card.phase.phase_number).padStart(2, "0");
   
   const isCompleted = pct === 100;
-  const isLocked = !card.isActive && !isCompleted && index > 0; // Simplified lock logic
+  const isLocked = card.phase.status !== "released";
 
   return (
     <Animated.View 
@@ -154,6 +159,7 @@ function AnimatedVerticalPhaseCard({ card, index, isLast }: { card: PhaseCard; i
       {/* Right Phase Card */}
       <Pressable 
         style={({ pressed }) => [styles.verticalCardWrapper, pressed && { opacity: 0.9 }, isLocked && { opacity: 0.5 }]} 
+        onPressIn={() => !isLocked && void preloadHackathonPhaseBundle(card.phase.id)}
         onPress={() => !isLocked && router.push(`/(hackathon)/phase/${card.phase.id}`)}
       >
         <BlurView intensity={40} tint="dark" style={styles.cardBlur}>
@@ -248,59 +254,37 @@ function JourneyImpactHeader({ impact }: { impact: TeamImpact | null }) {
 
 export default function HackathonJourneyScreen() {
   const insets = useSafeAreaInsets();
-  const [data, setData] = useState<HackathonProgramHome | null>(null);
-  const [phaseCards, setPhaseCards] = useState<PhaseCard[]>([]);
-  const [impact, setImpact] = useState<TeamImpact | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cachedBundle = getCachedHackathonJourneyBundle();
+  const [data, setData] = useState<HackathonProgramHome | null>(
+    cachedBundle?.data ?? null,
+  );
+  const [phaseCards, setPhaseCards] = useState<HackathonJourneyPhaseCard[]>(
+    cachedBundle?.phaseCards ?? [],
+  );
+  const [impact, setImpact] = useState<TeamImpact | null>(
+    cachedBundle?.impact ?? null,
+  );
+  const [loading, setLoading] = useState(!cachedBundle);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    const cached = getCachedHackathonJourneyBundle();
+    if (cached && !refreshing) {
+      setData(cached.data);
+      setPhaseCards(cached.phaseCards);
+      setImpact(cached.impact);
+      setLoading(false);
+    } else if (!cached) {
+      setLoading(true);
+    }
+
     try {
-      const home = await getCurrentHackathonProgramHome();
-      if (home.team?.id) {
-        fetchTeamImpact(home.team.id).then(setImpact).catch(() => {});
-      }
-      if (!home.program || home.phases.length === 0) {
-        setData(home);
-        setPhaseCards([]);
-      } else {
-        setData(home);
-        const phaseSummaries = await getProgramPhaseActivitySummaries(home.program.id);
-        
-        const allActivityIds = phaseSummaries.flatMap(p => p.activities.map(a => a.id));
-        const submissionStatuses = await fetchActivitySubmissionStatuses(allActivityIds);
-
-        const currentPhaseId = home.enrollment?.current_phase_id;
-        
-        let foundActive = false;
-        const cards: PhaseCard[] = home.phases.map((phase) => {
-          const phaseData = phaseSummaries.find((p) => p.id === phase.id);
-          const activities = phaseData?.activities ?? [];
-          const isPhaseActive = phase.id === currentPhaseId;
-          if (isPhaseActive) foundActive = true;
-          
-          const completedCount = activities.filter(a => {
-            const status = submissionStatuses[a.id];
-            return status === "submitted" || status === "graded" || status === "completed";
-          }).length;
-          
-          return {
-            phase,
-            activityTitles: activities.map((a) => a.title),
-            activityCount: activities.length,
-            completedCount,
-            isActive: isPhaseActive,
-          };
-        });
-        
-        // If no active phase is matched via current_phase_id, default to the first incomplete
-        if (!foundActive && cards.length > 0) {
-          const firstIncomplete = cards.find(c => c.completedCount < c.activityCount) || cards[0];
-          firstIncomplete.isActive = true;
-        }
-
-        setPhaseCards(cards);
-      }
+      const bundle = await loadHackathonJourneyBundle({
+        forceRefresh: refreshing,
+      });
+      setData(bundle.data);
+      setPhaseCards(bundle.phaseCards);
+      setImpact(bundle.impact);
     } catch {
       setData({
         team: null,
@@ -313,7 +297,7 @@ export default function HackathonJourneyScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [refreshing]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -443,4 +427,3 @@ const styles = StyleSheet.create({
 
   emptyPhases: { padding: Space.xl, backgroundColor: "rgba(255,255,255,0.02)", borderRadius: 16, alignItems: "center" },
 });
-

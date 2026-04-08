@@ -15,6 +15,10 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { HackathonBackground } from "../../components/Hackathon/HackathonBackground";
+import {
+  preloadHackathonHomeBundle,
+  preloadHackathonJourneyBundle,
+} from "../../lib/hackathonScreenData";
 
 // Design Tokens from Hackathon Design System
 export const HACK_COLORS = {
@@ -160,6 +164,12 @@ function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
                 const onPress = () => {
                   if (!isFocused) {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (routeName === "home") {
+                      void preloadHackathonHomeBundle();
+                    }
+                    if (routeName === "journey") {
+                      void preloadHackathonJourneyBundle();
+                    }
                     navigation.navigate(route.name, route.params);
                   }
                 };
@@ -255,6 +265,11 @@ function TabBarButton({
 }
 
 export default function HackathonLayout() {
+  useEffect(() => {
+    void preloadHackathonHomeBundle();
+    void preloadHackathonJourneyBundle();
+  }, []);
+
   return (
     <View style={{ flex: 1, backgroundColor: HACK_COLORS.bgDeep }}>
       <HackathonBackground />

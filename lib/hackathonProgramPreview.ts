@@ -34,6 +34,7 @@ const previewPhases: HackathonProgramPhase[] = [
     description:
       "Find real customer pain, validate it with interviews, and synthesize it into a stronger problem direction.",
     phase_number: 1,
+    status: "released",
     starts_at: "2026-04-01T00:00:00.000Z",
     ends_at: "2026-04-08T23:59:59.000Z",
     due_at: "2026-04-08T23:59:59.000Z",
@@ -225,6 +226,7 @@ export function getPreviewPhaseWithActivities(phaseId: string): HackathonPhaseWi
     title: phase.title,
     description: phase.description,
     phase_number: phase.phase_number,
+    status: phase.status,
     starts_at: phase.starts_at,
     ends_at: phase.ends_at,
     due_at: phase.due_at,
@@ -238,6 +240,7 @@ export function getPreviewPhaseWithActivities(phaseId: string): HackathonPhaseWi
         estimated_minutes: 1,
         is_required: true,
         is_draft: false,
+        status: "released",
         submission_scope: "individual" as const,
         created_at: "",
         updated_at: "",
@@ -262,10 +265,10 @@ export function getPreviewPhaseWithActivities(phaseId: string): HackathonPhaseWi
             created_at: "",
           },
         ],
-        assessment: null,
+        assessments: [],
       },
-      { id: "preview-act-2", phase_id: phase.id, title: "Customer Discovery Interview", instructions: "Run an engaging Empathize + Define interview where the participant is the interviewee. The chatbot should uncover behaviors, pain, and motivation without revealing too early what they are being interviewed for.", display_order: 2, estimated_minutes: 5, is_required: true, is_draft: false, submission_scope: "individual" as const, created_at: "", updated_at: "", content: [{ id: "c2", activity_id: "preview-act-2", content_type: "ai_chat", content_title: "Empathize + Define Chatbot", content_url: null, content_body: "An engaging chatbot interviews the participant as the interviewee, surfacing real behavior, friction, and motivation without making the setup feel obvious or cliche.", display_order: 1, metadata: { role: "participant_as_interviewee", reveal_goal_early: false, tone: "engaging_not_cliche", design_thinking_stage: ["empathize", "define"] }, created_at: "" }], assessment: { id: "a2", activity_id: "preview-act-2", assessment_type: "text_answer", points_possible: 15, is_graded: true, metadata: {}, created_at: "", updated_at: "" } },
-      { id: "preview-act-3", phase_id: phase.id, title: "The 5 Why Technique", instructions: "Use the 5 Why framework to find the root of a real problem.", display_order: 3, estimated_minutes: 30, is_required: true, is_draft: false, submission_scope: "individual" as const, created_at: "", updated_at: "", content: [{ id: "c3", activity_id: "preview-act-3", content_type: "image", content_title: "5 Why Guidelines", content_url: null, content_body: null, display_order: 1, metadata: {}, created_at: "" }, { id: "c4", activity_id: "preview-act-3", content_type: "text", content_title: "How to Use 5 Why", content_url: null, content_body: null, display_order: 2, metadata: {}, created_at: "" }], assessment: { id: "a3", activity_id: "preview-act-3", assessment_type: "image_upload", points_possible: 20, is_graded: true, metadata: {}, created_at: "", updated_at: "" } },
+      { id: "preview-act-2", phase_id: phase.id, title: "Customer Discovery Interview", instructions: "Run an engaging Empathize + Define interview where the participant is the interviewee. The chatbot should uncover behaviors, pain, and motivation without revealing too early what they are being interviewed for.", display_order: 2, estimated_minutes: 5, is_required: true, is_draft: false, status: "locked", submission_scope: "individual" as const, created_at: "", updated_at: "", content: [{ id: "c2", activity_id: "preview-act-2", content_type: "ai_chat", content_title: "Empathize + Define Chatbot", content_url: null, content_body: "An engaging chatbot interviews the participant as the interviewee, surfacing real behavior, friction, and motivation without making the setup feel obvious or cliche.", display_order: 1, metadata: { role: "participant_as_interviewee", reveal_goal_early: false, tone: "engaging_not_cliche", design_thinking_stage: ["empathize", "define"] }, created_at: "" }], assessments: [{ id: "a2", activity_id: "preview-act-2", assessment_type: "text_answer", display_order: 1, points_possible: 15, is_graded: true, metadata: {}, created_at: "", updated_at: "" }] },
+      { id: "preview-act-3", phase_id: phase.id, title: "The 5 Why Technique", instructions: "Use the 5 Why framework to find the root of a real problem.", display_order: 3, estimated_minutes: 30, is_required: true, is_draft: false, status: "locked", submission_scope: "individual" as const, created_at: "", updated_at: "", content: [{ id: "c3", activity_id: "preview-act-3", content_type: "image", content_title: "5 Why Guidelines", content_url: null, content_body: null, display_order: 1, metadata: {}, created_at: "" }, { id: "c4", activity_id: "preview-act-3", content_type: "text", content_title: "How to Use 5 Why", content_url: null, content_body: null, display_order: 2, metadata: {}, created_at: "" }], assessments: [{ id: "a3", activity_id: "preview-act-3", assessment_type: "image_upload", display_order: 1, points_possible: 20, is_graded: true, metadata: {}, created_at: "", updated_at: "" }] },
     ],
   };
 }

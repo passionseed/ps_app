@@ -22,11 +22,17 @@ import { WaterFlowHint } from "../../../components/Hackathon/WaterFlowHint";
 import { ActivityCommentsPreview } from "../../../components/Hackathon/ActivityCommentsPreview";
 import HackathonEvidenceComic from "../../../components/Hackathon/HackathonEvidenceComic";
 import HackathonWebtoon from "../../../components/Hackathon/HackathonWebtoon";
+import { getHackathonActivityHref } from "../../../lib/hackathonActivityRoute";
 import { parseHackathonComicContent } from "../../../lib/hackathonComic";
+import {
+  getCachedHackathonActivityBundle,
+  invalidateHackathonProgressCache,
+  loadHackathonActivityBundle,
+  preloadHackathonActivityBundle,
+} from "../../../lib/hackathonScreenData";
 import { parseHackathonWebtoonContent } from "../../../lib/hackathonWebtoon";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
-import { supabase } from "../../../lib/supabase";
-import { readHackathonParticipant, type HackathonParticipant } from "../../../lib/hackathon-mode";
+import type { HackathonParticipant } from "../../../lib/hackathon-mode";
 import {
   submitTextAnswer,
   submitFile,
@@ -65,38 +71,6 @@ const WHITE   = "#FFFFFF";
 const WHITE75 = "rgba(255,255,255,0.75)";
 const WHITE55 = "rgba(255,255,255,0.55)";
 const WHITE28 = "rgba(255,255,255,0.28)";
-
-// ── Fetch ─────────────────────────────────────────────────────────
-async function fetchActivity(id: string): Promise<HackathonPhaseActivityDetail | null> {
-  const { data, error } = await supabase
-    .from("hackathon_phase_activities")
-    .select(`
-      id, phase_id, title, instructions, display_order,
-      estimated_minutes, is_required, is_draft, created_at, updated_at,
-      hackathon_phase_activity_content (
-        id, activity_id, content_type, content_title,
-        content_url, content_body, display_order, metadata, created_at
-      ),
-      hackathon_phase_activity_assessments (
-        id, activity_id, assessment_type, display_order, points_possible,
-        is_graded, metadata, created_at, updated_at
-      )
-    `)
-    .eq("id", id)
-    .single();
-
-  if (error || !data) return null;
-
-  return {
-    ...(data as any),
-    content: ((data as any).hackathon_phase_activity_content ?? []).sort(
-      (a: any, b: any) => a.display_order - b.display_order
-    ),
-    assessments: ((data as any).hackathon_phase_activity_assessments ?? []).sort(
-      (a: any, b: any) => a.display_order - b.display_order
-    ),
-  };
-}
 
 // ── Content type label ────────────────────────────────────────────
 function contentTypeLabel(type: string): string {
@@ -256,6 +230,9 @@ function ContentBlock({
       <HackathonWebtoon
         webtoon={webtoon}
         fallbackUrl={item.content_url}
+        scrollY={scrollY}
+        viewportHeight={viewportHeight}
+        contentSectionY={contentSectionY}
       />
     );
   }
@@ -563,8 +540,14 @@ function TeammateSubmissionsList({
 // ── Main screen ───────────────────────────────────────────────────
 export default function HackathonActivityScreen() {
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
+  const cachedBundle = nodeId ? getCachedHackathonActivityBundle(nodeId) : null;
 
-  const [siblings, setSiblings] = useState<{id: string, title: string}[]>([]);
+  const [siblings, setSiblings] = useState<{id: string, title: string}[]>(
+    cachedBundle?.siblings ?? [],
+  );
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(
+    cachedBundle?.blockedMessage ?? null,
+  );
 
   const SWIPE_NEXT_THRESHOLD = 120;
   const PULL_HINT_SLIDE_PX = 104;
@@ -587,11 +570,19 @@ export default function HackathonActivityScreen() {
   const insets = useSafeAreaInsets();
   const { height: viewportHeight } = useWindowDimensions();
   const scrollY = useSharedValue(0);
-  const [activity, setActivity] = useState<HackathonPhaseActivityDetail | null>(null);
-  const [participant, setParticipant] = useState<HackathonParticipant | null>(null);
-  const [pastSubmissions, setPastSubmissions] = useState<SubmissionRecord[]>([]);
-  const [teammateSubmissions, setTeammateSubmissions] = useState<TeammateSubmissionRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activity, setActivity] = useState<HackathonPhaseActivityDetail | null>(
+    cachedBundle?.activity ?? null,
+  );
+  const [participant, setParticipant] = useState<HackathonParticipant | null>(
+    cachedBundle?.participant ?? null,
+  );
+  const [pastSubmissions, setPastSubmissions] = useState<SubmissionRecord[]>(
+    cachedBundle?.pastSubmissions ?? [],
+  );
+  const [teammateSubmissions, setTeammateSubmissions] = useState<TeammateSubmissionRecord[]>(
+    cachedBundle?.teammateSubmissions ?? [],
+  );
+  const [loading, setLoading] = useState(!cachedBundle);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -749,7 +740,9 @@ export default function HackathonActivityScreen() {
     }
 
     if (currentIndex >= 0 && currentIndex < siblings.length - 1) {
-      router.replace(`/activity/${siblings[currentIndex + 1].id}`);
+      const nextId = siblings[currentIndex + 1].id;
+      void preloadHackathonActivityBundle(nextId);
+      router.replace(getHackathonActivityHref(nextId));
     } else if (currentIndex === siblings.length - 1) {
       router.back(); // Go back to activities list
     }
@@ -762,50 +755,41 @@ export default function HackathonActivityScreen() {
 
     const currentIndex = siblings.findIndex(s => s.id === nodeId);
     if (currentIndex > 0) {
-      router.replace(`/activity/${siblings[currentIndex - 1].id}`);
+      const previousId = siblings[currentIndex - 1].id;
+      void preloadHackathonActivityBundle(previousId);
+      router.replace(getHackathonActivityHref(previousId));
     }
   };
-
-  async function refreshSubmissionState(activityId: string) {
-    const [submissions, teammateSubmissions] = await Promise.all([
-      fetchActivitySubmissions(activityId),
-      fetchTeammateActivitySubmissions(activityId),
-    ]);
-    setPastSubmissions(submissions);
-    setTeammateSubmissions(teammateSubmissions);
-  }
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      setLoading(true);
+      const cached = nodeId ? getCachedHackathonActivityBundle(nodeId) : null;
+      if (cached) {
+        setActivity(cached.activity);
+        setParticipant(cached.participant);
+        setPastSubmissions(cached.pastSubmissions);
+        setTeammateSubmissions(cached.teammateSubmissions);
+        setSiblings(cached.siblings);
+        setBlockedMessage(cached.blockedMessage);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       (async () => {
         try {
-          const [dbData, submissions, teammateSubmissions, participantData] = await Promise.all([
-            fetchActivity(nodeId!),
-            fetchActivitySubmissions(nodeId!),
-            fetchTeammateActivitySubmissions(nodeId!),
-            readHackathonParticipant(),
+          // The shared bundle still covers fetchTeammateActivitySubmissions(nodeId!).
+          const [bundle] = await Promise.all([
+            loadHackathonActivityBundle(nodeId!),
           ]);
           if (!cancelled) {
-            setActivity(dbData);
-            setParticipant(participantData);
-            setPastSubmissions(submissions);
-            setTeammateSubmissions(teammateSubmissions);
-
-            if (dbData && dbData.phase_id) {
-              const { data: sibs } = await supabase
-                .from("hackathon_phase_activities")
-                .select("id, title")
-                .eq("phase_id", dbData.phase_id)
-                .order("display_order", { ascending: true });
-              if (sibs && !cancelled) {
-                setSiblings(sibs);
-                const currentIndex = sibs.findIndex(s => s.id === nodeId);
-                swipePrevEnabledSV.value = currentIndex > 0 ? 1 : 0;
-                swipeNextEnabledSV.value = 1; // allow swipe next to go back if last
-              }
-            }
+            setActivity(bundle.activity);
+            setParticipant(bundle.participant);
+            setPastSubmissions(bundle.pastSubmissions);
+            setTeammateSubmissions(bundle.teammateSubmissions);
+            setBlockedMessage(bundle.blockedMessage);
+            setSiblings(bundle.siblings);
           }
         } finally {
           if (!cancelled) setLoading(false);
@@ -814,6 +798,24 @@ export default function HackathonActivityScreen() {
       return () => { cancelled = true; };
     }, [nodeId])
   );
+
+  useEffect(() => {
+    const currentAccessibleIndex = siblings.findIndex(
+      (sibling) => sibling.id === nodeId,
+    );
+    swipePrevEnabledSV.value = currentAccessibleIndex > 0 ? 1 : 0;
+    swipeNextEnabledSV.value = currentAccessibleIndex >= 0 ? 1 : 0;
+
+    if (currentAccessibleIndex > 0) {
+      void preloadHackathonActivityBundle(siblings[currentAccessibleIndex - 1]!.id);
+    }
+    if (
+      currentAccessibleIndex >= 0 &&
+      currentAccessibleIndex < siblings.length - 1
+    ) {
+      void preloadHackathonActivityBundle(siblings[currentAccessibleIndex + 1]!.id);
+    }
+  }, [nodeId, siblings, swipeNextEnabledSV, swipePrevEnabledSV]);
 
   const canSubmit = activity
     ? activity.assessments.length === 0
@@ -846,6 +848,7 @@ export default function HackathonActivityScreen() {
       setPastSubmissions(newSubmissions);
       setAnswers({});
       setUploadedUrls({});
+      invalidateHackathonProgressCache();
 
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
@@ -861,6 +864,22 @@ export default function HackathonActivityScreen() {
     return (
       <View style={styles.loadingRoot}>
         <AppText style={{ color: CYAN }}>กำลังโหลด...</AppText>
+      </View>
+    );
+  }
+
+  if (blockedMessage) {
+    return (
+      <View style={styles.loadingRoot}>
+        <AppText style={[styles.bodyText, { color: WHITE55, textAlign: "center", paddingHorizontal: Space.xl }]}>
+          {blockedMessage}
+        </AppText>
+        <Pressable
+          style={styles.uploadEmptyBtn}
+          onPress={() => router.back()}
+        >
+          <AppText style={styles.uploadEmptyLabel}>Go back</AppText>
+        </Pressable>
       </View>
     );
   }
@@ -943,6 +962,7 @@ export default function HackathonActivityScreen() {
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews
         onScroll={onScroll}
         scrollEventThrottle={16}
         onScrollEndDrag={(e) => {
@@ -1021,6 +1041,7 @@ export default function HackathonActivityScreen() {
             onChange={(v) => setAnswers((prev) => ({ ...prev, [a.id]: v }))}
             onFileUploaded={(url) => {
               setUploadedUrls((prev) => ({ ...prev, [a.id]: url }));
+              invalidateHackathonProgressCache();
               fetchActivitySubmissions(activity.id).then(setPastSubmissions);
             }}
           />

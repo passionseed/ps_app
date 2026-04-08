@@ -1,3 +1,5 @@
+import type { HackathonReleaseStatus } from "./hackathon-release";
+
 export type HackathonPhaseActivityContentType =
   | 'video'
   | 'short_video'
@@ -53,6 +55,8 @@ export interface HackathonWebtoonChunkMetadata {
   imageKey?: string;
   image_url?: string;
   imageUrl?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface HackathonWebtoonMetadata {
@@ -68,6 +72,9 @@ export interface HackathonWebtoonChunk {
   id: string;
   order: number;
   imageKey: string | null;
+  imageUrl: string | null;
+  width: number | null;
+  height: number | null;
 }
 
 export interface HackathonWebtoonContent {
@@ -84,6 +91,13 @@ export type HackathonPhaseActivityAssessmentType =
   | 'file_upload'
   | 'image_upload';
 
+export type HackathonPhaseActivitySubmissionStatus =
+  | "not_started"
+  | "draft"
+  | "submitted"
+  | "passed"
+  | "revision_required";
+
 export interface HackathonPhaseActivity {
   id: string;
   phase_id: string;
@@ -93,6 +107,7 @@ export interface HackathonPhaseActivity {
   estimated_minutes: number | null;
   is_required: boolean;
   is_draft: boolean;
+  status: HackathonReleaseStatus;
   submission_scope: "individual" | "team";
   created_at: string;
   updated_at: string;
@@ -136,6 +151,7 @@ export interface HackathonPhaseWithActivities {
   title: string;
   description: string | null;
   phase_number: number;
+  status: HackathonReleaseStatus;
   starts_at: string | null;
   ends_at: string | null;
   due_at: string | null;

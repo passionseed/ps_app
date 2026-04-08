@@ -15,11 +15,18 @@ import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { HackathonJellyfishLoader } from "../../../components/Hackathon/HackathonJellyfishLoader";
 import { getHackathonActivityHref } from "../../../lib/hackathonActivityRoute";
-import { getPhaseWithActivities } from "../../../lib/hackathonPhaseActivity";
-import { readHackathonParticipant } from "../../../lib/hackathon-mode";
+import { isHackathonActivityAccessible } from "../../../lib/hackathonRelease";
+import {
+  getCachedHackathonPhaseBundle,
+  loadHackathonPhaseBundle,
+  preloadHackathonActivityBundle,
+  type HackathonPhaseActivityWithStatus,
+} from "../../../lib/hackathonScreenData";
 import { Space } from "../../../lib/theme";
-import type { HackathonPhaseWithActivities, HackathonPhaseActivityDetail } from "../../../types/hackathon-phase-activity";
-import { fetchActivitySubmissionStatuses } from "../../../lib/hackathon-submit";
+import type {
+  HackathonPhaseWithActivities,
+  HackathonPhaseActivitySubmissionStatus,
+} from "../../../types/hackathon-phase-activity";
 
 // ── Bioluminescent tokens ────────────────────────────────────────
 const BG      = "#03050a";
@@ -32,73 +39,39 @@ const WHITE   = "#FFFFFF";
 const WHITE55 = "rgba(255,255,255,0.55)";
 const WHITE28 = "rgba(255,255,255,0.28)";
 
-type ActivityStatus = "not_started" | "draft" | "submitted" | "passed" | "revision_required";
-
-type ActivityWithStatus = HackathonPhaseActivityDetail & {
-  status: ActivityStatus;
-};
-
-async function fetchActivityStatuses(
-  activities: HackathonPhaseActivityDetail[],
-  _participantId: string
-): Promise<Record<string, ActivityStatus>> {
-  const ids = activities.map((a) => a.id);
-  const raw = await fetchActivitySubmissionStatuses(ids);
-  const result: Record<string, ActivityStatus> = {};
-  for (const [id, status] of Object.entries(raw)) {
-    result[id] = status as ActivityStatus;
-  }
-  return result;
-}
+type ActivityStatus = HackathonPhaseActivitySubmissionStatus;
+type ActivityDisplayStatus = ActivityStatus | "locked";
 
 export default function HackathonPhaseScreen() {
   const { phaseId } = useLocalSearchParams<{ phaseId: string }>();
   const insets = useSafeAreaInsets();
-  const [phase, setPhase] = useState<HackathonPhaseWithActivities | null>(null);
-  const [activities, setActivities] = useState<ActivityWithStatus[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [participantId, setParticipantId] = useState<string | null>(null);
+  const cachedBundle = phaseId ? getCachedHackathonPhaseBundle(phaseId) : null;
+  const [phase, setPhase] = useState<HackathonPhaseWithActivities | null>(
+    cachedBundle?.phase ?? null,
+  );
+  const [activities, setActivities] = useState<HackathonPhaseActivityWithStatus[]>(
+    cachedBundle?.activities ?? [],
+  );
+  const [loading, setLoading] = useState(!cachedBundle);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      const cached = phaseId ? getCachedHackathonPhaseBundle(phaseId) : null;
+      if (cached) {
+        setPhase(cached.phase);
+        setActivities(cached.activities);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       (async () => {
         try {
-          const [phaseData, participant] = await Promise.all([
-            getPhaseWithActivities(phaseId!),
-            readHackathonParticipant(),
-          ]);
-
+          const bundle = await loadHackathonPhaseBundle(phaseId!);
           if (cancelled) return;
-
-          const resolvedPhase = phaseData;
-          if (!resolvedPhase) {
-            setPhase(null);
-            setActivities([]);
-            setParticipantId(participant?.id ?? null);
-            return;
-          }
-          
-          setPhase(resolvedPhase);
-          setParticipantId(participant?.id ?? null);
-
-          if (participant?.id && resolvedPhase.activities.length > 0) {
-            const statuses = await fetchActivityStatuses(resolvedPhase.activities, participant.id);
-            if (!cancelled) {
-              setActivities(
-                resolvedPhase.activities.map((a) => ({
-                  ...a,
-                  status: statuses[a.id] ?? "not_started",
-                }))
-              );
-            }
-          } else {
-            if (!cancelled) {
-              setActivities(
-                resolvedPhase.activities.map((a) => ({ ...a, status: "not_started" }))
-              );
-            }
-          }
+          setPhase(bundle.phase);
+          setActivities(bundle.activities);
         } catch (e) {
           console.error("[PhaseScreen] load error:", e);
         } finally {
@@ -110,7 +83,7 @@ export default function HackathonPhaseScreen() {
   );
 
   const completedCount = activities.filter(
-    (a) => a.status === "passed" || a.status === "submitted"
+    (a) => a.submissionStatus === "passed" || a.submissionStatus === "submitted"
   ).length;
   const totalCount = activities.length;
   const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -173,13 +146,20 @@ export default function HackathonPhaseScreen() {
         {activities.length > 0 && (
           <View style={styles.activitySection}>
             {activities.map((activity, i) => {
-              const prev = i > 0 ? activities[i - 1] : null;
-              const locked = prev !== null && prev.status !== "submitted" && prev.status !== "passed";
+              const prevSubmissionStatus =
+                i > 0 ? activities[i - 1]?.submissionStatus ?? null : null;
+              const locked = !isHackathonActivityAccessible({
+                phaseStatus: phase.status,
+                activityStatus: activity.status,
+                previousActivitySubmissionStatus: prevSubmissionStatus,
+              });
               if (locked) {
-                console.log(`[PhaseScreen] Activity ${i + 1} "${activity.title}" is LOCKED — prev activity "${prev!.title}" status: ${prev!.status}`);
+                console.log(
+                  `[PhaseScreen] Activity ${i + 1} "${activity.title}" is locked`,
+                );
               }
               return (
-                <ActivityCard
+              <ActivityCard
                   key={activity.id}
                   activity={activity}
                   index={i}
@@ -194,10 +174,19 @@ export default function HackathonPhaseScreen() {
   );
 }
 
-function ActivityCard({ activity, index, locked }: { activity: ActivityWithStatus, index: number, locked: boolean }) {
-  const isCompleted = activity.status === "passed" || activity.status === "submitted";
-  const isDraft = activity.status === "draft";
-  const isRevision = activity.status === "revision_required";
+function ActivityCard({
+  activity,
+  index,
+  locked,
+}: {
+  activity: HackathonPhaseActivityWithStatus;
+  index: number;
+  locked: boolean;
+}) {
+  const displayStatus: ActivityDisplayStatus = locked ? "locked" : activity.submissionStatus;
+  const isCompleted = activity.submissionStatus === "passed" || activity.submissionStatus === "submitted";
+  const isDraft = activity.submissionStatus === "draft";
+  const isRevision = activity.submissionStatus === "revision_required";
 
   return (
     <Pressable
@@ -206,6 +195,7 @@ function ActivityCard({ activity, index, locked }: { activity: ActivityWithStatu
         locked && { opacity: 0.4 },
         !locked && pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
       ]}
+      onPressIn={() => !locked && void preloadHackathonActivityBundle(activity.id)}
       onPress={() => {
         if (locked) {
           console.log(`[PhaseScreen] Tap blocked — activity "${activity.title}" is locked`);
@@ -224,16 +214,17 @@ function ActivityCard({ activity, index, locked }: { activity: ActivityWithStatu
             styles.activityCardInner, 
             isCompleted && { borderColor: 'rgba(145, 196, 227, 0.3)' },
             isRevision && { borderColor: 'rgba(248, 113, 113, 0.4)' },
-            isDraft && { borderColor: 'rgba(250, 204, 21, 0.3)' }
+            isDraft && { borderColor: 'rgba(250, 204, 21, 0.3)' },
+            locked && { borderColor: "rgba(255,255,255,0.12)" },
           ]}
         >
           <View style={styles.activityCardLeft}>
-            <StatusIcon status={activity.status} />
+            <StatusIcon status={displayStatus} />
             <View style={styles.activityCardBody}>
               <View style={styles.activityHeaderRow}>
                 <AppText style={styles.stepLabel}>ขั้นตอน {index + 1}</AppText>
-                <AppText style={[styles.statusBadge, statusBadgeStyle(activity.status)]}>
-                  {formatStatus(activity.status)}
+                <AppText style={[styles.statusBadge, statusBadgeStyle(displayStatus)]}>
+                  {formatStatus(displayStatus)}
                 </AppText>
               </View>
               
@@ -270,7 +261,7 @@ function ActivityCard({ activity, index, locked }: { activity: ActivityWithStatu
   );
 }
 
-function StatusIcon({ status }: { status: ActivityStatus }) {
+function StatusIcon({ status }: { status: ActivityDisplayStatus }) {
   const color = statusColorValue(status);
   
   if (status === "passed") {
@@ -302,32 +293,35 @@ function StatusIcon({ status }: { status: ActivityStatus }) {
   );
 }
 
-function statusColorValue(status: ActivityStatus): string {
+function statusColorValue(status: ActivityDisplayStatus): string {
   switch (status) {
     case "passed": return "#4ADE80";
     case "submitted": return CYAN;
     case "draft": return "#FACC15";
     case "revision_required": return "#F87171";
+    case "locked": return "rgba(255,255,255,0.22)";
     default: return "rgba(255,255,255,0.3)";
   }
 }
 
-function statusBadgeStyle(status: ActivityStatus) {
+function statusBadgeStyle(status: ActivityDisplayStatus) {
   switch (status) {
     case "passed": return { color: "#4ADE80", backgroundColor: "rgba(74,222,128,0.15)" };
     case "submitted": return { color: CYAN, backgroundColor: "rgba(145,196,227,0.15)" };
     case "draft": return { color: "#FACC15", backgroundColor: "rgba(250,204,21,0.15)" };
     case "revision_required": return { color: "#F87171", backgroundColor: "rgba(248,113,113,0.15)" };
+    case "locked": return { color: WHITE55, backgroundColor: "rgba(255,255,255,0.08)" };
     default: return { color: WHITE55, backgroundColor: "rgba(255,255,255,0.1)" };
   }
 }
 
-function formatStatus(status: ActivityStatus) {
+function formatStatus(status: ActivityDisplayStatus) {
   switch (status) {
     case "passed": return "ผ่านแล้ว";
     case "submitted": return "ส่งแล้ว";
     case "draft": return "แบบร่าง";
     case "revision_required": return "ต้องแก้ไข";
+    case "locked": return "ยังไม่ปล่อย";
     default: return "ยังไม่เริ่ม";
   }
 }

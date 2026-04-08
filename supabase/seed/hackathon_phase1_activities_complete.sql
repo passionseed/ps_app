@@ -2,6 +2,7 @@ update public.hackathon_program_phases
 set
   title = 'Phase 1: Customer Discovery',
   description = 'Systems-thinking customer discovery: understand the system, gather interview evidence, map leverage points, and decide whether to proceed.',
+  status = 'released',
   due_at = '2026-04-26T23:59:59Z'
 where id = 'f1000000-0000-0000-0000-000000000010';
 
@@ -23,7 +24,7 @@ delete from public.hackathon_phase_activities
 where phase_id = 'f1000000-0000-0000-0000-000000000010';
 
 insert into public.hackathon_phase_activities (
-  id, phase_id, title, instructions, display_order, estimated_minutes, is_required, is_draft
+  id, phase_id, title, instructions, display_order, estimated_minutes, is_required, is_draft, status
 )
 values
   (
@@ -34,7 +35,8 @@ values
     0,
     5,
     true,
-    false
+    false,
+    'released'
   ),
   (
     'fa100000-0000-0000-0000-000000000002',
@@ -44,7 +46,8 @@ values
     1,
     15,
     true,
-    false
+    false,
+    'locked'
   ),
   (
     'fa100000-0000-0000-0000-000000000003',
@@ -54,7 +57,8 @@ values
     2,
     45,
     true,
-    false
+    false,
+    'locked'
   ),
   (
     'fa100000-0000-0000-0000-000000000004',
@@ -64,7 +68,8 @@ values
     3,
     15,
     true,
-    false
+    false,
+    'locked'
   ),
   (
     'fa100000-0000-0000-0000-000000000005',
@@ -74,7 +79,8 @@ values
     4,
     25,
     true,
-    false
+    false,
+    'locked'
   ),
   (
     'fa100000-0000-0000-0000-000000000006',
@@ -84,7 +90,8 @@ values
     5,
     20,
     true,
-    false
+    false,
+    'locked'
   ),
   (
     'fa100000-0000-0000-0000-000000000007',
@@ -94,7 +101,8 @@ values
     6,
     30,
     true,
-    false
+    false,
+    'locked'
   );
 
 insert into public.hackathon_phase_activity_content (
