@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet, ScrollView, Text, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, Text, Pressable, TouchableOpacity } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -11,6 +11,8 @@ import {
   getCachedHackathonHomeBundle,
   loadHackathonHomeBundle,
 } from "../../lib/hackathonScreenData";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { readHackathonToken } from "../../lib/hackathon-mode";
 import type { TeamImpact } from "../../lib/hackathon-submit";
 
 type MentorPreview = { id: string; full_name: string; photo_url?: string };
@@ -31,6 +33,9 @@ export default function HackathonHomeScreen() {
   );
   const [mentorPreviews, setMentorPreviews] = useState<MentorPreview[]>([]);
   const [loading, setLoading] = useState(!cachedBundle);
+  const [cancelledBookingReason, setCancelledBookingReason] = useState<string | null>(null);
+  const [cancelledBookingId, setCancelledBookingId] = useState<string | null>(null);
+  const [cancelNoticeVisible, setCancelNoticeVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -54,6 +59,37 @@ export default function HackathonHomeScreen() {
         .then((r) => r.json())
         .then((d) => setMentorPreviews((d.mentors ?? []).slice(0, 8)))
         .catch(() => {});
+
+      // Check if team's booking was cancelled by mentor → show notice with reason
+      readHackathonToken().then(async (token) => {
+        if (!token) return;
+        try {
+          const r = await fetch("https://www.passionseed.org/api/hackathon/student/mentor-quota", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await r.json();
+          const b = data?.booking;
+          const studentReasons = ["ยกเลิกโดยผู้เข้าร่วม", "รีเซ็ตสิทธิ์โดย Admin"];
+          const mentorCancelledAfterConfirm =
+            b?.status === "cancelled" &&
+            b?.cancellation_reason &&
+            !studentReasons.includes(b.cancellation_reason);
+          if (mentorCancelledAfterConfirm) {
+            // Only show if user hasn't dismissed this specific booking's notice
+            const dismissedKey = `mentor_cancel_dismissed_${b.id}`;
+            const dismissed = await AsyncStorage.getItem(dismissedKey);
+            if (!dismissed) {
+              setCancelledBookingReason(b.cancellation_reason);
+              setCancelledBookingId(b.id);
+              setCancelNoticeVisible(true);
+            }
+          } else {
+            setCancelNoticeVisible(false);
+          }
+        } catch {
+          // ignore
+        }
+      });
     }, [])
   );
 
@@ -81,6 +117,37 @@ export default function HackathonHomeScreen() {
             Preventive & Predictive Healthcare
           </Text>
         </View>
+
+        {/* Countdown */}
+        {currentPhase && (
+          <Pressable
+            style={styles.countdownContainer}
+            onPressIn={() => void preloadHackathonPhaseBundle(currentPhase.id)}
+            onPress={() => router.push(`/(hackathon)/phase/${currentPhase.id}`)}
+          >
+            <AppText style={styles.countdownEyebrow}>CURRENT PHASE</AppText>
+            <AppText variant="bold" style={styles.countdownTitle}>{currentPhase.title}</AppText>
+            {(currentPhase.due_at ?? currentPhase.ends_at) ? (
+              <View style={styles.countdownBoxes}>
+                <View style={styles.countBox}>
+                  <AppText variant="bold" style={styles.countVal}>{timeLeft.d}</AppText>
+                  <AppText style={styles.countLabel}>DAYS</AppText>
+                </View>
+                <View style={styles.countBox}>
+                  <AppText variant="bold" style={styles.countVal}>{timeLeft.h.toString().padStart(2, "0")}</AppText>
+                  <AppText style={styles.countLabel}>HOURS</AppText>
+                </View>
+                <View style={styles.countBox}>
+                  <AppText variant="bold" style={styles.countVal}>{timeLeft.m.toString().padStart(2, "0")}</AppText>
+                  <AppText style={styles.countLabel}>MINS</AppText>
+                </View>
+              </View>
+            ) : (
+              <AppText style={styles.countdownNoDue}>No due date set</AppText>
+            )}
+            <AppText style={styles.countdownCta}>Continue Journey →</AppText>
+          </Pressable>
+        )}
 
         {/* Team Impact */}
         <View style={styles.impactContainer}>
@@ -217,6 +284,38 @@ const styles = StyleSheet.create({
     color: WHITE70,
     textAlign: "center",
     letterSpacing: 0.5,
+    fontFamily: "BaiJamjuree_500Medium",
+  },
+
+  cancelNotice: {
+    backgroundColor: "rgba(248,113,113,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.35)",
+    borderRadius: 16,
+    padding: Space.lg,
+    gap: 8,
+  },
+  cancelNoticeHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  cancelNoticeTitle: {
+    fontSize: 15,
+    color: "#F87171",
+  },
+  cancelNoticeDismiss: {
+    fontSize: 14,
+    color: WHITE40,
+  },
+  cancelNoticeReason: {
+    fontSize: 13,
+    color: WHITE70,
+    lineHeight: 20,
+  },
+  cancelNoticeRefund: {
+    fontSize: 12,
+    color: CYAN,
     fontFamily: "BaiJamjuree_500Medium",
   },
 
