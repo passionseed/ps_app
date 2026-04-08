@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { ReplyWithParticipant } from "../../types/hackathon-comments";
 import { AppText } from "../AppText";
+import { getCommentParticipantBadge } from "../../lib/hackathonCommentParticipant";
 
 interface ReplyCardProps {
   reply: ReplyWithParticipant;
@@ -58,6 +59,7 @@ export const ReplyCard: React.FC<ReplyCardProps> = ({
 
   const canModify =
     currentParticipantId === reply.participant_id || isAdmin;
+  const participantBadge = getCommentParticipantBadge(reply.participant);
 
   const handleEditPress = () => {
     setIsEditing(true);
@@ -99,15 +101,25 @@ export const ReplyCard: React.FC<ReplyCardProps> = ({
     <View style={styles.container}>
       {/* Header: Avatar, Name, Timestamp */}
       <View style={styles.header}>
-        {reply.participant.avatar_url ? (
+        {participantBadge.type === "avatar" ? (
           <Image
-            source={{ uri: reply.participant.avatar_url }}
+            source={{ uri: participantBadge.value }}
             style={styles.avatar}
           />
         ) : (
-          <View style={styles.avatarPlaceholder}>
-            <AppText style={styles.avatarInitial}>
-              {reply.participant.display_name.charAt(0).toUpperCase()}
+          <View
+            style={[
+              styles.avatarPlaceholder,
+              participantBadge.type === "emoji" && styles.emojiAvatarPlaceholder,
+            ]}
+          >
+            <AppText
+              style={[
+                styles.avatarInitial,
+                participantBadge.type === "emoji" && styles.emojiAvatarText,
+              ]}
+            >
+              {participantBadge.value}
             </AppText>
           </View>
         )}
@@ -216,6 +228,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#03050a",
     fontWeight: "600",
+  },
+  emojiAvatarPlaceholder: {
+    backgroundColor: "rgba(145,196,227,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.22)",
+  },
+  emojiAvatarText: {
+    fontSize: 14,
+    color: "#FFFFFF",
   },
   headerInfo: {
     flexDirection: "row",

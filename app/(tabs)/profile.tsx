@@ -17,11 +17,18 @@ import { useAuth } from "../../lib/auth";
 import { logDirectionFinderViewed } from "../../lib/eventLogger";
 import { supabase } from "../../lib/supabase";
 import { backfillMissingIkigaiReflections } from "../../lib/ikigaiBackfill";
-import { getProfile } from "../../lib/onboarding";
 import {
   type IkigaiScores,
   type ScoreTimelineItem,
 } from "../../lib/scoreEngine";
+import {
+  clearCachedProfileScreenSnapshot,
+  getProfileScreenCacheStatus,
+  readCachedProfileScreenSnapshot,
+  writeCachedProfileScreenSnapshot,
+  type ProfileScreenSnapshot,
+} from "../../lib/profileScreenCache";
+import { fetchProfileScreenSnapshot } from "../../lib/profileScreenSnapshot";
 import {
   buildFocusSections,
   buildProfileMetaPills,
@@ -279,6 +286,19 @@ export default function ProfileScreen() {
   const [backfillingScores, setBackfillingScores] = useState(false);
   const [profileRefreshNonce, setProfileRefreshNonce] = useState(0);
 
+  const applyProfileSnapshot = useCallback((snapshot: ProfileScreenSnapshot) => {
+    setProfile(snapshot.profile);
+    setInterests(snapshot.interests);
+    setCareers(snapshot.careers);
+    setIkigaiScores(snapshot.ikigaiScores);
+    setScoreTimeline(snapshot.scoreTimeline);
+    setHasScores(snapshot.hasScores);
+    setActivityEvents(snapshot.activityEvents);
+    setPortfolioCount(snapshot.portfolioCount);
+    setSavedProgramsCount(snapshot.savedProgramsCount);
+    setIsAdmin(snapshot.isAdmin);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return undefined;
@@ -295,134 +315,45 @@ export default function ProfileScreen() {
     let cancelled = false;
 
     async function loadData() {
-      const [
-        profileData,
-        interestsData,
-        careersData,
-        journeyData,
-        scoreEventsData,
-        portfolioData,
-        savedProgramsData,
-        eventsData,
-      ] = await Promise.all([
-        getProfile(userId),
-        supabase.from("user_interests").select("*").eq("user_id", userId),
-        supabase.from("career_goals").select("*").eq("user_id", userId),
-        supabase
-          .from("student_journeys")
-          .select("*")
-          .eq("student_id", userId)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false })
-          .maybeSingle(),
-        supabase
-          .from("score_events")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("student_portfolio_items")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("saved_programs")
-          .select("id,user_id,program_id,created_at")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("user_events")
-          .select("id,user_id,event_type,event_data,session_id,created_at")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(8),
-      ]);
+      const cachedSnapshot = await readCachedProfileScreenSnapshot(userId).catch(
+        () => null,
+      );
 
       if (cancelled) return;
 
-      setProfile(profileData);
-      setInterests((interestsData.data as InterestCategory[] | null) ?? []);
-      setCareers((careersData.data as CareerGoal[] | null) ?? []);
-
-      const scoreEvents = (scoreEventsData.data as any[]) || [];
-
-      // Compute ikigai scores from journey, or fall back to latest score event
-      const journey = journeyData.data as any;
-      if (journey?.scores) {
-        const s = journey.scores;
-        const passion = s.passion || 0;
-        const mission = s.future || 0;
-        const profession = s.world || 0;
-        const vocation = Math.round((passion + mission + profession) / 3);
-        setIkigaiScores({ passion, mission, profession, vocation });
-        setHasScores(passion > 0 || mission > 0 || profession > 0);
-      } else if (scoreEvents.length > 0) {
-        const latestMeta = (scoreEvents[0].metadata as Record<string, number>) || {};
-        const passion = latestMeta.passion || 0;
-        const mission = latestMeta.mission || 0;
-        const profession = latestMeta.profession || 0;
-        const vocation =
-          latestMeta.vocation ||
-          Math.round((passion + mission + profession) / 3);
-        setIkigaiScores({ passion, mission, profession, vocation });
-        setHasScores(passion > 0 || mission > 0 || profession > 0);
-      } else {
-        setIkigaiScores(null);
-        setHasScores(false);
+      if (cachedSnapshot) {
+        applyProfileSnapshot(cachedSnapshot);
       }
 
-      // Build timeline from score events
-      if (scoreEvents.length > 0) {
-        const eventsByDate = new Map<string, any[]>();
-        scoreEvents.forEach((event) => {
-          const date = event.created_at.split("T")[0];
-          if (!eventsByDate.has(date)) eventsByDate.set(date, []);
-          eventsByDate.get(date)!.push(event);
-        });
-        const timeline = Array.from(eventsByDate.entries()).map(([date, events]) => {
-          const meta = (events[0].metadata as Record<string, number>) || {};
-          return {
-            date,
-            passion: meta.passion || 0,
-            mission: meta.mission || 0,
-            profession: meta.profession || 0,
-            vocation: meta.vocation || 0,
-          };
-        });
-        setScoreTimeline(timeline.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-      } else {
-        setScoreTimeline([]);
+      const cacheStatus = getProfileScreenCacheStatus(cachedSnapshot);
+      const shouldForceRefresh = profileRefreshNonce > 0;
+
+      if (cacheStatus.isFresh && !shouldForceRefresh) {
+        return;
       }
 
-      setPortfolioCount((portfolioData.data as any[])?.length ?? 0);
-      setSavedProgramsCount((savedProgramsData.data as any[])?.length ?? 0);
-      setActivityEvents((eventsData.data as UserEvent[] | null) ?? []);
+      try {
+        const freshSnapshot = await fetchProfileScreenSnapshot(userId);
+        if (cancelled) return;
+
+        applyProfileSnapshot(freshSnapshot);
+        await writeCachedProfileScreenSnapshot(freshSnapshot).catch(() => {});
+      } catch (error) {
+        console.warn("[ProfileScreen] Failed to refresh profile snapshot:", error);
+      }
     }
 
-    loadData();
+    void loadData();
 
     return () => {
       cancelled = true;
     };
-  }, [user?.id, profileRefreshNonce]);
+  }, [applyProfileSnapshot, user?.id, profileRefreshNonce]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.replace("/");
   };
-
-  // Check if current user has admin role
-  useEffect(() => {
-    if (!user?.id) return;
-    supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle()
-      .then(({ data }) => setIsAdmin(!!data));
-  }, [user?.id]);
 
   const handleCreateProfile = () => {
     router.replace("/");
@@ -444,6 +375,9 @@ export default function ProfileScreen() {
             setBackfillingScores(true);
             try {
               const result = await backfillMissingIkigaiReflections(supabase);
+              if (user?.id) {
+                await clearCachedProfileScreenSnapshot(user.id).catch(() => {});
+              }
               Alert.alert(
                 isThai ? "เสร็จแล้ว" : "Done",
                 result.processedCount > 0

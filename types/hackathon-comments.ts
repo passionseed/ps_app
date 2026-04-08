@@ -61,6 +61,7 @@ export interface CommentParticipant {
   id: string;
   display_name: string;
   avatar_url?: string | null;
+  team_emoji?: string | null;
 }
 
 /**

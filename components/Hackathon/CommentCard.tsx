@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { CommentWithReplies } from "../../types/hackathon-comments";
 import { AppText } from "../AppText";
+import { getCommentParticipantBadge } from "../../lib/hackathonCommentParticipant";
 
 interface CommentCardProps {
   comment: CommentWithReplies;
@@ -113,6 +114,7 @@ export const CommentCard: React.FC<CommentCardProps> = ({
   }, [isEditing, onExpand]);
 
   const replyCount = comment.replies?.length || 0;
+  const participantBadge = getCommentParticipantBadge(comment.participant);
 
   return (
     <TouchableOpacity
@@ -122,15 +124,25 @@ export const CommentCard: React.FC<CommentCardProps> = ({
     >
       {/* Header: Avatar, Name, Timestamp */}
       <View style={styles.header}>
-        {comment.participant.avatar_url ? (
+        {participantBadge.type === "avatar" ? (
           <Image
-            source={{ uri: comment.participant.avatar_url }}
+            source={{ uri: participantBadge.value }}
             style={styles.avatar}
           />
         ) : (
-          <View style={styles.avatarPlaceholder}>
-            <AppText style={styles.avatarInitial}>
-              {comment.participant.display_name.charAt(0).toUpperCase()}
+          <View
+            style={[
+              styles.avatarPlaceholder,
+              participantBadge.type === "emoji" && styles.emojiAvatarPlaceholder,
+            ]}
+          >
+            <AppText
+              style={[
+                styles.avatarInitial,
+                participantBadge.type === "emoji" && styles.emojiAvatarText,
+              ]}
+            >
+              {participantBadge.value}
             </AppText>
           </View>
         )}
@@ -253,6 +265,15 @@ const styles = StyleSheet.create({
     color: "#91C4E3",
     fontSize: 16,
     fontWeight: "600",
+  },
+  emojiAvatarPlaceholder: {
+    backgroundColor: "rgba(145, 196, 227, 0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(145, 196, 227, 0.22)",
+  },
+  emojiAvatarText: {
+    color: "#FFFFFF",
+    fontSize: 20,
   },
   headerInfo: {
     marginLeft: 12,

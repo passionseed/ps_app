@@ -202,10 +202,10 @@ export async function getActivityComments(
     .select(
       `
       *,
-      hackathon_participants!participant_id(id, display_name, avatar_url),
+      hackathon_participants!participant_id(id, display_name, avatar_url, team_emoji),
       hackathon_activity_comment_replies(
         *,
-        hackathon_participants!participant_id(id, display_name, avatar_url)
+        hackathon_participants!participant_id(id, display_name, avatar_url, team_emoji)
       )
     `
     )
@@ -254,7 +254,7 @@ export async function getCommentReplies(
     .select(
       `
       *,
-      hackathon_participants!participant_id(id, display_name, avatar_url)
+      hackathon_participants!participant_id(id, display_name, avatar_url, team_emoji)
     `
     )
     .eq("comment_id", commentId)
