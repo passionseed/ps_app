@@ -5,10 +5,35 @@ import type {
   CommentWithReplies,
   ReplyWithParticipant,
 } from "../types/hackathon-comments";
+import { readHackathonToken } from "./hackathon-mode";
 
 async function getSupabaseClient() {
   const mod = await import("./supabase");
   return mod.supabase;
+}
+
+async function invokeHackathonCommentMutation(
+  body: Record<string, unknown>
+): Promise<boolean> {
+  const token = await readHackathonToken();
+
+  if (!token) {
+    return false;
+  }
+
+  const supabase = await getSupabaseClient();
+  const { error } = await supabase.functions.invoke("hackathon-comments", {
+    body,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return true;
 }
 
 // =============================================================================
@@ -109,6 +134,17 @@ export async function deleteComment(
   participantId: string,
   isAdmin: boolean
 ): Promise<void> {
+  const usedHackathonTransport = await invokeHackathonCommentMutation({
+    action: "delete_comment",
+    commentId,
+    participantId,
+    isAdmin,
+  });
+
+  if (usedHackathonTransport) {
+    return;
+  }
+
   const supabase = await getSupabaseClient();
 
   let query = supabase
@@ -120,10 +156,16 @@ export async function deleteComment(
     query = query.eq("participant_id", participantId);
   }
 
-  const { error } = await query;
+  const { data, error } = await query.select("id");
 
   if (error) {
     throw new Error(`Failed to delete comment: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error(
+      "Comment could not be deleted. It may have already been removed or you may not have permission."
+    );
   }
 }
 
@@ -165,6 +207,17 @@ export async function deleteReply(
   participantId: string,
   isAdmin: boolean
 ): Promise<void> {
+  const usedHackathonTransport = await invokeHackathonCommentMutation({
+    action: "delete_reply",
+    replyId,
+    participantId,
+    isAdmin,
+  });
+
+  if (usedHackathonTransport) {
+    return;
+  }
+
   const supabase = await getSupabaseClient();
 
   let query = supabase

@@ -32,4 +32,11 @@ describe("hackathon journey loading", () => {
     expect(journeyScreenSource).toContain("<HackathonJellyfishLoader />");
     expect(journeyScreenSource).toContain("Loading your journey...");
   });
+
+  it("restores the current phase countdown and removes the fake roadmap tail", () => {
+    expect(journeyScreenSource).toContain("CURRENT PHASE");
+    expect(journeyScreenSource).toContain("Continue Journey");
+    expect(journeyScreenSource).not.toContain("COMING SOON");
+    expect(journeyScreenSource).not.toContain("More challenges await!");
+  });
 });
