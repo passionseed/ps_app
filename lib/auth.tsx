@@ -342,17 +342,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const loginUrl = `${process.env.EXPO_PUBLIC_WEB_API_URL}/api/hackathon/login`;
     console.log("[Auth] Calling login endpoint:", loginUrl);
 
-    const res = await fetch(loginUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim(), password }),
-    });
+    let res: Response;
+    try {
+      res = await fetch(loginUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+    } catch (networkErr) {
+      throw new Error(`Network error hitting ${loginUrl}: ${networkErr instanceof Error ? networkErr.message : String(networkErr)}`);
+    }
 
     const body = await res.json() as any;
     console.log("[Auth] hackathon-login result", { status: res.status, body });
 
     if (!res.ok || !body.participant || !body.token) {
-      throw new Error(body.error ?? "Invalid email or password");
+      throw new Error(`[${res.status}] ${body.error ?? "Invalid email or password"}${body.debug ? ` (${body.debug})` : ""}`);
     }
 
     await saveHackathonSession(body.token, body.participant);
