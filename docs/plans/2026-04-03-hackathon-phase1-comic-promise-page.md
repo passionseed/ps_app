@@ -188,7 +188,7 @@ git commit -m "feat(hackathon): add phase 1 comic panel art"
 
 **Files:**
 - Modify: `supabase/seed/hackathon_phase1_activities_complete.sql`
-- Modify: `supabase/seed/hackathon_customer_discovery_phase1.sql`
+- Modify: `supabase/seed/hackathon_customer_discovery_phase1.sql` only for bootstrap/setup data
 - Modify: `lib/hackathonProgramPreview.ts`
 
 **Step 1: Update the destructive phase seed**
@@ -202,9 +202,9 @@ Modify `supabase/seed/hackathon_phase1_activities_complete.sql`:
 
 **Step 2: Update the additive seed**
 
-Modify `supabase/seed/hackathon_customer_discovery_phase1.sql` so Activity 1 no longer drifts from the destructive seed.
+Modify `supabase/seed/hackathon_customer_discovery_phase1.sql` only if the bootstrap/setup layer needs to stay in sync with phase metadata.
 
-The additive seed should stop describing Activity 1 as a generic overview video if Activity 1 is now the comic promise page.
+Do not treat this file as the source of truth for Activity 1 content, assessment, or webtoon data.
 
 **Step 3: Update preview fallback**
 
