@@ -31,9 +31,9 @@ export async function saveHackathonMode(value: boolean): Promise<void> {
 }
 
 export async function saveHackathonSession(token: string, participant: HackathonParticipant): Promise<void> {
-  await AsyncStorage.multiSet([
-    [HACKATHON_TOKEN_KEY, token],
-    [HACKATHON_PARTICIPANT_KEY, JSON.stringify(participant)],
+  await Promise.all([
+    AsyncStorage.setItem(HACKATHON_TOKEN_KEY, token),
+    AsyncStorage.setItem(HACKATHON_PARTICIPANT_KEY, JSON.stringify(participant)),
   ]);
 }
 
@@ -52,7 +52,10 @@ export async function readHackathonParticipant(): Promise<HackathonParticipant |
 }
 
 export async function clearHackathonSession(): Promise<void> {
-  await AsyncStorage.multiRemove([HACKATHON_TOKEN_KEY, HACKATHON_PARTICIPANT_KEY]);
+  await Promise.all([
+    AsyncStorage.removeItem(HACKATHON_TOKEN_KEY),
+    AsyncStorage.removeItem(HACKATHON_PARTICIPANT_KEY),
+  ]);
 }
 
 export function useHackathonParticipant(): HackathonParticipant | null {
