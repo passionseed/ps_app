@@ -50,7 +50,11 @@ function RootNavigator() {
     logAppOpened().catch(() => {});
 
     // Helper to check if we are already in a valid section
-    const isInHackathonArea = segments[0] === "(hackathon)" || segments[0] === "hackathon" || segments[0] === "hackathon-program";
+    const isInHackathonArea =
+      segments[0] === "(hackathon)" ||
+      segments[0] === "admin" ||
+      segments[0] === "hackathon" ||
+      segments[0] === "hackathon-program";
     const isInTabs = segments[0] === "(tabs)";
     const isInAllowedOnboardedArea = isAllowedOnboardedAppSegment(segments[0]);
     const isInOnboarding = segments[0] === "onboarding";

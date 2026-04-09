@@ -357,16 +357,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let res: Response;
     try {
+      const { publishableKey } = getSupabaseRuntimeConfig();
       res = await fetch(loginUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          apikey: publishableKey,
+        },
         body: JSON.stringify({ email: email.trim(), password }),
       });
     } catch (networkErr) {
       throw new Error(`Network error hitting ${loginUrl}: ${networkErr instanceof Error ? networkErr.message : String(networkErr)}`);
     }
 
-    const body = await res.json() as any;
+    let body: any = null;
+    try {
+      body = await res.json();
+    } catch {
+      body = { error: "Login endpoint returned an invalid response" };
+    }
     console.log("[Auth] hackathon-login result", { status: res.status, body });
 
     if (!res.ok || !body.participant || !body.token) {

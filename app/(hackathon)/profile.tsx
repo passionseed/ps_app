@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 
@@ -20,6 +20,7 @@ import { AppText } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
 import { Space, Radius } from "../../lib/theme";
 import { useHackathonParticipant, readHackathonParticipant } from "../../lib/hackathon-mode";
+import { isHackathonAdminEmail } from "../../lib/hackathonAdminAccess";
 import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
 import { supabase } from "../../lib/supabase";
 import { getInitialEmoji, getNextEmoji } from "../../lib/hackathon-emoji";
@@ -42,13 +43,14 @@ const AMBER = "#F59E0B";
 const DARK_BG = "rgba(20, 28, 41, 0.6)";
 
 export default function HackathonProfileScreen() {
-  const { signOutHackathon } = useAuth();
+  const { signOutHackathon, user } = useAuth();
   const participant = useHackathonParticipant();
   const insets = useSafeAreaInsets();
 
   const [team, setTeam] = useState<HackathonTeam | null>(null);
   const [questionnaire, setQuestionnaire] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const hasLoadedRef = useRef(false);
 
   // Social media fields
@@ -191,6 +193,39 @@ export default function HackathonProfileScreen() {
       handleAutoRollEmoji();
     }
   }, [loading, teamEmoji, team?.id, participant?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkAdminRole() {
+      if (isHackathonAdminEmail(participant?.email)) {
+        setIsAdmin(true);
+        return;
+      }
+
+      if (!user?.id) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (!cancelled) {
+        setIsAdmin(!error && Boolean(data));
+      }
+    }
+
+    void checkAdminRole();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [participant?.email, user?.id]);
 
   const handleAutoRollEmoji = async () => {
     if (!team?.id || !participant?.id) return;
@@ -732,6 +767,35 @@ export default function HackathonProfileScreen() {
               </AppText>
             </View>
 
+            {isAdmin ? (
+              <View style={styles.adminCard}>
+                <LinearGradient
+                  colors={[
+                    "rgba(101, 171, 252, 0.14)",
+                    "rgba(145, 196, 227, 0.04)",
+                  ]}
+                  style={StyleSheet.absoluteFill}
+                />
+                <AppText variant="bold" style={styles.adminTitle}>
+                  Hackathon Admin
+                </AppText>
+                <AppText style={styles.adminText}>
+                  Review app stats, activity submissions, and team progress.
+                </AppText>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.adminBtn,
+                    pressed && { opacity: 0.75 },
+                  ]}
+                  onPress={() => router.push("/admin/hackathon" as any)}
+                >
+                  <AppText variant="bold" style={styles.adminBtnText}>
+                    Open Dashboard
+                  </AppText>
+                </Pressable>
+              </View>
+            ) : null}
+
             {/* Sign Out */}
             <Pressable
               style={({ pressed }) => [
@@ -1062,6 +1126,45 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginTop: Space.xs,
     fontFamily: "BaiJamjuree_700Bold",
+  },
+  adminCard: {
+    borderRadius: Radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(101,171,252,0.28)",
+    padding: Space.lg,
+    gap: Space.sm,
+    marginTop: Space.sm,
+    backgroundColor: "rgba(3, 5, 10, 0.48)",
+  },
+  adminTitle: {
+    fontSize: 17,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  adminText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: WHITE75,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  adminBtn: {
+    backgroundColor: "rgba(101,171,252,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(101,171,252,0.4)",
+    borderRadius: Radius.md,
+    paddingVertical: Space.sm,
+    paddingHorizontal: Space.md,
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginTop: Space.xs,
+  },
+  adminBtnText: {
+    color: CYAN,
+    fontSize: 12,
+    fontFamily: "BaiJamjuree_700Bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   linkBtn: {
     backgroundColor: "rgba(145,196,227,0.15)",
