@@ -220,9 +220,9 @@ function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
 import { Canvas, Path as SkiaPath, Shadow } from "@shopify/react-native-skia";
 
 const ICONS = {
-  home: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
-  journey: "M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z M8 2v16 M16 6v16",
-  profile: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+  home: "M 9 9 H 16 A 6 6 0 0 1 22 15 A 6 6 0 0 1 16 21 H 9 A 6 6 0 0 1 3 15 A 6 6 0 0 1 9 9 Z M 16 13 A 2 2 0 1 0 16 17 A 2 2 0 1 0 16 13 M 12 9 V 6 A 2 2 0 0 1 14 4 H 16 M 3 15 H 1 M 1 12 L 1 18",
+  journey: "M 4 7 C 8 4, 11 5, 12 7 C 13 9, 16 10, 20 7 V 17 C 16 20, 13 19, 12 17 C 11 15, 8 14, 4 17 Z M 12 7 V 17 M 14.5 10.5 L 17.5 13.5 M 17.5 10.5 L 14.5 13.5",
+  profile: "M 4 15 A 8 8 0 0 1 20 15 V 19 C 20 21, 18 22, 12 22 C 6 22, 4 21, 4 19 Z M 10 7 V 5 C 10 3, 14 3, 14 5 V 7 M 12 9 A 4 4 0 1 0 12 17 A 4 4 0 1 0 12 9 M 4 13 H 2 M 20 13 H 22"
 };
 
 function TabBarButton({
