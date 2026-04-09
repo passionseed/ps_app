@@ -20,6 +20,10 @@ import {
 } from "./guest-language";
 import { readHackathonMode, saveHackathonMode, saveHackathonSession, clearHackathonSession } from "./hackathon-mode";
 
+// These functions are now synchronous (MMKV), but callers may still use await.
+// await on a non-Promise value is harmless, so we keep the calling code as-is
+// where practical and only simplify where it improves readability.
+
 WebBrowser.maybeCompleteAuthSession();
 
 function extractParamsFromUrl(url: string) {
@@ -200,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return result;
       }),
       readGuestLanguage(),
-      readHackathonMode().catch(() => false),  // safe fallback if AsyncStorage fails
+      readHackathonMode(),
     ])
       .then(async ([result, language, hackathonMode]) => {
         if (cancelled) return;
@@ -274,8 +278,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Supabase session so these fire on every app start.
           if (event === "SIGNED_OUT") {
             setIsHackathon(false);
-            void saveHackathonMode(false);
-            void clearHackathonSession();
+            saveHackathonMode(false);
+            clearHackathonSession();
             clearHackathonScreenDataCache();
           }
           setLoading(false);
@@ -331,9 +335,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsGuest(true);
   };
 
-  const setGuestLanguage = async (language: GuestLanguage) => {
+  const setGuestLanguage = (language: GuestLanguage) => {
     setGuestLanguageState(language);
-    await saveGuestLanguage(language);
+    saveGuestLanguage(language);
   };
 
   const setUserLanguage = (language: GuestLanguage) => {
@@ -368,8 +372,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(`[${res.status}] ${body.error ?? "Invalid email or password"}${body.debug ? ` (${body.debug})` : ""}`);
     }
 
-    await saveHackathonSession(body.token, body.participant);
-    await saveHackathonMode(true);
+    saveHackathonSession(body.token, body.participant);
+    saveHackathonMode(true);
     clearHackathonScreenDataCache();
     setIsHackathon(true);
     void preloadHackathonHomeBundle();
@@ -378,8 +382,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOutHackathon = async () => {
     console.log("[Auth] signOutHackathon start");
-    await clearHackathonSession();
-    await saveHackathonMode(false);
+    clearHackathonSession();
+    saveHackathonMode(false);
     clearHackathonScreenDataCache();
     setIsHackathon(false);
     console.log("[Auth] signOutHackathon done");

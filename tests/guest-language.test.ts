@@ -1,10 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
+const { getStringMock, setMock } = vi.hoisted(() => ({
+  getStringMock: vi.fn(),
+  setMock: vi.fn(),
+}));
+
+vi.mock("../lib/storage", () => ({
+  storage: {
+    getString: getStringMock,
+    set: setMock,
+    delete: vi.fn(),
+    getBoolean: vi.fn(),
   },
+  hasMigratedFromAsyncStorage: true,
+  migrateFromAsyncStorage: vi.fn(),
 }));
 
 import {
@@ -13,15 +22,11 @@ import {
   readGuestLanguage,
   saveGuestLanguage,
 } from "../lib/guest-language";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const getItem = vi.mocked(AsyncStorage.getItem);
-const setItem = vi.mocked(AsyncStorage.setItem);
 
 describe("guest language storage", () => {
   beforeEach(() => {
-    getItem.mockReset();
-    setItem.mockReset();
+    getStringMock.mockReset();
+    setMock.mockReset();
   });
 
   it("normalizes unknown values to thai", () => {
@@ -31,22 +36,22 @@ describe("guest language storage", () => {
     expect(normalizeGuestLanguage(null)).toBe("th");
   });
 
-  it("reads the persisted guest language", async () => {
-    getItem.mockResolvedValue("en");
+  it("reads the persisted guest language", () => {
+    getStringMock.mockReturnValue("en");
 
-    await expect(readGuestLanguage()).resolves.toBe("en");
-    expect(getItem).toHaveBeenCalledWith(GUEST_LANGUAGE_STORAGE_KEY);
+    expect(readGuestLanguage()).toBe("en");
+    expect(getStringMock).toHaveBeenCalledWith(GUEST_LANGUAGE_STORAGE_KEY);
   });
 
-  it("falls back to thai when storage is empty", async () => {
-    getItem.mockResolvedValue(null);
+  it("falls back to thai when storage is empty", () => {
+    getStringMock.mockReturnValue(undefined);
 
-    await expect(readGuestLanguage()).resolves.toBe("th");
+    expect(readGuestLanguage()).toBe("th");
   });
 
-  it("persists the selected guest language", async () => {
-    await saveGuestLanguage("en");
+  it("persists the selected guest language", () => {
+    saveGuestLanguage("en");
 
-    expect(setItem).toHaveBeenCalledWith(GUEST_LANGUAGE_STORAGE_KEY, "en");
+    expect(setMock).toHaveBeenCalledWith(GUEST_LANGUAGE_STORAGE_KEY, "en");
   });
 });

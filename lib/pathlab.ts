@@ -665,7 +665,7 @@ export async function getEnrollmentDayBundle(
     }, "Unable to load your current day");
 
     if (bundle) {
-      await writeCachedPathDayBundle(enrollmentId, {
+      writeCachedPathDayBundle(enrollmentId, {
         ...bundle,
         loadedAt: Date.now(),
       });
@@ -673,7 +673,7 @@ export async function getEnrollmentDayBundle(
 
     return bundle;
   } catch (error) {
-    const cached = await readCachedPathDayBundle(enrollmentId);
+    const cached = readCachedPathDayBundle(enrollmentId);
     if (cached) {
       return cached;
     }
@@ -1310,7 +1310,7 @@ export async function getRecommendedSeeds(options?: {
         throw error;
       }
 
-      await writeCachedSeedRecommendations(data as SeedRecommendationsPayload);
+      writeCachedSeedRecommendations(data as SeedRecommendationsPayload);
       writeRecommendedSeedsMemoryCache(
         resolvedUserId,
         data as SeedRecommendationsPayload,
@@ -1325,7 +1325,7 @@ export async function getRecommendedSeeds(options?: {
     recommendedSeedsInFlight.set(requestKey, promise);
     return await promise;
   } catch (error) {
-    const cached = await readCachedSeedRecommendations();
+    const cached = readCachedSeedRecommendations();
     if (cached) {
       writeRecommendedSeedsMemoryCache(resolvedUserId, cached);
       return {

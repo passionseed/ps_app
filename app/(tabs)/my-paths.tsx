@@ -15,8 +15,14 @@ import { router, useFocusEffect } from "expo-router";
 import { CareerPathCard } from "../../components/JourneyBoard/CareerPathCard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getActiveJourneys } from "../../lib/journey";
-import { getUserActiveEnrollments, getUserCompletedEnrollments } from "../../lib/pathlab";
+import { getUserActiveEnrollments } from "../../lib/pathlab";
 import { useAuth } from "../../lib/auth";
+import {
+  readCachedMyPathsSnapshot,
+  writeCachedMyPathsSnapshot,
+  getMyPathsCacheStatus,
+  type MyPathsSnapshot,
+} from "../../lib/myPathsCache";
 import type { StudentJourney } from "../../types/journey";
 import type { CareerPath, PathStep } from "../../types/journey";
 import type { EnrollmentWithPath } from "../../lib/pathlab";
@@ -100,32 +106,79 @@ function journeyToCareerPath(journey: StudentJourney): CareerPath {
 }
 
 export default function MyPathsScreen() {
-  const { appLanguage } = useAuth();
+  const { appLanguage, user } = useAuth();
   const [journeys, setJourneys] = useState<StudentJourney[]>([]);
   const [pathlabEnrollments, setPathlabEnrollments] = useState<EnrollmentWithPath[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
 
-  useEffect(() => {
-    Promise.all([getActiveJourneys(), getUserActiveEnrollments()])
-      .then(([journeysData, enrollmentsData]) => {
-        setJourneys(journeysData);
-        setPathlabEnrollments(enrollmentsData);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+  const applySnapshot = useCallback((snapshot: MyPathsSnapshot) => {
+    setJourneys(snapshot.journeys);
+    setPathlabEnrollments(snapshot.enrollments);
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      Promise.all([getActiveJourneys(), getUserActiveEnrollments()])
-        .then(([journeysData, enrollmentsData]) => {
+      if (!user?.id) return;
+
+      const userId = user.id;
+      let cancelled = false;
+
+      async function loadData() {
+        let cachedSnapshot: MyPathsSnapshot | null = null;
+        try {
+          cachedSnapshot = readCachedMyPathsSnapshot(userId);
+        } catch {
+          cachedSnapshot = null;
+        }
+
+        if (cancelled) return;
+
+        if (cachedSnapshot) {
+          applySnapshot(cachedSnapshot);
+          setLoading(false);
+        }
+
+        const cacheStatus = getMyPathsCacheStatus(cachedSnapshot);
+        const isFirstLoad = !hasLoadedRef.current;
+        hasLoadedRef.current = true;
+
+        if (cacheStatus.isFresh && !isFirstLoad) {
+          if (!cachedSnapshot) setLoading(false);
+          return;
+        }
+
+        if (!cachedSnapshot) setLoading(true);
+
+        try {
+          const [journeysData, enrollmentsData] = await Promise.all([
+            getActiveJourneys(),
+            getUserActiveEnrollments(),
+          ]);
+          if (cancelled) return;
+
           setJourneys(journeysData);
           setPathlabEnrollments(enrollmentsData);
-        })
-        .catch(console.error)
-        .finally(() => setLoading(false));
-    }, []),
+
+          const snapshot: MyPathsSnapshot = {
+            version: 1,
+            userId,
+            cachedAt: new Date().toISOString(),
+            journeys: journeysData,
+            enrollments: enrollmentsData,
+          };
+          try { writeCachedMyPathsSnapshot(snapshot); } catch {}
+        } catch (error) {
+          console.error("[MyPaths] Failed to load:", error);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      }
+
+      void loadData();
+
+      return () => { cancelled = true; };
+    }, [user?.id, applySnapshot]),
   );
 
   const scrollX = useRef(new Animated.Value(0)).current;

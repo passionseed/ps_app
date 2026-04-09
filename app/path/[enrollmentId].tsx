@@ -15,7 +15,8 @@ import {
 } from "../../lib/pathlab";
 import type { PathDay } from "../../types/pathlab";
 import type { PathActivityWithContent } from "../../types/pathlab-content";
-import { warmPathDayBundle } from "../../lib/pathlabSession";
+import { warmPathDayBundle, getCachedPathDayBundle } from "../../lib/pathlabSession";
+import { readCachedPathDayBundle, writeCachedPathDayBundle } from "../../lib/seedRecommendations";
 import { formatPathDayLabel } from "../../lib/pathlab-day-label";
 import {
   getPathlabActivityRoute,
@@ -52,48 +53,53 @@ export default function DailyPathScreen() {
       return;
     }
 
-    setLoading(true);
     setError(null);
+
+    // Try session cache first (instant, already loaded from navigation)
+    const sessionBundle = getCachedPathDayBundle(enrollmentId);
+    // Also try MMKV persistent cache
+    const persistentBundle = sessionBundle ?? readCachedPathDayBundle(enrollmentId);
+    const cachedBundle = persistentBundle;
+
+    if (cachedBundle) {
+      const { enrollment: enrollmentData, pathDay: dayData, activities: activitiesData } = cachedBundle;
+      setEnrollment(enrollmentData as EnrollmentWithPath);
+      setPathDay(dayData);
+      setActivities(activitiesData);
+      setLoading(false);
+
+      // Background refresh — only if cache is older than 30s
+      const cacheAge = cachedBundle.loadedAt ? Date.now() - cachedBundle.loadedAt : Infinity;
+      if (cacheAge < 30_000) return;
+    } else {
+      setLoading(true);
+    }
 
     try {
       const dayBundle = await getEnrollmentDayBundle(enrollmentId);
 
       if (!dayBundle) {
-        console.error("❌ No enrollment/day bundle found for ID:", enrollmentId);
-        setError("Enrollment not found");
+        if (!cachedBundle) {
+          setError("Enrollment not found");
+        }
         return;
       }
 
       const { enrollment: enrollmentData, pathDay: dayData, activities: activitiesData } = dayBundle;
 
-      console.log("✅ Enrollment loaded:", {
-        id: enrollmentData.id,
-        path_id: enrollmentData.path_id,
-        current_day: enrollmentData.current_day,
-        status: enrollmentData.status,
-      });
-
       setEnrollment(enrollmentData as EnrollmentWithPath);
-      console.log("📦 Path day data received:", JSON.stringify(dayData, null, 2));
       setPathDay(dayData);
-      console.log("📚 Fetching activities for path_day_id:", dayData.id);
-      console.log("✅ Activities received:", activitiesData.length, "activities");
-
-      if (activitiesData.length === 0) {
-        console.warn("⚠️ No activities found for this day");
-      }
-
       setActivities(activitiesData);
       warmPathDayBundle(enrollmentId, {
         enrollment: enrollmentData,
         pathDay: dayData,
         activities: activitiesData,
       });
-
-      // Removed auto-navigation so users can explore the list freely
     } catch (error) {
       console.error("❌ Failed to load path data:", error);
-      setError(error instanceof Error ? error.message : "Failed to load path data");
+      if (!cachedBundle) {
+        setError(error instanceof Error ? error.message : "Failed to load path data");
+      }
     } finally {
       setLoading(false);
     }

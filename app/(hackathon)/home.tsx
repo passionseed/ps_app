@@ -11,7 +11,7 @@ import {
   getCachedHackathonHomeBundle,
   loadHackathonHomeBundle,
 } from "../../lib/hackathonScreenData";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "../../lib/storage";
 import { readHackathonToken } from "../../lib/hackathon-mode";
 import type { TeamImpact } from "../../lib/hackathon-submit";
 
@@ -61,7 +61,8 @@ export default function HackathonHomeScreen() {
         .catch(() => {});
 
       // Check if team's booking was cancelled by mentor → show notice with reason
-      readHackathonToken().then(async (token) => {
+      (async () => {
+        const token = readHackathonToken();
         if (!token) return;
         try {
           const r = await fetch("https://www.passionseed.org/api/hackathon/student/mentor-quota", {
@@ -77,7 +78,7 @@ export default function HackathonHomeScreen() {
           if (mentorCancelledAfterConfirm) {
             // Only show if user hasn't dismissed this specific booking's notice
             const dismissedKey = `mentor_cancel_dismissed_${b.id}`;
-            const dismissed = await AsyncStorage.getItem(dismissedKey);
+            const dismissed = storage.getString(dismissedKey);
             if (!dismissed) {
               setCancelledBookingReason(b.cancellation_reason);
               setCancelledBookingId(b.id);
@@ -89,7 +90,7 @@ export default function HackathonHomeScreen() {
         } catch {
           // ignore
         }
-      });
+      })();
     }, [])
   );
 

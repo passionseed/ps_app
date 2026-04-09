@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -23,6 +23,12 @@ import { useHackathonParticipant, readHackathonParticipant } from "../../lib/hac
 import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
 import { supabase } from "../../lib/supabase";
 import { getInitialEmoji, getNextEmoji } from "../../lib/hackathon-emoji";
+import {
+  readCachedHackathonProfile,
+  writeCachedHackathonProfile,
+  getHackathonProfileCacheStatus,
+  type HackathonProfileSnapshot,
+} from "../../lib/hackathonProfileCache";
 import type { HackathonTeam } from "../../types/hackathon-program";
 
 const BG = "transparent";
@@ -43,6 +49,7 @@ export default function HackathonProfileScreen() {
   const [team, setTeam] = useState<HackathonTeam | null>(null);
   const [questionnaire, setQuestionnaire] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
 
   // Social media fields
   const [instagramHandle, setInstagramHandle] = useState("");
@@ -58,7 +65,17 @@ export default function HackathonProfileScreen() {
   const [teamAvatarUrl, setTeamAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  // Load profile data
+  const applySnapshot = useCallback((snapshot: HackathonProfileSnapshot) => {
+    setTeam(snapshot.team);
+    setQuestionnaire(snapshot.questionnaire);
+    setInstagramHandle(snapshot.instagramHandle);
+    setDiscordUsername(snapshot.discordUsername);
+    setTeamEmoji(snapshot.teamEmoji);
+    setEmojiRollCount(snapshot.emojiRollCount);
+    setTeamAvatarUrl(snapshot.teamAvatarUrl);
+  }, []);
+
+  // Load profile data with stale-while-revalidate
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -69,6 +86,29 @@ export default function HackathonProfileScreen() {
           setLoading(false);
           return;
         }
+
+        // Read cache synchronously for instant render
+        let cachedSnapshot: HackathonProfileSnapshot | null = null;
+        try {
+          cachedSnapshot = readCachedHackathonProfile(p.id);
+        } catch {
+          cachedSnapshot = null;
+        }
+
+        if (cachedSnapshot) {
+          applySnapshot(cachedSnapshot);
+          setLoading(false);
+        }
+
+        const cacheStatus = getHackathonProfileCacheStatus(cachedSnapshot);
+        const isFirstLoad = !hasLoadedRef.current;
+        hasLoadedRef.current = true;
+
+        if (cacheStatus.isFresh && !isFirstLoad) {
+          return;
+        }
+
+        if (!cachedSnapshot) setLoading(true);
 
         try {
           const [homeData, { data: qData }, { data: participantData }] =
@@ -88,25 +128,50 @@ export default function HackathonProfileScreen() {
                 .maybeSingle(),
             ]);
 
-          if (!cancelled) {
-            setTeam(homeData.team);
-            setQuestionnaire(qData);
+          if (cancelled) return;
 
-            // Set social fields
-            if (participantData) {
-              setInstagramHandle(participantData.instagram_handle || "");
-              setDiscordUsername(participantData.discord_username || "");
-              setTeamEmoji(participantData.team_emoji);
-              setEmojiRollCount(participantData.emoji_roll_count || 0);
-            }
+          setTeam(homeData.team);
+          setQuestionnaire(qData);
 
-            // Set team avatar
-            if (homeData.team?.team_avatar_url) {
-              setTeamAvatarUrl(homeData.team.team_avatar_url);
-            }
+          // Set social fields
+          let igHandle = "";
+          let discord = "";
+          let emoji: string | null = null;
+          let rollCount = 0;
+          let avatarUrl: string | null = null;
 
-            setLoading(false);
+          if (participantData) {
+            igHandle = participantData.instagram_handle || "";
+            discord = participantData.discord_username || "";
+            emoji = participantData.team_emoji;
+            rollCount = participantData.emoji_roll_count || 0;
+            setInstagramHandle(igHandle);
+            setDiscordUsername(discord);
+            setTeamEmoji(emoji);
+            setEmojiRollCount(rollCount);
           }
+
+          // Set team avatar
+          if (homeData.team?.team_avatar_url) {
+            avatarUrl = homeData.team.team_avatar_url;
+            setTeamAvatarUrl(avatarUrl);
+          }
+
+          setLoading(false);
+
+          // Write fresh snapshot to cache
+          const snapshot: HackathonProfileSnapshot = {
+            version: 1,
+            cachedAt: new Date().toISOString(),
+            team: homeData.team,
+            questionnaire: qData,
+            instagramHandle: igHandle,
+            discordUsername: discord,
+            teamEmoji: emoji,
+            emojiRollCount: rollCount,
+            teamAvatarUrl: avatarUrl,
+          };
+          try { writeCachedHackathonProfile(p.id, snapshot); } catch {}
         } catch (err) {
           console.error("[Profile] load error", err);
           if (!cancelled) setLoading(false);
@@ -117,7 +182,7 @@ export default function HackathonProfileScreen() {
       return () => {
         cancelled = true;
       };
-    }, []),
+    }, [applySnapshot]),
   );
 
   // Auto-roll emoji if not set
@@ -152,6 +217,17 @@ export default function HackathonProfileScreen() {
             ),
           });
         }
+        // Update cache
+        try {
+          const cached = readCachedHackathonProfile(participant.id);
+          if (cached) {
+            writeCachedHackathonProfile(participant.id, {
+              ...cached,
+              teamEmoji: emoji,
+              emojiRollCount: rollCount,
+            });
+          }
+        } catch {}
       }
     } catch (err) {
       console.error("[Profile] auto-roll error", err);
@@ -174,6 +250,17 @@ export default function HackathonProfileScreen() {
       if (error) {
         Alert.alert("Error", "Failed to save social media handles.");
       } else {
+        // Update cache with saved values
+        try {
+          const cached = readCachedHackathonProfile(participant.id);
+          if (cached) {
+            writeCachedHackathonProfile(participant.id, {
+              ...cached,
+              instagramHandle: instagramHandle.trim(),
+              discordUsername: discordUsername.trim(),
+            });
+          }
+        } catch {}
         Alert.alert("Saved", "Your social media handles have been updated.");
       }
     } catch (err) {
@@ -214,6 +301,17 @@ export default function HackathonProfileScreen() {
             ),
           });
         }
+        // Update cache
+        try {
+          const cached = readCachedHackathonProfile(participant.id);
+          if (cached) {
+            writeCachedHackathonProfile(participant.id, {
+              ...cached,
+              teamEmoji: emoji,
+              emojiRollCount: newRollCount,
+            });
+          }
+        } catch {}
       } else {
         Alert.alert("Error", "Failed to roll emoji.");
       }
@@ -287,6 +385,18 @@ export default function HackathonProfileScreen() {
         Alert.alert("Error", "Failed to update team avatar.");
       } else {
         setTeamAvatarUrl(avatarUrl);
+        // Update cache
+        try {
+          if (participant?.id) {
+            const cached = readCachedHackathonProfile(participant.id);
+            if (cached) {
+              writeCachedHackathonProfile(participant.id, {
+                ...cached,
+                teamAvatarUrl: avatarUrl,
+              });
+            }
+          }
+        } catch {}
         Alert.alert("Success", "Team avatar updated!");
       }
     } catch (err) {

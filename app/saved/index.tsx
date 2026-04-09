@@ -8,12 +8,18 @@ import {
   Pressable,
 } from "react-native";
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText as Text } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
-import { getSavedPrograms, unsaveProgram } from "../../lib/savedPrograms";
+import {
+  getSavedPrograms,
+  unsaveProgram,
+  readCachedSavedPrograms,
+  writeCachedSavedPrograms,
+  isSavedProgramsCacheFresh,
+} from "../../lib/savedPrograms";
 import type { SavedProgram } from "../../lib/savedPrograms";
 import {
   PageBg,
@@ -30,21 +36,41 @@ export default function SavedProgramsScreen() {
   const [savedPrograms, setSavedPrograms] = useState<SavedProgram[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const { appLanguage } = useAuth();
+  const { appLanguage, user } = useAuth();
   const insets = useSafeAreaInsets();
   const isThai = appLanguage === "th";
+  const hasLoadedRef = useRef(false);
 
   const loadSavedPrograms = useCallback(async () => {
-    setLoading(true);
+    const userId = user?.id;
+    if (!userId) return;
+
+    // Read cache synchronously for instant render
+    const cached = readCachedSavedPrograms(userId);
+    if (cached) {
+      setSavedPrograms(cached.programs);
+      setLoading(false);
+    }
+
+    const isFirstLoad = !hasLoadedRef.current;
+    hasLoadedRef.current = true;
+
+    if (isSavedProgramsCacheFresh(cached) && !isFirstLoad) {
+      return;
+    }
+
+    if (!cached) setLoading(true);
+
     try {
       const data = await getSavedPrograms();
       setSavedPrograms(data);
+      try { writeCachedSavedPrograms(userId, data); } catch {}
     } catch (error) {
       console.error("Failed to load saved programs:", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useFocusEffect(
     useCallback(() => {
