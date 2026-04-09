@@ -292,5 +292,6 @@ export function getPreviewJourneyModules(
   const endsAt = phase?.ends_at ?? null;
   return detail.playlists
     .flatMap((playlist) => playlist.modules)
+    .filter(Boolean)
     .map((m) => ({ ...m, ends_at: endsAt }));
 }

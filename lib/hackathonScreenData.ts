@@ -146,7 +146,7 @@ function buildJourneyPhaseCards(
   const currentPhaseId = home.enrollment?.current_phase_id;
   let foundActive = false;
 
-  const cards = home.phases.map((phase) => {
+  const cards = home.phases.filter(Boolean).map((phase) => {
     const phaseData = phaseSummaries.find((summary) => summary.id === phase.id);
     const activities = phaseData?.activities ?? [];
     const isPhaseActive =
@@ -154,7 +154,7 @@ function buildJourneyPhaseCards(
 
     if (isPhaseActive) foundActive = true;
 
-    const completedCount = activities.filter((activity) => {
+    const completedCount = activities.filter(Boolean).filter((activity) => {
       const status = submissionStatuses[activity.id];
       return (
         status === "submitted" ||
@@ -166,7 +166,7 @@ function buildJourneyPhaseCards(
 
     return {
       phase,
-      activityTitles: activities.map((activity) => activity.title),
+      activityTitles: activities.filter(Boolean).map((activity) => activity.title),
       activityCount: activities.length,
       completedCount,
       isActive: isPhaseActive,
@@ -220,7 +220,7 @@ async function createJourneyBundle(): Promise<HackathonJourneyBundle> {
 
   const phaseSummaries = await getProgramPhaseActivitySummaries(home.program.id);
   const allActivityIds = phaseSummaries.flatMap((phase) =>
-    phase.activities.map((activity) => activity.id),
+    (phase.activities ?? []).filter(Boolean).map((activity) => activity.id),
   );
   const submissionStatuses = await fetchActivitySubmissionStatuses(allActivityIds);
 
@@ -248,7 +248,7 @@ async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle>
   if (!participant?.id || phase.activities.length === 0) {
     return {
       phase,
-      activities: phase.activities.map((activity) => ({
+      activities: (phase.activities ?? []).filter(Boolean).map((activity) => ({
         ...activity,
         submissionStatus: "not_started",
       })),
@@ -257,12 +257,12 @@ async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle>
   }
 
   const statuses = await fetchActivitySubmissionStatuses(
-    phase.activities.map((activity) => activity.id),
+    (phase.activities ?? []).filter(Boolean).map((activity) => activity.id),
   );
 
   return {
     phase,
-    activities: phase.activities.map((activity) => ({
+    activities: (phase.activities ?? []).filter(Boolean).map((activity) => ({
       ...activity,
       submissionStatus:
         (statuses[activity.id] as HackathonPhaseActivitySubmissionStatus | undefined) ??
@@ -295,16 +295,16 @@ async function buildActivitySiblings(
       .order("display_order", { ascending: true }),
   ]);
 
-  const visibleSiblings = (siblingRows ?? []).filter((row) => !row.is_draft);
+  const visibleSiblings = (siblingRows ?? []).filter(Boolean).filter((row) => !row.is_draft);
   if (visibleSiblings.length === 0) {
     return { blockedMessage: null, siblings: [] };
   }
 
   const siblingSubmissionStatuses = await fetchActivitySubmissionStatuses(
-    visibleSiblings.map((sibling) => sibling.id),
+    visibleSiblings.filter(Boolean).map((sibling) => sibling.id),
   );
 
-  const siblingsWithAccess = visibleSiblings.map((sibling, index) => ({
+  const siblingsWithAccess = visibleSiblings.filter(Boolean).map((sibling, index) => ({
     id: sibling.id,
     title: sibling.title,
     accessible: isHackathonActivityAccessible({

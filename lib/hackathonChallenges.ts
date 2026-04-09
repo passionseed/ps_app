@@ -24,7 +24,7 @@ export async function getHackathonTracksWithChallenges(): Promise<HackathonTrack
     throw new Error(error.message);
   }
 
-  return ((data as Array<HackathonTrack & { hackathon_challenges?: HackathonChallenge[] }>) ?? []).map(
+  return ((data as Array<HackathonTrack & { hackathon_challenges?: HackathonChallenge[] }>) ?? []).filter(Boolean).map(
     (track) => ({
       ...track,
       hackathon_challenges: (track.hackathon_challenges ?? []).sort((a, b) =>
