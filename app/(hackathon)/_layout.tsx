@@ -66,6 +66,46 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
   },
 };
 
+function HackathonActivePill({
+  index,
+  animatedIndex,
+  glow,
+  accent,
+}: {
+  index: number;
+  animatedIndex: SharedValue<number>;
+  glow: string;
+  accent: string;
+}) {
+  const activeOpacityStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      animatedIndex.value,
+      [index - 1, index, index + 1],
+      [0, 1, 0],
+      "clamp"
+    );
+    return { opacity };
+  });
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, activeOpacityStyle]}>
+      <View
+        style={[
+          styles.activePill,
+          {
+            backgroundColor: glow,
+            borderColor: accent,
+            shadowColor: accent,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.6,
+            shadowRadius: 10,
+          },
+        ]}
+      />
+    </Animated.View>
+  );
+}
+
 function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   
@@ -127,35 +167,14 @@ function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
               >
                 {visibleRoutes.map((route, i) => {
                   const theme = TAB_THEMES[route.name as TabRoute];
-                  const activeOpacityStyle = useAnimatedStyle(() => {
-                    const opacity = interpolate(
-                      animatedIndex.value,
-                      [i - 1, i, i + 1],
-                      [0, 1, 0],
-                      "clamp"
-                    );
-                    return { opacity };
-                  });
-
                   return (
-                    <Animated.View
+                    <HackathonActivePill
                       key={`pill-${route.key}`}
-                      style={[StyleSheet.absoluteFill, activeOpacityStyle]}
-                    >
-                      <View
-                        style={[
-                          styles.activePill,
-                          {
-                            backgroundColor: theme.glow,
-                            borderColor: theme.accent,
-                            shadowColor: theme.accent,
-                            shadowOffset: { width: 0, height: 0 },
-                            shadowOpacity: 0.6,
-                            shadowRadius: 10,
-                          },
-                        ]}
-                      />
-                    </Animated.View>
+                      index={i}
+                      animatedIndex={animatedIndex}
+                      glow={theme.glow}
+                      accent={theme.accent}
+                    />
                   );
                 })}
               </Animated.View>
@@ -201,9 +220,9 @@ function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
 import { Canvas, Path as SkiaPath, Shadow } from "@shopify/react-native-skia";
 
 const ICONS = {
-  home: "M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z",
-  journey: "M15 5.1L9 3 3 5.02v16.2l6-2.33 6 2.1 6-2.02V2.77L15 5.1zm0 13.79l-6-2.11V5.11l6 2.11v11.67z",
-  profile: "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+  home: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
+  journey: "M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z M8 2v16 M16 6v16",
+  profile: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
 };
 
 function TabBarButton({
@@ -246,8 +265,16 @@ function TabBarButton({
     <Pressable onPress={onPress} style={styles.tabButton}>
       <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
         <Canvas style={{ width: 24, height: 24 }}>
-          <SkiaPath path={pathStr} color={isFocused ? theme.accent : "rgba(255,255,255,0.4)"}>
-            {isFocused && <Shadow dx={0} dy={0} blur={8} color={theme.accent} />}
+          <SkiaPath 
+            path={pathStr} 
+            color={isFocused ? theme.accent : "rgba(255,255,255,0.4)"}
+            style="stroke"
+            strokeWidth={1.5}
+            strokeJoin="round"
+            strokeCap="round"
+          >
+            {isFocused && <Shadow dx={0} dy={0} blur={6} color={theme.accent} />}
+            {isFocused && <Shadow dx={0} dy={0} blur={12} color={theme.accent} />}
           </SkiaPath>
         </Canvas>
       </Animated.View>

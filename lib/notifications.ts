@@ -9,15 +9,31 @@ export {
   sendPathNotificationEvent,
 } from "./pathNotifications";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+/**
+ * Track whether the native notifications module is available.
+ * On Android, Firebase may not be initialized if google-services.json
+ * is missing or misconfigured, which causes all Notifications calls to throw.
+ */
+let _notificationsAvailable = true;
+
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch {
+  _notificationsAvailable = false;
+}
+
+/** Check if push notifications are available on this device. */
+export function isNotificationsAvailable(): boolean {
+  return _notificationsAvailable;
+}
 
 export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   push_enabled: true,
@@ -60,32 +76,44 @@ async function updateNotificationProfile(
 }
 
 export async function requestPushPermissions(): Promise<string | null> {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== "granted") {
+  if (!_notificationsAvailable) {
     return null;
   }
 
-  const token = await Notifications.getExpoPushTokenAsync({
-    projectId: getExpoProjectId(),
-  });
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
 
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("default", {
-      name: "default",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#BFFF00",
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== "granted") {
+      return null;
+    }
+
+    const token = await Notifications.getExpoPushTokenAsync({
+      projectId: getExpoProjectId(),
     });
-  }
 
-  return token.data;
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#BFFF00",
+      });
+    }
+
+    return token.data;
+  } catch (error) {
+    // Firebase not initialized on Android (missing google-services.json),
+    // or other native notification module errors. Degrade gracefully.
+    console.warn("[notifications] Push permissions request failed:", error);
+    _notificationsAvailable = false;
+    return null;
+  }
 }
 
 export async function savePushToken(
@@ -122,27 +150,46 @@ export async function scheduleDailyReminder(
   minute: number,
   title: string = "Time to grow! 🌱",
   body: string = "Continue your daily learning path.",
-): Promise<string> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+): Promise<string | null> {
+  if (!_notificationsAvailable) {
+    return null;
+  }
 
-  const identifier = await Notifications.scheduleNotificationAsync({
-    content: {
-      title,
-      body,
-      sound: true,
-    },
-    trigger: {
-      type: "daily",
-      hour,
-      minute,
-    } as Notifications.DailyTriggerInput,
-  });
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
 
-  return identifier;
+    const identifier = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: true,
+      },
+      trigger: {
+        type: "daily",
+        hour,
+        minute,
+      } as Notifications.DailyTriggerInput,
+    });
+
+    return identifier;
+  } catch (error) {
+    console.warn("[notifications] Schedule daily reminder failed:", error);
+    _notificationsAvailable = false;
+    return null;
+  }
 }
 
 export async function cancelAllReminders(): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  if (!_notificationsAvailable) {
+    return;
+  }
+
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch (error) {
+    console.warn("[notifications] Cancel reminders failed:", error);
+    _notificationsAvailable = false;
+  }
 }
 
 export async function enablePushNotifications(

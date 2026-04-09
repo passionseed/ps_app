@@ -20,7 +20,11 @@ export async function getItem(key: string, _callback?: Callback): Promise<string
 }
 
 export async function setItem(key: string, value: string, _callback?: Callback): Promise<void> {
-  store().setItem(key, value);
+  try {
+    store().setItem(key, value);
+  } catch (e) {
+    console.warn("[asyncStorage] Failed to setItem — storage may be full:", e);
+  }
 }
 
 export async function removeItem(key: string, _callback?: Callback): Promise<void> {
@@ -32,5 +36,9 @@ export async function getAllKeys(_callback?: (error?: Error | null, keys?: strin
 }
 
 export async function clear(_callback?: Callback): Promise<void> {
-  store().clear();
+  try {
+    store().clear();
+  } catch (e) {
+    console.warn("[asyncStorage] Failed to clear — storage may be full:", e);
+  }
 }

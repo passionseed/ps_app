@@ -140,8 +140,12 @@ export default function LandingPage() {
             { text: "Close", style: "cancel" },
             {
               text: "Settings",
-              onPress: () => {
-                void Linking.openSettings();
+              onPress: async () => {
+                try {
+                  await Linking.openSettings();
+                } catch {
+                  Alert.alert("Unable to Open Settings", "Please open your device Settings app manually to manage permissions.");
+                }
               },
             },
           ],
