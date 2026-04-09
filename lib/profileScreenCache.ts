@@ -1,4 +1,4 @@
-import { storage } from "./storage";
+import { getItem, setItem, removeItem } from "./asyncStorage";
 import type { UserEvent } from "../types/events";
 import type { CareerGoal, InterestCategory, Profile } from "../types/onboarding";
 import type { IkigaiScores, ScoreTimelineItem } from "./scoreEngine";
@@ -64,15 +64,15 @@ export function getProfileScreenCacheStatus(
   };
 }
 
-export function readCachedProfileScreenSnapshot(
+export async function readCachedProfileScreenSnapshot(
   userId: string,
-): ProfileScreenSnapshot | null {
+): Promise<ProfileScreenSnapshot | null> {
   const memorySnapshot = profileScreenSnapshotMemoryCache.get(userId);
   if (memorySnapshot) {
     return memorySnapshot;
   }
 
-  const raw = storage.getString(getProfileScreenCacheKey(userId));
+  const raw = await getItem(getProfileScreenCacheKey(userId));
   if (!raw) return null;
 
   try {
@@ -87,19 +87,19 @@ export function readCachedProfileScreenSnapshot(
   }
 }
 
-export function writeCachedProfileScreenSnapshot(
+export async function writeCachedProfileScreenSnapshot(
   snapshot: ProfileScreenSnapshot,
-): void {
+): Promise<void> {
   profileScreenSnapshotMemoryCache.set(snapshot.userId, snapshot);
-  storage.set(
+  await setItem(
     getProfileScreenCacheKey(snapshot.userId),
     JSON.stringify(snapshot),
   );
 }
 
-export function clearCachedProfileScreenSnapshot(
+export async function clearCachedProfileScreenSnapshot(
   userId: string,
-): void {
+): Promise<void> {
   profileScreenSnapshotMemoryCache.delete(userId);
-  storage.delete(getProfileScreenCacheKey(userId));
+  await removeItem(getProfileScreenCacheKey(userId));
 }

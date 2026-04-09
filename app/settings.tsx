@@ -22,6 +22,7 @@ import {
   REMINDER_TIME_OPTIONS,
   disablePushNotifications,
   enablePushNotifications,
+  isNotificationsAvailable,
   saveNotificationSettings,
 } from "../lib/notifications";
 import {
@@ -118,6 +119,15 @@ export default function SettingsScreen() {
       const currentSettings = profile.mobile_settings || DEFAULT_MOBILE_SETTINGS;
 
       if (enabled) {
+        if (!isNotificationsAvailable()) {
+          // Firebase not configured on this device — cannot enable push
+          Alert.alert(
+            "Notifications Unavailable",
+            "Push notifications are not available on this device. Make sure Firebase is configured correctly.",
+          );
+          return;
+        }
+
         const result = await enablePushNotifications(user.id, {
           ...currentSettings,
           push_enabled: true,
@@ -135,6 +145,13 @@ export default function SettingsScreen() {
 
       const disabledSettings = await disablePushNotifications(user.id, currentSettings);
       updateNotificationProfile(disabledSettings, null);
+    } catch (error) {
+      // Guard against unexpected notification/Firebase errors
+      console.warn("Push toggle error:", error);
+      Alert.alert(
+        "Error",
+        "Could not update notification settings. Please try again later.",
+      );
     } finally {
       setSaving(false);
     }

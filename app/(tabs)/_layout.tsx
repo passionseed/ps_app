@@ -54,6 +54,48 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
   },
 };
 
+function ActivePill({
+  index,
+  animatedIndex,
+  halo,
+  glow,
+  accent,
+}: {
+  index: number;
+  animatedIndex: SharedValue<number>;
+  halo: string;
+  glow: string;
+  accent: string;
+}) {
+  const activeOpacityStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      animatedIndex.value,
+      [index - 1, index, index + 1],
+      [0, 1, 0],
+      "clamp",
+    );
+    return { opacity };
+  });
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, activeOpacityStyle]}>
+      <View
+        style={[
+          styles.activePill,
+          {
+            backgroundColor: halo,
+            borderColor: glow,
+            shadowColor: accent,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.2,
+            shadowRadius: 8,
+          },
+        ]}
+      />
+    </Animated.View>
+  );
+}
+
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const animatedIndex = useSharedValue(state.index);
@@ -116,35 +158,15 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               {state.routes.map((route: { key: string; name: string; params?: object }, i: number) => {
                 const theme =
                   TAB_THEMES[route.name as TabRoute] || TAB_THEMES["my-paths"];
-                const activeOpacityStyle = useAnimatedStyle(() => {
-                  const opacity = interpolate(
-                    animatedIndex.value,
-                    [i - 1, i, i + 1],
-                    [0, 1, 0],
-                    "clamp",
-                  );
-                  return { opacity };
-                });
-
                 return (
-                  <Animated.View
+                  <ActivePill
                     key={`pill-${route.key}`}
-                    style={[StyleSheet.absoluteFill, activeOpacityStyle]}
-                  >
-                    <View
-                      style={[
-                        styles.activePill,
-                        {
-                          backgroundColor: theme.halo,
-                          borderColor: theme.glow,
-                          shadowColor: theme.accent,
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.2,
-                          shadowRadius: 8,
-                        },
-                      ]}
-                    />
-                  </Animated.View>
+                    index={i}
+                    animatedIndex={animatedIndex}
+                    halo={theme.halo}
+                    glow={theme.glow}
+                    accent={theme.accent}
+                  />
                 );
               })}
             </Animated.View>

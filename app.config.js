@@ -65,6 +65,7 @@ module.exports = {
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
       ],
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
     },
     web: {
       bundler: "metro",
@@ -96,6 +97,15 @@ module.exports = {
       "expo-image",
       "expo-sharing",
       "expo-asset",
+      [
+        "expo-notifications",
+        {
+          color: "#6366F1",
+          enableBadge: true,
+          androidMode: "default",
+          androidCollapsedTitle: "#{unread} new notifications"
+        }
+      ],
       [
         "@sentry/react-native/expo",
         {

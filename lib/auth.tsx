@@ -351,7 +351,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmailPassword = async (email: string, password: string) => {
     console.log("[Auth] signInWithEmailPassword start", { email });
 
-    const loginUrl = `${process.env.EXPO_PUBLIC_WEB_API_URL}/api/hackathon/login`;
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const loginUrl = `${supabaseUrl}/functions/v1/hackathon-login`;
     console.log("[Auth] Calling login endpoint:", loginUrl);
 
     let res: Response;

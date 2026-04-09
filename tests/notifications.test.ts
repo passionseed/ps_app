@@ -25,6 +25,12 @@ vi.mock("expo-notifications", () => ({
   cancelAllScheduledNotificationsAsync: mockCancelAllScheduledNotificationsAsync,
   scheduleNotificationAsync: mockScheduleNotificationAsync,
   setNotificationHandler: mockSetNotificationHandler,
+  addNotificationReceivedListener: vi.fn(),
+  addNotificationResponseReceivedListener: vi.fn(),
+  removeNotificationSubscription: vi.fn(),
+  dismissNotificationAsync: vi.fn(),
+  getPresentedNotificationsAsync: vi.fn(),
+  setNotificationCategoryAsync: vi.fn(),
 }));
 
 vi.mock("react-native", () => ({
@@ -193,5 +199,43 @@ describe("notification helpers", () => {
     expect(functionsInvokeMock).toHaveBeenCalledWith("push-notifications", {
       body: { type: "day_ready", dayNumber: 5 },
     });
+  });
+
+  it("gracefully degrades when getExpoPushTokenAsync throws Firebase init error", async () => {
+    mockGetPermissionsAsync.mockResolvedValue({ status: "granted" });
+    mockGetExpoPushTokenAsync.mockRejectedValue(
+      new Error("Default FirebaseApp is not initialized in this process com.passionseed.app")
+    );
+    const mod = await loadNotificationsModule();
+
+    const result = await mod.enablePushNotifications("user-1", {
+      push_enabled: true,
+      reminder_time: "09:00",
+      theme: "light",
+    });
+
+    // Should degrade gracefully — no crash, push disabled
+    expect(result.granted).toBe(false);
+    expect(result.expoPushToken).toBeNull();
+    expect(result.settings.push_enabled).toBe(false);
+    expect(updateMock).toHaveBeenCalledWith({
+      mobile_settings: expect.objectContaining({ push_enabled: false }),
+      expo_push_token: null,
+    });
+    expect(mockScheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it("returns null from scheduleDailyReminder when notifications are unavailable", async () => {
+    mockGetExpoPushTokenAsync.mockRejectedValue(
+      new Error("Default FirebaseApp is not initialized in this process com.passionseed.app")
+    );
+    const mod = await loadNotificationsModule();
+
+    // First call triggers the Firebase error, marking notifications unavailable
+    await mod.requestPushPermissions();
+
+    // Now scheduleDailyReminder should return null without throwing
+    const result = await mod.scheduleDailyReminder(9, 0);
+    expect(result).toBeNull();
   });
 });

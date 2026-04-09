@@ -259,19 +259,27 @@ function ContentBlock({
 }
 
 // ── Assessment upload blocks ───────────────────────────────────────
-type UploadState = "idle" | "uploading" | "done" | "error";
+type UploadState = "idle" | "picked" | "uploading" | "done" | "error";
+
+type PickedFile = {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+};
 
 function ImageUploadBlock({
   assessment,
-  activityId,
-  onUploaded,
+  onPicked,
+  onClear,
+  pickedFile,
+  submittedImageUrl,
 }: {
   assessment: HackathonPhaseActivityAssessment;
-  activityId: string;
-  onUploaded: (url: string) => void;
+  onPicked: (file: PickedFile) => void;
+  onClear: () => void;
+  pickedFile: PickedFile | null;
+  submittedImageUrl: string | null;
 }) {
-  const [uri, setUri] = useState<string | null>(null);
-  const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [error, setError] = useState<string | null>(null);
 
   async function pick() {
@@ -282,41 +290,36 @@ function ImageUploadBlock({
     });
     if (result.canceled) return;
     const asset = result.assets[0];
-    setUri(asset.uri);
     setError(null);
-    setUploadState("uploading");
-    try {
-      const fileName = asset.uri.split("/").pop() ?? "photo.jpg";
-      const mimeType = asset.mimeType ?? "image/jpeg";
-      const res = await submitFile(activityId, assessment.id, asset.uri, fileName, mimeType);
-      setUploadState("done");
-      onUploaded(res.url ?? asset.uri);
-    } catch (e: any) {
-      setUploadState("error");
-      setError(e.message ?? "การอัปโหลดล้มเหลว");
-    }
+    onPicked({
+      uri: asset.uri,
+      fileName: asset.uri.split("/").pop() ?? "photo.jpg",
+      mimeType: asset.mimeType ?? "image/jpeg",
+    });
+  }
+
+  // Already submitted — show the submitted image
+  if (submittedImageUrl && !pickedFile) {
+    return (
+      <View style={styles.uploadBlock}>
+        <View style={styles.imagePreviewWrap}>
+          <Image source={{ uri: submittedImageUrl }} style={styles.imagePreview} resizeMode="cover" />
+          <View style={styles.uploadBadge}>
+            <AppText style={styles.uploadBadgeText}>✓</AppText>
+          </View>
+        </View>
+      </View>
+    );
   }
 
   return (
     <View style={styles.uploadBlock}>
-      {uri ? (
+      {pickedFile ? (
         <View style={styles.imagePreviewWrap}>
-          <Image source={{ uri }} style={styles.imagePreview} resizeMode="cover" />
-          {uploadState === "uploading" && (
-            <View style={styles.uploadOverlay}>
-              <ActivityIndicator color={CYAN} />
-            </View>
-          )}
-          {uploadState === "done" && (
-            <View style={styles.uploadBadge}>
-              <AppText style={styles.uploadBadgeText}>✓</AppText>
-            </View>
-          )}
-          {uploadState !== "uploading" && (
-            <Pressable style={styles.changeBtn} onPress={pick}>
-              <AppText style={styles.changeBtnText}>เปลี่ยนรูปภาพ</AppText>
-            </Pressable>
-          )}
+          <Image source={{ uri: pickedFile.uri }} style={styles.imagePreview} resizeMode="cover" />
+          <Pressable style={styles.changeBtn} onPress={onClear}>
+            <AppText style={styles.changeBtnText}>เปลี่ยนรูปภาพ</AppText>
+          </Pressable>
         </View>
       ) : (
         <Pressable style={styles.uploadEmptyBtn} onPress={pick}>
@@ -324,7 +327,7 @@ function ImageUploadBlock({
           <AppText style={styles.uploadEmptyLabel}>แตะเพื่อเพิ่มรูปภาพ</AppText>
         </Pressable>
       )}
-      {uploadState === "error" && error ? (
+      {error ? (
         <View style={styles.uploadError}>
           <AppText style={styles.uploadErrorText}>{error}</AppText>
           <Pressable onPress={pick}><AppText style={styles.retryText}>ลองใหม่</AppText></Pressable>
@@ -336,15 +339,17 @@ function ImageUploadBlock({
 
 function FileUploadBlock({
   assessment,
-  activityId,
-  onUploaded,
+  onPicked,
+  onClear,
+  pickedFile,
+  submittedFileUrl,
 }: {
   assessment: HackathonPhaseActivityAssessment;
-  activityId: string;
-  onUploaded: (url: string) => void;
+  onPicked: (file: PickedFile) => void;
+  onClear: () => void;
+  pickedFile: PickedFile | null;
+  submittedFileUrl: string | null;
 }) {
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [error, setError] = useState<string | null>(null);
 
   async function pick() {
@@ -362,33 +367,36 @@ function FileUploadBlock({
     });
     if (result.canceled) return;
     const asset = result.assets[0];
-    setFileName(asset.name);
     setError(null);
-    setUploadState("uploading");
-    try {
-      const mimeType = asset.mimeType ?? "application/octet-stream";
-      const res = await submitFile(activityId, assessment.id, asset.uri, asset.name, mimeType);
-      setUploadState("done");
-      onUploaded(res.url ?? asset.uri);
-    } catch (e: any) {
-      setUploadState("error");
-      setError(e.message ?? "การอัปโหลดล้มเหลว");
-    }
+    onPicked({
+      uri: asset.uri,
+      fileName: asset.name,
+      mimeType: asset.mimeType ?? "application/octet-stream",
+    });
+  }
+
+  // Already submitted — show the submitted file
+  if (submittedFileUrl && !pickedFile) {
+    return (
+      <View style={styles.uploadBlock}>
+        <View style={styles.fileRow}>
+          <AppText style={styles.fileIcon}>📄</AppText>
+          <AppText style={styles.fileName} numberOfLines={1}>{submittedFileUrl.split("/").pop()}</AppText>
+          <AppText style={styles.fileDone}>✓</AppText>
+        </View>
+      </View>
+    );
   }
 
   return (
     <View style={styles.uploadBlock}>
-      {fileName ? (
+      {pickedFile ? (
         <View style={styles.fileRow}>
           <AppText style={styles.fileIcon}>📄</AppText>
-          <AppText style={styles.fileName} numberOfLines={1}>{fileName}</AppText>
-          {uploadState === "uploading" && <ActivityIndicator color={CYAN} size="small" />}
-          {uploadState === "done" && <AppText style={styles.fileDone}>✓</AppText>}
-          {uploadState !== "uploading" && (
-            <Pressable onPress={pick}>
-              <AppText style={styles.changeBtnText}>เปลี่ยนไฟล์</AppText>
-            </Pressable>
-          )}
+          <AppText style={styles.fileName} numberOfLines={1}>{pickedFile.fileName}</AppText>
+          <Pressable onPress={onClear}>
+            <AppText style={styles.changeBtnText}>เปลี่ยนไฟล์</AppText>
+          </Pressable>
         </View>
       ) : (
         <Pressable style={styles.uploadEmptyBtn} onPress={pick}>
@@ -396,7 +404,7 @@ function FileUploadBlock({
           <AppText style={styles.uploadEmptyLabel}>แตะเพื่อแนบไฟล์</AppText>
         </Pressable>
       )}
-      {uploadState === "error" && error ? (
+      {error ? (
         <View style={styles.uploadError}>
           <AppText style={styles.uploadErrorText}>{error}</AppText>
           <Pressable onPress={pick}><AppText style={styles.retryText}>ลองใหม่</AppText></Pressable>
@@ -409,16 +417,22 @@ function FileUploadBlock({
 // ── Assessment block ───────────────────────────────────────────────
 function AssessmentBlock({
   assessment,
-  activityId,
   value,
   onChange,
-  onFileUploaded,
+  pickedFile,
+  onPicked,
+  onClear,
+  submittedImageUrl,
+  submittedFileUrl,
 }: {
   assessment: HackathonPhaseActivityAssessment;
-  activityId: string;
   value: string;
   onChange: (v: string) => void;
-  onFileUploaded: (url: string) => void;
+  pickedFile: PickedFile | null;
+  onPicked: (file: PickedFile) => void;
+  onClear: () => void;
+  submittedImageUrl: string | null;
+  submittedFileUrl: string | null;
 }) {
   const metadata = assessment.metadata as any;
   const defaultLabel = assessment.assessment_type === "text_answer"
@@ -453,14 +467,18 @@ function AssessmentBlock({
       ) : assessment.assessment_type === "image_upload" ? (
         <ImageUploadBlock
           assessment={assessment}
-          activityId={activityId}
-          onUploaded={onFileUploaded}
+          onPicked={onPicked}
+          onClear={onClear}
+          pickedFile={pickedFile}
+          submittedImageUrl={submittedImageUrl}
         />
       ) : (
         <FileUploadBlock
           assessment={assessment}
-          activityId={activityId}
-          onUploaded={onFileUploaded}
+          onPicked={onPicked}
+          onClear={onClear}
+          pickedFile={pickedFile}
+          submittedFileUrl={submittedFileUrl}
         />
       )}
     </View>
@@ -586,7 +604,7 @@ export default function HackathonActivityScreen() {
   );
   const [loading, setLoading] = useState(!cachedBundle);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({});
+  const [pickedFiles, setPickedFiles] = useState<Record<string, PickedFile | null>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -829,7 +847,7 @@ export default function HackathonActivityScreen() {
       : activity.assessments.every((a) =>
           a.assessment_type === "text_answer"
             ? (answers[a.id] ?? "").trim().length > 0
-            : uploadedUrls[a.id] != null
+            : pickedFiles[a.id] != null
         )
     : false;
   const showTeammateSubmissions = pastSubmissions.length > 0;
@@ -845,15 +863,17 @@ export default function HackathonActivityScreen() {
           if (a.assessment_type === "text_answer") {
             return submitTextAnswer(activity.id, a.id, answers[a.id] ?? "");
           }
-          // file/image already uploaded via AssessmentBlock — nothing to do here
-          return Promise.resolve();
+          // Upload picked file on submit
+          const file = pickedFiles[a.id];
+          if (!file) return Promise.resolve();
+          return submitFile(activity.id, a.id, file.uri, file.fileName, file.mimeType);
         })
       );
 
       const newSubmissions = await fetchActivitySubmissions(activity.id);
       setPastSubmissions(newSubmissions);
       setAnswers({});
-      setUploadedUrls({});
+      setPickedFiles({});
       invalidateHackathonProgressCache();
 
       setSubmitted(true);
@@ -1037,21 +1057,120 @@ export default function HackathonActivityScreen() {
           </View>
         )}
 
-        {/* Assessments */}
-        {activity.assessments.map((a) => (
-          <AssessmentBlock
-            key={a.id}
-            assessment={a}
-            activityId={activity.id}
-            value={answers[a.id] ?? ""}
-            onChange={(v) => setAnswers((prev) => ({ ...prev, [a.id]: v }))}
-            onFileUploaded={(url) => {
-              setUploadedUrls((prev) => ({ ...prev, [a.id]: url }));
-              invalidateHackathonProgressCache();
-              fetchActivitySubmissions(activity.id).then(setPastSubmissions);
-            }}
-          />
-        ))}
+        {/* Assessments + Submit button */}
+        {activity.assessments.length > 0 && (
+          <>
+            {activity.assessments.map((a) => {
+              // Find latest submission for this assessment to show preview
+              const latestSub = pastSubmissions.find(
+                (s) => (s as any).assessment_id === a.id
+              );
+              const submittedImageUrl =
+                a.assessment_type === "image_upload" ? (latestSub?.image_url ?? null) : null;
+              const submittedFileUrl =
+                a.assessment_type === "file_upload" ? (latestSub?.file_urls?.[0] ?? null) : null;
+
+              return (
+                <AssessmentBlock
+                  key={a.id}
+                  assessment={a}
+                  value={answers[a.id] ?? ""}
+                  onChange={(v) => setAnswers((prev) => ({ ...prev, [a.id]: v }))}
+                  pickedFile={pickedFiles[a.id] ?? null}
+                  onPicked={(file) => setPickedFiles((prev) => ({ ...prev, [a.id]: file }))}
+                  onClear={() => setPickedFiles((prev) => ({ ...prev, [a.id]: null }))}
+                  submittedImageUrl={submittedImageUrl}
+                  submittedFileUrl={submittedFileUrl}
+                />
+              );
+            })}
+
+            {/* Submit error */}
+            {submitError ? (
+              <AppText style={{ color: "#F87171", fontSize: 13, textAlign: "center" }}>
+                {submitError}
+              </AppText>
+            ) : null}
+
+            {/* Submit button — right after assessments */}
+            {pastSubmissions.length === 0 ? (
+              <Animated.View style={buttonAnimatedStyle}>
+                <Pressable
+                  style={[
+                    styles.button41,
+                    (!canSubmit || submitting) && { opacity: 0.5 },
+                  ]}
+                  disabled={!canSubmit || submitting}
+                  onPressIn={() => {
+                    if (canSubmit && !submitting) buttonScale.value = withSpring(0.95);
+                  }}
+                  onPressOut={() => {
+                    buttonScale.value = withSpring(1);
+                  }}
+                  onPress={handleSubmit}
+                >
+                  {({ pressed }) => (
+                    <>
+                      <LinearGradient
+                        colors={["rgba(255, 255, 255, 0.11)", "transparent"]}
+                        start={{ x: 0.5, y: -0.05 }}
+                        end={{ x: 0.5, y: 1.15 }}
+                        style={styles.button41Gradient}
+                      />
+                      <View
+                        style={[
+                          StyleSheet.absoluteFill,
+                          pressed && canSubmit && !submitting ? { backgroundColor: "rgba(255, 255, 255, 0.05)" } : null,
+                        ]}
+                      />
+                      {submitting ? (
+                        <ActivityIndicator color={WHITE} />
+                      ) : (
+                        <AppText variant="bold" style={styles.button41Text}>
+                          {submitted ? "ส่งแล้ว ✓" : "ส่งคำตอบ →"}
+                        </AppText>
+                      )}
+                    </>
+                  )}
+                </Pressable>
+              </Animated.View>
+            ) : null}
+          </>
+        )}
+
+        {/* No-assessment "mark complete" button */}
+        {activity.assessments.length === 0 ? (
+          <Animated.View style={buttonAnimatedStyle}>
+            <Pressable
+              style={styles.button41}
+              onPress={handleSubmit}
+            >
+              {({ pressed }) => (
+                <>
+                  <LinearGradient
+                    colors={["rgba(255, 255, 255, 0.11)", "transparent"]}
+                    start={{ x: 0.5, y: -0.05 }}
+                    end={{ x: 0.5, y: 1.15 }}
+                    style={styles.button41Gradient}
+                  />
+                  <View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      pressed ? { backgroundColor: "rgba(255, 255, 255, 0.05)" } : null,
+                    ]}
+                  />
+                  {submitting ? (
+                    <ActivityIndicator color={WHITE} />
+                  ) : (
+                    <AppText variant="bold" style={styles.button41Text}>
+                      ทำเครื่องหมายว่าเสร็จสิ้น →
+                    </AppText>
+                  )}
+                </>
+              )}
+            </Pressable>
+          </Animated.View>
+        ) : null}
 
         {/* Past Submissions */}
         <PastSubmissionsList submissions={pastSubmissions} />
@@ -1060,55 +1179,6 @@ export default function HackathonActivityScreen() {
         {showTeammateSubmissions ? (
           <TeammateSubmissionsList submissions={teammateSubmissions} />
         ) : null}
-
-        {/* Submit error */}
-        {submitError ? (
-          <AppText style={{ color: "#F87171", fontSize: 13, textAlign: "center" }}>
-            {submitError}
-          </AppText>
-        ) : null}
-
-        {/* Submit button */}
-        <Animated.View style={buttonAnimatedStyle}>
-          <Pressable
-            style={[
-              styles.button41,
-              (!canSubmit || submitting) && { opacity: 0.5 },
-            ]}
-            disabled={!canSubmit || submitting}
-            onPressIn={() => {
-              if (canSubmit && !submitting) buttonScale.value = withSpring(0.95);
-            }}
-            onPressOut={() => {
-              buttonScale.value = withSpring(1);
-            }}
-            onPress={handleSubmit}
-          >
-            {({ pressed }) => (
-              <>
-                <LinearGradient
-                  colors={["rgba(255, 255, 255, 0.11)", "transparent"]}
-                  start={{ x: 0.5, y: -0.05 }}
-                  end={{ x: 0.5, y: 1.15 }}
-                  style={styles.button41Gradient}
-                />
-                <View
-                  style={[
-                    StyleSheet.absoluteFill,
-                    pressed && canSubmit && !submitting ? { backgroundColor: "rgba(255, 255, 255, 0.05)" } : null,
-                  ]}
-                />
-                {submitting ? (
-                  <ActivityIndicator color={WHITE} />
-                ) : (
-                  <AppText variant="bold" style={styles.button41Text}>
-                    {submitted ? "ส่งแล้ว ✓" : activity.assessments.length > 0 ? "ส่งคำตอบ →" : "ทำเครื่องหมายว่าเสร็จสิ้น →"}
-                  </AppText>
-                )}
-              </>
-            )}
-          </Pressable>
-        </Animated.View>
 
         {/* Comments Preview */}
         {activity && participant && (

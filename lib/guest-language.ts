@@ -1,4 +1,4 @@
-import { storage } from "./storage";
+import { getItem, setItem } from "./asyncStorage";
 
 export type GuestLanguage = "th" | "en";
 
@@ -10,11 +10,13 @@ export function normalizeGuestLanguage(
   return value === "en" ? "en" : "th";
 }
 
-export function readGuestLanguage(): GuestLanguage {
-  const value = storage.getString(GUEST_LANGUAGE_STORAGE_KEY) ?? null;
+export async function readGuestLanguage(): Promise<GuestLanguage> {
+  const value = await getItem(GUEST_LANGUAGE_STORAGE_KEY);
   return normalizeGuestLanguage(value);
 }
 
-export function saveGuestLanguage(language: GuestLanguage): void {
-  storage.set(GUEST_LANGUAGE_STORAGE_KEY, language);
+export async function saveGuestLanguage(
+  language: GuestLanguage,
+): Promise<void> {
+  await setItem(GUEST_LANGUAGE_STORAGE_KEY, language);
 }

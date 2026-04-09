@@ -277,8 +277,8 @@ export async function getActivityComments(
   }
 
   // Transform data to match expected format and filter deleted replies
-  const comments = (data || []).map((comment: any) => {
-    const filteredReplies = (comment.hackathon_activity_comment_replies || []).filter(
+  const comments = (data || []).filter(Boolean).map((comment: any) => {
+    const filteredReplies = (comment.hackathon_activity_comment_replies || []).filter(Boolean).filter(
       (reply: any) => !reply.deleted_at
     ).map((reply: any) => ({
       ...reply,
@@ -319,7 +319,7 @@ export async function getCommentReplies(
   }
 
   // Transform data to match expected format
-  const replies = (data || []).map((reply: any) => ({
+  const replies = (data || []).filter(Boolean).map((reply: any) => ({
     ...reply,
     participant: reply.hackathon_participants
   }));

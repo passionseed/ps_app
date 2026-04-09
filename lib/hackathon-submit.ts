@@ -149,6 +149,7 @@ export type ActivitySubmissionStatus = {
 
 export type SubmissionRecord = {
   id: string;
+  assessment_id?: string;
   text_answer?: string;
   image_url?: string;
   file_urls?: string[];
@@ -168,7 +169,7 @@ export async function fetchActivitySubmissions(
 
   const { data, error } = await supabase
     .from("hackathon_phase_activity_submissions")
-    .select("id, text_answer, image_url, file_urls, submitted_at")
+    .select("id, assessment_id, text_answer, image_url, file_urls, submitted_at")
     .eq("participant_id", participant.id)
     .eq("activity_id", activityId)
     .order("submitted_at", { ascending: false });
@@ -199,6 +200,7 @@ export async function fetchTeammateActivitySubmissions(
   if (membersError || !members) return [];
 
   const teammateIds = members
+    .filter(Boolean)
     .map((member) => member.participant_id)
     .filter((id): id is string => Boolean(id) && id !== participant.id);
 
@@ -206,7 +208,7 @@ export async function fetchTeammateActivitySubmissions(
 
   const { data: submissions, error: submissionsError } = await supabase
     .from("hackathon_phase_activity_submissions")
-    .select("id, participant_id, text_answer, image_url, file_urls, submitted_at")
+    .select("id, participant_id, assessment_id, text_answer, image_url, file_urls, submitted_at")
     .in("participant_id", teammateIds)
     .eq("activity_id", activityId)
     .order("submitted_at", { ascending: false });
@@ -221,10 +223,10 @@ export async function fetchTeammateActivitySubmissions(
   if (participantsError || !participants) return [];
 
   const participantNameMap = new Map(
-    participants.map((row) => [row.id, row.name ?? "Teammate"])
+    participants.filter(Boolean).map((row) => [row.id, row.name ?? "Teammate"])
   );
 
-  return submissions.map((submission) => ({
+  return submissions.filter(Boolean).map((submission) => ({
     ...(submission as SubmissionRecord),
     participant_id: submission.participant_id,
     participant_name: participantNameMap.get(submission.participant_id) ?? "Teammate",
@@ -350,7 +352,7 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
           .select("participant_id")
           .eq("team_id", teamId)
           .then(async ({ data: members }) => {
-            const ids = (members ?? []).map((m: any) => m.participant_id);
+            const ids = (members ?? []).filter(Boolean).map((m: any) => m.participant_id).filter(Boolean);
             if (ids.length === 0) return { data: [] };
             return supabase
               .from("hackathon_phase_activity_submissions")
@@ -375,16 +377,18 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
   const score = scoreResult.data?.total_score ?? 0;
 
   // Count distinct activity_ids
-  const submissions = (submissionsResult as any).data ?? [];
-  const uniqueActivities = new Set(submissions.map((s: any) => s.activity_id));
+  const submissions = ((submissionsResult as any).data ?? []).filter(Boolean);
+  const uniqueActivities = new Set(submissions.filter(Boolean).map((s: any) => s?.activity_id).filter(Boolean));
   const activitiesCompleted = uniqueActivities.size;
 
   // Rank: 1 + number of teams with a strictly higher score.
   // Teams with the same score share the same rank, including teams still at 0.
   const allScores: { team_id: string; total_score: number }[] =
-    (allScoresResult.data as any) ?? [];
+    ((allScoresResult.data as any) ?? []).filter(Boolean);
   const allTeamIds = ((allTeamsResult.data as Array<{ id: string }> | null) ?? [])
-    .map((team) => team.id);
+    .filter(Boolean)
+    .map((team) => team?.id)
+    .filter(Boolean);
   const rank = computeTeamRank(teamId, allTeamIds, allScores);
 
   return { activitiesCompleted, score, rank };

@@ -221,7 +221,7 @@ export function buildJourneyActivityNodes(
     Math.min(completedCount, activityTitles.length),
   );
 
-  return activityTitles.map((title, index) => ({
+  return activityTitles.filter(Boolean).map((title, index) => ({
     id: `journey-activity-${index + 1}`,
     title,
     state:
@@ -367,14 +367,14 @@ export async function getCurrentHackathonProgramHome(): Promise<HackathonProgram
       ]);
 
       if (teamData) {
-        const memberIds = (memberRows ?? []).map((r: any) => r.participant_id);
+        const memberIds = (memberRows ?? []).filter(Boolean).map((r: any) => r.participant_id).filter(Boolean);
         let members: import("../types/hackathon-program").HackathonTeamMember[] = [];
         if (memberIds.length > 0) {
           const { data: participantDetails } = await supabase
             .from("hackathon_participants")
             .select("id, name, university, track, team_emoji")
             .in("id", memberIds);
-          members = (participantDetails ?? []).map((p: any) => ({
+          members = (participantDetails ?? []).filter(Boolean).map((p: any) => ({
             participant_id: p.id,
             name: p.name,
             university: p.university,
@@ -414,7 +414,7 @@ export async function getHackathonPhaseDetail(
         .order("display_order", { ascending: true }),
     ]);
 
-    const playlistIds = (playlists ?? []).map((playlist) => playlist.id);
+    const playlistIds = (playlists ?? []).filter(Boolean).map((playlist) => playlist.id);
     const { data: modules } = playlistIds.length
       ? await supabase
           .from("hackathon_phase_modules")
@@ -423,7 +423,7 @@ export async function getHackathonPhaseDetail(
           .order("display_order", { ascending: true })
       : { data: [] as HackathonPhaseModule[] };
 
-    const playlistModules = (playlists as HackathonPhasePlaylist[] | null)?.map(
+    const playlistModules = (playlists as HackathonPhasePlaylist[] | null)?.filter(Boolean).map(
       (playlist) => ({
         ...playlist,
         modules:
@@ -483,7 +483,7 @@ export async function getHackathonJourneyModules(
       .order("display_order", { ascending: true });
     if (playlistError) throw playlistError;
 
-    const playlistIds = (playlists ?? []).map((p: { id: string }) => p.id);
+    const playlistIds = (playlists ?? []).filter(Boolean).map((p: { id: string }) => p.id);
     if (playlistIds.length === 0) return [];
 
     const { data: modules, error: modulesError } = await supabase
@@ -494,7 +494,7 @@ export async function getHackathonJourneyModules(
     if (modulesError) throw modulesError;
 
     const endsAt = (phase as { ends_at: string | null } | null)?.ends_at ?? null;
-    return ((modules as HackathonPhaseModule[]) ?? []).map((m) => ({
+    return ((modules as HackathonPhaseModule[]) ?? []).filter(Boolean).map((m) => ({
       ...m,
       ends_at: endsAt,
     }));
@@ -531,7 +531,7 @@ export async function getModuleActivityProgress(
       .order("day_number", { ascending: true });
     if (daysError) throw daysError;
 
-    const nodeIds: string[] = (pathDays ?? []).flatMap(
+    const nodeIds: string[] = (pathDays ?? []).filter(Boolean).flatMap(
       (day: { node_ids: string[] }) => day.node_ids ?? [],
     );
     if (nodeIds.length === 0) {
@@ -554,7 +554,7 @@ export async function getModuleActivityProgress(
     if (progressError) throw progressError;
 
     const nodeMap = new Map<string, MapNode>(
-      ((nodesData as MapNode[]) ?? []).map((n) => [n.id, n]),
+      ((nodesData as MapNode[]) ?? []).filter(Boolean).map((n) => [n.id, n]),
     );
     const orderedNodes = nodeIds
       .map((id) => nodeMap.get(id))
@@ -562,6 +562,7 @@ export async function getModuleActivityProgress(
 
     const completedNodeIds = new Set<string>(
       ((progressData as StudentNodeProgress[]) ?? [])
+        .filter(Boolean)
         .filter((p) => p.status === "passed" || p.status === "submitted")
         .map((p) => p.node_id),
     );

@@ -75,6 +75,7 @@ export async function getPhaseWithActivities(
   const activities: HackathonPhaseActivityDetail[] = (
     (data.hackathon_phase_activities as any[]) ?? []
   )
+    .filter(Boolean)
     .filter((a) => !a.is_draft)
     .sort((a, b) => a.display_order - b.display_order)
     .map((a) => ({
@@ -167,10 +168,11 @@ export async function getProgramPhasesWithActivities(
 
   if (error || !data) return [];
 
-  return data.map((phase) => {
+  return data.filter(Boolean).map((phase) => {
     const activities: HackathonPhaseActivityDetail[] = (
       (phase.hackathon_phase_activities as any[]) ?? []
     )
+      .filter(Boolean)
       .filter((a) => !a.is_draft)
       .sort((a, b) => a.display_order - b.display_order)
       .map((a) => ({
@@ -294,10 +296,11 @@ export async function getProgramPhaseActivitySummaries(
 
   if (error || !data) return [];
 
-  return data.map((phase) => ({
+  return data.filter(Boolean).map((phase) => ({
     id: phase.id,
     status: phase.status,
     activities: ((phase.hackathon_phase_activities as any[]) ?? [])
+      .filter(Boolean)
       .filter((activity) => !activity.is_draft)
       .sort((a, b) => a.display_order - b.display_order)
       .map((activity) => ({

@@ -19,6 +19,10 @@ import {
   preloadHackathonHomeBundle,
   preloadHackathonJourneyBundle,
 } from "../../lib/hackathonScreenData";
+import { useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
+import { readHackathonToken } from "../../lib/hackathon-mode";
+import { AppText } from "../../components/AppText";
 
 // Design Tokens from Hackathon Design System
 export const HACK_COLORS = {
@@ -61,6 +65,46 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
     glow: "rgba(165, 148, 186, 0.2)",
   },
 };
+
+function HackathonActivePill({
+  index,
+  animatedIndex,
+  glow,
+  accent,
+}: {
+  index: number;
+  animatedIndex: SharedValue<number>;
+  glow: string;
+  accent: string;
+}) {
+  const activeOpacityStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      animatedIndex.value,
+      [index - 1, index, index + 1],
+      [0, 1, 0],
+      "clamp"
+    );
+    return { opacity };
+  });
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, activeOpacityStyle]}>
+      <View
+        style={[
+          styles.activePill,
+          {
+            backgroundColor: glow,
+            borderColor: accent,
+            shadowColor: accent,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.6,
+            shadowRadius: 10,
+          },
+        ]}
+      />
+    </Animated.View>
+  );
+}
 
 function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -123,35 +167,14 @@ function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
               >
                 {visibleRoutes.map((route, i) => {
                   const theme = TAB_THEMES[route.name as TabRoute];
-                  const activeOpacityStyle = useAnimatedStyle(() => {
-                    const opacity = interpolate(
-                      animatedIndex.value,
-                      [i - 1, i, i + 1],
-                      [0, 1, 0],
-                      "clamp"
-                    );
-                    return { opacity };
-                  });
-
                   return (
-                    <Animated.View
+                    <HackathonActivePill
                       key={`pill-${route.key}`}
-                      style={[StyleSheet.absoluteFill, activeOpacityStyle]}
-                    >
-                      <View
-                        style={[
-                          styles.activePill,
-                          {
-                            backgroundColor: theme.glow,
-                            borderColor: theme.accent,
-                            shadowColor: theme.accent,
-                            shadowOffset: { width: 0, height: 0 },
-                            shadowOpacity: 0.6,
-                            shadowRadius: 10,
-                          },
-                        ]}
-                      />
-                    </Animated.View>
+                      index={i}
+                      animatedIndex={animatedIndex}
+                      glow={theme.glow}
+                      accent={theme.accent}
+                    />
                   );
                 })}
               </Animated.View>
@@ -197,9 +220,9 @@ function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
 import { Canvas, Path as SkiaPath, Shadow } from "@shopify/react-native-skia";
 
 const ICONS = {
-  home: "M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z",
-  journey: "M15 5.1L9 3 3 5.02v16.2l6-2.33 6 2.1 6-2.02V2.77L15 5.1zm0 13.79l-6-2.11V5.11l6 2.11v11.67z",
-  profile: "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+  home: "M 9 9 H 16 A 6 6 0 0 1 22 15 A 6 6 0 0 1 16 21 H 9 A 6 6 0 0 1 3 15 A 6 6 0 0 1 9 9 Z M 16 13 A 2 2 0 1 0 16 17 A 2 2 0 1 0 16 13 M 12 9 V 6 A 2 2 0 0 1 14 4 H 16 M 3 15 H 1 M 1 12 L 1 18",
+  journey: "M 4 7 C 8 4, 11 5, 12 7 C 13 9, 16 10, 20 7 V 17 C 16 20, 13 19, 12 17 C 11 15, 8 14, 4 17 Z M 12 7 V 17 M 14.5 10.5 L 17.5 13.5 M 17.5 10.5 L 14.5 13.5",
+  profile: "M 4 15 A 8 8 0 0 1 20 15 V 19 C 20 21, 18 22, 12 22 C 6 22, 4 21, 4 19 Z M 10 7 V 5 C 10 3, 14 3, 14 5 V 7 M 12 9 A 4 4 0 1 0 12 17 A 4 4 0 1 0 12 9 M 4 13 H 2 M 20 13 H 22"
 };
 
 function TabBarButton({
@@ -242,8 +265,16 @@ function TabBarButton({
     <Pressable onPress={onPress} style={styles.tabButton}>
       <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
         <Canvas style={{ width: 24, height: 24 }}>
-          <SkiaPath path={pathStr} color={isFocused ? theme.accent : "rgba(255,255,255,0.4)"}>
-            {isFocused && <Shadow dx={0} dy={0} blur={8} color={theme.accent} />}
+          <SkiaPath 
+            path={pathStr} 
+            color={isFocused ? theme.accent : "rgba(255,255,255,0.4)"}
+            style="stroke"
+            strokeWidth={1.5}
+            strokeJoin="round"
+            strokeCap="round"
+          >
+            {isFocused && <Shadow dx={0} dy={0} blur={6} color={theme.accent} />}
+            {isFocused && <Shadow dx={0} dy={0} blur={12} color={theme.accent} />}
           </SkiaPath>
         </Canvas>
       </Animated.View>
@@ -265,10 +296,53 @@ function TabBarButton({
 }
 
 export default function HackathonLayout() {
+  const [teamGate, setTeamGate] = useState<"loading" | "ok" | "blocked">("loading");
+
   useEffect(() => {
     void preloadHackathonHomeBundle();
     void preloadHackathonJourneyBundle();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      readHackathonToken().then(async (token) => {
+        if (!token) { setTeamGate("blocked"); return; }
+        try {
+          const r = await fetch("https://www.passionseed.org/api/hackathon/student/team", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await r.json();
+          if (!data.team || data.member_count <= 1) setTeamGate("blocked");
+          else setTeamGate("ok");
+        } catch {
+          setTeamGate("ok"); // fail open on network error
+        }
+      });
+    }, [])
+  );
+
+  if (teamGate === "loading") {
+    return (
+      <View style={{ flex: 1, backgroundColor: HACK_COLORS.bgDeep, alignItems: "center", justifyContent: "center" }}>
+        <HackathonBackground />
+        <View style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: "rgba(145,196,227,0.3)", borderTopColor: "#91C4E3" }} />
+      </View>
+    );
+  }
+
+  if (teamGate === "blocked") {
+    return (
+      <View style={{ flex: 1, backgroundColor: HACK_COLORS.bgDeep, alignItems: "center", justifyContent: "center", paddingHorizontal: 40, gap: 20 }}>
+        <HackathonBackground />
+        <AppText variant="bold" style={{ fontSize: 22, color: "#FFFFFF", textAlign: "center" }}>
+          คุณยังไม่มีทีม
+        </AppText>
+        <AppText style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", textAlign: "center", lineHeight: 24 }}>
+          การเข้าร่วม Hackathon ต้องมีทีมที่มีสมาชิกอย่างน้อย 2 คน{"\n"}กรุณาติดต่อผู้จัดงานเพื่อเข้าร่วมทีม
+        </AppText>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: HACK_COLORS.bgDeep }}>
