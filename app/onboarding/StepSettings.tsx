@@ -15,6 +15,7 @@ import {
   REMINDER_TIME_OPTIONS,
   disablePushNotifications,
   enablePushNotifications,
+  isNotificationsAvailable,
 } from "../../lib/notifications";
 import type { MobileSettings } from "../../types/onboarding";
 const THEMES = [
@@ -45,19 +46,34 @@ export default function StepSettings({ userId }: Props) {
     };
     try {
       if (pushEnabled) {
-        const result = await enablePushNotifications(userId, settings);
-        settings = result.settings;
-
-        if (!result.granted) {
+        if (!isNotificationsAvailable()) {
+          // Firebase not configured on this device — skip push, continue onboarding
+          settings.push_enabled = false;
           Alert.alert(
-            "Notifications Disabled",
-            "Please enable notifications in your device settings if you want reminder nudges later.",
+            "Notifications Unavailable",
+            "Push notifications are not available on this device. You can enable them later in Settings.",
           );
+        } else {
+          const result = await enablePushNotifications(userId, settings);
+          settings = result.settings;
+
+          if (!result.granted) {
+            Alert.alert(
+              "Notifications Disabled",
+              "Please enable notifications in your device settings if you want reminder nudges later.",
+            );
+          }
         }
       } else {
         settings = await disablePushNotifications(userId, settings);
       }
 
+      await completeOnboarding(userId, settings);
+      router.replace("/(tabs)/discover");
+    } catch (error) {
+      // Guard against any unexpected notification errors (e.g. Firebase not initialized)
+      console.warn("Onboarding settings error:", error);
+      settings.push_enabled = false;
       await completeOnboarding(userId, settings);
       router.replace("/(tabs)/discover");
     } finally {

@@ -2,7 +2,7 @@
 
 import { supabase } from './supabase';
 import type { EventType, EventDataMap } from '../types/events';
-import { storage } from './storage';
+import { getItem, setItem } from './asyncStorage';
 import {
   buildDirectionFinderViewedEventData,
   buildSeedCompletedEventData,
@@ -45,22 +45,29 @@ function formatSupabaseError(error: unknown): string {
 
 /**
  * Get or create a session ID with 24-hour expiry.
- * Uses MMKV for synchronous access.
+ * Uses AsyncStorage for React Native compatibility.
  */
-function getSessionId(): string {
+async function getSessionId(): Promise<string> {
   try {
-    const stored = storage.getString(SESSION_KEY);
-    const ts = storage.getString(SESSION_TS_KEY);
+    const [stored, ts] = await Promise.all([
+      getItem(SESSION_KEY),
+      getItem(SESSION_TS_KEY),
+    ]);
 
+    // Check 24-hour expiry
     if (stored && ts && Date.now() - parseInt(ts, 10) < SESSION_TTL_MS) {
       return stored;
     }
 
+    // Generate new session
     const newId = generateUUID();
-    storage.set(SESSION_KEY, newId);
-    storage.set(SESSION_TS_KEY, Date.now().toString());
+    await Promise.all([
+      setItem(SESSION_KEY, newId),
+      setItem(SESSION_TS_KEY, Date.now().toString()),
+    ]);
     return newId;
   } catch {
+    // Fallback to random ID if storage fails
     return generateUUID();
   }
 }
@@ -77,7 +84,7 @@ export async function logEvent<K extends keyof EventDataMap>(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return; // Skip if not authenticated
 
-    const sessionId = getSessionId();
+    const sessionId = await getSessionId();
 
     const { error } = await supabase.from('user_events').insert({
       user_id: user.id,

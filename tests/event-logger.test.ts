@@ -3,11 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const authGetUserMock = vi.fn();
 const insertMock = vi.fn();
 const fromMock = vi.fn(() => ({ insert: insertMock }));
-
-const { getStringMock, setMock } = vi.hoisted(() => ({
-  getStringMock: vi.fn(),
-  setMock: vi.fn(),
-}));
+const getItemMock = vi.fn();
+const setItemMock = vi.fn();
 
 vi.mock("../lib/supabase", () => ({
   supabase: {
@@ -18,15 +15,9 @@ vi.mock("../lib/supabase", () => ({
   },
 }));
 
-vi.mock("../lib/storage", () => ({
-  storage: {
-    getString: getStringMock,
-    set: setMock,
-    delete: vi.fn(),
-    getBoolean: vi.fn(),
-  },
-  hasMigratedFromAsyncStorage: true,
-  migrateFromAsyncStorage: vi.fn(),
+vi.mock("../lib/asyncStorage", () => ({
+  getItem: getItemMock,
+  setItem: setItemMock,
 }));
 
 async function loadEventLogger() {
@@ -39,11 +30,12 @@ describe("event logger analytics wrappers", () => {
     vi.clearAllMocks();
     authGetUserMock.mockResolvedValue({ data: { user: { id: "user-1" } } });
     insertMock.mockResolvedValue({ error: null });
-    getStringMock.mockImplementation((key: string) => {
+    getItemMock.mockImplementation(async (key: string) => {
       if (key === "ps_session_id") return "session-1";
       if (key === "ps_session_timestamp") return Date.now().toString();
-      return undefined;
+      return null;
     });
+    setItemMock.mockResolvedValue(undefined);
   });
 
   it("logs seed_started with the seed context payload", async () => {

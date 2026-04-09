@@ -6,8 +6,11 @@ import { supabase } from './supabase';
  * Register or update a push token for a hackathon participant.
  * Call this when participant logs in or on app initialization.
  *
+ * Gracefully handles the case where Firebase is not initialized on Android
+ * (e.g. missing google-services.json) by returning early.
+ *
  * @param participantId - The ID of the hackathon participant
- * @throws Error if Supabase operation fails or push token cannot be obtained
+ * @throws Error if Supabase operation fails
  */
 export async function registerPushToken(participantId: string): Promise<void> {
   // Get Expo push token
@@ -16,8 +19,8 @@ export async function registerPushToken(participantId: string): Promise<void> {
     const tokenData = await Notifications.getExpoPushTokenAsync();
     pushToken = tokenData.data;
   } catch (error) {
-    // Push token not available (e.g., on web or simulator)
-    console.warn('Push token not available:', error);
+    // Push token not available (e.g., on web, simulator, or Firebase not initialized)
+    console.warn('[hackathonPushTokens] Push token not available:', error);
     return;
   }
 
