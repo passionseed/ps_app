@@ -11,7 +11,7 @@ import {
   getCachedHackathonHomeBundle,
   loadHackathonHomeBundle,
 } from "../../lib/hackathonScreenData";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getItem } from "../../lib/asyncStorage";
 import { readHackathonToken } from "../../lib/hackathon-mode";
 import type { TeamImpact } from "../../lib/hackathon-submit";
 
@@ -77,7 +77,7 @@ export default function HackathonHomeScreen() {
           if (mentorCancelledAfterConfirm) {
             // Only show if user hasn't dismissed this specific booking's notice
             const dismissedKey = `mentor_cancel_dismissed_${b.id}`;
-            const dismissed = await AsyncStorage.getItem(dismissedKey);
+            const dismissed = await getItem(dismissedKey);
             if (!dismissed) {
               setCancelledBookingReason(b.cancellation_reason);
               setCancelledBookingId(b.id);

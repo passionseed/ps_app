@@ -15,11 +15,9 @@ vi.mock("../lib/supabase", () => ({
   },
 }));
 
-vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: {
-    getItem: getItemMock,
-    setItem: setItemMock,
-  },
+vi.mock("../lib/asyncStorage", () => ({
+  getItem: getItemMock,
+  setItem: setItemMock,
 }));
 
 async function loadEventLogger() {

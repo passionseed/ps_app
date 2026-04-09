@@ -2,7 +2,7 @@
 
 import { supabase } from './supabase';
 import type { EventType, EventDataMap } from '../types/events';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getItem, setItem } from './asyncStorage';
 import {
   buildDirectionFinderViewedEventData,
   buildSeedCompletedEventData,
@@ -50,8 +50,8 @@ function formatSupabaseError(error: unknown): string {
 async function getSessionId(): Promise<string> {
   try {
     const [stored, ts] = await Promise.all([
-      AsyncStorage.getItem(SESSION_KEY),
-      AsyncStorage.getItem(SESSION_TS_KEY),
+      getItem(SESSION_KEY),
+      getItem(SESSION_TS_KEY),
     ]);
 
     // Check 24-hour expiry
@@ -62,8 +62,8 @@ async function getSessionId(): Promise<string> {
     // Generate new session
     const newId = generateUUID();
     await Promise.all([
-      AsyncStorage.setItem(SESSION_KEY, newId),
-      AsyncStorage.setItem(SESSION_TS_KEY, Date.now().toString()),
+      setItem(SESSION_KEY, newId),
+      setItem(SESSION_TS_KEY, Date.now().toString()),
     ]);
     return newId;
   } catch {
