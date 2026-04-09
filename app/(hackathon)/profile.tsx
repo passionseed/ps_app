@@ -145,7 +145,7 @@ export default function HackathonProfileScreen() {
         if (team.members) {
           setTeam({
             ...team,
-            members: team.members.map((m) =>
+            members: team.members.filter(Boolean).map((m) =>
               m.participant_id === participant.id
                 ? { ...m, team_emoji: emoji }
                 : m,
@@ -207,7 +207,7 @@ export default function HackathonProfileScreen() {
         if (team.members) {
           setTeam({
             ...team,
-            members: team.members.map((m) =>
+            members: team.members.filter(Boolean).map((m) =>
               m.participant_id === participant.id
                 ? { ...m, team_emoji: emoji }
                 : m,
@@ -502,7 +502,7 @@ export default function HackathonProfileScreen() {
 
                 {/* Team Roster */}
                 <View style={styles.rosterList}>
-                  {team.members?.map((member) => (
+                  {team.members?.filter(Boolean).map((member) => (
                     <View key={member.participant_id} style={styles.rosterItem}>
                       <View style={styles.rosterDot} />
                       <View style={styles.rosterInfo}>
