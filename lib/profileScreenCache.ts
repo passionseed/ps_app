@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getItem, setItem, removeItem } from "./asyncStorage";
 import type { UserEvent } from "../types/events";
 import type { CareerGoal, InterestCategory, Profile } from "../types/onboarding";
 import type { IkigaiScores, ScoreTimelineItem } from "./scoreEngine";
@@ -72,7 +72,7 @@ export async function readCachedProfileScreenSnapshot(
     return memorySnapshot;
   }
 
-  const raw = await AsyncStorage.getItem(getProfileScreenCacheKey(userId));
+  const raw = await getItem(getProfileScreenCacheKey(userId));
   if (!raw) return null;
 
   try {
@@ -91,7 +91,7 @@ export async function writeCachedProfileScreenSnapshot(
   snapshot: ProfileScreenSnapshot,
 ): Promise<void> {
   profileScreenSnapshotMemoryCache.set(snapshot.userId, snapshot);
-  await AsyncStorage.setItem(
+  await setItem(
     getProfileScreenCacheKey(snapshot.userId),
     JSON.stringify(snapshot),
   );
@@ -101,5 +101,5 @@ export async function clearCachedProfileScreenSnapshot(
   userId: string,
 ): Promise<void> {
   profileScreenSnapshotMemoryCache.delete(userId);
-  await AsyncStorage.removeItem(getProfileScreenCacheKey(userId));
+  await removeItem(getProfileScreenCacheKey(userId));
 }

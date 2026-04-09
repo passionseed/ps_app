@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-  },
+vi.mock("../lib/asyncStorage", () => ({
+  getItem: vi.fn(),
+  setItem: vi.fn(),
 }));
 
 import {
@@ -13,10 +11,10 @@ import {
   readGuestLanguage,
   saveGuestLanguage,
 } from "../lib/guest-language";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as asyncStorage from "../lib/asyncStorage";
 
-const getItem = vi.mocked(AsyncStorage.getItem);
-const setItem = vi.mocked(AsyncStorage.setItem);
+const getItem = vi.mocked(asyncStorage.getItem);
+const setItem = vi.mocked(asyncStorage.setItem);
 
 describe("guest language storage", () => {
   beforeEach(() => {
