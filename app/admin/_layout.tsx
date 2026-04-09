@@ -13,6 +13,10 @@ export default function AdminLayout() {
           headerTitleStyle: { fontWeight: "700" },
         }}
       />
+      <Stack.Screen
+        name="hackathon"
+        options={{ headerShown: false }}
+      />
     </Stack>
   );
 }

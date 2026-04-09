@@ -764,7 +764,12 @@ export default function HackathonActivityScreen() {
       void preloadHackathonActivityBundle(nextId);
       router.replace(getHackathonActivityHref(nextId));
     } else if (currentIndex === siblings.length - 1) {
-      router.back(); // Go back to activities list
+      // Navigate to phase activities list instead of generic back
+      if (activity?.phase_id) {
+        router.replace(`/(hackathon)/phase/${activity.phase_id}`);
+      } else {
+        router.back();
+      }
     }
   };
 
@@ -902,7 +907,14 @@ export default function HackathonActivityScreen() {
         </AppText>
         <Pressable
           style={styles.uploadEmptyBtn}
-          onPress={() => router.back()}
+          onPress={() => {
+            // Navigate back to the phase activities list instead of generic back
+            if (activity?.phase_id) {
+              router.replace(`/(hackathon)/phase/${activity.phase_id}`);
+            } else {
+              router.back();
+            }
+          }}
         >
           <AppText style={styles.uploadEmptyLabel}>Go back</AppText>
         </Pressable>
@@ -935,7 +947,12 @@ export default function HackathonActivityScreen() {
           variant="dark"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.back();
+            // Navigate back to the phase activities list instead of generic back
+            if (activity?.phase_id) {
+              router.replace(`/(hackathon)/phase/${activity.phase_id}`);
+            } else {
+              router.back();
+            }
           }}
         />
       </View>
