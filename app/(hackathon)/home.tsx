@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet, ScrollView, Text, Pressable, TouchableOpacity } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, StyleSheet, ScrollView, Text, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -117,37 +117,6 @@ export default function HackathonHomeScreen() {
             Preventive & Predictive Healthcare
           </Text>
         </View>
-
-        {/* Countdown */}
-        {currentPhase && (
-          <Pressable
-            style={styles.countdownContainer}
-            onPressIn={() => void preloadHackathonPhaseBundle(currentPhase.id)}
-            onPress={() => router.push(`/(hackathon)/phase/${currentPhase.id}`)}
-          >
-            <AppText style={styles.countdownEyebrow}>CURRENT PHASE</AppText>
-            <AppText variant="bold" style={styles.countdownTitle}>{currentPhase.title}</AppText>
-            {(currentPhase.due_at ?? currentPhase.ends_at) ? (
-              <View style={styles.countdownBoxes}>
-                <View style={styles.countBox}>
-                  <AppText variant="bold" style={styles.countVal}>{timeLeft.d}</AppText>
-                  <AppText style={styles.countLabel}>DAYS</AppText>
-                </View>
-                <View style={styles.countBox}>
-                  <AppText variant="bold" style={styles.countVal}>{timeLeft.h.toString().padStart(2, "0")}</AppText>
-                  <AppText style={styles.countLabel}>HOURS</AppText>
-                </View>
-                <View style={styles.countBox}>
-                  <AppText variant="bold" style={styles.countVal}>{timeLeft.m.toString().padStart(2, "0")}</AppText>
-                  <AppText style={styles.countLabel}>MINS</AppText>
-                </View>
-              </View>
-            ) : (
-              <AppText style={styles.countdownNoDue}>No due date set</AppText>
-            )}
-            <AppText style={styles.countdownCta}>Continue Journey →</AppText>
-          </Pressable>
-        )}
 
         {/* Team Impact */}
         <View style={styles.impactContainer}>
