@@ -315,9 +315,12 @@ export default function ProfileScreen() {
     let cancelled = false;
 
     async function loadData() {
-      const cachedSnapshot = await readCachedProfileScreenSnapshot(userId).catch(
-        () => null,
-      );
+      let cachedSnapshot: ProfileScreenSnapshot | null = null;
+      try {
+        cachedSnapshot = readCachedProfileScreenSnapshot(userId);
+      } catch {
+        cachedSnapshot = null;
+      }
 
       if (cancelled) return;
 
@@ -337,7 +340,7 @@ export default function ProfileScreen() {
         if (cancelled) return;
 
         applyProfileSnapshot(freshSnapshot);
-        await writeCachedProfileScreenSnapshot(freshSnapshot).catch(() => {});
+        try { writeCachedProfileScreenSnapshot(freshSnapshot); } catch {}
       } catch (error) {
         console.warn("[ProfileScreen] Failed to refresh profile snapshot:", error);
       }
@@ -376,7 +379,7 @@ export default function ProfileScreen() {
             try {
               const result = await backfillMissingIkigaiReflections(supabase);
               if (user?.id) {
-                await clearCachedProfileScreenSnapshot(user.id).catch(() => {});
+                try { clearCachedProfileScreenSnapshot(user.id); } catch {}
               }
               Alert.alert(
                 isThai ? "เสร็จแล้ว" : "Done",

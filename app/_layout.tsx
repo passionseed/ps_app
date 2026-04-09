@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, InteractionManager, StyleSheet, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Sentry from "@sentry/react-native";
 import { AnimatedSplash } from "../components/AnimatedSplash";
 import { isAllowedOnboardedAppSegment } from "../lib/hackathonNavigation";
+import { hasMigratedFromAsyncStorage, migrateFromAsyncStorage } from "../lib/storage";
 
 function ConfigErrorScreen({ message }: { message: string }) {
   return (
@@ -263,6 +265,7 @@ function RootLayout() {
     ReenieBeanie_400Regular,
   });
   const [isReady, setIsReady] = useState(false);
+  const [hasMigrated, setHasMigrated] = useState(hasMigratedFromAsyncStorage);
   const configError = getSupabaseConfigErrorMessage();
 
   useEffect(() => {
@@ -290,6 +293,20 @@ function RootLayout() {
     };
   }, [fontsLoaded, isReady, SplashScreen]);
 
+  useEffect(() => {
+    if (!hasMigratedFromAsyncStorage) {
+      InteractionManager.runAfterInteractions(async () => {
+        try {
+          await migrateFromAsyncStorage();
+          setHasMigrated(true);
+        } catch (e) {
+          console.error("[Storage] Migration failed, continuing anyway:", e);
+          setHasMigrated(true);
+        }
+      });
+    }
+  }, []);
+
   if (!fontsLoaded || !isReady) {
     return <AnimatedSplash />;
   }
@@ -299,12 +316,14 @@ function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <View style={{ flex: 1 }}>
-        <StatusBar style="light" translucent />
-        <RootNavigator />
-      </View>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <View style={{ flex: 1 }}>
+          <StatusBar style="light" translucent />
+          <RootNavigator />
+        </View>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

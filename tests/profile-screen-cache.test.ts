@@ -1,14 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-    removeItem: vi.fn(),
-  },
+const { getStringMock, setMock, deleteMock } = vi.hoisted(() => ({
+  getStringMock: vi.fn(),
+  setMock: vi.fn(),
+  deleteMock: vi.fn(),
 }));
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+vi.mock("../lib/storage", () => ({
+  storage: {
+    getString: getStringMock,
+    set: setMock,
+    delete: deleteMock,
+    getBoolean: vi.fn(),
+  },
+  hasMigratedFromAsyncStorage: true,
+  migrateFromAsyncStorage: vi.fn(),
+}));
+
 import {
   PROFILE_SCREEN_CACHE_KEY_PREFIX,
   PROFILE_SCREEN_CACHE_TTL_MS,
@@ -18,10 +26,6 @@ import {
   writeCachedProfileScreenSnapshot,
   type ProfileScreenSnapshot,
 } from "../lib/profileScreenCache";
-
-const getItem = vi.mocked(AsyncStorage.getItem);
-const setItem = vi.mocked(AsyncStorage.setItem);
-const removeItem = vi.mocked(AsyncStorage.removeItem);
 
 function buildSnapshot(
   overrides: Partial<ProfileScreenSnapshot> = {},
@@ -45,13 +49,12 @@ function buildSnapshot(
 }
 
 describe("profile screen cache", () => {
-  beforeEach(async () => {
-    getItem.mockReset();
-    setItem.mockReset();
-    removeItem.mockReset();
-    await clearCachedProfileScreenSnapshot("user-1");
-    await clearCachedProfileScreenSnapshot("user-2");
-    removeItem.mockReset();
+  beforeEach(() => {
+    getStringMock.mockReset();
+    setMock.mockReset();
+    deleteMock.mockReset();
+    clearCachedProfileScreenSnapshot("user-1");
+    clearCachedProfileScreenSnapshot("user-2");
   });
 
   it("reports fresh cache entries as usable without a blocking reload", () => {
@@ -78,39 +81,37 @@ describe("profile screen cache", () => {
     });
   });
 
-  it("reads a persisted snapshot for the matching user", async () => {
+  it("reads a persisted snapshot for the matching user", () => {
     const snapshot = buildSnapshot();
-    getItem.mockResolvedValue(JSON.stringify(snapshot));
+    getStringMock.mockReturnValue(JSON.stringify(snapshot));
 
-    await expect(readCachedProfileScreenSnapshot("user-1")).resolves.toEqual(
-      snapshot,
-    );
-    expect(getItem).toHaveBeenCalledWith(
+    expect(readCachedProfileScreenSnapshot("user-1")).toEqual(snapshot);
+    expect(getStringMock).toHaveBeenCalledWith(
       `${PROFILE_SCREEN_CACHE_KEY_PREFIX}/user-1`,
     );
   });
 
-  it("ignores persisted snapshots for a different user", async () => {
-    getItem.mockResolvedValue(JSON.stringify(buildSnapshot({ userId: "user-2" })));
+  it("ignores persisted snapshots for a different user", () => {
+    getStringMock.mockReturnValue(JSON.stringify(buildSnapshot({ userId: "user-2" })));
 
-    await expect(readCachedProfileScreenSnapshot("user-1")).resolves.toBeNull();
+    expect(readCachedProfileScreenSnapshot("user-1")).toBeNull();
   });
 
-  it("persists snapshots under the user-specific cache key", async () => {
+  it("persists snapshots under the user-specific cache key", () => {
     const snapshot = buildSnapshot();
 
-    await writeCachedProfileScreenSnapshot(snapshot);
+    writeCachedProfileScreenSnapshot(snapshot);
 
-    expect(setItem).toHaveBeenCalledWith(
+    expect(setMock).toHaveBeenCalledWith(
       `${PROFILE_SCREEN_CACHE_KEY_PREFIX}/user-1`,
       JSON.stringify(snapshot),
     );
   });
 
-  it("clears the cached snapshot for a user", async () => {
-    await clearCachedProfileScreenSnapshot("user-1");
+  it("clears the cached snapshot for a user", () => {
+    clearCachedProfileScreenSnapshot("user-1");
 
-    expect(removeItem).toHaveBeenCalledWith(
+    expect(deleteMock).toHaveBeenCalledWith(
       `${PROFILE_SCREEN_CACHE_KEY_PREFIX}/user-1`,
     );
   });

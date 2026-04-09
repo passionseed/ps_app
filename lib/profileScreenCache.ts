@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "./storage";
 import type { UserEvent } from "../types/events";
 import type { CareerGoal, InterestCategory, Profile } from "../types/onboarding";
 import type { IkigaiScores, ScoreTimelineItem } from "./scoreEngine";
@@ -64,15 +64,15 @@ export function getProfileScreenCacheStatus(
   };
 }
 
-export async function readCachedProfileScreenSnapshot(
+export function readCachedProfileScreenSnapshot(
   userId: string,
-): Promise<ProfileScreenSnapshot | null> {
+): ProfileScreenSnapshot | null {
   const memorySnapshot = profileScreenSnapshotMemoryCache.get(userId);
   if (memorySnapshot) {
     return memorySnapshot;
   }
 
-  const raw = await AsyncStorage.getItem(getProfileScreenCacheKey(userId));
+  const raw = storage.getString(getProfileScreenCacheKey(userId));
   if (!raw) return null;
 
   try {
@@ -87,19 +87,19 @@ export async function readCachedProfileScreenSnapshot(
   }
 }
 
-export async function writeCachedProfileScreenSnapshot(
+export function writeCachedProfileScreenSnapshot(
   snapshot: ProfileScreenSnapshot,
-): Promise<void> {
+): void {
   profileScreenSnapshotMemoryCache.set(snapshot.userId, snapshot);
-  await AsyncStorage.setItem(
+  storage.set(
     getProfileScreenCacheKey(snapshot.userId),
     JSON.stringify(snapshot),
   );
 }
 
-export async function clearCachedProfileScreenSnapshot(
+export function clearCachedProfileScreenSnapshot(
   userId: string,
-): Promise<void> {
+): void {
   profileScreenSnapshotMemoryCache.delete(userId);
-  await AsyncStorage.removeItem(getProfileScreenCacheKey(userId));
+  storage.delete(getProfileScreenCacheKey(userId));
 }

@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "./storage";
 
 export type GuestLanguage = "th" | "en";
 
@@ -10,13 +10,11 @@ export function normalizeGuestLanguage(
   return value === "en" ? "en" : "th";
 }
 
-export async function readGuestLanguage(): Promise<GuestLanguage> {
-  const value = await AsyncStorage.getItem(GUEST_LANGUAGE_STORAGE_KEY);
+export function readGuestLanguage(): GuestLanguage {
+  const value = storage.getString(GUEST_LANGUAGE_STORAGE_KEY) ?? null;
   return normalizeGuestLanguage(value);
 }
 
-export async function saveGuestLanguage(
-  language: GuestLanguage,
-): Promise<void> {
-  await AsyncStorage.setItem(GUEST_LANGUAGE_STORAGE_KEY, language);
+export function saveGuestLanguage(language: GuestLanguage): void {
+  storage.set(GUEST_LANGUAGE_STORAGE_KEY, language);
 }

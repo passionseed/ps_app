@@ -1,6 +1,5 @@
-// lib/hackathon-mode.ts
 import { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "./storage";
 
 export const HACKATHON_MODE_KEY = "hackathon_mode";
 const HACKATHON_TOKEN_KEY = "hackathon_token";
@@ -17,32 +16,29 @@ export type HackathonParticipant = {
   grade_level?: string;
 };
 
-export async function readHackathonMode(): Promise<boolean> {
-  const value = await AsyncStorage.getItem(HACKATHON_MODE_KEY);
-  return value === "true";
+export function readHackathonMode(): boolean {
+  return storage.getBoolean(HACKATHON_MODE_KEY) ?? false;
 }
 
-export async function saveHackathonMode(value: boolean): Promise<void> {
+export function saveHackathonMode(value: boolean): void {
   if (value) {
-    await AsyncStorage.setItem(HACKATHON_MODE_KEY, "true");
+    storage.set(HACKATHON_MODE_KEY, true);
   } else {
-    await AsyncStorage.removeItem(HACKATHON_MODE_KEY);
+    storage.delete(HACKATHON_MODE_KEY);
   }
 }
 
-export async function saveHackathonSession(token: string, participant: HackathonParticipant): Promise<void> {
-  await AsyncStorage.multiSet([
-    [HACKATHON_TOKEN_KEY, token],
-    [HACKATHON_PARTICIPANT_KEY, JSON.stringify(participant)],
-  ]);
+export function saveHackathonSession(token: string, participant: HackathonParticipant): void {
+  storage.set(HACKATHON_TOKEN_KEY, token);
+  storage.set(HACKATHON_PARTICIPANT_KEY, JSON.stringify(participant));
 }
 
-export async function readHackathonToken(): Promise<string | null> {
-  return AsyncStorage.getItem(HACKATHON_TOKEN_KEY);
+export function readHackathonToken(): string | null {
+  return storage.getString(HACKATHON_TOKEN_KEY) ?? null;
 }
 
-export async function readHackathonParticipant(): Promise<HackathonParticipant | null> {
-  const raw = await AsyncStorage.getItem(HACKATHON_PARTICIPANT_KEY);
+export function readHackathonParticipant(): HackathonParticipant | null {
+  const raw = storage.getString(HACKATHON_PARTICIPANT_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as HackathonParticipant;
@@ -51,15 +47,20 @@ export async function readHackathonParticipant(): Promise<HackathonParticipant |
   }
 }
 
-export async function clearHackathonSession(): Promise<void> {
-  await AsyncStorage.multiRemove([HACKATHON_TOKEN_KEY, HACKATHON_PARTICIPANT_KEY]);
+export function clearHackathonSession(): void {
+  storage.delete(HACKATHON_TOKEN_KEY);
+  storage.delete(HACKATHON_PARTICIPANT_KEY);
 }
 
 export function useHackathonParticipant(): HackathonParticipant | null {
   const [participant, setParticipant] = useState<HackathonParticipant | null>(null);
 
   useEffect(() => {
-    readHackathonParticipant().then(setParticipant).catch(() => setParticipant(null));
+    try {
+      setParticipant(readHackathonParticipant());
+    } catch {
+      setParticipant(null);
+    }
   }, []);
 
   return participant;
