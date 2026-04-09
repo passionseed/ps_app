@@ -19,7 +19,6 @@
     "@expo-google-fonts/google-sans": "^0.4.0",
     "@expo-google-fonts/libre-franklin": "^0.4.2",
     "@expo-google-fonts/reenie-beanie": "^0.4.1",
-    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/slider": "5.1.2",
     "@sentry/react-native": "^7.11.0",
     "@shopify/react-native-skia": "^2.4.18",

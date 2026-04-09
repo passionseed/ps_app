@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getItem, setItem } from "./asyncStorage";
 import type { PathDayBundle } from "./pathlab";
 import type { SeedWithEnrollment } from "../types/seeds";
 import type { AffinityProfile } from "./userSignals";
@@ -301,7 +301,7 @@ export function getRecommendationCacheStatus(
 }
 
 export async function readCachedSeedRecommendations(): Promise<SeedRecommendationsPayload | null> {
-  const raw = await AsyncStorage.getItem(SEED_RECOMMENDATION_CACHE_KEY);
+  const raw = await getItem(SEED_RECOMMENDATION_CACHE_KEY);
   if (!raw) return null;
 
   try {
@@ -318,7 +318,7 @@ export async function readCachedSeedRecommendations(): Promise<SeedRecommendatio
 export async function writeCachedSeedRecommendations(
   payload: SeedRecommendationsPayload,
 ): Promise<void> {
-  await AsyncStorage.setItem(
+  await setItem(
     SEED_RECOMMENDATION_CACHE_KEY,
     JSON.stringify(payload),
   );
@@ -331,7 +331,7 @@ function getPathDayBundleCacheKey(enrollmentId: string) {
 export async function readCachedPathDayBundle(
   enrollmentId: string,
 ): Promise<PathDayBundle | null> {
-  const raw = await AsyncStorage.getItem(getPathDayBundleCacheKey(enrollmentId));
+  const raw = await getItem(getPathDayBundleCacheKey(enrollmentId));
   if (!raw) return null;
 
   try {
@@ -345,7 +345,7 @@ export async function writeCachedPathDayBundle(
   enrollmentId: string,
   bundle: PathDayBundle,
 ): Promise<void> {
-  await AsyncStorage.setItem(
+  await setItem(
     getPathDayBundleCacheKey(enrollmentId),
     JSON.stringify(bundle),
   );
