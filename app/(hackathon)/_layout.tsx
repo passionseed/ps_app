@@ -19,6 +19,10 @@ import {
   preloadHackathonHomeBundle,
   preloadHackathonJourneyBundle,
 } from "../../lib/hackathonScreenData";
+import { useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
+import { readHackathonToken } from "../../lib/hackathon-mode";
+import { AppText } from "../../components/AppText";
 
 // Design Tokens from Hackathon Design System
 export const HACK_COLORS = {
@@ -265,10 +269,53 @@ function TabBarButton({
 }
 
 export default function HackathonLayout() {
+  const [teamGate, setTeamGate] = useState<"loading" | "ok" | "blocked">("loading");
+
   useEffect(() => {
     void preloadHackathonHomeBundle();
     void preloadHackathonJourneyBundle();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      readHackathonToken().then(async (token) => {
+        if (!token) { setTeamGate("blocked"); return; }
+        try {
+          const r = await fetch("https://www.passionseed.org/api/hackathon/student/team", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await r.json();
+          if (!data.team || data.member_count <= 1) setTeamGate("blocked");
+          else setTeamGate("ok");
+        } catch {
+          setTeamGate("ok"); // fail open on network error
+        }
+      });
+    }, [])
+  );
+
+  if (teamGate === "loading") {
+    return (
+      <View style={{ flex: 1, backgroundColor: HACK_COLORS.bgDeep, alignItems: "center", justifyContent: "center" }}>
+        <HackathonBackground />
+        <View style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: "rgba(145,196,227,0.3)", borderTopColor: "#91C4E3" }} />
+      </View>
+    );
+  }
+
+  if (teamGate === "blocked") {
+    return (
+      <View style={{ flex: 1, backgroundColor: HACK_COLORS.bgDeep, alignItems: "center", justifyContent: "center", paddingHorizontal: 40, gap: 20 }}>
+        <HackathonBackground />
+        <AppText variant="bold" style={{ fontSize: 22, color: "#FFFFFF", textAlign: "center" }}>
+          คุณยังไม่มีทีม
+        </AppText>
+        <AppText style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", textAlign: "center", lineHeight: 24 }}>
+          การเข้าร่วม Hackathon ต้องมีทีมที่มีสมาชิกอย่างน้อย 2 คน{"\n"}กรุณาติดต่อผู้จัดงานเพื่อเข้าร่วมทีม
+        </AppText>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: HACK_COLORS.bgDeep }}>
