@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-    removeItem: vi.fn(),
-  },
+vi.mock("../lib/asyncStorage", () => ({
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
 }));
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as asyncStorage from "../lib/asyncStorage";
 import {
   PROFILE_SCREEN_CACHE_KEY_PREFIX,
   PROFILE_SCREEN_CACHE_TTL_MS,
@@ -19,9 +17,9 @@ import {
   type ProfileScreenSnapshot,
 } from "../lib/profileScreenCache";
 
-const getItem = vi.mocked(AsyncStorage.getItem);
-const setItem = vi.mocked(AsyncStorage.setItem);
-const removeItem = vi.mocked(AsyncStorage.removeItem);
+const getItem = vi.mocked(asyncStorage.getItem);
+const setItem = vi.mocked(asyncStorage.setItem);
+const removeItem = vi.mocked(asyncStorage.removeItem);
 
 function buildSnapshot(
   overrides: Partial<ProfileScreenSnapshot> = {},
