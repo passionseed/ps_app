@@ -1,6 +1,6 @@
 // lib/hackathon-mode.ts
 import { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getItem, setItem, removeItem } from "./asyncStorage";
 
 export const HACKATHON_MODE_KEY = "hackathon_mode";
 const HACKATHON_TOKEN_KEY = "hackathon_token";
@@ -18,31 +18,31 @@ export type HackathonParticipant = {
 };
 
 export async function readHackathonMode(): Promise<boolean> {
-  const value = await AsyncStorage.getItem(HACKATHON_MODE_KEY);
+  const value = await getItem(HACKATHON_MODE_KEY);
   return value === "true";
 }
 
 export async function saveHackathonMode(value: boolean): Promise<void> {
   if (value) {
-    await AsyncStorage.setItem(HACKATHON_MODE_KEY, "true");
+    await setItem(HACKATHON_MODE_KEY, "true");
   } else {
-    await AsyncStorage.removeItem(HACKATHON_MODE_KEY);
+    await removeItem(HACKATHON_MODE_KEY);
   }
 }
 
 export async function saveHackathonSession(token: string, participant: HackathonParticipant): Promise<void> {
   await Promise.all([
-    AsyncStorage.setItem(HACKATHON_TOKEN_KEY, token),
-    AsyncStorage.setItem(HACKATHON_PARTICIPANT_KEY, JSON.stringify(participant)),
+    setItem(HACKATHON_TOKEN_KEY, token),
+    setItem(HACKATHON_PARTICIPANT_KEY, JSON.stringify(participant)),
   ]);
 }
 
 export async function readHackathonToken(): Promise<string | null> {
-  return AsyncStorage.getItem(HACKATHON_TOKEN_KEY);
+  return getItem(HACKATHON_TOKEN_KEY);
 }
 
 export async function readHackathonParticipant(): Promise<HackathonParticipant | null> {
-  const raw = await AsyncStorage.getItem(HACKATHON_PARTICIPANT_KEY);
+  const raw = await getItem(HACKATHON_PARTICIPANT_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as HackathonParticipant;
@@ -53,8 +53,8 @@ export async function readHackathonParticipant(): Promise<HackathonParticipant |
 
 export async function clearHackathonSession(): Promise<void> {
   await Promise.all([
-    AsyncStorage.removeItem(HACKATHON_TOKEN_KEY),
-    AsyncStorage.removeItem(HACKATHON_PARTICIPANT_KEY),
+    removeItem(HACKATHON_TOKEN_KEY),
+    removeItem(HACKATHON_PARTICIPANT_KEY),
   ]);
 }
 
