@@ -1,3 +1,4 @@
+import * as FileSystem from "expo-file-system/legacy";
 import { readHackathonParticipant } from "./hackathon-mode";
 import { computeTeamRank } from "./hackathonRanking";
 import { supabase } from "./supabase";
@@ -121,14 +122,14 @@ export async function submitTextAnswer(
 
   const { data, error } = await supabase
     .from("hackathon_phase_activity_submissions")
-    .insert({
+    .upsert({
       participant_id: participant.id,
       activity_id: activityId,
       assessment_id: assessmentId,
       text_answer: textAnswer,
       status: "submitted",
       submitted_at: new Date().toISOString(),
-    })
+    }, { onConflict: "participant_id,assessment_id" })
     .select()
     .single();
 
@@ -268,17 +269,16 @@ export async function submitFile(
   const ext = fileName.split('.').pop() ?? "bin";
   const path = `${participant.id}/${activityId}/${Date.now()}.${ext}`;
 
-  // Use arrayBuffer() instead of blob() — more reliable on React Native
-  // where Blob polyfill has limited/intermittent support
-  const res = await fetch(fileUri);
-  if (!res.ok) {
-    throw new Error(`Failed to read file: ${res.status} ${res.statusText}`);
-  }
-  const arrayBuffer = await res.arrayBuffer();
+  // Use expo-file-system to read local files — works on both iOS and Android.
+  // fetch(fileUri) fails on Android for local file:// URIs.
+  const base64 = await FileSystem.readAsStringAsync(fileUri, {
+    encoding: "base64",
+  });
+  const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from("hackathon_submissions")
-    .upload(path, arrayBuffer, { contentType: mimeType });
+    .upload(path, binary, { contentType: mimeType });
 
   if (uploadError) throw new Error(uploadError.message);
 
@@ -288,6 +288,13 @@ export async function submitFile(
     
   const fileUrl = publicUrlData.publicUrl;
   const isImage = mimeType.startsWith("image/");
+
+  // Delete previous submission for this assessment before inserting new one
+  await supabase
+    .from("hackathon_phase_activity_submissions")
+    .delete()
+    .eq("participant_id", participant.id)
+    .eq("assessment_id", assessmentId);
 
   const { data, error } = await supabase
     .from("hackathon_phase_activity_submissions")
