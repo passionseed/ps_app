@@ -34,6 +34,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { ensureActivityHasProgress } from "../../lib/activityProgress";
 import { supabase } from "../../lib/supabase";
+import { getSupabaseRuntimeConfig } from "../../lib/runtime-config";
 import { ensureActivityProgress, updateActivityProgress, submitAssessment } from "../../lib/pathlab";
 import {
   getCachedActivityPayload,
@@ -752,37 +753,28 @@ export default function ActivityDetailScreen() {
 
   const sendInitialGreeting = async (metadata: AIChatMetadata) => {
     try {
-      const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-      if (!geminiApiKey) return;
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const { publishableKey } = getSupabaseRuntimeConfig();
+      if (!supabaseUrl) return;
 
       const systemPrompt = metadata.system_prompt || "You are a helpful assistant.";
 
-      const geminiPayload = {
-        contents: [
-          {
-            parts: [
-              { text: `${systemPrompt}\n\nStart the conversation with a friendly greeting in Thai.` }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.8,
-          maxOutputTokens: 256,
-        }
-      };
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(geminiPayload),
-        }
-      );
+      const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: publishableKey,
+        },
+        body: JSON.stringify({
+          system_prompt: systemPrompt,
+          messages: [],
+          mode: "greeting",
+        }),
+      });
 
       if (response.ok) {
         const data = await response.json();
-        const greeting = data.candidates?.[0]?.content?.parts?.[0]?.text || "สวัสดีค่ะ! มีอะไรให้ช่วยไหม?";
+        const greeting = data.reply || "สวัสดีค่ะ! มีอะไรให้ช่วยไหม?";
 
         setAiMessages([{
           role: "assistant",
@@ -792,7 +784,6 @@ export default function ActivityDetailScreen() {
       }
     } catch (error) {
       console.error("[AI] Error getting initial greeting:", error);
-      // Fallback greeting
       setAiMessages([{
         role: "assistant",
         content: "สวัสดีค่ะ! 😊 มีอะไรให้ช่วยไหม?",
@@ -1102,59 +1093,40 @@ export default function ActivityDetailScreen() {
       console.log("[AI] Sending message to AI service...");
       console.log("[AI] Metadata:", metadata);
 
-      // Build messages array including system prompt
+      // Build messages array for edge function
       const messages = [
-        { role: "system", content: metadata.system_prompt || "You are a helpful assistant." },
         ...aiMessages.map(msg => ({ role: msg.role, content: msg.content })),
         { role: "user", content: userMessage.content }
       ];
 
-      // Get Gemini API key from environment
-      const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-      if (!geminiApiKey) {
-        throw new Error("Gemini API key not configured. Please add EXPO_PUBLIC_GEMINI_API_KEY to .env.local");
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const { publishableKey } = getSupabaseRuntimeConfig();
+
+      if (!supabaseUrl) {
+        throw new Error("Supabase URL not configured");
       }
 
-      // Convert messages to Gemini format
-      const systemPrompt = metadata.system_prompt || "You are a helpful assistant.";
-      const conversationParts = aiMessages.map(msg => ({
-        text: `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
-      }));
-
-      // Add current user message
-      conversationParts.push({
-        text: `User: ${userMessage.content}`
-      });
-
-      const geminiPayload = {
-        contents: [
-          {
-            parts: [
-              { text: `${systemPrompt}\n\n${conversationParts.map(p => p.text).join("\n")}\n\nAssistant:` }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-        }
-      };
-
-      console.log("[AI] Using Gemini API");
+      console.log("[AI] Using edge function proxy");
       console.log("[AI] Request payload:", {
-        model: "gemini-2.5-flash",
-        messageCount: conversationParts.length,
+        messageCount: messages.length,
       });
 
-      // Call Gemini API
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      // Call AI via edge function (no API key exposed to client)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+        `${supabaseUrl}/functions/v1/ai-chat`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            apikey: publishableKey,
+            ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
           },
-          body: JSON.stringify(geminiPayload),
+          },
+          body: JSON.stringify({
+            system_prompt: metadata.system_prompt || "You are a helpful assistant.",
+            messages,
+          }),
         }
       );
 
@@ -1171,12 +1143,10 @@ export default function ActivityDetailScreen() {
       }
 
       const data = await response.json();
-      console.log("[AI] Response from Gemini:", data);
+      console.log("[AI] Response from edge function:", data);
 
-      // Extract assistant message from Gemini response
-      const assistantContent =
-        data.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "I couldn't generate a response.";
+      // Extract assistant message
+      const assistantContent = data.reply || "I couldn't generate a response.";
 
       const assistantMessage: AIChatMessage = {
         role: "assistant",

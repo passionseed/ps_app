@@ -1,0 +1,19 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "resend-api-key"
+description = "Resend API Key"
+regex = '''re_[a-zA-Z0-9]{20,}_[a-zA-Z0-9]{10,}'''
+tags = ["key", "resend"]
+
+[allowlist]
+paths = [
+  '''\.env$''',
+  '''\.env\.local$''',
+  '''\.env\.staging$''',
+  '''\.gitleaks\.toml$''',
+  '''dist/''',
+  '''node_modules/''',
+  '''tests/''',
+]
