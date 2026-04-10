@@ -268,12 +268,17 @@ export async function submitFile(
   const ext = fileName.split('.').pop() ?? "bin";
   const path = `${participant.id}/${activityId}/${Date.now()}.${ext}`;
 
+  // Use arrayBuffer() instead of blob() — more reliable on React Native
+  // where Blob polyfill has limited/intermittent support
   const res = await fetch(fileUri);
-  const blob = await res.blob();
+  if (!res.ok) {
+    throw new Error(`Failed to read file: ${res.status} ${res.statusText}`);
+  }
+  const arrayBuffer = await res.arrayBuffer();
 
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from("hackathon_submissions")
-    .upload(path, blob, { contentType: mimeType });
+    .upload(path, arrayBuffer, { contentType: mimeType });
 
   if (uploadError) throw new Error(uploadError.message);
 
