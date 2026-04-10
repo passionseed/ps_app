@@ -57,7 +57,7 @@ describe("hackathon comment deletion", () => {
       eq: eqMock,
     });
 
-    readHackathonTokenMock.mockResolvedValue(null);
+    readHackathonTokenMock.mockReturnValue(null);
   });
 
   it("throws when a delete request does not match any comment rows", async () => {
@@ -81,7 +81,7 @@ describe("hackathon comment deletion", () => {
   });
 
   it("uses the hackathon bearer token transport when one is available", async () => {
-    readHackathonTokenMock.mockResolvedValue("hackathon-token");
+    readHackathonTokenMock.mockReturnValue("hackathon-token");
     invokeMock.mockResolvedValue({
       data: { success: true },
       error: null,

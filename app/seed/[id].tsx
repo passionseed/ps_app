@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -46,6 +46,12 @@ import {
   getPathlabSeedDayActivityRoute,
   getPathlabSeedEntryRoute,
 } from "../../lib/pathlabNavigation";
+import {
+  readCachedSeedDetailSnapshot,
+  writeCachedSeedDetailSnapshot,
+  getSeedDetailCacheStatus,
+  type SeedDetailSnapshot,
+} from "../../lib/seedDetailCache";
 import type { Seed } from "../../types/seeds";
 import type { Path, PathEnrollment, PathDay, PathReflection } from "../../types/pathlab";
 
@@ -132,10 +138,38 @@ export default function SeedDetailScreen() {
     loadData();
   }, [id]);
 
+  const applySnapshot = useCallback((snapshot: SeedDetailSnapshot) => {
+    setSeed(snapshot.seed);
+    setExpert(snapshot.expert);
+    setPath(snapshot.path);
+    setEnrollment(snapshot.enrollment);
+    setPathDays(snapshot.pathDays);
+    setDayActivities(snapshot.dayActivities);
+    setReflections(snapshot.reflections);
+  }, []);
+
   const loadData = async () => {
     if (!id) return;
 
     setLoadError(null);
+
+    // Read cache synchronously — instant render if available
+    let cachedSnapshot: SeedDetailSnapshot | null = null;
+    try {
+      cachedSnapshot = readCachedSeedDetailSnapshot(id);
+    } catch {
+      cachedSnapshot = null;
+    }
+
+    if (cachedSnapshot) {
+      applySnapshot(cachedSnapshot);
+      setLoading(false);
+    }
+
+    const cacheStatus = getSeedDetailCacheStatus(cachedSnapshot);
+    if (cacheStatus.isFresh) return;
+
+    if (!cachedSnapshot) setLoading(true);
 
     try {
       console.log("[SeedDetail] Loading seed:", id);
@@ -149,9 +183,7 @@ export default function SeedDetailScreen() {
 
       console.log("[SeedDetail] Seed loaded:", seedData?.title);
       setSeed(seedData);
-      console.log("[SeedDetail] Expert loaded:", expertData?.name);
       setExpert(expertData);
-      console.log("[SeedDetail] Path loaded:", pathData?.id);
       setPath(pathData);
 
       if (!seedData) {
@@ -159,31 +191,31 @@ export default function SeedDetailScreen() {
         return;
       }
 
+      let enrollmentData: PathEnrollment | null = null;
+      let daysData: Pick<PathDay, "id" | "day_number" | "title">[] = [];
+      let reflectionsMap: Record<number, PathReflection> = {};
+      let activitiesMap: Record<string, { id: string; title: string; content_type: string }[]> = {};
+
       if (pathData) {
         // Round 2: load enrollment and path days in parallel — both need `pathData.id`
-        const [enrollmentData, daysData] = await Promise.all([
+        [enrollmentData, daysData] = await Promise.all([
           session?.user ? getUserEnrollment(pathData.id) : Promise.resolve(null),
           getPathDays(pathData.id),
         ]);
 
-        console.log("[SeedDetail] Enrollment:", enrollmentData?.status);
         setEnrollment(enrollmentData);
-        console.log("[SeedDetail] Path days loaded:", daysData.length);
         setPathDays(daysData);
 
         if (enrollmentData) {
-          getReflectionsForEnrollment(enrollmentData.id).then(refs => {
-            const refsMap: Record<number, PathReflection> = {};
-            refs.forEach(r => refsMap[r.day_number] = r);
-            setReflections(refsMap);
-          }).catch(err => console.error("[SeedDetail] Error loading reflections:", err));
+          const refs = await getReflectionsForEnrollment(enrollmentData.id);
+          refs.forEach(r => reflectionsMap[r.day_number] = r);
+          setReflections(reflectionsMap);
         }
 
-        // Load activities for each day (no enrollment context needed)
+        // Load activities for each day
         const activitiesPerDay = await Promise.all(
           daysData.map((day) => getPathDayActivities(day.id).catch(() => []))
         );
-        const activitiesMap: Record<string, { id: string; title: string; content_type: string }[]> = {};
         daysData.forEach((day, i) => {
           activitiesMap[day.id] = activitiesPerDay[i].map((a) => ({
             id: a.id,
@@ -193,6 +225,21 @@ export default function SeedDetailScreen() {
         });
         setDayActivities(activitiesMap);
       }
+
+      // Write fresh snapshot to cache
+      const snapshot: SeedDetailSnapshot = {
+        version: 1,
+        seedId: id,
+        cachedAt: new Date().toISOString(),
+        seed: seedData,
+        expert: expertData,
+        path: pathData,
+        enrollment: enrollmentData,
+        pathDays: daysData,
+        dayActivities: activitiesMap,
+        reflections: reflectionsMap,
+      };
+      try { writeCachedSeedDetailSnapshot(snapshot); } catch {}
     } catch (error) {
       console.error("[SeedDetail] Error loading data:", error);
       setLoadError(

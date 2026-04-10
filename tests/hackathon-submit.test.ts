@@ -76,6 +76,10 @@ vi.mock("../lib/hackathon-mode", () => ({
   readHackathonParticipant,
 }));
 
+vi.mock("expo-file-system/legacy", () => ({
+  readAsStringAsync: vi.fn(),
+}));
+
 describe("fetchTeammateActivitySubmissions", () => {
   beforeEach(() => {
     supabaseState.reset();
@@ -83,7 +87,7 @@ describe("fetchTeammateActivitySubmissions", () => {
   });
 
   it("loads teammate submissions for the same activity and enriches them with names", async () => {
-    readHackathonParticipant.mockResolvedValue({
+    readHackathonParticipant.mockReturnValue({
       id: "participant-self",
       name: "Self",
     });

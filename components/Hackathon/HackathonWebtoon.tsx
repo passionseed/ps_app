@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { Image as ExpoImage } from "expo-image";
-import {
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  clamp,
   runOnJS,
   type SharedValue,
   useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { Space } from "../../lib/theme";
 import {
@@ -27,6 +32,8 @@ type HackathonWebtoonProps = {
 
 const SCROLL_BUCKET_PX = 160;
 const OVERSCAN_SCREENS = 1.25;
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
 
 export default function HackathonWebtoon({
   webtoon,
@@ -71,6 +78,37 @@ export default function HackathonWebtoon({
       webtoon.originalHeight,
     ],
   );
+
+  const totalHeight = useMemo(
+    () => chunkHeights.reduce((sum, h) => sum + h, 0),
+    [chunkHeights]
+  );
+
+  const scale = useSharedValue(MIN_SCALE);
+  const originX = useSharedValue(0);
+  const originY = useSharedValue(0);
+
+  const pinchGesture = Gesture.Pinch()
+    .onStart((event) => {
+      originX.value = event.focalX - viewportWidth / 2;
+      originY.value = event.focalY - totalHeight / 2;
+    })
+    .onUpdate((event) => {
+      scale.value = clamp(event.scale, MIN_SCALE, MAX_SCALE);
+    })
+    .onEnd(() => {
+      scale.value = withTiming(MIN_SCALE);
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: originX.value },
+      { translateY: originY.value },
+      { scale: scale.value },
+      { translateX: -originX.value },
+      { translateY: -originY.value },
+    ],
+  }));
 
   useAnimatedReaction(
     () => {
@@ -143,49 +181,59 @@ export default function HackathonWebtoon({
   }, [fallbackUrl, visibleRange.endIndex, visibleRange.startIndex, webtoon.chunks]);
 
   return (
-    <View
-      style={styles.root}
-      onLayout={(event) => setRootOffsetY(event.nativeEvent.layout.y)}
-    >
-      {webtoon.chunks.map((chunk, index) => {
-        const chunkHeight = chunkHeights[index] ?? 0;
-        const imageUrl = resolveWebtoonChunkUrl(chunk, fallbackUrl);
-        const shouldRenderImage =
-          index >= visibleRange.startIndex && index <= visibleRange.endIndex;
+    <GestureDetector gesture={pinchGesture}>
+      <Animated.View
+        style={styles.root}
+        onLayout={(event) => setRootOffsetY(event.nativeEvent.layout.y)}
+        collapsable={false}
+      >
+        <Animated.View style={[styles.zoomContainer, animatedStyle]}>
+          {webtoon.chunks.map((chunk, index) => {
+            const chunkHeight = chunkHeights[index] ?? 0;
+            const imageUrl = resolveWebtoonChunkUrl(chunk, fallbackUrl);
+            const shouldRenderImage =
+              index >= visibleRange.startIndex && index <= visibleRange.endIndex;
 
-        if (!shouldRenderImage || !imageUrl) {
-          return (
-            <View
-              key={chunk.id}
-              style={[styles.chunkContainer, { width: viewportWidth, height: chunkHeight }]}
-            />
-          );
-        }
+            if (!shouldRenderImage || !imageUrl) {
+              return (
+                <View
+                  key={chunk.id}
+                  style={[styles.chunkContainer, { width: viewportWidth, height: chunkHeight }]}
+                />
+              );
+            }
 
-        return (
-          <View
-            key={chunk.id}
-            style={[styles.chunkContainer, { width: viewportWidth, height: chunkHeight }]}
-          >
-            <ExpoImage
-              source={{ uri: imageUrl }}
-              style={styles.chunkImage}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              recyclingKey={`${chunk.id}:${imageUrl}`}
-              transition={120}
-              accessibilityLabel={`Webtoon chunk ${chunk.order}`}
-            />
-          </View>
-        );
-      })}
-    </View>
+            return (
+              <View
+                key={chunk.id}
+                style={[styles.chunkContainer, { width: viewportWidth, height: chunkHeight }]}
+              >
+                <ExpoImage
+                  source={{ uri: imageUrl }}
+                  style={styles.chunkImage}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  recyclingKey={`${chunk.id}:${imageUrl}`}
+                  transition={120}
+                  accessibilityLabel={`Webtoon chunk ${chunk.order}`}
+                />
+              </View>
+            );
+          })}
+        </Animated.View>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     marginHorizontal: -Space.lg,
+    flexDirection: "column",
+    backgroundColor: "#000",
+    overflow: "hidden",
+  },
+  zoomContainer: {
     flexDirection: "column",
     backgroundColor: "#000",
   },

@@ -45,7 +45,7 @@ function formatSupabaseError(error: unknown): string {
 
 /**
  * Get or create a session ID with 24-hour expiry.
- * Uses AsyncStorage for React Native compatibility.
+ * Uses MMKV for React Native storage.
  */
 async function getSessionId(): Promise<string> {
   try {

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, InteractionManager, StyleSheet, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Sentry from "@sentry/react-native";
 import { AnimatedSplash } from "../components/AnimatedSplash";
 import { isAllowedOnboardedAppSegment } from "../lib/hackathonNavigation";
+
 
 function ConfigErrorScreen({ message }: { message: string }) {
   return (
@@ -48,7 +50,11 @@ function RootNavigator() {
     logAppOpened().catch(() => {});
 
     // Helper to check if we are already in a valid section
-    const isInHackathonArea = segments[0] === "(hackathon)" || segments[0] === "hackathon" || segments[0] === "hackathon-program";
+    const isInHackathonArea =
+      segments[0] === "(hackathon)" ||
+      segments[0] === "admin" ||
+      segments[0] === "hackathon" ||
+      segments[0] === "hackathon-program";
     const isInTabs = segments[0] === "(tabs)";
     const isInAllowedOnboardedArea = isAllowedOnboardedAppSegment(segments[0]);
     const isInOnboarding = segments[0] === "onboarding";
@@ -263,6 +269,7 @@ function RootLayout() {
     ReenieBeanie_400Regular,
   });
   const [isReady, setIsReady] = useState(false);
+
   const configError = getSupabaseConfigErrorMessage();
 
   useEffect(() => {
@@ -290,6 +297,8 @@ function RootLayout() {
     };
   }, [fontsLoaded, isReady, SplashScreen]);
 
+
+
   if (!fontsLoaded || !isReady) {
     return <AnimatedSplash />;
   }
@@ -299,12 +308,14 @@ function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <View style={{ flex: 1 }}>
-        <StatusBar style="light" translucent />
-        <RootNavigator />
-      </View>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <View style={{ flex: 1 }}>
+          <StatusBar style="light" translucent />
+          <RootNavigator />
+        </View>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

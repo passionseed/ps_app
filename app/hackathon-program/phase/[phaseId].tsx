@@ -71,7 +71,7 @@ export default function HackathonPhaseScreen() {
         <SkiaBackButton
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.back();
+            router.replace("/hackathon-program");
           }}
         />
       </View>

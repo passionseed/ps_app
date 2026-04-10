@@ -108,11 +108,13 @@ export default function HackathonHomeScreen() {
         
         {/* Header with Logo */}
         <View style={styles.header}>
-          <Image 
-            source={require("../../assets/HackLogo.png")} 
-            style={styles.logo} 
-            contentFit="contain" 
-          />
+          <View style={styles.headerTop}>
+            <Image
+              source={require("../../assets/HackLogo.png")}
+              style={styles.logo}
+              contentFit="contain"
+            />
+          </View>
           <Text style={styles.subtitle}>
             Preventive & Predictive Healthcare
           </Text>
@@ -188,6 +190,12 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     marginTop: Space.sm,
+  },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
   },
   logo: {
     width: 200,

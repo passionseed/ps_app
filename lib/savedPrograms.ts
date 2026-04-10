@@ -2,6 +2,7 @@
 
 import { supabase } from './supabase';
 import { logProgramSaved, logProgramUnsaved } from './eventLogger';
+import { storage } from './storage';
 import type { TcasProgram, TcasProgramWithRounds } from '../types/tcas';
 
 /**
@@ -13,6 +14,74 @@ export interface SavedProgram {
   program_id: string;
   created_at: string;
   program?: TcasProgram;
+}
+
+// ============ Saved Programs Cache ============
+const SAVED_PROGRAMS_CACHE_KEY_PREFIX = "saved-programs-cache";
+const SAVED_PROGRAMS_CACHE_TTL_MS = 5 * 60 * 1000;
+const SAVED_PROGRAMS_CACHE_SCHEMA_VERSION = 1;
+
+type SavedProgramsCacheEntry = {
+  version: number;
+  userId: string;
+  cachedAt: string;
+  programs: SavedProgram[];
+};
+
+const memoryCache = new Map<string, SavedProgramsCacheEntry>();
+
+function getCacheKey(userId: string): string {
+  return `${SAVED_PROGRAMS_CACHE_KEY_PREFIX}/${userId}`;
+}
+
+function isValidCacheEntry(value: unknown): value is SavedProgramsCacheEntry {
+  if (!value || typeof value !== "object") return false;
+  const entry = value as Partial<SavedProgramsCacheEntry>;
+  return (
+    entry.version === SAVED_PROGRAMS_CACHE_SCHEMA_VERSION &&
+    typeof entry.userId === "string" &&
+    typeof entry.cachedAt === "string" &&
+    Array.isArray(entry.programs)
+  );
+}
+
+export function readCachedSavedPrograms(userId: string): SavedProgramsCacheEntry | null {
+  const memory = memoryCache.get(userId);
+  if (memory) return memory;
+
+  const raw = storage.getString(getCacheKey(userId));
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isValidCacheEntry(parsed) || parsed.userId !== userId) return null;
+    memoryCache.set(userId, parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function writeCachedSavedPrograms(userId: string, programs: SavedProgram[]): void {
+  const entry: SavedProgramsCacheEntry = {
+    version: SAVED_PROGRAMS_CACHE_SCHEMA_VERSION,
+    userId,
+    cachedAt: new Date().toISOString(),
+    programs,
+  };
+  memoryCache.set(userId, entry);
+  storage.set(getCacheKey(userId), JSON.stringify(entry));
+}
+
+export function clearCachedSavedPrograms(userId: string): void {
+  memoryCache.delete(userId);
+  storage.delete(getCacheKey(userId));
+}
+
+export function isSavedProgramsCacheFresh(entry: SavedProgramsCacheEntry | null): boolean {
+  if (!entry) return false;
+  const cachedAt = new Date(entry.cachedAt).getTime();
+  return Number.isFinite(cachedAt) && Date.now() - cachedAt <= SAVED_PROGRAMS_CACHE_TTL_MS;
 }
 
 /**
