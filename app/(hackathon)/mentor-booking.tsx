@@ -9,6 +9,7 @@ import {
   Pressable,
   Alert,
   Dimensions,
+  Linking,
 } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -46,6 +47,9 @@ type MentorProfile = {
   session_type?: "healthcare" | "group";
   is_approved?: boolean;
   is_accepting_bookings?: boolean;
+  instagram_url?: string | null;
+  linkedin_url?: string | null;
+  website_url?: string | null;
 };
 
 type BookingInfo = {
@@ -55,6 +59,7 @@ type BookingInfo = {
   slot_datetime: string;
   duration_minutes: number;
   notes: string | null;
+  discord_room: number | null;
   mentor_id: string;
   mentor_profiles: MentorProfile | null;
 };
@@ -219,7 +224,93 @@ function MentorGrid({
   );
 }
 
-// ── Step 2: Booking form for a selected mentor ────────────────────────────────
+// ── Step 2: Mentor detail (bio + social) ─────────────────────────────────────
+
+function MentorDetail({
+  mentor,
+  onBook,
+}: {
+  mentor: MentorProfile;
+  onBook: () => void;
+}) {
+  return (
+    <View style={{ gap: Space.md }}>
+      {/* Avatar + name */}
+      <View style={{ alignItems: "center", gap: Space.sm }}>
+        <MentorAvatar mentor={mentor} size={96} />
+        <AppText variant="bold" style={{ fontSize: 20, color: WHITE, textAlign: "center" }}>
+          {mentor.full_name}
+        </AppText>
+        <AppText style={{ fontSize: 14, color: WHITE70, textAlign: "center" }}>
+          {mentor.profession}
+        </AppText>
+        {!!mentor.institution && (
+          <AppText style={{ fontSize: 13, color: WHITE40, textAlign: "center" }}>
+            {mentor.institution}
+          </AppText>
+        )}
+        {mentor.session_type && (
+          <View style={[s.typeBadgeInline, mentor.session_type === "group" ? s.typeBadgeGroup : s.typeBadgeHealthcare]}>
+            <AppText style={s.typeBadgeText}>
+              {mentor.session_type === "group" ? "Group" : "Healthcare"}
+            </AppText>
+          </View>
+        )}
+      </View>
+
+      {/* Bio */}
+      {!!mentor.bio && (
+        <View style={s.detailSection}>
+          <AppText variant="bold" style={s.detailSectionTitle}>เกี่ยวกับ Mentor</AppText>
+          <AppText style={{ fontSize: 14, color: WHITE70, lineHeight: 22 }}>{mentor.bio}</AppText>
+        </View>
+      )}
+
+      {/* Social Media */}
+      {(mentor.instagram_url || mentor.linkedin_url || mentor.website_url) && (
+        <View style={s.detailSection}>
+          <AppText variant="bold" style={s.detailSectionTitle}>Social Media</AppText>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+            {!!mentor.instagram_url && (
+              <TouchableOpacity
+                style={[s.socialBtn, { backgroundColor: "rgba(225,48,108,0.15)", borderColor: "rgba(225,48,108,0.4)" }]}
+                onPress={() => Linking.openURL(mentor.instagram_url!.startsWith("http") ? mentor.instagram_url! : `https://instagram.com/${mentor.instagram_url}`)}
+                activeOpacity={0.7}
+              >
+                <AppText style={[s.socialBtnText, { color: "#E1306C" }]}>📷 Instagram</AppText>
+              </TouchableOpacity>
+            )}
+            {!!mentor.linkedin_url && (
+              <TouchableOpacity
+                style={[s.socialBtn, { backgroundColor: "rgba(0,119,181,0.15)", borderColor: "rgba(0,119,181,0.4)" }]}
+                onPress={() => Linking.openURL(mentor.linkedin_url!.startsWith("http") ? mentor.linkedin_url! : `https://linkedin.com/in/${mentor.linkedin_url}`)}
+                activeOpacity={0.7}
+              >
+                <AppText style={[s.socialBtnText, { color: "#0077B5" }]}>💼 LinkedIn</AppText>
+              </TouchableOpacity>
+            )}
+            {!!mentor.website_url && (
+              <TouchableOpacity
+                style={[s.socialBtn, { backgroundColor: "rgba(145,196,227,0.1)", borderColor: "rgba(145,196,227,0.35)" }]}
+                onPress={() => Linking.openURL(mentor.website_url!.startsWith("http") ? mentor.website_url! : `https://${mentor.website_url}`)}
+                activeOpacity={0.7}
+              >
+                <AppText style={[s.socialBtnText, { color: CYAN }]}>🌐 Website</AppText>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Book button */}
+      <TouchableOpacity style={s.confirmBtn} onPress={onBook} activeOpacity={0.85}>
+        <AppText variant="bold" style={{ color: BG, fontSize: 16 }}>นัดหมาย Mentor นี้ →</AppText>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── Step 3: Booking form for a selected mentor ────────────────────────────────
 
 function BookingForm({
   mentor,
@@ -480,6 +571,12 @@ function BookingCard({
         <AppText style={s.infoLabel}>เวลา</AppText>
         <AppText style={s.infoValue}>{formatTimeRange(booking.slot_datetime, booking.duration_minutes ?? 30)}</AppText>
       </View>
+      {isConfirmed && booking.discord_room != null && (
+        <View style={s.discordRoomBox}>
+          <AppText style={s.discordRoomLabel}>ห้อง Discord</AppText>
+          <AppText style={s.discordRoomValue}>🎙 ห้อง {booking.discord_room}</AppText>
+        </View>
+      )}
 
       {/* Notes */}
       {parsed && (
@@ -558,11 +655,12 @@ function BookingCard({
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
-type Step = "grid" | "form";
+type Step = "grid" | "detail" | "form";
 
 export default function MentorBookingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const scrollRef = React.useRef<ScrollView>(null);
 
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [quotaLoading, setQuotaLoading] = useState(true);
@@ -573,6 +671,11 @@ export default function MentorBookingScreen() {
   const [selectedMentor, setSelectedMentor] = useState<MentorProfile | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  function goToStep(s: Step) {
+    setStep(s);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }
 
   async function fetchQuota() {
     const token = await readHackathonToken();
@@ -643,7 +746,7 @@ export default function MentorBookingScreen() {
   }
 
   function handleRebook() {
-    setStep("grid");
+    goToStep("grid");
     setSelectedMentor(null);
   }
 
@@ -655,15 +758,16 @@ export default function MentorBookingScreen() {
   const showForm = !showBookingCard && quota?.chances_left === 1;
 
   // Header back label
-  const backLabel = step === "form" ? "← เลือก Mentor ใหม่" : "← Back";
+  const backLabel = showBookingCard || step === "grid" ? "← Back" : step === "form" ? "← ข้อมูล Mentor" : "← เลือก Mentor";
   function handleBack() {
-    if (step === "form") { setStep("grid"); setSelectedMentor(null); }
-    else router.back();
+    if (showBookingCard || step === "grid") { router.back(); }
+    else if (step === "form") { goToStep("detail"); }
+    else { goToStep("grid"); setSelectedMentor(null); }
   }
 
   return (
     <View style={s.root}>
-      <ScrollView contentContainerStyle={[s.content, { paddingTop: insets.top + Space.md }]}>
+      <ScrollView ref={scrollRef} contentContainerStyle={[s.content, { paddingTop: insets.top + Space.md }]}>
         {/* Header */}
         <View style={s.header}>
           <Pressable onPress={handleBack} style={s.backBtn}>
@@ -686,8 +790,13 @@ export default function MentorBookingScreen() {
         ) : showForm && step === "form" && selectedMentor ? (
           <BookingForm
             mentor={selectedMentor}
-            onBack={() => { setStep("grid"); setSelectedMentor(null); }}
+            onBack={() => { goToStep("detail"); }}
             onSuccess={() => { setQuotaLoading(true); fetchQuota(); }}
+          />
+        ) : showForm && step === "detail" && selectedMentor ? (
+          <MentorDetail
+            mentor={selectedMentor}
+            onBook={() => goToStep("form")}
           />
         ) : (
           <>
@@ -701,7 +810,7 @@ export default function MentorBookingScreen() {
               mentors={mentors}
               loading={mentorsLoading}
               error={mentorsError}
-              onSelect={(m) => { setSelectedMentor(m); setStep("form"); }}
+              onSelect={(m) => { setSelectedMentor(m); goToStep("detail"); }}
             />
           </>
         )}
@@ -822,6 +931,16 @@ const s = StyleSheet.create({
   timeRowSelected: { backgroundColor: CYAN, borderColor: CYAN },
   timeText: { fontSize: 14, color: WHITE70, fontFamily: "BaiJamjuree_500Medium" },
   timeTextSelected: { color: BG, fontFamily: "BaiJamjuree_700Bold" },
+  discordRoomBox: { backgroundColor: "rgba(88,101,242,0.15)", borderWidth: 1, borderColor: "rgba(88,101,242,0.4)", borderRadius: 10, padding: 14, gap: 4, marginTop: 4 },
+  discordRoomLabel: { fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: 0.5 },
+  discordRoomValue: { fontSize: 20, color: "#7289DA", fontFamily: "BaiJamjuree_700Bold" },
+
+  typeBadgeInline: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  detailSection: { backgroundColor: CARD_BG, borderRadius: 12, padding: 16, gap: 8 },
+  detailSectionTitle: { fontSize: 13, color: WHITE40, letterSpacing: 0.5 },
+  socialBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1 },
+  socialBtnText: { fontSize: 14, fontFamily: "BaiJamjuree_700Bold" },
+
   confirmBtn: { backgroundColor: CYAN, borderRadius: 50, paddingVertical: 16, alignItems: "center", marginTop: 8 },
   confirmBtnDisabled: { opacity: 0.6 },
   confirmBtnText: { color: BG, fontSize: 16 },
