@@ -60,7 +60,7 @@ describe("getCurrentHackathonProgramHome", () => {
   });
 
   it("returns the live program and phases even when no participant session is stored", async () => {
-    readHackathonParticipant.mockResolvedValue(null);
+    readHackathonParticipant.mockReturnValue(null);
     supabaseState.limitedPrograms.mockResolvedValue({
       data: [
         {

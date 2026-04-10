@@ -117,7 +117,7 @@ export default function HackathonPhaseScreen() {
           variant="dark"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.back();
+            router.replace("/(hackathon)/journey");
           }}
         />
       </View>

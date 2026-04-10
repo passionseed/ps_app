@@ -7,6 +7,7 @@ export function isAllowedOnboardedAppSegment(
 ): boolean {
   return (
     segment === "(tabs)" ||
+    segment === "admin" ||
     segment === "hackathon-login" ||
     segment === "pathlab-activity"
   );

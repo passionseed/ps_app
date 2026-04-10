@@ -1,5 +1,6 @@
 // lib/portfolioFit.ts
 import { supabase } from "./supabase";
+import { storage } from "./storage";
 import type {
   StudentPortfolioItem,
   NewPortfolioItem,
@@ -15,6 +16,74 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 function isFresh(fetchedAt: number): boolean {
   return Date.now() - fetchedAt < CACHE_TTL_MS;
+}
+
+// ============ Portfolio Items Cache ============
+const PORTFOLIO_ITEMS_CACHE_KEY_PREFIX = "portfolio-items-cache";
+const PORTFOLIO_ITEMS_CACHE_TTL_MS = 5 * 60 * 1000;
+const PORTFOLIO_ITEMS_CACHE_SCHEMA_VERSION = 1;
+
+type PortfolioItemsCacheEntry = {
+  version: number;
+  userId: string;
+  cachedAt: string;
+  items: StudentPortfolioItem[];
+};
+
+const portfolioMemoryCache = new Map<string, PortfolioItemsCacheEntry>();
+
+function getPortfolioCacheKey(userId: string): string {
+  return `${PORTFOLIO_ITEMS_CACHE_KEY_PREFIX}/${userId}`;
+}
+
+function isValidPortfolioCacheEntry(value: unknown): value is PortfolioItemsCacheEntry {
+  if (!value || typeof value !== "object") return false;
+  const entry = value as Partial<PortfolioItemsCacheEntry>;
+  return (
+    entry.version === PORTFOLIO_ITEMS_CACHE_SCHEMA_VERSION &&
+    typeof entry.userId === "string" &&
+    typeof entry.cachedAt === "string" &&
+    Array.isArray(entry.items)
+  );
+}
+
+export function readCachedPortfolioItems(userId: string): PortfolioItemsCacheEntry | null {
+  const memory = portfolioMemoryCache.get(userId);
+  if (memory) return memory;
+
+  const raw = storage.getString(getPortfolioCacheKey(userId));
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isValidPortfolioCacheEntry(parsed) || parsed.userId !== userId) return null;
+    portfolioMemoryCache.set(userId, parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function writeCachedPortfolioItems(userId: string, items: StudentPortfolioItem[]): void {
+  const entry: PortfolioItemsCacheEntry = {
+    version: PORTFOLIO_ITEMS_CACHE_SCHEMA_VERSION,
+    userId,
+    cachedAt: new Date().toISOString(),
+    items,
+  };
+  portfolioMemoryCache.set(userId, entry);
+  storage.set(getPortfolioCacheKey(userId), JSON.stringify(entry));
+}
+
+export function clearCachedPortfolioItems(userId: string): void {
+  portfolioMemoryCache.delete(userId);
+  storage.delete(getPortfolioCacheKey(userId));
+}
+
+export function isPortfolioItemsCacheFresh(entry: PortfolioItemsCacheEntry | null): boolean {
+  if (!entry) return false;
+  const cachedAt = new Date(entry.cachedAt).getTime();
+  return Number.isFinite(cachedAt) && Date.now() - cachedAt <= PORTFOLIO_ITEMS_CACHE_TTL_MS;
 }
 
 // ── Portfolio CRUD ────────────────────────────────────────────────────────
@@ -65,6 +134,7 @@ export async function addPortfolioItem(
 
   // Invalidate cached fit scores since portfolio changed
   invalidateFitScores(userId);
+  clearCachedPortfolioItems(userId);
 
   return data as StudentPortfolioItem;
 }
@@ -82,6 +152,7 @@ export async function deletePortfolioItem(
   if (error) throw error;
 
   invalidateFitScores(userId);
+  clearCachedPortfolioItems(userId);
 }
 
 // ── Fit Scores ─────────────────────────────────────────────────────────────

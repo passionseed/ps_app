@@ -217,7 +217,7 @@ function CustomHackathonTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-import { Canvas, Path as SkiaPath, Shadow } from "@shopify/react-native-skia";
+import { Canvas, Path as SkiaPath, Shadow, Group } from "@shopify/react-native-skia";
 
 const ICONS = {
   home: "M 9 9 H 16 A 6 6 0 0 1 22 15 A 6 6 0 0 1 16 21 H 9 A 6 6 0 0 1 3 15 A 6 6 0 0 1 9 9 Z M 16 13 A 2 2 0 1 0 16 17 A 2 2 0 1 0 16 13 M 12 9 V 6 A 2 2 0 0 1 14 4 H 16 M 3 15 H 1 M 1 12 L 1 18",
@@ -263,19 +263,21 @@ function TabBarButton({
 
   return (
     <Pressable onPress={onPress} style={styles.tabButton}>
-      <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
-        <Canvas style={{ width: 24, height: 24 }}>
-          <SkiaPath 
-            path={pathStr} 
-            color={isFocused ? theme.accent : "rgba(255,255,255,0.4)"}
-            style="stroke"
-            strokeWidth={1.5}
-            strokeJoin="round"
-            strokeCap="round"
-          >
-            {isFocused && <Shadow dx={0} dy={0} blur={6} color={theme.accent} />}
-            {isFocused && <Shadow dx={0} dy={0} blur={12} color={theme.accent} />}
-          </SkiaPath>
+      <Animated.View style={[styles.iconContainer, animatedIconStyle, { width: 24, height: 24, zIndex: -1 }]}>
+        <Canvas style={{ width: 64, height: 64, position: "absolute", top: -20, left: -20 }} pointerEvents="none">
+          <Group transform={[{ translateX: 20 }, { translateY: 20 }]}>
+            <SkiaPath
+              path={pathStr}
+              color={isFocused ? theme.accent : "rgba(255,255,255,0.4)"}
+              style="stroke"
+              strokeWidth={1.5}
+              strokeJoin="round"
+              strokeCap="round"
+            >
+              {isFocused && <Shadow dx={0} dy={0} blur={4.8} color={theme.accent} />}
+              {isFocused && <Shadow dx={0} dy={0} blur={9.6} color={theme.accent} />}
+            </SkiaPath>
+          </Group>
         </Canvas>
       </Animated.View>
 

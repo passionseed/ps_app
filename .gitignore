@@ -56,3 +56,4 @@ build-*
 
 # Firebase
 google-services.json
+.git-hooks/

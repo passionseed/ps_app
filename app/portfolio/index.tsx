@@ -1,5 +1,5 @@
 // app/portfolio/index.tsx
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -16,6 +16,9 @@ import { useAuth } from "../../lib/auth";
 import {
   getPortfolioItems,
   deletePortfolioItem,
+  readCachedPortfolioItems,
+  writeCachedPortfolioItems,
+  isPortfolioItemsCacheFresh,
 } from "../../lib/portfolioFit";
 import { logPortfolioItemDeleted } from "../../lib/eventLogger";
 import type {
@@ -41,13 +44,31 @@ export default function PortfolioScreen() {
   const [items, setItems] = useState<StudentPortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+
+    // Read cache synchronously for instant render
+    const cached = readCachedPortfolioItems(user.id);
+    if (cached) {
+      setItems(cached.items);
+      setLoading(false);
+    }
+
+    const isFirstLoad = !hasLoadedRef.current;
+    hasLoadedRef.current = true;
+
+    if (isPortfolioItemsCacheFresh(cached) && !isFirstLoad) {
+      return;
+    }
+
+    if (!cached) setLoading(true);
+
     try {
       const data = await getPortfolioItems(user.id);
       setItems(data);
+      try { writeCachedPortfolioItems(user.id, data); } catch {}
     } catch (e) {
       console.error("Failed to load portfolio:", e);
     } finally {
@@ -70,6 +91,8 @@ export default function PortfolioScreen() {
       // Log event
       logPortfolioItemDeleted(id).catch(() => {});
       setItems((prev) => prev.filter((i) => i.id !== id));
+      // Update cache with the new list
+      try { writeCachedPortfolioItems(user.id, items.filter((i) => i.id !== id)); } catch {}
     } catch (e) {
       console.error("Delete failed:", e);
     } finally {

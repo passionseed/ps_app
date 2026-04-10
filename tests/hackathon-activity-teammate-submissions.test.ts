@@ -18,7 +18,7 @@ describe("hackathon activity teammate submissions", () => {
   });
 
   it("reveals the teammate section only after the participant has submitted", () => {
-    expect(activityScreenSource).toContain("const showTeammateSubmissions = pastSubmissions.length > 0;");
+    expect(activityScreenSource).toContain("const hasAnySubmission = pastSubmissions.length > 0;");
     expect(activityScreenSource).toContain("showTeammateSubmissions ? (");
     expect(activityScreenSource).toContain("ผลงานของเพื่อนร่วมทีม");
   });

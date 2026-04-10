@@ -44,7 +44,7 @@ describe("trackHackathonAlienButtonClick", () => {
   });
 
   it("logs the click against the current participant", async () => {
-    readHackathonParticipant.mockResolvedValue({
+    readHackathonParticipant.mockReturnValue({
       id: "participant-1",
       name: "Beam",
     });
@@ -71,7 +71,7 @@ describe("trackHackathonAlienButtonClick", () => {
   });
 
   it("skips logging when there is no active hackathon participant", async () => {
-    readHackathonParticipant.mockResolvedValue(null);
+    readHackathonParticipant.mockReturnValue(null);
 
     const { trackHackathonAlienButtonClick } = await import(
       "../lib/hackathonAlienClicks"

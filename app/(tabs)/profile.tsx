@@ -315,9 +315,12 @@ export default function ProfileScreen() {
     let cancelled = false;
 
     async function loadData() {
-      const cachedSnapshot = await readCachedProfileScreenSnapshot(userId).catch(
-        () => null,
-      );
+      let cachedSnapshot: ProfileScreenSnapshot | null = null;
+      try {
+        cachedSnapshot = await readCachedProfileScreenSnapshot(userId);
+      } catch {
+        cachedSnapshot = null;
+      }
 
       if (cancelled) return;
 
@@ -326,7 +329,8 @@ export default function ProfileScreen() {
       }
 
       const cacheStatus = getProfileScreenCacheStatus(cachedSnapshot);
-      const shouldForceRefresh = profileRefreshNonce > 0;
+      const shouldForceRefresh =
+        profileRefreshNonce > 0 || cachedSnapshot?.isAdmin !== true;
 
       if (cacheStatus.isFresh && !shouldForceRefresh) {
         return;
@@ -337,7 +341,7 @@ export default function ProfileScreen() {
         if (cancelled) return;
 
         applyProfileSnapshot(freshSnapshot);
-        await writeCachedProfileScreenSnapshot(freshSnapshot).catch(() => {});
+        try { writeCachedProfileScreenSnapshot(freshSnapshot); } catch {}
       } catch (error) {
         console.warn("[ProfileScreen] Failed to refresh profile snapshot:", error);
       }
@@ -376,7 +380,7 @@ export default function ProfileScreen() {
             try {
               const result = await backfillMissingIkigaiReflections(supabase);
               if (user?.id) {
-                await clearCachedProfileScreenSnapshot(user.id).catch(() => {});
+                try { clearCachedProfileScreenSnapshot(user.id); } catch {}
               }
               Alert.alert(
                 isThai ? "เสร็จแล้ว" : "Done",
@@ -771,6 +775,28 @@ export default function ProfileScreen() {
                 <Text style={styles.actionRowTitle}>Admin: Seed Editor</Text>
                 <Text style={styles.actionRowSubtitle}>
                   Edit tags, visibility, and slogans
+                </Text>
+              </View>
+              <Text style={styles.actionRowArrow}>›</Text>
+            </Pressable>
+          )}
+
+          {isAdmin && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionRow,
+                pressed && styles.actionRowPressed,
+                { borderTopWidth: 1, borderTopColor: "#eef0f5" },
+              ]}
+              onPress={() => router.push("/admin/hackathon" as any)}
+            >
+              <Text style={styles.actionRowEmoji}>📊</Text>
+              <View style={styles.actionRowContent}>
+                <Text style={styles.actionRowTitle}>
+                  Admin: Hackathon Dashboard
+                </Text>
+                <Text style={styles.actionRowSubtitle}>
+                  Review metrics, submissions, and team progress
                 </Text>
               </View>
               <Text style={styles.actionRowArrow}>›</Text>

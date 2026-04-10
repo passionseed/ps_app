@@ -234,7 +234,7 @@ async function createJourneyBundle(): Promise<HackathonJourneyBundle> {
 async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle> {
   const [phase, participant] = await Promise.all([
     getPhaseWithActivities(phaseId),
-    readHackathonParticipant(),
+    Promise.resolve(readHackathonParticipant()),
   ]);
 
   if (!phase) {
@@ -348,7 +348,7 @@ async function createActivityBundle(activityId: string): Promise<HackathonActivi
       getHackathonActivityDetail(activityId),
       fetchActivitySubmissions(activityId),
       fetchTeammateActivitySubmissions(activityId),
-      readHackathonParticipant(),
+      Promise.resolve(readHackathonParticipant()),
     ]);
 
   if (!activity) {

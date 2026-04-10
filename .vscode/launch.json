@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "name": "Radon IDE panel",
+      "type": "radon-ide",
+      "request": "launch",
+      "appRoot": "./",
+      "eas": {
+        "ios": {
+          "profile": "simulator",
+          "local": true
+        }
+      },
+      "env": {},
+      "android": {},
+      "usePrebuild": false
+    }
+  ]
+}
