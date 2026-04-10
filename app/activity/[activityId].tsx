@@ -1122,7 +1122,6 @@ export default function ActivityDetailScreen() {
             apikey: publishableKey,
             ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
           },
-          },
           body: JSON.stringify({
             system_prompt: metadata.system_prompt || "You are a helpful assistant.",
             messages,
