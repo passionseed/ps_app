@@ -759,11 +759,13 @@ export default function ActivityDetailScreen() {
 
       const systemPrompt = metadata.system_prompt || "You are a helpful assistant.";
 
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
       const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: publishableKey,
+          ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
         },
         body: JSON.stringify({
           system_prompt: systemPrompt,
