@@ -299,7 +299,7 @@ function ImageUploadBlock({
     });
   }
 
-  // Already submitted — show the submitted image
+  // Already submitted — show the submitted image with option to replace
   if (submittedImageUrl && !pickedFile) {
     return (
       <View style={styles.uploadBlock}>
@@ -308,6 +308,9 @@ function ImageUploadBlock({
           <View style={styles.uploadBadge}>
             <AppText style={styles.uploadBadgeText}>✓</AppText>
           </View>
+          <Pressable style={styles.changeBtn} onPress={pick}>
+            <AppText style={styles.changeBtnText}>เปลี่ยนรูปภาพ</AppText>
+          </Pressable>
         </View>
       </View>
     );
@@ -865,9 +868,9 @@ export default function HackathonActivityScreen() {
         )
     : false;
   // Check if all assessments have been submitted (not just any submission)
-  const allAssessmentsSubmitted = activity.assessments.every((a) =>
+  const allAssessmentsSubmitted = activity?.assessments.every((a) =>
     pastSubmissions.some((s) => (s as any).assessment_id === a.id)
-  );
+  ) ?? false;
   const hasAnySubmission = pastSubmissions.length > 0;
   const showTeammateSubmissions = hasAnySubmission;
 
@@ -903,6 +906,7 @@ export default function HackathonActivityScreen() {
       setTimeout(() => setSubmitted(false), 3000);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
+      console.error("[submit] error:", e?.message, e?.stack ?? e);
       // Rollback: delete any text submissions created before the file upload failed
       if (createdSubmissionIds.length > 0) {
         const { error: deleteErr } = await supabase
@@ -1137,51 +1141,56 @@ export default function HackathonActivityScreen() {
               </AppText>
             ) : null}
 
-            {/* Submit button — show until ALL assessments are submitted */}
-            {!allAssessmentsSubmitted ? (
-              <Animated.View style={buttonAnimatedStyle}>
-                <Pressable
-                  style={[
-                    styles.button41,
-                    (!canSubmit || submitting) && { opacity: 0.5 },
-                  ]}
-                  disabled={!canSubmit || submitting}
-                  onPressIn={() => {
-                    if (canSubmit && !submitting) buttonScale.value = withSpring(0.95);
-                  }}
-                  onPressOut={() => {
-                    buttonScale.value = withSpring(1);
-                  }}
-                  onPress={handleSubmit}
-                >
-                  {({ pressed }) => (
-                    <>
-                      <LinearGradient
-                        colors={["rgba(255, 255, 255, 0.11)", "transparent"]}
-                        start={{ x: 0.5, y: -0.05 }}
-                        end={{ x: 0.5, y: 1.15 }}
-                        style={styles.button41Gradient}
-                      />
-                      <View
-                        style={[
-                          StyleSheet.absoluteFill,
-                          pressed && canSubmit && !submitting ? { backgroundColor: "rgba(255, 255, 255, 0.05)" } : null,
-                        ]}
-                      />
-                      {submitting ? (
-                        <ActivityIndicator color={WHITE} />
-                      ) : (
-                        <AppText variant="bold" style={styles.button41Text}>
-                          {submitted ? "ส่งแล้ว ✓" : "ส่งคำตอบ →"}
-                        </AppText>
-                      )}
-                    </>
-                  )}
-                </Pressable>
-              </Animated.View>
-            ) : null}
+            {/* Submit button — always shown to allow resubmission */}
+            <Animated.View style={buttonAnimatedStyle}>
+              <Pressable
+                style={[
+                  styles.button41,
+                  (!canSubmit || submitting) && { opacity: 0.5 },
+                ]}
+                disabled={!canSubmit || submitting}
+                onPressIn={() => {
+                  if (canSubmit && !submitting) buttonScale.value = withSpring(0.95);
+                }}
+                onPressOut={() => {
+                  buttonScale.value = withSpring(1);
+                }}
+                onPress={handleSubmit}
+              >
+                {({ pressed }) => (
+                  <>
+                    <LinearGradient
+                      colors={["rgba(255, 255, 255, 0.11)", "transparent"]}
+                      start={{ x: 0.5, y: -0.05 }}
+                      end={{ x: 0.5, y: 1.15 }}
+                      style={styles.button41Gradient}
+                    />
+                    <View
+                      style={[
+                        StyleSheet.absoluteFill,
+                        pressed && canSubmit && !submitting ? { backgroundColor: "rgba(255, 255, 255, 0.05)" } : null,
+                      ]}
+                    />
+                    {submitting ? (
+                      <ActivityIndicator color={WHITE} />
+                    ) : (
+                      <AppText variant="bold" style={styles.button41Text}>
+                        {submitted ? "ส่งแล้ว ✓" : "ส่งคำตอบ →"}
+                      </AppText>
+                    )}
+                  </>
+                )}
+              </Pressable>
+            </Animated.View>
           </>
         )}
+
+        {/* Global submit error (visible regardless of assessment type) */}
+        {submitError && activity.assessments.length === 0 ? (
+          <AppText style={{ color: "#F87171", fontSize: 13, textAlign: "center", paddingHorizontal: 16, marginBottom: 8 }}>
+            {submitError}
+          </AppText>
+        ) : null}
 
         {/* No-assessment "mark complete" button */}
         {activity.assessments.length === 0 ? (
