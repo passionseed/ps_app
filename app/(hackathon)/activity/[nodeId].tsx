@@ -41,6 +41,7 @@ import {
   type SubmissionRecord,
   type TeammateSubmissionRecord,
 } from "../../../lib/hackathon-submit";
+import { supabase } from "../../../lib/supabase";
 import { Space } from "../../../lib/theme";
 import Animated, {
   type SharedValue,
@@ -576,6 +577,7 @@ export default function HackathonActivityScreen() {
   const swipePrevEnabledSV = useSharedValue(0);
   const swipeNextEnabledSV = useSharedValue(0);
   const isSubmittedSV = useSharedValue(0);
+  const isAllSubmittedSV = useSharedValue(0); // true when ALL assessments are submitted
   const lastPrevHapticMilestoneSV = useSharedValue(0);
   const lastNextHapticMilestoneSV = useSharedValue(0);
   const prevSwipeThresholdSV = useSharedValue(0);
@@ -616,8 +618,15 @@ export default function HackathonActivityScreen() {
   }));
 
   useEffect(() => {
-    isSubmittedSV.value = pastSubmissions.length > 0 ? 1 : 0;
-  }, [pastSubmissions]);
+    const anySubmitted = pastSubmissions.length > 0;
+    isSubmittedSV.value = anySubmitted ? 1 : 0;
+
+    // Check if ALL assessments have been submitted (for multi-assessment activities)
+    const allSubmitted = activity?.assessments.every((a) =>
+      pastSubmissions.some((s) => (s as any).assessment_id === a.id)
+    ) ?? false;
+    isAllSubmittedSV.value = allSubmitted ? 1 : 0;
+  }, [pastSubmissions, activity]);
 
   const triggerSwipeHaptic = useCallback((milestone: number) => {
     if (milestone <= 0) return;
@@ -672,7 +681,7 @@ export default function HackathonActivityScreen() {
     }
 
     if (swipeNextEnabledSV.value === 1) {
-      if (isSubmittedSV.value === 1) {
+      if (isAllSubmittedSV.value === 1) {
         const overscrollY = scrollY_val - maxScrollY;
         if (overscrollY > 0) {
           bottomReadyProgress.value = 1;
@@ -751,7 +760,7 @@ export default function HackathonActivityScreen() {
 
   const handleSwipeToNext = () => {
     const currentIndex = siblings.findIndex(s => s.id === nodeId);
-    const isSubmitted = pastSubmissions.length > 0;
+    const isSubmitted = allAssessmentsSubmitted;
     console.log(`[SwipeNext] activity="${activity?.title}" index=${currentIndex} submissions=${pastSubmissions.length} isSubmitted=${isSubmitted}`);
 
     if (!isSubmitted) {
@@ -855,7 +864,12 @@ export default function HackathonActivityScreen() {
             : pickedFiles[a.id] != null
         )
     : false;
-  const showTeammateSubmissions = pastSubmissions.length > 0;
+  // Check if all assessments have been submitted (not just any submission)
+  const allAssessmentsSubmitted = activity.assessments.every((a) =>
+    pastSubmissions.some((s) => (s as any).assessment_id === a.id)
+  );
+  const hasAnySubmission = pastSubmissions.length > 0;
+  const showTeammateSubmissions = hasAnySubmission;
 
   async function handleSubmit() {
     if (!activity) return;
@@ -863,17 +877,21 @@ export default function HackathonActivityScreen() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await Promise.all(
-        activity.assessments.map((a) => {
-          if (a.assessment_type === "text_answer") {
-            return submitTextAnswer(activity.id, a.id, answers[a.id] ?? "");
-          }
-          // Upload picked file on submit
+      // Submit sequentially: text first, then files. If file upload fails,
+      // we roll back the text submission to avoid orphan rows.
+      const createdSubmissionIds: string[] = [];
+
+      for (const a of activity.assessments) {
+        if (a.assessment_type === "text_answer") {
+          const result = await submitTextAnswer(activity.id, a.id, answers[a.id] ?? "");
+          createdSubmissionIds.push(result.submissionId);
+        } else {
           const file = pickedFiles[a.id];
-          if (!file) return Promise.resolve();
-          return submitFile(activity.id, a.id, file.uri, file.fileName, file.mimeType);
-        })
-      );
+          if (file) {
+            await submitFile(activity.id, a.id, file.uri, file.fileName, file.mimeType);
+          }
+        }
+      }
 
       const newSubmissions = await fetchActivitySubmissions(activity.id);
       setPastSubmissions(newSubmissions);
@@ -885,6 +903,16 @@ export default function HackathonActivityScreen() {
       setTimeout(() => setSubmitted(false), 3000);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
+      // Rollback: delete any text submissions created before the file upload failed
+      if (createdSubmissionIds.length > 0) {
+        const { error: deleteErr } = await supabase
+          .from("hackathon_phase_activity_submissions")
+          .delete()
+          .in("id", createdSubmissionIds);
+        if (deleteErr) {
+          console.warn("[submit] rollback failed", deleteErr.message);
+        }
+      }
       setSubmitError(e.message ?? "การส่งคำตอบล้มเหลว");
     } finally {
       setSubmitting(false);
@@ -982,10 +1010,10 @@ export default function HackathonActivityScreen() {
         style={[
           styles.pullOverlayBottom,
           { paddingBottom: Math.max(insets.bottom, 4) + 12 },
-          pastSubmissions.length > 0 ? nextPullOverlayStyle : undefined,
+          allAssessmentsSubmitted ? nextPullOverlayStyle : undefined,
         ]}
       >
-        {pastSubmissions.length > 0 ? (
+        {allAssessmentsSubmitted ? (
           swipeNextEnabled ? (
             <HackathonSwipeDonut
               direction="next"
@@ -1109,8 +1137,8 @@ export default function HackathonActivityScreen() {
               </AppText>
             ) : null}
 
-            {/* Submit button — right after assessments */}
-            {pastSubmissions.length === 0 ? (
+            {/* Submit button — show until ALL assessments are submitted */}
+            {!allAssessmentsSubmitted ? (
               <Animated.View style={buttonAnimatedStyle}>
                 <Pressable
                   style={[
@@ -1209,8 +1237,8 @@ export default function HackathonActivityScreen() {
           </>
         )}
 
-        {/* Static Swipe Hint — only show when submitted */}
-        {siblings.length > 0 && pastSubmissions.length > 0 && (
+        {/* Static Swipe Hint — only show when ALL assessments submitted */}
+        {siblings.length > 0 && allAssessmentsSubmitted && (
           <WaterFlowHint
             label={currentIndex < siblings.length - 1 ? "ปัดขึ้นเพื่อไปกิจกรรมถัดไป" : "ปัดขึ้นเพื่อกลับสู่แผนที่"}
           />
