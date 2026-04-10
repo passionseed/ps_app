@@ -468,9 +468,33 @@ export default function HackathonProfileScreen() {
           {teamEmoji && (
             <AppText style={styles.titleEmoji}>{teamEmoji}</AppText>
           )}
-          <AppText variant="bold" style={styles.title}>
-            {participant?.name ?? "Participant"}
-          </AppText>
+          <View style={styles.titleTextWrap}>
+            <AppText variant="bold" style={styles.title}>
+              {participant?.name ?? "Participant"}
+            </AppText>
+            {emojiRollCount > 0 ? (
+              <AppText style={styles.rollCountInline}>
+                Rolled {emojiRollCount} times
+              </AppText>
+            ) : null}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Roll profile emoji"
+            style={({ pressed }) => [
+              styles.diceBtn,
+              pressed && { opacity: 0.7 },
+              rollingEmoji && { opacity: 0.5 },
+            ]}
+            onPress={handleRollEmoji}
+            disabled={rollingEmoji || !team?.id || !participant?.id}
+          >
+            {rollingEmoji ? (
+              <ActivityIndicator color={WHITE} size="small" />
+            ) : (
+              <AppText style={styles.diceText}>🎲</AppText>
+            )}
+          </Pressable>
         </View>
 
         {/* Basic Info Card */}
@@ -551,46 +575,6 @@ export default function HackathonProfileScreen() {
                   </AppText>
                 )}
               </Pressable>
-            </View>
-
-            {/* Team Emoji Card */}
-            <View style={styles.sectionCard}>
-              <LinearGradient
-                colors={[
-                  "rgba(145, 196, 227, 0.05)",
-                  "rgba(145, 196, 227, 0.01)",
-                ]}
-                style={StyleSheet.absoluteFill}
-              />
-              <AppText variant="bold" style={styles.sectionTitle}>
-                Your Profile Emoji
-              </AppText>
-
-              <View style={styles.emojiDisplay}>
-                <AppText style={styles.emojiLarge}>{teamEmoji || "❓"}</AppText>
-              </View>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.rollBtn,
-                  pressed && { opacity: 0.7 },
-                  rollingEmoji && { opacity: 0.5 },
-                ]}
-                onPress={handleRollEmoji}
-                disabled={rollingEmoji}
-              >
-                {rollingEmoji ? (
-                  <ActivityIndicator color={WHITE} size="small" />
-                ) : (
-                  <AppText variant="bold" style={styles.rollBtnText}>
-                    Roll Again
-                  </AppText>
-                )}
-              </Pressable>
-
-              <AppText style={styles.rollCountText}>
-                You've rolled {emojiRollCount} times
-              </AppText>
             </View>
 
             {/* Team Card */}
@@ -866,11 +850,34 @@ const styles = StyleSheet.create({
   titleEmoji: {
     fontSize: 36,
   },
+  titleTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
   title: {
     fontSize: 30,
     lineHeight: 36,
     color: WHITE,
     fontFamily: "BaiJamjuree_700Bold",
+  },
+  rollCountInline: {
+    fontSize: 11,
+    color: WHITE55,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  diceBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  diceText: {
+    fontSize: 24,
+    lineHeight: 30,
   },
   infoCard: {
     borderRadius: Radius.lg,
@@ -960,35 +967,6 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-  },
-  // Emoji Styles
-  emojiDisplay: {
-    alignItems: "center",
-    paddingVertical: Space.lg,
-  },
-  emojiLarge: {
-    fontSize: 72,
-  },
-  rollBtn: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    borderRadius: Radius.md,
-    paddingVertical: Space.md,
-    paddingHorizontal: Space.lg,
-    alignItems: "center",
-    alignSelf: "center",
-  },
-  rollBtnText: {
-    color: WHITE,
-    fontSize: 14,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  rollCountText: {
-    fontSize: 12,
-    color: WHITE55,
-    textAlign: "center",
-    fontFamily: "BaiJamjuree_400Regular",
   },
   // Team Styles
   teamHeader: {
