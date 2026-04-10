@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { View, StyleSheet, ScrollView, Text, Pressable, Animated as RNAnimated } from "react-native";
+import { View, StyleSheet, ScrollView, Text, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -14,29 +14,6 @@ import {
 import { getItem } from "../../lib/asyncStorage";
 import { readHackathonToken } from "../../lib/hackathon-mode";
 import type { TeamImpact } from "../../lib/hackathon-submit";
-
-function RollingEmoji() {
-  const spinValue = new RNAnimated.Value(0);
-  
-  RNAnimated.loop(
-    RNAnimated.timing(spinValue, {
-      toValue: 1,
-      duration: 2000,
-      useNativeDriver: true,
-    })
-  ).start();
-
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  return (
-    <RNAnimated.Text style={[styles.rollingEmoji, { transform: [{ rotate: spin }] }]}>
-      🎲
-    </RNAnimated.Text>
-  );
-}
 
 type MentorPreview = { id: string; full_name: string; photo_url?: string };
 
@@ -137,7 +114,6 @@ export default function HackathonHomeScreen() {
               style={styles.logo} 
               contentFit="contain" 
             />
-            <RollingEmoji />
           </View>
           <Text style={styles.subtitle}>
             Preventive & Predictive Healthcare
@@ -218,14 +194,8 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     width: "100%",
-    paddingRight: Space.lg,
-  },
-  rollingEmoji: {
-    fontSize: 28,
-    position: "absolute",
-    right: 0,
   },
   logo: {
     width: 200,
