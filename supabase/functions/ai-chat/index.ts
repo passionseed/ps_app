@@ -1,6 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
+const GEMINI_PRIMARY_MODEL = "gemini-3.1-flash-lite-preview";
+const GEMINI_FALLBACK_MODEL = "gemini-2.5-flash-lite";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -63,8 +66,16 @@ Deno.serve(async (req) => {
       ? (body as { system_prompt?: unknown; messages?: unknown; mode?: unknown })
       : {};
 
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return new Response(JSON.stringify({ error: "messages array is required" }), {
+  if (!Array.isArray(messages)) {
+    return new Response(JSON.stringify({ error: "messages must be an array" }), {
+      status: 400,
+      headers: { ...CORS, "Content-Type": "application/json" },
+    });
+  }
+
+  // Greeting mode allows empty messages; chat mode requires at least one
+  if (mode !== "greeting" && messages.length === 0) {
+    return new Response(JSON.stringify({ error: "messages array is required for chat mode" }), {
       status: 400,
       headers: { ...CORS, "Content-Type": "application/json" },
     });
@@ -109,23 +120,21 @@ Deno.serve(async (req) => {
 
   // Validate and sanitize input
   const systemPrompt = typeof system_prompt === "string" ? system_prompt.slice(0, MAX_INPUT_LENGTH) : "You are a helpful assistant.";
-  const sanitizedMessages = trimmedMessages.map((msg: any) => ({
-    role: msg.role === "user" ? "User" : "Assistant",
-    content: String(msg.content ?? "").slice(0, MAX_INPUT_LENGTH),
-  }));
-
   const isGreeting = mode === "greeting";
 
-  const conversationParts = sanitizedMessages.map((msg: any) => ({
-    text: `${msg.role}: ${msg.content}`,
+  // Build conversation history in Gemini format
+  const contents = trimmedMessages.map((msg: any) => ({
+    role: msg.role === "user" ? "user" : "model",
+    parts: [{ text: String(msg.content ?? "").slice(0, MAX_INPUT_LENGTH) }],
   }));
 
-  const fullPrompt = isGreeting
-    ? `${systemPrompt}\n\nStart the conversation with a friendly greeting in Thai.`
-    : `${systemPrompt}\n\n${conversationParts.map((p: any) => p.text).join("\n")}\n\nAssistant:`;
+  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-  const geminiPayload = {
-    contents: [{ parts: [{ text: fullPrompt }] }],
+  const request = {
+    contents,
+    systemInstruction: isGreeting
+      ? `${systemPrompt}\n\nStart the conversation with a friendly greeting in Thai.`
+      : systemPrompt,
     generationConfig: {
       temperature: isGreeting ? 0.8 : 0.7,
       maxOutputTokens: isGreeting ? 256 : MAX_OUTPUT_TOKENS,
@@ -133,34 +142,32 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    const response = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(geminiPayload),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      console.error("[ai-chat] Gemini error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "AI service error" }), {
-        status: 502,
-        headers: { ...CORS, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const primaryModel = genAI.getGenerativeModel({ model: GEMINI_PRIMARY_MODEL });
+    const result = await primaryModel.generateContent(request);
+    const reply = result.response.text() ?? "";
 
     return new Response(JSON.stringify({ reply }), {
       status: 200,
       headers: { ...CORS, "Content-Type": "application/json" },
     });
-  } catch (err) {
-    console.error("[ai-chat] Error:", err);
-    return new Response(JSON.stringify({ error: "AI service unavailable" }), {
-      status: 503,
-      headers: { ...CORS, "Content-Type": "application/json" },
-    });
+  } catch (primaryError) {
+    console.error("[ai-chat] Primary model failed:", primaryError);
+
+    try {
+      const fallbackModel = genAI.getGenerativeModel({ model: GEMINI_FALLBACK_MODEL });
+      const result = await fallbackModel.generateContent(request);
+      const reply = result.response.text() ?? "";
+
+      return new Response(JSON.stringify({ reply }), {
+        status: 200,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    } catch (fallbackError) {
+      console.error("[ai-chat] Fallback model also failed:", fallbackError);
+      return new Response(JSON.stringify({ error: "AI service unavailable" }), {
+        status: 503,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
   }
 });
