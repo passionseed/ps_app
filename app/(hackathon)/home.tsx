@@ -11,7 +11,7 @@ import {
   getCachedHackathonHomeBundle,
   loadHackathonHomeBundle,
 } from "../../lib/hackathonScreenData";
-import { getItem } from "../../lib/asyncStorage";
+import { getItem, setItem } from "../../lib/asyncStorage";
 import { readHackathonToken } from "../../lib/hackathon-mode";
 import type { TeamImpact } from "../../lib/hackathon-submit";
 
@@ -70,16 +70,14 @@ export default function HackathonHomeScreen() {
           const data = await r.json();
           const b = data?.booking;
           const studentReasons = ["ยกเลิกโดยผู้เข้าร่วม", "รีเซ็ตสิทธิ์โดย Admin"];
-          const mentorCancelledAfterConfirm =
+          const mentorCancelled =
             b?.status === "cancelled" &&
-            b?.cancellation_reason &&
-            !studentReasons.includes(b.cancellation_reason);
-          if (mentorCancelledAfterConfirm) {
-            // Only show if user hasn't dismissed this specific booking's notice
+            !studentReasons.includes(b.cancellation_reason ?? "");
+          if (mentorCancelled) {
             const dismissedKey = `mentor_cancel_dismissed_${b.id}`;
             const dismissed = await getItem(dismissedKey);
             if (!dismissed) {
-              setCancelledBookingReason(b.cancellation_reason);
+              setCancelledBookingReason(b.cancellation_reason ?? null);
               setCancelledBookingId(b.id);
               setCancelNoticeVisible(true);
             }
@@ -92,6 +90,13 @@ export default function HackathonHomeScreen() {
       });
     }, [])
   );
+
+  async function dismissCancelNotice() {
+    if (cancelledBookingId) {
+      await setItem(`mentor_cancel_dismissed_${cancelledBookingId}`, "1");
+    }
+    setCancelNoticeVisible(false);
+  }
 
   if (loading) {
     return (
@@ -119,6 +124,26 @@ export default function HackathonHomeScreen() {
             Preventive & Predictive Healthcare
           </Text>
         </View>
+
+        {/* Mentor cancel/decline notice */}
+        {cancelNoticeVisible && (
+          <Pressable style={styles.cancelNotice} onPress={() => router.push("/(hackathon)/mentor-booking")}>
+            <View style={styles.cancelNoticeHeader}>
+              <AppText variant="bold" style={styles.cancelNoticeTitle}>
+                {cancelledBookingReason ? "⚠️ Mentor ยกเลิกการนัด" : "❌ Mentor ปฏิเสธการนัด"}
+              </AppText>
+              <Pressable onPress={(e) => { e.stopPropagation(); void dismissCancelNotice(); }}>
+                <AppText style={styles.cancelNoticeDismiss}>ปิด ✕</AppText>
+              </Pressable>
+            </View>
+            {cancelledBookingReason ? (
+              <AppText style={styles.cancelNoticeReason}>เหตุผล: {cancelledBookingReason}</AppText>
+            ) : (
+              <AppText style={styles.cancelNoticeReason}>Mentor ไม่สามารถรับการนัดของคุณได้</AppText>
+            )}
+            <AppText style={styles.cancelNoticeRefund}>สิทธิ์การจองของทีมได้รับคืนแล้ว → แตะเพื่อจองใหม่</AppText>
+          </Pressable>
+        )}
 
         {/* Team Impact */}
         <View style={styles.impactContainer}>

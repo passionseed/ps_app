@@ -72,7 +72,17 @@ async function awardScore(
 
   if (pointsAwarded <= 0) return;
 
-  // 4. Log the score event (idempotent via UNIQUE on submission_id)
+  // 4. Check if score already awarded for this team+activity (idempotent)
+  const { data: existingEvent } = await supabase
+    .from("hackathon_team_score_events")
+    .select("id")
+    .eq("team_id", membership.team_id)
+    .eq("activity_id", activityId)
+    .maybeSingle();
+
+  if (existingEvent) return; // already scored, skip
+
+  // Log the score event
   const { error: eventError } = await supabase
     .from("hackathon_team_score_events")
     .insert({
@@ -87,9 +97,7 @@ async function awardScore(
     });
 
   if (eventError) {
-    // Duplicate submission — score already awarded, skip
-    if (eventError.code === "23505") return;
-    console.warn("[score] event insert failed", eventError.message);
+    console.error("[score] event insert failed", eventError.message);
     return;
   }
 
@@ -120,24 +128,53 @@ export async function submitTextAnswer(
   const participant = await readHackathonParticipant();
   if (!participant) throw new Error("Not logged in");
 
-  const { data, error } = await supabase
+  // Check if submission already exists — update in place to preserve score event FK
+  const { data: existing } = await supabase
     .from("hackathon_phase_activity_submissions")
-    .upsert({
-      participant_id: participant.id,
-      activity_id: activityId,
-      assessment_id: assessmentId,
-      text_answer: textAnswer,
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
-    }, { onConflict: "participant_id,assessment_id" })
-    .select()
-    .single();
+    .select("id")
+    .eq("participant_id", participant.id)
+    .eq("activity_id", activityId)
+    .maybeSingle();
+
+  let data: { id: string } | null = null;
+  let error: { message: string } | null = null;
+
+  if (existing) {
+    const res = await supabase
+      .from("hackathon_phase_activity_submissions")
+      .update({
+        assessment_id: assessmentId,
+        text_answer: textAnswer,
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .select("id")
+      .single();
+    data = res.data;
+    error = res.error;
+  } else {
+    const res = await supabase
+      .from("hackathon_phase_activity_submissions")
+      .insert({
+        participant_id: participant.id,
+        activity_id: activityId,
+        assessment_id: assessmentId,
+        text_answer: textAnswer,
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    data = res.data;
+    error = res.error;
+  }
 
   if (error) throw new Error(error.message);
 
   // Award score immediately after submit (non-blocking)
   awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
-    console.warn("[score] awardScore failed", e)
+    console.error("[score] awardScore failed", e)
   );
 
   return { submissionId: data.id, url: null };
@@ -289,32 +326,56 @@ export async function submitFile(
   const fileUrl = publicUrlData.publicUrl;
   const isImage = mimeType.startsWith("image/");
 
-  // Delete previous submission for this assessment before inserting new one
-  await supabase
+  // Check if a submission already exists for this activity
+  const { data: existing } = await supabase
     .from("hackathon_phase_activity_submissions")
-    .delete()
+    .select("id")
     .eq("participant_id", participant.id)
-    .eq("assessment_id", assessmentId);
+    .eq("activity_id", activityId)
+    .maybeSingle();
 
-  const { data, error } = await supabase
-    .from("hackathon_phase_activity_submissions")
-    .insert({
-      participant_id: participant.id,
-      activity_id: activityId,
-      assessment_id: assessmentId,
-      image_url: isImage ? fileUrl : null,
-      file_urls: isImage ? null : [fileUrl],
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
+  let data: { id: string } | null = null;
+  let error: { message: string } | null = null;
+
+  if (existing) {
+    // Update in place — preserves score event foreign key
+    const res = await supabase
+      .from("hackathon_phase_activity_submissions")
+      .update({
+        assessment_id: assessmentId,
+        image_url: isImage ? fileUrl : null,
+        file_urls: isImage ? null : [fileUrl],
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .select("id")
+      .single();
+    data = res.data;
+    error = res.error;
+  } else {
+    const res = await supabase
+      .from("hackathon_phase_activity_submissions")
+      .insert({
+        participant_id: participant.id,
+        activity_id: activityId,
+        assessment_id: assessmentId,
+        image_url: isImage ? fileUrl : null,
+        file_urls: isImage ? null : [fileUrl],
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    data = res.data;
+    error = res.error;
+  }
 
   if (error) throw new Error(error.message);
 
   // Award score immediately after submit (non-blocking)
   awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
-    console.warn("[score] awardScore failed", e)
+    console.error("[score] awardScore failed", e)
   );
 
   return { submissionId: data.id, url: fileUrl };
