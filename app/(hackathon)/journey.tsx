@@ -406,6 +406,32 @@ export default function HackathonJourneyScreen() {
 
         <JourneyImpactHeader impact={impact} />
 
+        {/* Mentor Guides Entry */}
+        <Pressable
+          style={styles.mentorGuideCard}
+          onPress={() => router.push("/(hackathon)/mentor-guides")}
+        >
+          <LinearGradient
+            colors={["rgba(145,196,227,0.08)", "rgba(13,18,25,0.6)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.mentorGuideGradient}
+          >
+            <View style={styles.mentorGuideHeader}>
+              <AppText style={styles.mentorGuideEmoji}>📚</AppText>
+              <View style={styles.mentorGuideText}>
+                <AppText variant="bold" style={styles.mentorGuideTitle}>
+                  Mentor Guides
+                </AppText>
+                <AppText style={styles.mentorGuideSubtitle}>
+                  Read guides from mentors. Earn +5 points each.
+                </AppText>
+              </View>
+            </View>
+            <AppText style={styles.mentorGuideCta}>Browse Guides →</AppText>
+          </LinearGradient>
+        </Pressable>
+
         {/* Vertical Phases */}
         {phaseCards.length > 0 ? (
           <View style={styles.timelineSection}>
@@ -547,4 +573,14 @@ const styles = StyleSheet.create({
   lockedBtnText: { fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "BaiJamjuree_700Bold", letterSpacing: 1.5, textTransform: "uppercase" },
 
   emptyPhases: { padding: Space.xl, backgroundColor: "rgba(255,255,255,0.02)", borderRadius: 16, alignItems: "center" },
+
+  // Mentor Guide Card
+  mentorGuideCard: { borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(145,196,227,0.2)" },
+  mentorGuideGradient: { padding: Space.lg, gap: Space.sm },
+  mentorGuideHeader: { flexDirection: "row", alignItems: "center", gap: Space.md },
+  mentorGuideEmoji: { fontSize: 28 },
+  mentorGuideText: { flex: 1 },
+  mentorGuideTitle: { fontSize: 18, color: WHITE, fontFamily: "BaiJamjuree_700Bold" },
+  mentorGuideSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 2 },
+  mentorGuideCta: { fontSize: 12, color: CYAN, fontFamily: "BaiJamjuree_700Bold", letterSpacing: 1, textTransform: "uppercase", marginTop: Space.xs },
 });
