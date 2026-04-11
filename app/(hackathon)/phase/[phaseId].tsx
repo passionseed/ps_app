@@ -191,6 +191,8 @@ function ActivityCard({
   const isCompleted = activity.submissionStatus === "passed" || activity.submissionStatus === "submitted";
   const isDraft = activity.submissionStatus === "draft";
   const isRevision = activity.submissionStatus === "revision_required";
+  const isTeam = activity.submission_scope === "team" ||
+    (activity.assessments ?? []).some((a: any) => a.metadata?.is_group_submission === true);
 
   return (
     <Pressable
@@ -243,8 +245,8 @@ function ActivityCard({
               ) : null}
               
               <View style={styles.activityMeta}>
-                <AppText style={[styles.metaChip, activity.submission_scope === "team" && styles.metaChipTeam]}>
-                  {activity.submission_scope === "team" ? "👥 ทีม" : "👤 เดี่ยว"}
+                <AppText style={[styles.metaChip, isTeam && styles.metaChipTeam]}>
+                  {isTeam ? "👥 ทีม" : "👤 เดี่ยว"}
                 </AppText>
                 {activity.estimated_minutes ? (
                   <AppText style={styles.metaChip}>⏱️ {activity.estimated_minutes} นาที</AppText>
