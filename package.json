@@ -2,8 +2,7 @@
   "name": "passion-seed",
   "version": "1.0.0",
   "main": "expo-router/entry",
-  "packageManager": "pnpm@9.15.4",
-  "scripts": {
+"scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
