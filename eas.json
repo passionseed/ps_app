@@ -26,6 +26,7 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "pnpm": "9.15.4",
       "android": {
         "buildType": "apk"
       },
