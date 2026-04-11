@@ -16,8 +16,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
 import { AppText } from "../../components/AppText";
+import { supabase } from "../../lib/supabase";
 import { Space } from "../../lib/theme";
-import { readHackathonToken } from "../../lib/hackathon-mode";
+import {
+  readHackathonParticipant,
+  readHackathonToken,
+} from "../../lib/hackathon-mode";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_W = (SCREEN_W - Space.xl * 2 - Space.md) / 2;
@@ -75,6 +79,12 @@ const TRACKS = [
   "Community & Public Health",
 ] as const;
 type Track = (typeof TRACKS)[number];
+
+const UNIVERSITY_GRADE_LEVELS = new Set([
+  "ปริญญาตรี",
+  "ปริญญาโท",
+  "ปริญญาเอก",
+]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -136,6 +146,77 @@ function parseNotes(notes: string | null): { track: string; idea: string; need: 
   };
 }
 
+function isLeaderRole(role?: string | null): boolean {
+  if (!role) return false;
+  const normalized = role.trim().toLowerCase();
+  return (
+    normalized.includes("leader") ||
+    normalized.includes("captain") ||
+    normalized.includes("head") ||
+    normalized.includes("หัวหน้า")
+  );
+}
+
+function isUniversityGradeLevel(gradeLevel?: string | null): boolean {
+  if (!gradeLevel) return false;
+  return UNIVERSITY_GRADE_LEVELS.has(gradeLevel.trim());
+}
+
+async function fetchLeaderGroupMentorPolicy(): Promise<{
+  blocksGroupMentorBooking: boolean;
+  leaderGradeLevel: string | null;
+}> {
+  const participant = await readHackathonParticipant();
+  if (!participant?.id) {
+    return { blocksGroupMentorBooking: false, leaderGradeLevel: null };
+  }
+
+  const { data: membership } = await supabase
+    .from("hackathon_team_members")
+    .select("team_id")
+    .eq("participant_id", participant.id)
+    .maybeSingle();
+
+  if (!membership?.team_id) {
+    return { blocksGroupMentorBooking: false, leaderGradeLevel: null };
+  }
+
+  const { data: teamMembers } = await supabase
+    .from("hackathon_team_members")
+    .select("participant_id")
+    .eq("team_id", membership.team_id);
+
+  const memberIds = (teamMembers ?? [])
+    .map((row: { participant_id?: string | null }) => row.participant_id)
+    .filter((value): value is string => Boolean(value));
+
+  if (memberIds.length === 0) {
+    return { blocksGroupMentorBooking: false, leaderGradeLevel: null };
+  }
+
+  const { data: team } = await supabase
+    .from("hackathon_teams")
+    .select("owner_id")
+    .eq("id", membership.team_id)
+    .maybeSingle();
+
+  const { data: participants } = await supabase
+    .from("hackathon_participants")
+    .select("id, grade_level")
+    .in("id", memberIds);
+
+  const leader = (participants ?? []).find((row) =>
+    row.id === team?.owner_id,
+  ) as { grade_level?: string | null } | undefined;
+
+  const leaderGradeLevel = leader?.grade_level?.trim() ?? null;
+
+  return {
+    blocksGroupMentorBooking: isUniversityGradeLevel(leaderGradeLevel),
+    leaderGradeLevel,
+  };
+}
+
 // ── MentorAvatar ──────────────────────────────────────────────────────────────
 
 function MentorAvatar({ mentor, size = 64 }: { mentor: MentorProfile; size?: number }) {
@@ -161,11 +242,15 @@ function MentorGrid({
   mentors,
   loading,
   error,
+  blockGroupMentors,
+  groupMentorBlockReason,
   onSelect,
 }: {
   mentors: MentorProfile[];
   loading: boolean;
   error: string | null;
+  blockGroupMentors: boolean;
+  groupMentorBlockReason: string;
   onSelect: (m: MentorProfile) => void;
 }) {
   const rows: MentorProfile[][] = [];
@@ -180,7 +265,10 @@ function MentorGrid({
       {rows.map((row, i) => (
         <View key={i} style={s.row}>
           {row.map((mentor) => {
-            const unavailable = mentor.is_accepting_bookings === false;
+            const blockedByLeaderRule =
+              blockGroupMentors && mentor.session_type === "group";
+            const unavailable =
+              mentor.is_accepting_bookings === false || blockedByLeaderRule;
             return (
               <TouchableOpacity
                 key={mentor.id}
@@ -203,7 +291,9 @@ function MentorGrid({
                   )}
                   {unavailable && (
                     <View style={s.unavailableOverlay}>
-                      <AppText style={s.unavailableText}>ปิดรับนัด</AppText>
+                      <AppText style={s.unavailableText}>
+                        {blockedByLeaderRule ? groupMentorBlockReason : "ปิดรับนัด"}
+                      </AppText>
                     </View>
                   )}
                 </View>
@@ -228,9 +318,13 @@ function MentorGrid({
 
 function MentorDetail({
   mentor,
+  canBook,
+  bookingBlockReason,
   onBook,
 }: {
   mentor: MentorProfile;
+  canBook: boolean;
+  bookingBlockReason?: string | null;
   onBook: () => void;
 }) {
   return (
@@ -302,10 +396,27 @@ function MentorDetail({
         </View>
       )}
 
+      {!canBook && bookingBlockReason ? (
+        <View style={s.blockNotice}>
+          <AppText variant="bold" style={s.blockNoticeTitle}>
+            ไม่สามารถจอง Mentor แบบ Group ได้
+          </AppText>
+          <AppText style={s.blockNoticeText}>{bookingBlockReason}</AppText>
+        </View>
+      ) : null}
+
       {/* Book button */}
-      <TouchableOpacity style={s.confirmBtn} onPress={onBook} activeOpacity={0.85}>
-        <AppText variant="bold" style={{ color: BG, fontSize: 16 }}>นัดหมาย Mentor นี้ →</AppText>
-      </TouchableOpacity>
+      {canBook ? (
+        <TouchableOpacity
+          style={s.confirmBtn}
+          onPress={onBook}
+          activeOpacity={0.85}
+        >
+          <AppText variant="bold" style={{ color: BG, fontSize: 16 }}>
+            นัดหมาย Mentor นี้ →
+          </AppText>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -314,10 +425,14 @@ function MentorDetail({
 
 function BookingForm({
   mentor,
+  isBlocked,
+  blockedReason,
   onBack,
   onSuccess,
 }: {
   mentor: MentorProfile;
+  isBlocked: boolean;
+  blockedReason: string;
   onBack: () => void;
   onSuccess: () => void;
 }) {
@@ -365,6 +480,10 @@ function BookingForm({
   const timeSlotsForDate = selectedDate ? (slotsByDate.get(selectedDate) ?? []) : [];
 
   async function handleSubmit() {
+    if (isBlocked) {
+      setError(blockedReason);
+      return;
+    }
     if (!selectedTrack) { setError("กรุณาเลือก Track ของทีม"); return; }
     if (!ideaDetail.trim()) { setError("กรุณากรอกรายละเอียด Idea"); return; }
     if (!mentorNeed.trim()) { setError("กรุณาระบุสิ่งที่ต้องการให้ Mentor ช่วย"); return; }
@@ -486,16 +605,27 @@ function BookingForm({
         </>
       )}
 
+      {isBlocked ? (
+        <View style={s.blockNotice}>
+          <AppText variant="bold" style={s.blockNoticeTitle}>
+            ไม่สามารถจอง Mentor แบบ Group ได้
+          </AppText>
+          <AppText style={s.blockNoticeText}>{blockedReason}</AppText>
+        </View>
+      ) : null}
+
       {!!error && <AppText style={s.errorText}>{error}</AppText>}
 
       <TouchableOpacity
         onPress={handleSubmit}
-        disabled={submitting}
-        style={[s.confirmBtn, submitting && s.confirmBtnDisabled]}
+        disabled={submitting || isBlocked}
+        style={[s.confirmBtn, (submitting || isBlocked) && s.confirmBtnDisabled]}
       >
         {submitting
           ? <ActivityIndicator color={BG} size="small" />
-          : <AppText variant="bold" style={s.confirmBtnText}>ยืนยันการจอง</AppText>
+          : <AppText variant="bold" style={s.confirmBtnText}>
+              {isBlocked ? "จองไม่ได้" : "ยืนยันการจอง"}
+            </AppText>
         }
       </TouchableOpacity>
     </View>
@@ -671,6 +801,9 @@ export default function MentorBookingScreen() {
   const [selectedMentor, setSelectedMentor] = useState<MentorProfile | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [leaderPolicyLoading, setLeaderPolicyLoading] = useState(true);
+  const [blocksGroupMentorBooking, setBlocksGroupMentorBooking] = useState(false);
+  const [leaderGradeLevel, setLeaderGradeLevel] = useState<string | null>(null);
 
   function goToStep(s: Step) {
     setStep(s);
@@ -694,9 +827,23 @@ export default function MentorBookingScreen() {
     }
   }
 
+  async function fetchLeaderPolicy() {
+    try {
+      const policy = await fetchLeaderGroupMentorPolicy();
+      setBlocksGroupMentorBooking(policy.blocksGroupMentorBooking);
+      setLeaderGradeLevel(policy.leaderGradeLevel);
+    } catch {
+      setBlocksGroupMentorBooking(false);
+      setLeaderGradeLevel(null);
+    } finally {
+      setLeaderPolicyLoading(false);
+    }
+  }
+
   useFocusEffect(useCallback(() => {
     setQuotaLoading(true);
-    fetchQuota();
+    setLeaderPolicyLoading(true);
+    void Promise.all([fetchQuota(), fetchLeaderPolicy()]);
   }, []));
 
   useEffect(() => {
@@ -756,6 +903,27 @@ export default function MentorBookingScreen() {
   const hasCancelledBooking = quota?.booking && quota.booking.status === "cancelled" && quota.chances_left === 0;
   const showBookingCard = hasActiveBooking || hasCancelledBooking;
   const showForm = !showBookingCard && quota?.chances_left === 1;
+  const groupMentorBlockReason = leaderGradeLevel
+    ? `หัวหน้าทีมอยู่ระดับ ${leaderGradeLevel} จึงไม่สามารถจอง Mentor แบบ Group ได้`
+    : "ทีมหัวหน้ามหาวิทยาลัยไม่สามารถจอง Mentor แบบ Group ได้";
+  const selectedMentorBlocked =
+    blocksGroupMentorBooking && selectedMentor?.session_type === "group";
+
+  function handleMentorSelect(mentor: MentorProfile) {
+    const isBlocked =
+      blocksGroupMentorBooking && mentor.session_type === "group";
+
+    if (isBlocked) {
+      Alert.alert(
+        "ไม่สามารถจอง Mentor นี้ได้",
+        groupMentorBlockReason,
+      );
+      return;
+    }
+
+    setSelectedMentor(mentor);
+    goToStep("detail");
+  }
 
   // Header back label
   const backLabel = showBookingCard || step === "grid" ? "← Back" : step === "form" ? "← ข้อมูล Mentor" : "← เลือก Mentor";
@@ -777,7 +945,7 @@ export default function MentorBookingScreen() {
           <AppText style={s.subtitle}>นัดหมาย Mentor 1:1 เพื่อขอคำแนะนำ</AppText>
         </View>
 
-        {quotaLoading ? (
+        {quotaLoading || leaderPolicyLoading ? (
           <View style={s.center}><ActivityIndicator color={CYAN} size="large" /></View>
         ) : showBookingCard ? (
           <BookingCard
@@ -790,12 +958,16 @@ export default function MentorBookingScreen() {
         ) : showForm && step === "form" && selectedMentor ? (
           <BookingForm
             mentor={selectedMentor}
+            isBlocked={selectedMentorBlocked}
+            blockedReason={groupMentorBlockReason}
             onBack={() => { goToStep("detail"); }}
             onSuccess={() => { setQuotaLoading(true); fetchQuota(); }}
           />
         ) : showForm && step === "detail" && selectedMentor ? (
           <MentorDetail
             mentor={selectedMentor}
+            canBook={!selectedMentorBlocked}
+            bookingBlockReason={selectedMentorBlocked ? groupMentorBlockReason : null}
             onBook={() => goToStep("form")}
           />
         ) : (
@@ -810,7 +982,9 @@ export default function MentorBookingScreen() {
               mentors={mentors}
               loading={mentorsLoading}
               error={mentorsError}
-              onSelect={(m) => { setSelectedMentor(m); goToStep("detail"); }}
+              blockGroupMentors={blocksGroupMentorBooking}
+              groupMentorBlockReason={groupMentorBlockReason}
+              onSelect={handleMentorSelect}
             />
           </>
         )}
@@ -940,6 +1114,16 @@ const s = StyleSheet.create({
   detailSectionTitle: { fontSize: 13, color: WHITE40, letterSpacing: 0.5 },
   socialBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1 },
   socialBtnText: { fontSize: 14, fontFamily: "BaiJamjuree_700Bold" },
+  blockNotice: {
+    backgroundColor: RED_DIM,
+    borderWidth: 1,
+    borderColor: RED_BORDER,
+    borderRadius: 14,
+    padding: 14,
+    gap: 6,
+  },
+  blockNoticeTitle: { fontSize: 15, color: WHITE },
+  blockNoticeText: { fontSize: 13, color: WHITE70, lineHeight: 20 },
 
   confirmBtn: { backgroundColor: CYAN, borderRadius: 50, paddingVertical: 16, alignItems: "center", marginTop: 8 },
   confirmBtnDisabled: { opacity: 0.6 },
