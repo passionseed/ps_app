@@ -11,6 +11,7 @@ type ActivityAccessInput = {
     | HackathonPhaseActivitySubmissionStatus
     | null
     | undefined;
+  isAdmin?: boolean;
 };
 
 function isReleased(status: HackathonReleaseStatus | null | undefined) {
@@ -27,7 +28,10 @@ export function isHackathonActivityAccessible({
   phaseStatus,
   activityStatus,
   previousActivitySubmissionStatus,
+  isAdmin,
 }: ActivityAccessInput) {
+  if (isAdmin) return true;
+
   if (!isReleased(phaseStatus) || !isReleased(activityStatus)) {
     return false;
   }

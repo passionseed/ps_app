@@ -1,4 +1,5 @@
 import { readHackathonParticipant, type HackathonParticipant } from "./hackathon-mode";
+import { isHackathonAdminEmail } from "./hackathonAdminAccess";
 import { getCurrentHackathonProgramHome } from "./hackathonProgram";
 import {
   getHackathonActivityDetail,
@@ -122,6 +123,7 @@ export type HackathonPhaseBundle = {
   phase: HackathonPhaseWithActivities | null;
   activities: HackathonPhaseActivityWithStatus[];
   participantId: string | null;
+  isAdmin: boolean;
 };
 
 export type HackathonActivitySibling = {
@@ -231,17 +233,42 @@ async function createJourneyBundle(): Promise<HackathonJourneyBundle> {
   };
 }
 
+async function checkIsHackathonAdmin(participant: HackathonParticipant | null): Promise<boolean> {
+  if (isHackathonAdminEmail(participant?.email)) {
+    console.log("[AdminBypass] Email match:", participant?.email);
+    return true;
+  }
+
+  // Check user_roles table for admin role using current auth user
+  const { data: { user } } = await supabase.auth.getUser();
+  console.log("[AdminBypass] Supabase auth user:", user?.id, "participant email:", participant?.email);
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .maybeSingle();
+
+  console.log("[AdminBypass] user_roles check result:", data);
+  return !!data;
+}
+
 async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle> {
   const [phase, participant] = await Promise.all([
     getPhaseWithActivities(phaseId),
     Promise.resolve(readHackathonParticipant()),
   ]);
 
+  const isAdmin = await checkIsHackathonAdmin(participant);
+
   if (!phase) {
     return {
       phase: null,
       activities: [],
       participantId: participant?.id ?? null,
+      isAdmin,
     };
   }
 
@@ -253,6 +280,7 @@ async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle>
         submissionStatus: "not_started",
       })),
       participantId: participant?.id ?? null,
+      isAdmin,
     };
   }
 
@@ -269,11 +297,13 @@ async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle>
         "not_started",
     })),
     participantId: participant.id,
+    isAdmin,
   };
 }
 
 async function buildActivitySiblings(
   activity: HackathonPhaseActivityDetail,
+  isAdmin: boolean,
 ): Promise<{
   blockedMessage: string | null;
   siblings: HackathonActivitySibling[];
@@ -315,6 +345,7 @@ async function buildActivitySiblings(
           ? ((siblingSubmissionStatuses[visibleSiblings[index - 1]!.id] ??
               "not_started") as HackathonPhaseActivitySubmissionStatus)
           : null,
+      isAdmin,
     }),
   }));
 
@@ -328,6 +359,7 @@ async function buildActivitySiblings(
     phaseStatus: phaseData?.status,
     activityStatus: activity.status,
     previousActivitySubmissionStatus: previousSubmissionStatus,
+    isAdmin,
   });
 
   return {
@@ -362,7 +394,8 @@ async function createActivityBundle(activityId: string): Promise<HackathonActivi
     };
   }
 
-  const { siblings, blockedMessage } = await buildActivitySiblings(activity);
+  const isAdmin = await checkIsHackathonAdmin(participant);
+  const { siblings, blockedMessage } = await buildActivitySiblings(activity, isAdmin);
 
   return {
     activity,

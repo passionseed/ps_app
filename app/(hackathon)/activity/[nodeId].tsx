@@ -16,7 +16,9 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
+import YoutubePlayer from "react-native-youtube-iframe";
 import { AppText } from "../../../components/AppText";
+import { HackathonJellyfishLoader } from "../../../components/Hackathon/HackathonJellyfishLoader";
 import { HackathonSwipeDonut } from "../../../components/Hackathon/HackathonSwipeDonut";
 import { WaterFlowHint } from "../../../components/Hackathon/WaterFlowHint";
 import { ActivityCommentsPreview } from "../../../components/Hackathon/ActivityCommentsPreview";
@@ -114,6 +116,21 @@ function getWebtoonContent(item: HackathonPhaseActivityContent) {
   return parseHackathonWebtoonContent(item.metadata);
 }
 
+function extractYouTubeId(url: string): string | null {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\s?]+)/,
+    /youtube\.com\/embed\/([^&\s?]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
 function isWebtoonContent(item: HackathonPhaseActivityContent): boolean {
   return getWebtoonContent(item) !== null;
 }
@@ -161,21 +178,50 @@ function ImageBlock({ item }: { item: HackathonPhaseActivityContent }) {
 }
 
 function VideoBlock({ item }: { item: HackathonPhaseActivityContent }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const videoId = extractYouTubeId(item.content_url || "");
+  const isYouTube = !!videoId;
+  const playerHeight = windowWidth * (9 / 16);
+  const [isReady, setIsReady] = useState(false);
+
+  if (!isYouTube && !item.content_url) {
+    return (
+      <View style={styles.contentBlock}>
+        <AppText style={[styles.bodyText, { color: WHITE28 }]}>ไม่มีลิงก์วิดีโอ</AppText>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.contentBlock}>
+    <View style={styles.fullWidthVideo}>
       {item.content_title ? (
-        <AppText variant="bold" style={styles.contentBlockTitle}>{item.content_title}</AppText>
+        <AppText variant="bold" style={styles.videoTitleOverlay}>{item.content_title}</AppText>
       ) : null}
-      {item.content_url ? (
+      {isYouTube ? (
+        <View style={styles.videoContainer}>
+          {!isReady && (
+            <View style={styles.videoLoader}>
+              <HackathonJellyfishLoader />
+            </View>
+          )}
+          <YoutubePlayer
+            height={playerHeight}
+            width={windowWidth}
+            videoId={videoId}
+            play={false}
+            webViewStyle={{ opacity: 0.99 }}
+            webViewProps={{ androidLayerType: "hardware" }}
+            onReady={() => setIsReady(true)}
+          />
+        </View>
+      ) : item.content_url ? (
         <View style={styles.videoPlaceholder}>
           <AppText style={styles.videoIcon}>▶</AppText>
           <AppText style={[styles.bodyText, { color: CYAN, marginTop: 8 }]} numberOfLines={1}>
             {item.content_url}
           </AppText>
         </View>
-      ) : (
-        <AppText style={[styles.bodyText, { color: WHITE28 }]}>ไม่มีลิงก์วิดีโอ</AppText>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -1341,6 +1387,30 @@ const styles = StyleSheet.create({
     height: 220,
     borderRadius: 12,
     marginTop: 4,
+  },
+
+  fullWidthVideo: {
+    width: "100%",
+    marginHorizontal: -Space.lg,
+    marginBottom: Space.xl,
+  },
+  videoTitleOverlay: {
+    fontSize: 14,
+    color: WHITE,
+    marginBottom: 8,
+    marginHorizontal: Space.lg,
+  },
+  videoContainer: {
+    position: "relative",
+    width: "100%",
+    backgroundColor: "#000",
+  },
+  videoLoader: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
 
   videoPlaceholder: {

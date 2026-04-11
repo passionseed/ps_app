@@ -44,9 +44,7 @@ export function HackathonSwipeDonut({
   const r = (RING_OUTER - STROKE) / 2;
 
   const ringPath = useMemo(() => {
-    const p = Skia.Path.Make();
-    p.addCircle(cx, cy, r);
-    return p;
+    return Skia.Path.Circle(cx, cy, r);
   }, [cx, cy, r]);
 
   const strokeOpacity = useDerivedValue(() => readyProgress.value);

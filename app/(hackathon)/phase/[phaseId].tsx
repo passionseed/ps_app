@@ -53,6 +53,7 @@ export default function HackathonPhaseScreen() {
     cachedBundle?.activities ?? [],
   );
   const [loading, setLoading] = useState(!cachedBundle);
+  const [isAdmin, setIsAdmin] = useState(cachedBundle?.isAdmin ?? false);
 
   useFocusEffect(
     useCallback(() => {
@@ -61,6 +62,7 @@ export default function HackathonPhaseScreen() {
       if (cached) {
         setPhase(cached.phase);
         setActivities(cached.activities);
+        setIsAdmin(cached.isAdmin ?? false);
         setLoading(false);
       } else {
         setLoading(true);
@@ -72,6 +74,7 @@ export default function HackathonPhaseScreen() {
           if (cancelled) return;
           setPhase(bundle.phase);
           setActivities(bundle.activities);
+          setIsAdmin(bundle.isAdmin);
         } catch (e) {
           console.error("[PhaseScreen] load error:", e);
         } finally {
@@ -152,6 +155,7 @@ export default function HackathonPhaseScreen() {
                 phaseStatus: phase.status,
                 activityStatus: activity.status,
                 previousActivitySubmissionStatus: prevSubmissionStatus,
+                isAdmin,
               });
               if (locked) {
                 console.log(
