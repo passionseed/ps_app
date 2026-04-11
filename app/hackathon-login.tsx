@@ -89,7 +89,7 @@ export default function HackathonLoginScreen() {
   return (
     <Pressable style={styles.root} onPress={Keyboard.dismiss} accessible={false}>
       {/* Ambient glow orbs and Skia creature SVGs */}
-      <HackathonBackground />
+      <HackathonBackground topGlowOffsetY={Platform.OS === "android" ? 72 : 0} />
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -296,4 +296,3 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_500Medium",
   },
 });
-

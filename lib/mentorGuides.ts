@@ -13,6 +13,8 @@ export type MentorGuide = {
   estimated_minutes: number;
   display_order: number;
   is_published: boolean;
+  uses_daily_unlock: boolean;
+  total_days: number;
 };
 
 export type MentorGuidePage = {
@@ -25,9 +27,18 @@ export type MentorGuidePage = {
   display_order: number;
 };
 
+export type DayProgress = {
+  day_number: number;
+  completed_at: string | null;
+  is_completed: boolean;
+  is_unlocked: boolean;
+};
+
 export type GuideWithCompletion = MentorGuide & {
   is_completed: boolean;
   page_count: number;
+  days_completed: number;
+  current_unlocked_day: number;
 };
 
 export async function fetchMentorGuides(): Promise<MentorGuide[]> {

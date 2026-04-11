@@ -106,7 +106,7 @@ export const SkiaJellyfish = ({ scale = 1, opacity = 1, time, seed = 0 }: { scal
   );
 };
 
-export function HackathonBackground() {
+export function HackathonBackground({ topGlowOffsetY = 0 }: { topGlowOffsetY?: number }) {
   // Global time driver
   const time = useSharedValue(0);
   useEffect(() => {
@@ -133,8 +133,8 @@ export function HackathonBackground() {
         {/* Ocean sunlight from above */}
         <Rect x={0} y={0} width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
           <LinearGradient
-            start={vec(SCREEN_WIDTH / 2, -150)}
-            end={vec(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2.2)}
+            start={vec(SCREEN_WIDTH / 2, -150 + topGlowOffsetY)}
+            end={vec(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2.2 + topGlowOffsetY)}
             colors={["rgba(101,171,252,0.45)", "transparent"]}
           />
         </Rect>
