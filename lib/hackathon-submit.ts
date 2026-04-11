@@ -36,7 +36,7 @@ async function awardScore(
       .maybeSingle(),
     supabase
       .from("hackathon_phase_activity_assessments")
-      .select("points_possible")
+      .select("points_possible, metadata")
       .eq("id", assessmentId)
       .maybeSingle(),
   ]);
@@ -54,7 +54,9 @@ async function awardScore(
   if (!membership?.team_id) return; // not on a team
 
   // 3. Calculate points to award
-  const scope = activity?.submission_scope ?? "individual";
+  // is_group_submission in assessment metadata takes priority over activity submission_scope
+  const isGroupSubmission = (assessment?.metadata as any)?.is_group_submission === true;
+  const scope = isGroupSubmission ? "team" : (activity?.submission_scope ?? "individual");
   let pointsAwarded: number;
   let memberCount = 1;
 
