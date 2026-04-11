@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { View, StyleSheet, ScrollView, Text, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, Text, Pressable, Modal, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -13,7 +13,11 @@ import {
 } from "../../lib/hackathonScreenData";
 import { getItem, setItem } from "../../lib/asyncStorage";
 import { readHackathonToken } from "../../lib/hackathon-mode";
-import type { TeamImpact } from "../../lib/hackathon-submit";
+import {
+  fetchTeamScoreBreakdown,
+  type TeamImpact,
+  type ScoreBreakdownItem,
+} from "../../lib/hackathon-submit";
 
 type MentorPreview = { id: string; full_name: string; photo_url?: string };
 
@@ -36,6 +40,9 @@ export default function HackathonHomeScreen() {
   const [cancelledBookingReason, setCancelledBookingReason] = useState<string | null>(null);
   const [cancelledBookingId, setCancelledBookingId] = useState<string | null>(null);
   const [cancelNoticeVisible, setCancelNoticeVisible] = useState(false);
+  const [scoreModalVisible, setScoreModalVisible] = useState(false);
+  const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdownItem[]>([]);
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -96,6 +103,20 @@ export default function HackathonHomeScreen() {
       await setItem(`mentor_cancel_dismissed_${cancelledBookingId}`, "1");
     }
     setCancelNoticeVisible(false);
+  }
+
+  async function openScoreBreakdown() {
+    if (!impact?.teamId) return;
+    setBreakdownLoading(true);
+    setScoreModalVisible(true);
+    try {
+      const items = await fetchTeamScoreBreakdown(impact.teamId);
+      setScoreBreakdown(items);
+    } catch {
+      setScoreBreakdown([]);
+    } finally {
+      setBreakdownLoading(false);
+    }
   }
 
   if (loading) {
@@ -163,12 +184,12 @@ export default function HackathonHomeScreen() {
               <AppText style={styles.impactLabel}>ACTIVITIES{'\n'}COMPLETED</AppText>
             </View>
             <View style={styles.impactDivider} />
-            <View style={styles.impactBox}>
-              <AppText variant="bold" style={styles.impactVal}>
+            <Pressable style={styles.impactBox} onPress={openScoreBreakdown}>
+              <AppText variant="bold" style={[styles.impactVal, { color: CYAN }]}>
                 {impact?.score ?? '—'}
               </AppText>
               <AppText style={styles.impactLabel}>SCORE{'\n'}EARNED</AppText>
-            </View>
+            </Pressable>
           </View>
         </View>
 
@@ -178,7 +199,7 @@ export default function HackathonHomeScreen() {
             <AppText style={{ fontSize: 24 }}>📚</AppText>
             <View style={{ flex: 1 }}>
               <AppText variant="bold" style={styles.placeholderTitle}>Mentor Guides</AppText>
-              <AppText style={styles.mentorGuideSubtitle}>Read guides, earn +5 pts each. Day by day.</AppText>
+              <AppText style={styles.mentorGuideSubtitle}>Read guides, earn +1 pt/day. Day by day.</AppText>
             </View>
           </View>
           <AppText variant="bold" style={styles.placeholderBadgeCyan}>Browse Guides →</AppText>
@@ -211,6 +232,53 @@ export default function HackathonHomeScreen() {
         </Pressable>
 
       </ScrollView>
+
+      {/* Score Breakdown Modal */}
+      <Modal visible={scoreModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <AppText variant="bold" style={styles.modalTitle}>Score Breakdown</AppText>
+              <Pressable onPress={() => setScoreModalVisible(false)} style={styles.modalClose}>
+                <AppText style={styles.modalCloseText}>✕</AppText>
+              </Pressable>
+            </View>
+
+            {breakdownLoading ? (
+              <View style={styles.modalLoading}>
+                <ActivityIndicator color={CYAN} />
+              </View>
+            ) : scoreBreakdown.length === 0 ? (
+              <AppText style={styles.modalEmpty}>No score events yet. Complete activities to earn points!</AppText>
+            ) : (
+              <ScrollView style={styles.modalList}>
+                {scoreBreakdown.map((item) => (
+                  <View key={item.id} style={styles.modalItem}>
+                    <View style={styles.modalItemHeader}>
+                      <AppText variant="bold" style={styles.modalItemTitle}>{item.activity_title}</AppText>
+                      <AppText variant="bold" style={styles.modalItemPoints}>+{item.points_awarded} pts</AppText>
+                    </View>
+                    <View style={styles.modalItemMeta}>
+                      <AppText style={styles.modalItemDetail}>
+                        {item.scope === "team" ? "Team" : `Individual (${item.member_count} members)`}
+                        {" · "}
+                        {Math.round((item.points_awarded / item.points_possible) * 100)}% of {item.points_possible} pts
+                      </AppText>
+                    </View>
+                    {item.participant_name && (
+                      <AppText style={styles.modalItemParticipant}>by {item.participant_name}</AppText>
+                    )}
+                  </View>
+                ))}
+                <View style={styles.modalTotal}>
+                  <AppText variant="bold" style={styles.modalTotalLabel}>TOTAL</AppText>
+                  <AppText variant="bold" style={styles.modalTotalValue}>{impact?.score ?? 0} pts</AppText>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -383,6 +451,110 @@ const styles = StyleSheet.create({
   },
   mentorAvatarMoreText: {
     fontSize: 10,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+
+  // Score breakdown modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#1A2332",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "80%",
+    paddingBottom: Space.xl,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: Space.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  modalTitle: {
+    fontSize: 18,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  modalClose: {
+    padding: 4,
+  },
+  modalCloseText: {
+    fontSize: 20,
+    color: WHITE40,
+  },
+  modalLoading: {
+    padding: Space["2xl"],
+    alignItems: "center",
+  },
+  modalEmpty: {
+    fontSize: 14,
+    color: WHITE40,
+    textAlign: "center",
+    padding: Space["2xl"],
+  },
+  modalList: {
+    flex: 1,
+  },
+  modalItem: {
+    padding: Space.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  modalItemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: Space.md,
+  },
+  modalItemTitle: {
+    fontSize: 14,
+    color: WHITE,
+    flex: 1,
+    fontFamily: "BaiJamjuree_700Bold",
+    lineHeight: 20,
+  },
+  modalItemPoints: {
+    fontSize: 15,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  modalItemMeta: {
+    marginTop: 4,
+  },
+  modalItemDetail: {
+    fontSize: 12,
+    color: WHITE70,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  modalItemParticipant: {
+    fontSize: 11,
+    color: WHITE40,
+    fontFamily: "BaiJamjuree_400Regular",
+    marginTop: 4,
+  },
+  modalTotal: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: Space.lg,
+    backgroundColor: "rgba(145,196,227,0.08)",
+    borderTopWidth: 1,
+    borderTopColor: CYAN_DIM,
+  },
+  modalTotalLabel: {
+    fontSize: 14,
+    color: CYAN,
+    letterSpacing: 2,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  modalTotalValue: {
+    fontSize: 20,
     color: CYAN,
     fontFamily: "BaiJamjuree_700Bold",
   },

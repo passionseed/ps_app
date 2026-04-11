@@ -34,6 +34,20 @@ const WHITE28 = "rgba(255,255,255,0.28)";
 const GREEN = "#4ADE80";
 const GOLD = "#FBBF24";
 const LOCK_GRAY = "rgba(255,255,255,0.15)";
+const DAY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+/** Returns a user-friendly countdown message for locked days. */
+function getUnlockMessage(
+  prevCompletedAt: string | null | undefined,
+  dayNumber: number
+): string {
+  if (!prevCompletedAt) return `Complete Day ${dayNumber - 1} to unlock`;
+  const remaining = DAY_COOLDOWN_MS - (Date.now() - new Date(prevCompletedAt).getTime());
+  if (remaining <= 0) return "Tap to refresh";
+  const hours = Math.floor(remaining / (60 * 60 * 1000));
+  const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 60 * 1000));
+  return `Unlocks in ${hours}h ${mins}m`;
+}
 
 type PromptType = "text" | "prompt" | "affirmation";
 
@@ -119,7 +133,7 @@ function DayCard({
             <AppText style={{ fontSize: 16 }}>🔒</AppText>
           </View>
           <AppText style={{ fontSize: 12, color: LOCK_GRAY }}>
-            Complete Day {day.day_number - 1} to unlock
+            {getUnlockMessage(day.prevCompletedAt, day.day_number)}
           </AppText>
         </View>
       </View>

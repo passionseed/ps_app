@@ -14,7 +14,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import * as DocumentPicker from "expo-document-picker";
 
 import { AppText } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
@@ -362,9 +361,17 @@ export default function HackathonProfileScreen() {
     if (!team?.id) return;
 
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "image/*",
-        copyToCacheDirectory: true,
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Permission Required", "Please grant access to your photo library to upload an avatar.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images",
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
       });
 
       if (result.canceled) return;

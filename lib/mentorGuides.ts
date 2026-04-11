@@ -1,6 +1,13 @@
 import { readHackathonParticipant } from "./hackathon-mode";
 import { supabase } from "./supabase";
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** 24-hour cooldown in milliseconds for mentor guide day unlocks. */
+const DAY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
 export type MentorGuide = {
   id: string;
   mentor_name: string;
@@ -33,6 +40,7 @@ export type DayProgress = {
   is_unlocked: boolean;
   prompt_content: string | null;
   affirmation_content: string | null;
+  prevCompletedAt?: string | null;
 };
 
 export type GuideWithCompletion = MentorGuide & {
@@ -128,6 +136,12 @@ export async function fetchGuideDays(
 
   const totalDays = guide.total_days ?? 7;
   const completedSet = new Set((completedDays ?? []).map((d: any) => d.day_number));
+  const completedByDay = new Map<number, string>();
+  for (const d of completedDays ?? []) {
+    if (d.day_number != null && d.completed_at != null) {
+      completedByDay.set(d.day_number, d.completed_at);
+    }
+  }
 
   // Fetch page content for each day
   const { data: allPages } = await supabase
@@ -150,15 +164,23 @@ export async function fetchGuideDays(
     }
   }
 
+  const now = Date.now();
   const days: DayProgress[] = [];
   for (let day = 1; day <= totalDays; day++) {
     const pageData = pagesByDay.get(day) ?? { prompt: null, affirmation: null };
+    let isUnlocked = day === 1;
+    const prevCompletedAt = completedByDay.get(day - 1) ?? null;
+    if (!isUnlocked && prevCompletedAt) {
+      const prevTime = new Date(prevCompletedAt).getTime();
+      isUnlocked = (now - prevTime) >= DAY_COOLDOWN_MS;
+    }
     days.push({
       day_number: day,
       is_completed: completedSet.has(day),
-      is_unlocked: day === 1 || completedSet.has(day - 1),
+      is_unlocked: isUnlocked,
       prompt_content: pageData.prompt,
       affirmation_content: pageData.affirmation,
+      prevCompletedAt,
     });
   }
 
@@ -172,17 +194,22 @@ export async function completeDay(
   const participant = await readHackathonParticipant();
   if (!participant) throw new Error("Not logged in");
 
-  // 1. Check previous day is completed (lock enforcement)
+  // 1. Check 24-hour lock on previous day
   if (dayNumber > 1) {
     const { data: prevDay } = await supabase
       .from("mentor_guide_day_progress")
-      .select("id")
+      .select("completed_at")
       .eq("guide_id", guideId)
       .eq("participant_id", participant.id)
       .eq("day_number", dayNumber - 1)
       .maybeSingle();
 
     if (!prevDay) throw new Error("Previous day not completed");
+    const prevCompletedAt = new Date(prevDay.completed_at).getTime();
+    const elapsed = Date.now() - prevCompletedAt;
+    if (elapsed < DAY_COOLDOWN_MS) {
+      throw new Error("Day not yet unlocked — wait 24 hours after previous day");
+    }
   }
 
   // 2. Upsert day progress (idempotent)
@@ -203,29 +230,63 @@ export async function completeDay(
     throw new Error(dayError.message);
   }
 
-  // 3. Check if all days are done → award points
-  const { data: guide } = await supabase
-    .from("mentor_guides")
-    .select("total_days, points_on_completion")
-    .eq("id", guideId)
+  // 3. Award 1 pt per day completed
+  return awardDayPoints(guideId, dayNumber, participant.id);
+}
+
+async function awardDayPoints(
+  guideId: string,
+  dayNumber: number,
+  participantId: string
+): Promise<{ awarded: number }> {
+  // 1. Find the team
+  const { data: membership } = await supabase
+    .from("hackathon_team_members")
+    .select("team_id")
+    .eq("participant_id", participantId)
     .maybeSingle();
 
-  if (!guide) return { awarded: 0 };
+  if (!membership?.team_id) return { awarded: 0 };
 
-  const { data: allDays } = await supabase
-    .from("mentor_guide_day_progress")
-    .select("day_number")
-    .eq("guide_id", guideId)
-    .eq("participant_id", participant.id);
+  // 2. Log score event (1 pt per day)
+  const points = 1;
+  const { error: eventError } = await supabase
+    .from("hackathon_team_score_events")
+    .insert({
+      team_id: membership.team_id,
+      submission_id: null,
+      activity_id: null,
+      participant_id: participantId,
+      scope: "team",
+      points_possible: points,
+      member_count: 1,
+      points_awarded: points,
+    });
 
-  const completedCount = allDays?.length ?? 0;
-
-  if (completedCount >= guide.total_days) {
-    // All days done — award points
-    return awardGuidePoints(guideId, guide.points_on_completion, participant.id);
+  if (eventError && eventError.code !== "23505") {
+    console.warn("[mentor-guides] score event failed:", eventError.message);
+    return { awarded: 0 };
   }
 
-  return { awarded: 0 };
+  // 3. Update team total (read-then-write; for production, consider an atomic DB function)
+  const { data: existing } = await supabase
+    .from("hackathon_team_scores")
+    .select("id, total_score")
+    .eq("team_id", membership.team_id)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("hackathon_team_scores")
+      .update({ total_score: existing.total_score + points })
+      .eq("team_id", membership.team_id);
+  } else {
+    await supabase
+      .from("hackathon_team_scores")
+      .insert({ team_id: membership.team_id, total_score: points });
+  }
+
+  return { awarded: points };
 }
 
 async function awardGuidePoints(
@@ -319,7 +380,8 @@ export async function fetchGuidePages(guideId: string): Promise<MentorGuidePage[
 export async function completeGuide(guideId: string): Promise<{ awarded: number }> {
   const participant = await readHackathonParticipant();
   if (!participant) throw new Error("Not logged in");
-  return awardGuidePoints(guideId, 5, participant.id);
+  // Points reduced from 5 to 1 — scoring now happens per-day via awardDayPoints
+  return awardGuidePoints(guideId, 1, participant.id);
 }
 
 export async function hasCompletedGuide(guideId: string): Promise<boolean> {

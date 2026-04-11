@@ -122,16 +122,23 @@ export async function submitTextAnswer(
   const participant = await readHackathonParticipant();
   if (!participant) throw new Error("Not logged in");
 
+  // Delete previous submission for this assessment before inserting new one
+  await supabase
+    .from("hackathon_phase_activity_submissions")
+    .delete()
+    .eq("participant_id", participant.id)
+    .eq("assessment_id", assessmentId);
+
   const { data, error } = await supabase
     .from("hackathon_phase_activity_submissions")
-    .upsert({
+    .insert({
       participant_id: participant.id,
       activity_id: activityId,
       assessment_id: assessmentId,
       text_answer: textAnswer,
       status: "submitted",
       submitted_at: new Date().toISOString(),
-    }, { onConflict: "participant_id,assessment_id" })
+    })
     .select()
     .single();
 
@@ -326,6 +333,124 @@ export async function submitFile(
 // Public score reader
 // ---------------------------------------------------------------------------
 
+export type ScoreBreakdownItem = {
+  id: string;
+  activity_id: string;
+  activity_title: string;
+  scope: string;
+  points_possible: number;
+  member_count: number;
+  points_awarded: number;
+  created_at: string;
+  participant_name?: string;
+};
+
+type RawScoreEvent = {
+  id: string;
+  activity_id: string | null;
+  participant_id: string | null;
+  scope: string;
+  points_possible: number;
+  member_count: number;
+  points_awarded: number;
+  created_at: string;
+};
+
+/** Fetches the team's score breakdown by joining submissions + assessments. */
+export async function fetchTeamScoreBreakdown(teamId: string): Promise<ScoreBreakdownItem[]> {
+  // 1. Get team members
+  const { data: members } = await supabase
+    .from("hackathon_team_members")
+    .select("participant_id")
+    .eq("team_id", teamId);
+
+  const memberIds = (members ?? []).filter(Boolean).map((m: any) => m.participant_id).filter(Boolean);
+  if (memberIds.length === 0) return [];
+
+  // 2. Get all submissions by team members
+  const { data: submissions } = await supabase
+    .from("hackathon_phase_activity_submissions")
+    .select("id, activity_id, assessment_id, participant_id, submitted_at, status")
+    .in("participant_id", memberIds)
+    .eq("status", "submitted")
+    .order("submitted_at", { ascending: false });
+
+  if (!submissions || submissions.length === 0) return [];
+
+  // 3. Deduplicate: only count the latest submission per assessment per participant
+  const latestByAssessment = new Map<string, any>();
+  for (const sub of submissions) {
+    if (!sub?.assessment_id) continue;
+    const key = `${sub.participant_id}:${sub.assessment_id}`;
+    if (!latestByAssessment.has(key)) {
+      latestByAssessment.set(key, sub);
+    }
+  }
+  const uniqueSubmissions = Array.from(latestByAssessment.values());
+
+  const assessmentIds = [...new Set(uniqueSubmissions.map((s: any) => s.assessment_id).filter(Boolean))];
+  const activityIds = [...new Set(uniqueSubmissions.map((s: any) => s.activity_id).filter(Boolean))];
+  const participantIds = [...new Set(uniqueSubmissions.map((s: any) => s.participant_id).filter(Boolean))];
+
+  // 4. Fetch assessments, activities, participants in parallel
+  const [assessmentsResult, activitiesResult, participantsResult] = await Promise.all([
+    supabase.from("hackathon_phase_activity_assessments").select("id, points_possible, metadata").in("id", assessmentIds),
+    supabase.from("hackathon_phase_activities").select("id, title, submission_scope").in("id", activityIds),
+    supabase.from("hackathon_participants").select("id, name").in("id", participantIds),
+  ]);
+
+  const assessmentMap = new Map((assessmentsResult.data ?? []).map((a: any) => [a.id, a]));
+  const activityMap = new Map((activitiesResult.data ?? []).map((a: any) => [a.id, a]));
+  const participantMap = new Map((participantsResult.data ?? []).map((p: any) => [p.id, p.name]));
+
+  // 5. Calculate points for each submission
+  const breakdown: ScoreBreakdownItem[] = [];
+
+  for (const sub of uniqueSubmissions) {
+    const assessment = assessmentMap.get(sub.assessment_id);
+    const activity = activityMap.get(sub.activity_id);
+    if (!assessment || !activity) continue;
+
+    const pointsPossible = assessment.points_possible ?? 0;
+    if (pointsPossible <= 0) continue;
+
+    // Determine scope: assessment metadata takes priority
+    const isGroupSubmission = (assessment.metadata as any)?.is_group_submission === true;
+    const scope = isGroupSubmission ? "team" : (activity.submission_scope ?? "individual");
+
+    let pointsAwarded: number;
+    if (scope === "individual") {
+      pointsAwarded = Math.floor(pointsPossible / memberIds.length);
+    } else {
+      pointsAwarded = pointsPossible;
+    }
+
+    // For team scope, only count once per assessment (use first participant)
+    if (scope === "team") {
+      const existingTeamEntry = breakdown.find(
+        (b) => b.activity_id === sub.activity_id
+      );
+      if (existingTeamEntry) continue;
+    }
+
+    breakdown.push({
+      id: sub.id,
+      activity_id: sub.activity_id,
+      activity_title: activity.title ?? "Unknown",
+      scope,
+      points_possible: pointsPossible,
+      member_count: memberIds.length,
+      points_awarded: pointsAwarded,
+      created_at: sub.submitted_at,
+      participant_name: participantMap.get(sub.participant_id),
+    });
+  }
+
+  // Sort by date descending
+  breakdown.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return breakdown;
+}
+
 /** Returns the team's current total score, or 0 if not found. */
 export async function fetchTeamScore(teamId: string): Promise<number> {
   const { data } = await supabase
@@ -337,6 +462,7 @@ export async function fetchTeamScore(teamId: string): Promise<number> {
 }
 
 export type TeamImpact = {
+  teamId: string;
   activitiesCompleted: number;
   score: number;
   rank: number | null; // e.g. 1 means "#1", null if no score yet
@@ -405,5 +531,5 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
     .filter(Boolean);
   const rank = computeTeamRank(teamId, allTeamIds, allScores);
 
-  return { activitiesCompleted, score, rank };
+  return { teamId, activitiesCompleted, score, rank };
 }
