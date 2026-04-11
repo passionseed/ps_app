@@ -172,6 +172,18 @@ export default function HackathonHomeScreen() {
           </View>
         </View>
 
+        {/* Mentor Guides */}
+        <Pressable style={styles.placeholderCard} onPress={() => router.push("/(hackathon)/mentor-guides")}>
+          <View style={styles.mentorGuideHeader}>
+            <AppText style={{ fontSize: 24 }}>📚</AppText>
+            <View style={{ flex: 1 }}>
+              <AppText variant="bold" style={styles.placeholderTitle}>Mentor Guides</AppText>
+              <AppText style={styles.mentorGuideSubtitle}>Read guides, earn +5 pts each. Day by day.</AppText>
+            </View>
+          </View>
+          <AppText variant="bold" style={styles.placeholderBadgeCyan}>Browse Guides →</AppText>
+        </Pressable>
+
         {/* Placeholders */}
         <Pressable style={styles.placeholderCard} onPress={() => router.push("/(hackathon)/mentor-booking")}>
           <AppText variant="bold" style={styles.placeholderTitle}>Mentor Booking</AppText>
@@ -333,6 +345,8 @@ const styles = StyleSheet.create({
   placeholderText: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "BaiJamjuree_400Regular" },
   placeholderBadge: { fontSize: 10, color: AMBER, textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold" },
   placeholderBadgeCyan: { fontSize: 10, color: CYAN, textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold" },
+  mentorGuideHeader: { flexDirection: "row", alignItems: "center", gap: Space.md },
+  mentorGuideSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "BaiJamjuree_400Regular", marginTop: 2 },
   mentorAvatarRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -10,18 +10,15 @@ import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { AppText } from "../../components/AppText";
 import { HackathonBackground } from "../../components/Hackathon/HackathonBackground";
-import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJellyfishLoader";
 import { SkiaBackButton } from "../../components/navigation/SkiaBackButton";
 import {
   fetchMentorGuides,
   fetchGuideWithCompletion,
-  type MentorGuide,
   type GuideWithCompletion,
   getCategoryInfo,
 } from "../../lib/mentorGuides";
 
 const BG = "#03050a";
-const CARD_BG = "rgba(13,18,25,0.95)";
 const CYAN = "#91C4E3";
 const BLUE = "#65ABFC";
 const CYAN20 = "rgba(145,196,227,0.20)";
@@ -40,7 +37,10 @@ export default function MentorGuidesScreen() {
     setLoading(true);
     const list = await fetchMentorGuides();
     const withCompletion = await Promise.all(
-      list.map((g) => fetchGuideWithCompletion(g.id))
+      list.map(async (g) => {
+        const result = await fetchGuideWithCompletion(g.id);
+        return result;
+      })
     );
     setGuides(withCompletion.filter(Boolean) as GuideWithCompletion[]);
     setLoading(false);
@@ -54,6 +54,12 @@ export default function MentorGuidesScreen() {
 
   const renderGuide = ({ item }: { item: GuideWithCompletion }) => {
     const cat = getCategoryInfo(item.category);
+    const progressText = item.uses_daily_unlock
+      ? `${item.days_completed}/${item.total_days} days`
+      : item.is_completed
+      ? "Completed"
+      : "Not started";
+
     return (
       <Pressable
         style={styles.guideCard}
@@ -67,16 +73,14 @@ export default function MentorGuidesScreen() {
         >
           <View style={styles.cardHeader}>
             <View style={[styles.categoryBadge, { backgroundColor: cat.color + "30" }]}>
-              <AppText style={[styles.categoryEmoji, { color: cat.color }]}>
-                {cat.emoji}
-              </AppText>
+              <AppText style={{ fontSize: 14 }}>{cat.emoji}</AppText>
               <AppText style={[styles.categoryLabel, { color: cat.color }]}>
                 {cat.label}
               </AppText>
             </View>
             {item.is_completed && (
               <View style={styles.completedBadge}>
-                <AppText style={styles.completedText}>Completed</AppText>
+                <AppText style={styles.completedText}>✓ Done</AppText>
               </View>
             )}
           </View>
@@ -91,28 +95,13 @@ export default function MentorGuidesScreen() {
             </AppText>
           )}
 
-          {item.description && (
-            <AppText style={styles.guideDescription} numberOfLines={3}>
-              {item.description}
-            </AppText>
-          )}
-
           <View style={styles.cardFooter}>
             <View style={styles.metaRow}>
-              {item.mentor_photo_url ? (
-                <View style={[styles.mentorAvatar, { borderWidth: 0 }]}>
-                  {/* Photo could be loaded here */}
-                  <AppText style={styles.mentorInitial}>
-                    {item.mentor_name.charAt(0)}
-                  </AppText>
-                </View>
-              ) : (
-                <View style={styles.mentorAvatar}>
-                  <AppText style={styles.mentorInitial}>
-                    {item.mentor_name.charAt(0)}
-                  </AppText>
-                </View>
-              )}
+              <View style={styles.mentorAvatar}>
+                <AppText style={styles.mentorInitial}>
+                  {item.mentor_name.charAt(0)}
+                </AppText>
+              </View>
               <AppText style={styles.mentorName} numberOfLines={1}>
                 {item.mentor_name}
               </AppText>
@@ -122,9 +111,7 @@ export default function MentorGuidesScreen() {
               <View style={styles.pointsBadge}>
                 <AppText style={styles.pointsText}>+{item.points_on_completion} pts</AppText>
               </View>
-              <AppText style={styles.timeEstimate}>
-                ~{item.estimated_minutes} min
-              </AppText>
+              <AppText style={styles.progressText}>{progressText}</AppText>
             </View>
           </View>
         </LinearGradient>
@@ -144,7 +131,8 @@ export default function MentorGuidesScreen() {
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.loaderContainer}>
-          <HackathonJellyfishLoader />
+          <View style={styles.spinner} />
+          <AppText style={{ color: WHITE55, fontSize: 14, marginTop: 16 }}>Loading guides...</AppText>
         </View>
       </View>
     );
@@ -163,15 +151,17 @@ export default function MentorGuidesScreen() {
 
       <View style={styles.subtitleRow}>
         <AppText style={styles.subtitleText}>
-          Read guides from mentors. Earn points for each one you complete.
+          Read guides from mentors. Complete all days to earn points.
         </AppText>
       </View>
 
       {guides.length === 0 ? (
         <View style={styles.emptyState}>
-          <AppText style={styles.emptyEmoji}>📚</AppText>
-          <AppText style={styles.emptyTitle}>No guides yet</AppText>
-          <AppText style={styles.emptyText}>
+          <AppText style={{ fontSize: 48, marginBottom: 16 }}>📚</AppText>
+          <AppText variant="bold" style={{ fontSize: 18, color: WHITE, marginBottom: 8 }}>
+            No guides yet
+          </AppText>
+          <AppText style={{ fontSize: 14, color: WHITE55, textAlign: "center", lineHeight: 20 }}>
             Mentors will post guides here soon.
           </AppText>
         </View>
@@ -241,11 +231,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 4,
   },
-  categoryEmoji: {
-    fontSize: 14,
-  },
   categoryLabel: {
     fontSize: 12,
+    fontFamily: "BaiJamjuree_500Medium",
   },
   completedBadge: {
     backgroundColor: "rgba(74,222,128,0.15)",
@@ -269,11 +257,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: CYAN,
     fontFamily: "BaiJamjuree_500Medium",
-  },
-  guideDescription: {
-    fontSize: 13,
-    color: WHITE55,
-    lineHeight: 19,
   },
   cardFooter: {
     flexDirection: "row",
@@ -324,7 +307,7 @@ const styles = StyleSheet.create({
     color: BLUE,
     fontFamily: "BaiJamjuree_700Bold",
   },
-  timeEstimate: {
+  progressText: {
     fontSize: 11,
     color: WHITE55,
   },
@@ -333,26 +316,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  spinner: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: CYAN20,
+    borderTopColor: CYAN,
+  },
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 40,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: WHITE55,
-    textAlign: "center",
-    lineHeight: 20,
   },
 });

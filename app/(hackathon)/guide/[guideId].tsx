@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -14,15 +14,14 @@ import { AppText } from "../../../components/AppText";
 import { HackathonBackground } from "../../../components/Hackathon/HackathonBackground";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import {
-  fetchGuidePages,
   fetchGuideWithCompletion,
-  completeGuide,
-  type MentorGuidePage,
+  fetchGuideDays,
+  completeDay,
+  type DayProgress,
   type GuideWithCompletion,
 } from "../../../lib/mentorGuides";
 
 const BG = "#03050a";
-const CARD_BG = "rgba(13,18,25,0.95)";
 const CYAN = "#91C4E3";
 const BLUE = "#65ABFC";
 const CYAN20 = "rgba(145,196,227,0.20)";
@@ -31,8 +30,10 @@ const BORDER = "rgba(74,107,130,0.35)";
 const WHITE = "#FFFFFF";
 const WHITE75 = "rgba(255,255,255,0.75)";
 const WHITE55 = "rgba(255,255,255,0.55)";
+const WHITE28 = "rgba(255,255,255,0.28)";
 const GREEN = "#4ADE80";
 const GOLD = "#FBBF24";
+const LOCK_GRAY = "rgba(255,255,255,0.15)";
 
 type PromptType = "text" | "prompt" | "affirmation";
 
@@ -40,180 +41,379 @@ function getPromptStyle(type: PromptType) {
   switch (type) {
     case "prompt":
       return {
-        containerStyle: {
-          borderColor: CYAN + "50",
-          backgroundColor: "rgba(145,196,227,0.06)",
-        },
+        borderColor: CYAN + "50",
+        backgroundColor: "rgba(145,196,227,0.06)",
         icon: "👁️",
         label: "Notice This",
       };
     case "affirmation":
       return {
-        containerStyle: {
-          borderColor: GOLD + "50",
-          backgroundColor: "rgba(251,191,36,0.06)",
-        },
+        borderColor: GOLD + "50",
+        backgroundColor: "rgba(251,191,36,0.06)",
         icon: "✨",
         label: "Say This Today",
       };
     default:
       return {
-        containerStyle: {
-          borderColor: BORDER,
-          backgroundColor: "rgba(13,18,25,0.6)",
-        },
+        borderColor: BORDER,
+        backgroundColor: "rgba(13,18,25,0.6)",
         icon: "📖",
         label: "",
       };
   }
 }
 
+function DayCard({
+  day,
+  onPress,
+  isLastCompletedDay,
+}: {
+  day: DayProgress;
+  onPress: () => void;
+  isLastCompletedDay: boolean;
+}) {
+  if (day.is_completed) {
+    return (
+      <Pressable style={styles.dayCard} onPress={onPress}>
+        <LinearGradient
+          colors={["rgba(74,222,128,0.06)", "rgba(13,18,25,0.4)"]}
+          style={[styles.dayCardGradient, { borderColor: "rgba(74,222,128,0.25)" }]}
+        >
+          <View style={styles.dayCardHeader}>
+            <View style={styles.dayNumberCompleted}>
+              <AppText variant="bold" style={styles.dayNumberText}>
+                {day.day_number}
+              </AppText>
+            </View>
+            <AppText variant="bold" style={styles.dayTitle}>
+              Day {day.day_number} — Done
+            </AppText>
+            <AppText style={{ fontSize: 18 }}>✓</AppText>
+          </View>
+          {day.prompt_content && (
+            <AppText style={styles.dayPreview} numberOfLines={1}>
+              {day.prompt_content.substring(0, 60)}...
+            </AppText>
+          )}
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+
+  if (!day.is_unlocked) {
+    return (
+      <View style={[styles.dayCard, { opacity: 0.4 }]}>
+        <View
+          style={[
+            styles.dayCardGradient,
+            { borderColor: LOCK_GRAY, backgroundColor: "rgba(13,18,25,0.3)" },
+          ]}
+        >
+          <View style={styles.dayCardHeader}>
+            <View style={[styles.dayNumberLocked, { borderColor: LOCK_GRAY }]}>
+              <AppText style={{ fontSize: 14, color: LOCK_GRAY }}>🔒</AppText>
+            </View>
+            <AppText style={[styles.dayTitle, { color: LOCK_GRAY }]}>
+              Day {day.day_number} — Locked
+            </AppText>
+            <AppText style={{ fontSize: 16 }}>🔒</AppText>
+          </View>
+          <AppText style={{ fontSize: 12, color: LOCK_GRAY }}>
+            Complete Day {day.day_number - 1} to unlock
+          </AppText>
+        </View>
+      </View>
+    );
+  }
+
+  // Current active day
+  return (
+    <Pressable style={styles.dayCard} onPress={onPress}>
+      <LinearGradient
+        colors={["rgba(145,196,227,0.1)", "rgba(13,18,25,0.6)"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.dayCardGradient, { borderColor: CYAN45 }]}
+      >
+        <View style={styles.dayCardHeader}>
+          <View style={[styles.dayNumberActive, { borderColor: CYAN }]}>
+            <AppText variant="bold" style={[styles.dayNumberText, { color: CYAN }]}>
+              {day.day_number}
+            </AppText>
+          </View>
+          <AppText variant="bold" style={styles.dayTitle}>
+            Day {day.day_number}
+          </AppText>
+          <AppText style={{ fontSize: 14, color: CYAN, fontFamily: "BaiJamjuree_700Bold" }}>
+            READ →
+          </AppText>
+        </View>
+        {day.prompt_content && (
+          <AppText style={styles.dayPreview} numberOfLines={2}>
+            {day.prompt_content.substring(0, 80)}...
+          </AppText>
+        )}
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
+// Day detail view
+function DayDetailView({
+  day,
+  guide,
+  onComplete,
+  onBack,
+}: {
+  day: DayProgress;
+  guide: GuideWithCompletion;
+  onComplete: () => void;
+  onBack: () => void;
+}) {
+  const promptStyle = getPromptStyle("prompt");
+  const affirmStyle = getPromptStyle("affirmation");
+
+  return (
+    <ScrollView style={styles.dayDetailContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.dayDetailHeader}>
+        <Pressable style={styles.backArrow} onPress={onBack}>
+          <AppText style={{ fontSize: 20, color: CYAN }}>←</AppText>
+        </Pressable>
+        <AppText variant="bold" style={styles.dayDetailTitle}>
+          Day {day.day_number}
+        </AppText>
+        <View style={{ width: 36 }} />
+      </View>
+
+      {/* Progress indicator */}
+      <View style={styles.dayProgressRow}>
+        {Array.from({ length: guide.total_days }).map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.dayProgressDot,
+              {
+                backgroundColor:
+                  i + 1 < day.day_number
+                    ? GREEN
+                    : i + 1 === day.day_number
+                    ? CYAN
+                    : "rgba(145,196,227,0.15)",
+                width: i + 1 === day.day_number ? 20 : 8,
+              },
+            ]}
+          />
+        ))}
+      </View>
+
+      {/* Prompt card */}
+      {day.prompt_content && (
+        <View
+          style={[
+            styles.contentCard,
+            { borderColor: promptStyle.borderColor, backgroundColor: promptStyle.backgroundColor },
+          ]}
+        >
+          <View style={styles.contentHeader}>
+            <AppText style={styles.contentIcon}>{promptStyle.icon}</AppText>
+            <AppText variant="bold" style={styles.contentLabel}>
+              {promptStyle.label}
+            </AppText>
+          </View>
+          {day.prompt_content.split("\n").map((line, i) => {
+            const trimmed = line.trim();
+            if (!trimmed) return <View key={i} style={{ height: 12 }} />;
+            return (
+              <AppText key={i} style={styles.contentText}>
+                {trimmed}
+              </AppText>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Affirmation card */}
+      {day.affirmation_content && (
+        <View
+          style={[
+            styles.contentCard,
+            { borderColor: affirmStyle.borderColor, backgroundColor: affirmStyle.backgroundColor },
+          ]}
+        >
+          <View style={styles.contentHeader}>
+            <AppText style={styles.contentIcon}>{affirmStyle.icon}</AppText>
+            <AppText variant="bold" style={styles.contentLabel}>
+              {affirmStyle.label}
+            </AppText>
+          </View>
+          {day.affirmation_content.split("\n").map((line, i) => {
+            const trimmed = line.trim();
+            if (!trimmed) return <View key={i} style={{ height: 12 }} />;
+            return (
+              <AppText key={i} style={styles.affirmationText}>
+                {trimmed}
+              </AppText>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Complete button */}
+      <View style={styles.completeDaySection}>
+        <AppText style={styles.completeHint}>
+          Put your phone down. Pick up a pen. Write it by hand.
+        </AppText>
+        <Pressable style={styles.completeDayButton} onPress={onComplete}>
+          <LinearGradient
+            colors={[GREEN, "#22C55E"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.completeDayGradient}
+          >
+            <AppText variant="bold" style={styles.completeDayButtonText}>
+              Day {day.day_number} Complete ✓
+            </AppText>
+          </LinearGradient>
+        </Pressable>
+      </View>
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
+  );
+}
+
+// Completion celebration
+function CompletionCelebration({
+  guide,
+  onDone,
+}: {
+  guide: GuideWithCompletion;
+  onDone: () => void;
+}) {
+  return (
+    <View style={styles.completionContainer}>
+      <AppText style={styles.completionEmoji}>🎉</AppText>
+      <AppText variant="bold" style={styles.completionTitle}>
+        Guide Complete!
+      </AppText>
+      <View style={styles.pointsRow}>
+        <AppText variant="bold" style={styles.pointsAwarded}>
+          +{guide.points_on_completion}
+        </AppText>
+        <AppText style={styles.pointsLabel}>points awarded</AppText>
+      </View>
+      <AppText style={styles.completionSubtext}>
+        Your team earned points for completing this guide.
+      </AppText>
+      <Pressable style={styles.doneButton} onPress={onDone}>
+        <LinearGradient
+          colors={[CYAN, BLUE]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.doneButtonGradient}
+        >
+          <AppText variant="bold" style={styles.doneButtonText}>
+            Done
+          </AppText>
+        </LinearGradient>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function GuideReaderScreen() {
   const { guideId } = useLocalSearchParams<{ guideId: string }>();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const [pages, setPages] = useState<MentorGuidePage[]>([]);
   const [guide, setGuide] = useState<GuideWithCompletion | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
+  const [days, setDays] = useState<DayProgress[]>([]);
+  const [selectedDay, setSelectedDay] = useState<DayProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const cardContent = pages[currentPage];
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!guideId) return;
-    const load = async () => {
-      setLoading(true);
-      const [guideData, pagesData] = await Promise.all([
-        fetchGuideWithCompletion(guideId),
-        fetchGuidePages(guideId),
-      ]);
-      setGuide(guideData);
-      setPages(pagesData);
-      setLoading(false);
-    };
-    load();
+    setLoading(true);
+    const [guideData, daysData] = await Promise.all([
+      fetchGuideWithCompletion(guideId),
+      fetchGuideDays(guideId),
+    ]);
+    setGuide(guideData);
+    setDays(daysData);
+    setLoading(false);
+
+    // Auto-select the current active day
+    if (guideData?.uses_daily_unlock) {
+      const activeDay = daysData.find((d) => d.is_unlocked && !d.is_completed);
+      setSelectedDay(activeDay ?? null);
+    }
   }, [guideId]);
 
-  const animateToPage = useCallback(
-    (pageIndex: number) => {
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 120,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      setCurrentPage(pageIndex);
-    },
-    [fadeAnim]
-  );
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const goNext = useCallback(() => {
-    if (currentPage < pages.length - 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      animateToPage(currentPage + 1);
-    }
-  }, [currentPage, pages.length, animateToPage]);
-
-  const goPrev = useCallback(() => {
-    if (currentPage > 0) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      animateToPage(currentPage - 1);
-    }
-  }, [currentPage, animateToPage]);
-
-  const handleComplete = useCallback(async () => {
-    if (!guideId || completing) return;
+  const handleCompleteDay = useCallback(async () => {
+    if (!guideId || !selectedDay || completing) return;
     setCompleting(true);
     try {
-      const result = await completeGuide(guideId);
+      const result = await completeDay(guideId, selectedDay.day_number);
+      // Refresh data
+      await loadData();
+
       if (result.awarded > 0) {
         setShowCompletion(true);
       } else {
-        router.back();
+        // Move to next day or back to list
+        const nextDay = days.find(
+          (d) => d.day_number === selectedDay.day_number + 1 && d.is_unlocked
+        );
+        if (nextDay) {
+          setSelectedDay(nextDay);
+        } else {
+          setSelectedDay(null);
+        }
       }
     } catch (e: any) {
-      console.warn("[guide] completion failed:", e.message);
-      router.back();
+      console.warn("[guide] day completion failed:", e.message);
+      setSelectedDay(null);
     }
     setCompleting(false);
-  }, [guideId, completing]);
+  }, [guideId, selectedDay, completing, days, loadData]);
 
-  const progress = pages.length > 0 ? (currentPage + 1) / pages.length : 0;
-
-  if (loading || !cardContent) {
+  if (loading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <HackathonBackground />
         <View style={styles.header}>
           <SkiaBackButton onPress={() => router.back()} />
-          <View style={styles.progressContainer}>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-            </View>
-          </View>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.loaderText}>
+        <View style={styles.loaderContainer}>
           <AppText style={{ color: WHITE55, fontSize: 14 }}>Loading guide...</AppText>
         </View>
       </View>
     );
   }
 
-  // Completion celebration overlay
-  if (showCompletion) {
+  // Completion celebration
+  if (showCompletion && guide) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <HackathonBackground />
-        <View style={styles.completionContainer}>
-          <AppText style={styles.completionEmoji}>🎉</AppText>
-          <AppText variant="bold" style={styles.completionTitle}>
-            Guide Complete!
-          </AppText>
-          <View style={styles.pointsRow}>
-            <AppText variant="bold" style={styles.pointsAwarded}>
-              +{guide?.points_on_completion ?? 5}
-            </AppText>
-            <AppText style={styles.pointsLabel}>points awarded</AppText>
-          </View>
-          <AppText style={styles.completionSubtext}>
-            Your team earned points for completing this guide.
-          </AppText>
-          <Pressable
-            style={styles.doneButton}
-            onPress={() => {
-              router.back();
-              setTimeout(() => router.back(), 100);
-            }}
-          >
-            <LinearGradient
-              colors={[CYAN, BLUE]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.doneButtonGradient}
-            >
-              <AppText variant="bold" style={styles.doneButtonText}>
-                Done
-              </AppText>
-            </LinearGradient>
-          </Pressable>
-        </View>
+        <CompletionCelebration
+          guide={guide}
+          onDone={() => {
+            router.back();
+            setTimeout(() => router.back(), 100);
+          }}
+        />
       </View>
     );
   }
 
-  const promptStyle = getPromptStyle(cardContent.content_type as PromptType);
-  const isFirstPage = currentPage === 0;
-  const isLastPage = currentPage === pages.length - 1;
-  const isFramework = isFirstPage && cardContent.content_type === "text";
+  const isDayView = !!selectedDay && guide?.uses_daily_unlock;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -222,181 +422,71 @@ export default function GuideReaderScreen() {
       {/* Header */}
       <View style={styles.header}>
         <SkiaBackButton onPress={() => router.back()} />
-        <View style={styles.progressContainer}>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-          </View>
-          <AppText style={styles.pageCounter}>
-            {currentPage + 1}/{pages.length}
-          </AppText>
-        </View>
+        <AppText variant="bold" style={styles.headerTitle} numberOfLines={1}>
+          {guide?.title ?? "Mentor Guide"}
+        </AppText>
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Title */}
-      <View style={styles.titleSection}>
-        <AppText variant="bold" style={styles.guideTitle} numberOfLines={2}>
-          {guide?.title}
-        </AppText>
-        {guide?.subtitle && (
-          <AppText style={styles.guideSubtitle}>{guide.subtitle}</AppText>
-        )}
-      </View>
-
-      {/* Content Card */}
-      <Animated.View style={[styles.cardContainer, { opacity: fadeAnim }]}>
-        <LinearGradient
-          colors={["rgba(145,196,227,0.06)", CARD_BG]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.card, promptStyle.containerStyle]}
-        >
-          {isFramework ? (
-            // Framework page - special styling
-            <View style={styles.frameworkContainer}>
-              <AppText style={styles.frameworkTitle}>S.T.I.L.L.</AppText>
-              <View style={styles.frameworkSteps}>
-                {cardContent.content.split("\n").map((line, i) => {
-                  const trimmed = line.trim();
-                  if (!trimmed) return null;
-                  return (
-                    <AppText key={i} style={styles.frameworkLine}>
-                      {trimmed}
-                    </AppText>
-                  );
-                })}
-              </View>
-            </View>
-          ) : promptStyle.label ? (
-            // Prompt or affirmation
-            <View>
-              <View style={styles.promptHeader}>
-                <AppText style={styles.promptIcon}>{promptStyle.icon}</AppText>
-                <AppText variant="bold" style={styles.promptLabel}>
-                  {promptStyle.label}
-                </AppText>
-              </View>
-              {cardContent.title && cardContent.content_type !== "affirmation" && (
-                <AppText variant="bold" style={styles.cardTitle}>
-                  {cardContent.title}
-                </AppText>
-              )}
-              <View style={styles.cardContent}>
-                {cardContent.content.split("\n").map((line, i) => {
-                  const trimmed = line.trim();
-                  if (!trimmed) return <View key={i} style={{ height: 12 }} />;
-                  return (
-                    <AppText
-                      key={i}
-                      style={[
-                        styles.cardText,
-                        cardContent.content_type === "affirmation" &&
-                          styles.affirmationText,
-                      ]}
-                    >
-                      {trimmed}
-                    </AppText>
-                  );
-                })}
-              </View>
-            </View>
-          ) : (
-            // Regular text
-            <View>
-              {cardContent.title && (
-                <AppText variant="bold" style={styles.cardTitle}>
-                  {cardContent.title}
-                </AppText>
-              )}
-              <View style={styles.cardContent}>
-                {cardContent.content.split("\n").map((line, i) => {
-                  const trimmed = line.trim();
-                  if (!trimmed) return <View key={i} style={{ height: 12 }} />;
-                  return (
-                    <AppText key={i} style={styles.cardText}>
-                      {trimmed}
-                    </AppText>
-                  );
-                })}
-              </View>
+      {isDayView && selectedDay && guide ? (
+        <DayDetailView
+          day={selectedDay}
+          guide={guide}
+          onComplete={handleCompleteDay}
+          onBack={() => setSelectedDay(null)}
+        />
+      ) : (
+        <>
+          {/* Guide subtitle */}
+          {guide?.subtitle && (
+            <View style={styles.subtitleRow}>
+              <AppText style={styles.subtitleText}>{guide.subtitle}</AppText>
             </View>
           )}
-        </LinearGradient>
-      </Animated.View>
 
-      {/* Navigation */}
-      <View style={styles.navRow}>
-        <Pressable
-          style={[styles.navButton, currentPage === 0 && styles.navButtonDisabled]}
-          onPress={goPrev}
-          disabled={currentPage === 0}
-        >
-          <AppText
-            style={[
-              styles.navButtonText,
-              currentPage === 0 && styles.navButtonTextDisabled,
-            ]}
-          >
-            ← Back
-          </AppText>
-        </Pressable>
+          {/* Day list */}
+          <View style={styles.dayListContainer}>
+            <AppText variant="bold" style={styles.dayListTitle}>
+              {guide?.uses_daily_unlock
+                ? `${guide.days_completed}/${guide.total_days} Days Completed`
+                : "Guide Content"}
+            </AppText>
 
-        {isLastPage ? (
-          <Pressable
-            style={[styles.completeButton, completing && styles.navButtonDisabled]}
-            onPress={handleComplete}
-            disabled={completing}
-          >
-            <LinearGradient
-              colors={[GREEN, "#22C55E"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.completeButtonGradient}
-            >
-              <AppText variant="bold" style={styles.completeButtonText}>
-                {completing ? "Completing..." : `Complete (+${guide?.points_on_completion ?? 5} pts)`}
-              </AppText>
-            </LinearGradient>
-          </Pressable>
-        ) : (
-          <Pressable style={styles.navButtonNext} onPress={goNext}>
-            <AppText style={styles.navButtonTextNext}>Next →</AppText>
-          </Pressable>
-        )}
-      </View>
-
-      {/* Day indicators for multi-day guides */}
-      {pages.length > 4 && (
-        <View style={styles.dayIndicators}>
-          {(() => {
-            const dayMap = new Map<number, number>();
-            pages.forEach((p, i) => {
-              if (!dayMap.has(p.page_number)) {
-                dayMap.set(p.page_number, i);
-              }
-            });
-            const currentDay = Array.from(dayMap.entries()).find(
-              ([, endIdx]) => endIdx >= currentPage
-            )?.[0] ?? 0;
-
-            return Array.from(dayMap.keys()).map((day) => {
-              const isCurrentDay = day === currentDay;
-              const dayNum = day === 0 ? 0 : day;
-              return (
-                <View
-                  key={day}
-                  style={[
-                    styles.dayDot,
-                    {
-                      backgroundColor: isCurrentDay ? CYAN : "rgba(145,196,227,0.2)",
-                      width: dayNum === 0 ? 16 : 8,
-                    },
-                  ]}
+            {guide?.uses_daily_unlock ? (
+              days.map((day) => (
+                <DayCard
+                  key={day.day_number}
+                  day={day}
+                  onPress={() => {
+                    if (day.is_unlocked) {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedDay(day);
+                    }
+                  }}
+                  isLastCompletedDay={day.is_completed}
                 />
-              );
-            });
-          })()}
-        </View>
+              ))
+            ) : (
+              <Pressable
+                style={styles.startButton}
+                onPress={() => {
+                  router.push(`/(hackathon)/guide/${guideId}?mode=legacy`);
+                }}
+              >
+                <LinearGradient
+                  colors={[CYAN, BLUE]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.startButtonGradient}
+                >
+                  <AppText variant="bold" style={styles.startButtonText}>
+                    Start Guide
+                  </AppText>
+                </LinearGradient>
+              </Pressable>
+            )}
+          </View>
+        </>
       )}
     </View>
   );
@@ -414,182 +504,183 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  progressContainer: {
+  headerTitle: {
+    fontSize: 16,
+    color: WHITE,
     flex: 1,
+    textAlign: "center",
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
   },
-  progressTrack: {
-    width: "100%",
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(145,196,227,0.15)",
-    overflow: "hidden",
+  subtitleRow: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
-  progressFill: {
-    height: "100%",
-    backgroundColor: CYAN,
-    borderRadius: 2,
-  },
-  pageCounter: {
-    fontSize: 11,
+  subtitleText: {
+    fontSize: 14,
     color: WHITE55,
-    fontFamily: "BaiJamjuree_500Medium",
+    lineHeight: 20,
   },
-  titleSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  guideTitle: {
-    fontSize: 22,
-    color: WHITE,
-    lineHeight: 28,
-  },
-  guideSubtitle: {
-    fontSize: 14,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_500Medium",
-    marginTop: 4,
-  },
-  cardContainer: {
+  dayListContainer: {
     flex: 1,
     paddingHorizontal: 20,
-  },
-  card: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-  },
-  loaderText: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  frameworkContainer: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  frameworkTitle: {
-    fontSize: 32,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_700Bold",
-    textAlign: "center",
-    marginBottom: 24,
-    letterSpacing: 8,
-  },
-  frameworkSteps: {
-    gap: 8,
-  },
-  frameworkLine: {
-    fontSize: 16,
-    color: WHITE75,
-    lineHeight: 24,
-    textAlign: "center",
-  },
-  promptHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
-  promptIcon: {
-    fontSize: 20,
-  },
-  promptLabel: {
-    fontSize: 14,
-    color: CYAN,
-    letterSpacing: 1,
-  },
-  cardTitle: {
-    fontSize: 18,
-    color: WHITE,
-    lineHeight: 24,
-    marginBottom: 12,
-  },
-  cardContent: {
-    gap: 4,
-  },
-  cardText: {
-    fontSize: 16,
-    color: WHITE75,
-    lineHeight: 24,
-  },
-  affirmationText: {
-    fontSize: 20,
-    color: GOLD,
-    fontFamily: "BaiJamjuree_700Bold",
-    lineHeight: 30,
-    textAlign: "center",
-    fontStyle: "italic",
-  },
-  navRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
     gap: 12,
   },
-  navButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: "rgba(145,196,227,0.1)",
+  dayListTitle: {
+    fontSize: 16,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+    marginBottom: 4,
+  },
+  dayCard: {
+    borderRadius: 14,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: BORDER,
   },
-  navButtonDisabled: {
-    opacity: 0.3,
+  dayCardGradient: {
+    padding: 14,
+    gap: 6,
+    borderRadius: 14,
   },
-  navButtonText: {
-    fontSize: 14,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_500Medium",
+  dayCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  navButtonTextDisabled: {
-    color: WHITE55,
-  },
-  navButtonNext: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: CYAN20,
+  dayNumberCompleted: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(74,222,128,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: CYAN + "40",
+    borderColor: "rgba(74,222,128,0.3)",
+  },
+  dayNumberActive: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: CYAN20,
     alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
   },
-  navButtonTextNext: {
+  dayNumberLocked: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  dayNumberText: {
     fontSize: 14,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_700Bold",
   },
-  completeButton: {
+  dayTitle: {
+    fontSize: 15,
+    color: WHITE,
     flex: 1,
-    borderRadius: 12,
-    overflow: "hidden",
   },
-  completeButtonGradient: {
-    paddingVertical: 12,
+  dayPreview: {
+    fontSize: 12,
+    color: WHITE55,
+    marginLeft: 40,
+  },
+  // Day detail
+  dayDetailContainer: {
+    flex: 1,
+  },
+  dayDetailHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    borderRadius: 12,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 8,
   },
-  completeButtonText: {
-    fontSize: 14,
-    color: "#03050a",
+  backArrow: {
+    padding: 8,
   },
-  dayIndicators: {
+  dayDetailTitle: {
+    fontSize: 20,
+    color: WHITE,
+  },
+  dayProgressRow: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 6,
-    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
-  dayDot: {
+  dayProgressDot: {
     height: 8,
     borderRadius: 4,
   },
+  contentCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    gap: 8,
+  },
+  contentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  contentIcon: {
+    fontSize: 18,
+  },
+  contentLabel: {
+    fontSize: 13,
+    color: CYAN,
+    letterSpacing: 1,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  contentText: {
+    fontSize: 15,
+    color: WHITE75,
+    lineHeight: 23,
+  },
+  affirmationText: {
+    fontSize: 18,
+    color: GOLD,
+    fontFamily: "BaiJamjuree_700Bold",
+    lineHeight: 28,
+    textAlign: "center",
+  },
+  completeDaySection: {
+    paddingHorizontal: 20,
+    marginTop: 8,
+    gap: 12,
+  },
+  completeHint: {
+    fontSize: 13,
+    color: WHITE55,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  completeDayButton: {
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  completeDayGradient: {
+    paddingVertical: 14,
+    alignItems: "center",
+    borderRadius: 14,
+  },
+  completeDayButtonText: {
+    fontSize: 15,
+    color: "#03050a",
+  },
+  // Completion
   completionContainer: {
     flex: 1,
     justifyContent: "center",
@@ -636,5 +727,20 @@ const styles = StyleSheet.create({
   doneButtonText: {
     fontSize: 16,
     color: "#03050a",
+  },
+  startButton: {
+    borderRadius: 14,
+    overflow: "hidden",
+    marginTop: 12,
+  },
+  startButtonGradient: {
+    paddingVertical: 14,
+    alignItems: "center",
+    borderRadius: 14,
+  },
+  startButtonText: {
+    fontSize: 15,
+    color: "#03050a",
+    fontFamily: "BaiJamjuree_700Bold",
   },
 });
