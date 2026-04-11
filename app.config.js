@@ -1,4 +1,6 @@
-const { withGradleProperties } = require("@expo/config-plugins");
+const fs = require("fs");
+const path = require("path");
+const { withDangerousMod, withGradleProperties } = require("@expo/config-plugins");
 
 const withHighMemoryGradle = (config) => {
   return withGradleProperties(config, (props) => {
@@ -19,6 +21,119 @@ const withHighMemoryGradle = (config) => {
     return props;
   });
 };
+
+const IOS_ENTRY_FILE_EXPORT = 'export ENTRY_FILE=\\"index.js\\"\\n';
+const IOS_BUNDLE_PHASE_NAME = '"Bundle React Native code and images"';
+const IOS_BUNDLE_PHASE_REGEX =
+  /name = "Bundle React Native code and images";[\s\S]*?shellScript = "([\s\S]*?)";/;
+
+const withStableIosBundleEntry = (config) =>
+  withDangerousMod(config, [
+    "ios",
+    async (config) => {
+      const xcodeProjectDir = fs
+        .readdirSync(config.modRequest.platformProjectRoot)
+        .find((entry) => entry.endsWith(".xcodeproj"));
+
+      if (!xcodeProjectDir) {
+        throw new Error("Unable to find the generated iOS Xcode project.");
+      }
+
+      const pbxprojPath = path.join(
+        config.modRequest.platformProjectRoot,
+        xcodeProjectDir,
+        "project.pbxproj",
+      );
+      const source = fs.readFileSync(pbxprojPath, "utf8");
+      const lines = source.split("\n");
+      const phaseNameIndex = lines.findIndex((line) =>
+        line.includes('name = "Bundle React Native code and images";'),
+      );
+
+      if (phaseNameIndex === -1) {
+        throw new Error(
+          `Unable to find ${IOS_BUNDLE_PHASE_NAME} in generated project.pbxproj.`,
+        );
+      }
+
+      let shellScriptStart = -1;
+      let shellScriptEnd = -1;
+      for (let i = phaseNameIndex; i < lines.length; i += 1) {
+        if (lines[i].includes("shellScript = ")) {
+          shellScriptStart = i;
+          break;
+        }
+        if (lines[i].trim() === "};") {
+          break;
+        }
+      }
+
+      if (shellScriptStart === -1) {
+        throw new Error(
+          `Unable to find shellScript for ${IOS_BUNDLE_PHASE_NAME} in generated project.pbxproj.`,
+        );
+      }
+
+      for (let i = shellScriptStart; i < lines.length; i += 1) {
+        if (lines[i].trim().endsWith('";')) {
+          shellScriptEnd = i;
+          break;
+        }
+      }
+
+      if (shellScriptEnd === -1) {
+        throw new Error(
+          `Unable to find the end of shellScript for ${IOS_BUNDLE_PHASE_NAME} in generated project.pbxproj.`,
+        );
+      }
+
+      const shellScriptLines = lines.slice(shellScriptStart, shellScriptEnd + 1);
+      let shellScriptBlock = shellScriptLines.join("\n");
+      shellScriptBlock = shellScriptBlock
+        .replace(/export ENTRY_FILE=\\\\\\"index\.js\\\\\\"\\n/g, "")
+        .replace(/export ENTRY_FILE=\\\\\\"index\.js\\\\\\"\n/g, "")
+        .replace(/export ENTRY_FILE=\\\\"index\.js\\\\"\\n/g, "")
+        .replace(/export ENTRY_FILE=\\\\"index\.js\\\\"\n/g, "")
+        .replace(/\n{3,}/g, "\n\n");
+
+      const anchor =
+        '# The project root by default is one level up from the ios directory\\\\nexport PROJECT_ROOT=\\\\\\"$PROJECT_DIR\\\\\\"/..\\\\n\\\\n';
+
+      if (shellScriptBlock.includes(anchor)) {
+        shellScriptBlock = shellScriptBlock.replace(
+          anchor,
+          `${anchor}${IOS_ENTRY_FILE_EXPORT}`,
+        );
+      } else {
+        shellScriptBlock = shellScriptBlock.replace(
+          /shellScript = "/,
+          `shellScript = "${IOS_ENTRY_FILE_EXPORT}`,
+        );
+      }
+
+      lines.splice(
+        shellScriptStart,
+        shellScriptEnd - shellScriptStart + 1,
+        ...shellScriptBlock.split("\n"),
+      );
+
+      const next = lines.join("\n");
+
+      if (next !== source) {
+        fs.writeFileSync(pbxprojPath, next);
+      }
+      return config;
+    },
+  ]);
+
+const sentryPlugin = [
+  "@sentry/react-native/expo",
+  {
+    url: "https://sentry.io/",
+    project: "ps_app",
+    organization: "big-zk",
+  },
+];
 
 module.exports = {
   expo: {
@@ -73,6 +188,7 @@ module.exports = {
     },
     plugins: [
       withHighMemoryGradle,
+      withStableIosBundleEntry,
       [
         "expo-font",
         {
@@ -106,14 +222,7 @@ module.exports = {
           androidCollapsedTitle: "#{unread} new notifications"
         }
       ],
-      [
-        "@sentry/react-native/expo",
-        {
-          url: "https://sentry.io/",
-          project: "ps_app",
-          organization: "big-zk",
-        },
-      ],
+      ...(process.env.SENTRY_DISABLE_PLUGIN === "1" ? [] : [sentryPlugin]),
     ],
     extra: {
       router: {},
