@@ -142,6 +142,7 @@ export default function LandingPage() {
               text: "Settings",
               onPress: async () => {
                 try {
+                  await new Promise((r) => setTimeout(r, 100));
                   await Linking.openSettings();
                 } catch {
                   Alert.alert("Unable to Open Settings", "Please open your device Settings app manually to manage permissions.");
