@@ -15,6 +15,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { AppText } from "../../../components/AppText";
@@ -586,21 +587,45 @@ function SubmissionCard({
 
 function TeammateSubmissionsList({
   submissions,
+  blurred,
 }: {
   submissions: TeammateSubmissionRecord[];
+  blurred: boolean;
 }) {
   return (
     <View style={styles.pastSubmissionsBlock}>
       <AppText style={styles.assessmentLabel}>ผลงานของเพื่อนร่วมทีม</AppText>
-      {submissions.length === 0 ? (
-        <AppText style={styles.teammateEmptyText}>
-          ยังไม่มีการส่งจากเพื่อนร่วมทีม
-        </AppText>
-      ) : (
-        submissions.map((sub) => (
-          <SubmissionCard key={sub.id} submission={sub} />
-        ))
-      )}
+      <View style={styles.teammateSubmissionsWrap}>
+        {submissions.length === 0 ? (
+          <AppText style={styles.teammateEmptyText}>
+            ยังไม่มีการส่งจากเพื่อนร่วมทีม
+          </AppText>
+        ) : (
+          submissions.map((sub) => (
+            <SubmissionCard key={sub.id} submission={sub} />
+          ))
+        )}
+
+        {blurred ? (
+          <View style={styles.teammateBlurOverlay} pointerEvents="none">
+            <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <LinearGradient
+              colors={["rgba(3,5,10,0.28)", "rgba(3,5,10,0.74)"]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <View style={styles.teammateBlurCopy}>
+              <AppText variant="bold" style={styles.teammateBlurTitle}>
+                ส่งของตัวเองก่อนเพื่อดูรายละเอียด
+              </AppText>
+              <AppText style={styles.teammateBlurBody}>
+                กิจกรรมเดี่ยวจะแสดงผลงานเพื่อนร่วมทีมแบบเบลอก่อน จนกว่าคุณจะส่งคำตอบของตัวเอง
+              </AppText>
+            </View>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -918,7 +943,11 @@ export default function HackathonActivityScreen() {
     pastSubmissions.some((s) => (s as any).assessment_id === a.id)
   ) ?? false;
   const hasAnySubmission = pastSubmissions.length > 0;
-  const showTeammateSubmissions = hasAnySubmission;
+  const isTeamSubmissionActivity =
+    activity?.submission_scope === "team" ||
+    (activity?.assessments ?? []).some((a) => a.metadata?.is_group_submission === true);
+  const showTeammateSubmissions = true;
+  const blurTeammateSubmissions = !isTeamSubmissionActivity && !hasAnySubmission;
 
   async function handleSubmit() {
     if (!activity) return;
@@ -1277,7 +1306,10 @@ export default function HackathonActivityScreen() {
 
         {/* Teammate Submissions */}
         {showTeammateSubmissions ? (
-          <TeammateSubmissionsList submissions={teammateSubmissions} />
+          <TeammateSubmissionsList
+            submissions={teammateSubmissions}
+            blurred={blurTeammateSubmissions}
+          />
         ) : null}
 
         {/* Comments Preview */}
@@ -1447,6 +1479,35 @@ const styles = StyleSheet.create({
   pastSubmissionFile: { fontSize: 13, color: CYAN },
   teammateName: { fontSize: 14, color: WHITE, marginBottom: 2 },
   teammateEmptyText: { fontSize: 13, color: WHITE55, lineHeight: 20 },
+  teammateSubmissionsWrap: {
+    position: "relative",
+    borderRadius: 14,
+    overflow: "hidden",
+    gap: Space.sm,
+    minHeight: 96,
+  },
+  teammateBlurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Space.lg,
+  },
+  teammateBlurCopy: {
+    maxWidth: 320,
+    alignItems: "center",
+    gap: Space.xs,
+  },
+  teammateBlurTitle: {
+    fontSize: 14,
+    color: WHITE,
+    textAlign: "center",
+  },
+  teammateBlurBody: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: WHITE75,
+    textAlign: "center",
+  },
 
   // Assessment
   assessmentBlock: { gap: Space.sm },
