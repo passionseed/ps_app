@@ -950,11 +950,11 @@ export default function HackathonActivityScreen() {
   const blurTeammateSubmissions = !isTeamSubmissionActivity && !hasAnySubmission;
 
   async function handleSubmit() {
+    const createdSubmissionIds: string[] = [];
     if (!activity) return;
     if (activity.assessments.length === 0) { router.back(); return; }
     setSubmitting(true);
     setSubmitError(null);
-    const createdSubmissionIds: string[] = [];
     try {
       // Submit sequentially: text first, then files. If file upload fails,
       // we roll back the text submission to avoid orphan rows.
