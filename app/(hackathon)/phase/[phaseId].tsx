@@ -54,6 +54,9 @@ export default function HackathonPhaseScreen() {
   );
   const [loading, setLoading] = useState(!cachedBundle);
   const [isAdmin, setIsAdmin] = useState(cachedBundle?.isAdmin ?? false);
+  const [teamSubmissionStatuses, setTeamSubmissionStatuses] = useState<Record<string, string>>(
+    cachedBundle?.teamSubmissionStatuses ?? {},
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -63,6 +66,7 @@ export default function HackathonPhaseScreen() {
         setPhase(cached.phase);
         setActivities(cached.activities);
         setIsAdmin(cached.isAdmin ?? false);
+        setTeamSubmissionStatuses(cached.teamSubmissionStatuses ?? {});
         setLoading(false);
       } else {
         setLoading(true);
@@ -75,6 +79,7 @@ export default function HackathonPhaseScreen() {
           setPhase(bundle.phase);
           setActivities(bundle.activities);
           setIsAdmin(bundle.isAdmin);
+          setTeamSubmissionStatuses(bundle.teamSubmissionStatuses ?? {});
         } catch (e) {
           console.error("[PhaseScreen] load error:", e);
         } finally {
@@ -149,8 +154,14 @@ export default function HackathonPhaseScreen() {
         {activities.length > 0 && (
           <View style={styles.activitySection}>
             {activities.map((activity, i) => {
-              const prevSubmissionStatus =
-                i > 0 ? activities[i - 1]?.submissionStatus ?? null : null;
+              const prevActivity = i > 0 ? activities[i - 1] : null;
+              const prevIsTeam = prevActivity?.submission_scope === "team" ||
+                (prevActivity?.assessments ?? []).some((a: any) => a.metadata?.is_group_submission === true);
+              const prevSubmissionStatus: HackathonPhaseActivitySubmissionStatus | null = prevActivity
+                ? (prevIsTeam
+                    ? ((teamSubmissionStatuses[prevActivity.id] as HackathonPhaseActivitySubmissionStatus) ?? null)
+                    : (prevActivity.submissionStatus ?? null))
+                : null;
               const locked = !isHackathonActivityAccessible({
                 phaseStatus: phase.status,
                 activityStatus: activity.status,

@@ -280,6 +280,9 @@ function RootLayout() {
     (async () => {
       try {
         await SplashScreen.hideAsync();
+      } catch (e) {
+        // OPPO/Realme devices may throw SurfaceControl NPE here (Android framework bug)
+        console.warn("[SplashScreen] hideAsync failed (known Android bug):", e);
       } finally {
         timeoutId = setTimeout(() => {
           if (!cancelled) {

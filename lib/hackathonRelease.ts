@@ -14,7 +14,7 @@ type ActivityAccessInput = {
   isAdmin?: boolean;
 };
 
-function isReleased(status: HackathonReleaseStatus | null | undefined) {
+export function isReleased(status: HackathonReleaseStatus | null | undefined) {
   return status === "released";
 }
 

@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "generate:pathlab": "npx tsx scripts/generate-pathlab/index.ts",
     "generate:pathlab:batch": "npx tsx scripts/generate-pathlab/batch.ts",
-    "build:android-local": "GOOGLE_SERVICES_JSON=$(pwd)/google-services.json eas build --local -p android",
+    "build:android-local": "eas build --local -p android --profile preview",
     "build:ios-local": "SENTRY_DISABLE_PLUGIN=1 SENTRY_DISABLE_AUTO_UPLOAD=true SENTRY_ALLOW_FAILURE=true NODE_ENV=production eas build --local -p ios --profile production"
   },
   "dependencies": {

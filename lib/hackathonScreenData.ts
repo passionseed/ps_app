@@ -11,6 +11,7 @@ import {
   fetchActivitySubmissions,
   fetchTeamImpact,
   fetchTeammateActivitySubmissions,
+  fetchTeamActivitySubmissionStatuses,
   type SubmissionRecord,
   type TeamImpact,
   type TeammateSubmissionRecord,
@@ -124,6 +125,7 @@ export type HackathonPhaseBundle = {
   activities: HackathonPhaseActivityWithStatus[];
   participantId: string | null;
   isAdmin: boolean;
+  teamSubmissionStatuses: Record<string, string>;
 };
 
 export type HackathonActivitySibling = {
@@ -269,6 +271,7 @@ async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle>
       activities: [],
       participantId: participant?.id ?? null,
       isAdmin,
+      teamSubmissionStatuses: {},
     };
   }
 
@@ -281,12 +284,15 @@ async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle>
       })),
       participantId: participant?.id ?? null,
       isAdmin,
+      teamSubmissionStatuses: {},
     };
   }
 
-  const statuses = await fetchActivitySubmissionStatuses(
-    (phase.activities ?? []).filter(Boolean).map((activity) => activity.id),
-  );
+  const activityIds = (phase.activities ?? []).filter(Boolean).map((activity) => activity.id);
+  const [statuses, teamStatuses] = await Promise.all([
+    fetchActivitySubmissionStatuses(activityIds),
+    fetchTeamActivitySubmissionStatuses(activityIds),
+  ]);
 
   return {
     phase,
@@ -298,6 +304,7 @@ async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle>
     })),
     participantId: participant.id,
     isAdmin,
+    teamSubmissionStatuses: teamStatuses,
   };
 }
 

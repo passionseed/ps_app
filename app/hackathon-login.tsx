@@ -11,6 +11,7 @@ import {
   Dimensions,
   Keyboard,
   Animated,
+  ScrollView,
 } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -43,6 +44,7 @@ export default function HackathonLoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const logoHeight = new Animated.Value(226);
   const logoOpacity = new Animated.Value(1);
@@ -50,7 +52,8 @@ export default function HackathonLoginScreen() {
   const subtitleHeight = new Animated.Value(1);
 
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardWillShow", () => {
+    const show = Keyboard.addListener("keyboardWillShow", (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
       Animated.parallel([
         Animated.timing(logoHeight, { toValue: 0, duration: 220, useNativeDriver: false }),
         Animated.timing(logoOpacity, { toValue: 0, duration: 180, useNativeDriver: false }),
@@ -59,6 +62,7 @@ export default function HackathonLoginScreen() {
       ]).start();
     });
     const hide = Keyboard.addListener("keyboardWillHide", () => {
+      setKeyboardHeight(0);
       Animated.parallel([
         Animated.timing(logoHeight, { toValue: 226, duration: 220, useNativeDriver: false }),
         Animated.timing(logoOpacity, { toValue: 1, duration: 220, useNativeDriver: false }),
@@ -94,8 +98,16 @@ export default function HackathonLoginScreen() {
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
       >
-        <View style={[styles.content, { paddingTop: insets.top + Space.lg }]}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + Space.lg, paddingBottom: Math.max(Space["3xl"], keyboardHeight - insets.bottom + Space.lg) },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Back */}
           <View style={styles.backRow}>
             <SkiaBackButton
@@ -183,7 +195,7 @@ export default function HackathonLoginScreen() {
             Forgot password?{" "}
             <Text style={styles.footerNoteAccent}>Contact your coordinator.</Text>
           </AppText>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Pressable>
   );
@@ -205,6 +217,11 @@ const styles = StyleSheet.create({
   },
 
   keyboardView: { flex: 1 },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: Space["2xl"],
+    gap: Space.xl,
+  },
   content: {
     flex: 1,
     paddingHorizontal: Space["2xl"],

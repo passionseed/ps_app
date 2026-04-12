@@ -265,6 +265,63 @@ export async function fetchActivitySubmissionStatuses(
   return map;
 }
 
+/**
+ * Returns team-level submission statuses for activities.
+ * If ANY team member has submitted an activity with status "submitted" or "passed",
+ * that activity is marked as "submitted" for the whole team.
+ */
+export async function fetchTeamActivitySubmissionStatuses(
+  activityIds: string[]
+): Promise<Record<string, string>> {
+  if (activityIds.length === 0) return {};
+  const participant = await readHackathonParticipant();
+  if (!participant) return {};
+
+  // Find the participant's team
+  const { data: membership } = await supabase
+    .from("hackathon_team_members")
+    .select("team_id")
+    .eq("participant_id", participant.id)
+    .maybeSingle();
+
+  if (!membership?.team_id) return {};
+
+  // Get all team member IDs
+  const { data: members } = await supabase
+    .from("hackathon_team_members")
+    .select("participant_id")
+    .eq("team_id", membership.team_id);
+
+  const memberIds = (members ?? [])
+    .filter(Boolean)
+    .map((m: any) => m.participant_id)
+    .filter(Boolean);
+
+  if (memberIds.length === 0) return {};
+
+  // Find any submission from any team member for these activities
+  const { data, error } = await supabase
+    .from("hackathon_phase_activity_submissions")
+    .select("activity_id, status")
+    .in("participant_id", memberIds)
+    .in("activity_id", activityIds);
+
+  if (error || !data) return {};
+
+  // For each activity, take the best status across all team members
+  const statusPriority = { passed: 3, submitted: 2, draft: 1 };
+  const map: Record<string, string> = {};
+  for (const s of data) {
+    const current = map[s.activity_id];
+    const currentPriority = statusPriority[current as keyof typeof statusPriority] ?? 0;
+    const newPriority = statusPriority[s.status as keyof typeof statusPriority] ?? 0;
+    if (newPriority > currentPriority) {
+      map[s.activity_id] = s.status;
+    }
+  }
+  return map;
+}
+
 export async function submitFile(
   activityId: string,
   assessmentId: string,
@@ -356,98 +413,52 @@ type RawScoreEvent = {
   created_at: string;
 };
 
-/** Fetches the team's score breakdown by joining submissions + assessments. */
+/** Fetches the team's score breakdown from score events. */
 export async function fetchTeamScoreBreakdown(teamId: string): Promise<ScoreBreakdownItem[]> {
-  // 1. Get team members
-  const { data: members } = await supabase
-    .from("hackathon_team_members")
-    .select("participant_id")
-    .eq("team_id", teamId);
+  // 1. Get score events for this team
+  const { data: events } = await supabase
+    .from("hackathon_team_score_events")
+    .select("id, activity_id, participant_id, scope, points_possible, member_count, points_awarded, created_at")
+    .eq("team_id", teamId)
+    .order("created_at", { ascending: false });
 
-  const memberIds = (members ?? []).filter(Boolean).map((m: any) => m.participant_id).filter(Boolean);
-  if (memberIds.length === 0) return [];
+  if (!events || events.length === 0) return [];
 
-  // 2. Get all submissions by team members
-  const { data: submissions } = await supabase
-    .from("hackathon_phase_activity_submissions")
-    .select("id, activity_id, assessment_id, participant_id, submitted_at, status")
-    .in("participant_id", memberIds)
-    .eq("status", "submitted")
-    .order("submitted_at", { ascending: false });
+  const activityIds = [...new Set(events.map((e: any) => e.activity_id).filter(Boolean))];
+  const participantIds = [...new Set(events.map((e: any) => e.participant_id).filter(Boolean))];
 
-  if (!submissions || submissions.length === 0) return [];
-
-  // 3. Deduplicate: only count the latest submission per assessment per participant
-  const latestByAssessment = new Map<string, any>();
-  for (const sub of submissions) {
-    if (!sub?.assessment_id) continue;
-    const key = `${sub.participant_id}:${sub.assessment_id}`;
-    if (!latestByAssessment.has(key)) {
-      latestByAssessment.set(key, sub);
-    }
-  }
-  const uniqueSubmissions = Array.from(latestByAssessment.values());
-
-  const assessmentIds = [...new Set(uniqueSubmissions.map((s: any) => s.assessment_id).filter(Boolean))];
-  const activityIds = [...new Set(uniqueSubmissions.map((s: any) => s.activity_id).filter(Boolean))];
-  const participantIds = [...new Set(uniqueSubmissions.map((s: any) => s.participant_id).filter(Boolean))];
-
-  // 4. Fetch assessments, activities, participants in parallel
-  const [assessmentsResult, activitiesResult, participantsResult] = await Promise.all([
-    supabase.from("hackathon_phase_activity_assessments").select("id, points_possible, metadata").in("id", assessmentIds),
-    supabase.from("hackathon_phase_activities").select("id, title, submission_scope").in("id", activityIds),
-    supabase.from("hackathon_participants").select("id, name").in("id", participantIds),
+  // 2. Fetch activities and participants in parallel
+  const [activitiesResult, participantsResult] = await Promise.all([
+    activityIds.length > 0
+      ? supabase.from("hackathon_phase_activities").select("id, title").in("id", activityIds)
+      : { data: [] },
+    participantIds.length > 0
+      ? supabase.from("hackathon_participants").select("id, name").in("id", participantIds)
+      : { data: [] },
   ]);
 
-  const assessmentMap = new Map((assessmentsResult.data ?? []).map((a: any) => [a.id, a]));
   const activityMap = new Map((activitiesResult.data ?? []).map((a: any) => [a.id, a]));
   const participantMap = new Map((participantsResult.data ?? []).map((p: any) => [p.id, p.name]));
 
-  // 5. Calculate points for each submission
+  // 3. Build breakdown items
   const breakdown: ScoreBreakdownItem[] = [];
 
-  for (const sub of uniqueSubmissions) {
-    const assessment = assessmentMap.get(sub.assessment_id);
-    const activity = activityMap.get(sub.activity_id);
-    if (!assessment || !activity) continue;
-
-    const pointsPossible = assessment.points_possible ?? 0;
-    if (pointsPossible <= 0) continue;
-
-    // Determine scope: assessment metadata takes priority
-    const isGroupSubmission = (assessment.metadata as any)?.is_group_submission === true;
-    const scope = isGroupSubmission ? "team" : (activity.submission_scope ?? "individual");
-
-    let pointsAwarded: number;
-    if (scope === "individual") {
-      pointsAwarded = Math.floor(pointsPossible / memberIds.length);
-    } else {
-      pointsAwarded = pointsPossible;
-    }
-
-    // For team scope, only count once per assessment (use first participant)
-    if (scope === "team") {
-      const existingTeamEntry = breakdown.find(
-        (b) => b.activity_id === sub.activity_id
-      );
-      if (existingTeamEntry) continue;
-    }
+  for (const event of events as RawScoreEvent[]) {
+    const activity = event.activity_id ? activityMap.get(event.activity_id) : null;
 
     breakdown.push({
-      id: sub.id,
-      activity_id: sub.activity_id,
-      activity_title: activity.title ?? "Unknown",
-      scope,
-      points_possible: pointsPossible,
-      member_count: memberIds.length,
-      points_awarded: pointsAwarded,
-      created_at: sub.submitted_at,
-      participant_name: participantMap.get(sub.participant_id),
+      id: event.id,
+      activity_id: event.activity_id ?? "",
+      activity_title: activity?.title ?? "Mentor Guide Read",
+      scope: event.scope,
+      points_possible: event.points_possible,
+      member_count: event.member_count,
+      points_awarded: event.points_awarded,
+      created_at: event.created_at,
+      participant_name: event.participant_id ? participantMap.get(event.participant_id) : undefined,
     });
   }
 
-  // Sort by date descending
-  breakdown.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   return breakdown;
 }
 

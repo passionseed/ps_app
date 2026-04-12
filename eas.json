@@ -29,6 +29,7 @@
       "android": {
         "buildType": "apk"
       },
+      "environment": "preview",
       "env": {
         "APP_NAME_SUFFIX": " (Preview)",
         "EXPO_PUBLIC_SUPABASE_URL": "[REDACTED_SUPABASE_URL]/",

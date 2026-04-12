@@ -925,10 +925,10 @@ export default function HackathonActivityScreen() {
     if (activity.assessments.length === 0) { router.back(); return; }
     setSubmitting(true);
     setSubmitError(null);
+    const createdSubmissionIds: string[] = [];
     try {
       // Submit sequentially: text first, then files. If file upload fails,
       // we roll back the text submission to avoid orphan rows.
-      const createdSubmissionIds: string[] = [];
 
       for (const a of activity.assessments) {
         if (a.assessment_type === "text_answer") {
