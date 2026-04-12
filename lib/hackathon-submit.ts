@@ -74,6 +74,25 @@ async function awardScore(
 
   if (pointsAwarded <= 0) return;
 
+  if (scope === "team") {
+    const { data: existingTeamEvent, error: existingTeamEventError } = await supabase
+      .from("hackathon_team_score_events")
+      .select("id")
+      .eq("team_id", membership.team_id)
+      .eq("activity_id", activityId)
+      .eq("scope", "team")
+      .maybeSingle();
+
+    if (existingTeamEventError) {
+      console.warn("[score] team event lookup failed", existingTeamEventError.message);
+      return;
+    }
+
+    if (existingTeamEvent?.id) {
+      return;
+    }
+  }
+
   // 4. Log the score event (idempotent via UNIQUE on submission_id)
   const { error: eventError } = await supabase
     .from("hackathon_team_score_events")
@@ -89,7 +108,7 @@ async function awardScore(
     });
 
   if (eventError) {
-    // Duplicate submission — score already awarded, skip
+    // Duplicate submission or previously-scored team activity — skip
     if (eventError.code === "23505") return;
     console.warn("[score] event insert failed", eventError.message);
     return;
@@ -268,7 +287,7 @@ export async function fetchActivitySubmissionStatuses(
 /**
  * Returns team-level submission statuses for activities.
  * If ANY team member has submitted an activity with status "submitted" or "passed",
- * that activity is marked as "submitted" for the whole team.
+ * that activity is marked as "passed" for the whole team.
  */
 export async function fetchTeamActivitySubmissionStatuses(
   activityIds: string[]
@@ -308,15 +327,17 @@ export async function fetchTeamActivitySubmissionStatuses(
 
   if (error || !data) return {};
 
-  // For each activity, take the best status across all team members
+  // For team work, one valid submission clears the gate for everyone.
   const statusPriority = { passed: 3, submitted: 2, draft: 1 };
   const map: Record<string, string> = {};
   for (const s of data) {
+    const normalizedStatus =
+      s.status === "passed" || s.status === "submitted" ? "passed" : s.status;
     const current = map[s.activity_id];
     const currentPriority = statusPriority[current as keyof typeof statusPriority] ?? 0;
-    const newPriority = statusPriority[s.status as keyof typeof statusPriority] ?? 0;
+    const newPriority = statusPriority[normalizedStatus as keyof typeof statusPriority] ?? 0;
     if (newPriority > currentPriority) {
-      map[s.activity_id] = s.status;
+      map[s.activity_id] = normalizedStatus;
     }
   }
   return map;
