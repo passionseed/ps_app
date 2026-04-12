@@ -1,22 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const supabaseState = vi.hoisted(() => {
-  const maybeSingle = vi.fn();
-  const memberRows = vi.fn();
-  const orderedSubmissions = vi.fn();
-  const participantRows = vi.fn();
-
-  const from = vi.fn((table: string) => {
+const supabaseState = {
+  maybeSingle: vi.fn(),
+  memberRows: vi.fn(),
+  orderedSubmissions: vi.fn(),
+  participantRows: vi.fn(),
+  from: vi.fn((table: string) => {
     if (table === "hackathon_team_members") {
       return {
         select: vi.fn(() => ({
           eq: vi.fn((column: string, value: string) => {
             if (column === "participant_id") {
-              return { maybeSingle };
+              return { maybeSingle: supabaseState.maybeSingle };
             }
 
             if (column === "team_id") {
-              return memberRows();
+              return supabaseState.memberRows();
             }
 
             throw new Error(`Unexpected eq on hackathon_team_members: ${column}=${value}`);
@@ -30,7 +29,7 @@ const supabaseState = vi.hoisted(() => {
         select: vi.fn(() => ({
           in: vi.fn(() => ({
             eq: vi.fn(() => ({
-              order: orderedSubmissions,
+              order: supabaseState.orderedSubmissions,
             })),
           })),
         })),
@@ -40,29 +39,21 @@ const supabaseState = vi.hoisted(() => {
     if (table === "hackathon_participants") {
       return {
         select: vi.fn(() => ({
-          in: vi.fn(() => participantRows()),
+          in: vi.fn(() => supabaseState.participantRows()),
         })),
       };
     }
 
     throw new Error(`Unexpected table in test: ${table}`);
-  });
-
-  return {
-    from,
-    maybeSingle,
-    memberRows,
-    orderedSubmissions,
-    participantRows,
-    reset() {
-      from.mockClear();
-      maybeSingle.mockReset();
-      memberRows.mockReset();
-      orderedSubmissions.mockReset();
-      participantRows.mockReset();
-    },
-  };
-});
+  }),
+  reset() {
+    supabaseState.from.mockClear();
+    supabaseState.maybeSingle.mockReset();
+    supabaseState.memberRows.mockReset();
+    supabaseState.orderedSubmissions.mockReset();
+    supabaseState.participantRows.mockReset();
+  },
+};
 
 const readHackathonParticipant = vi.fn();
 
