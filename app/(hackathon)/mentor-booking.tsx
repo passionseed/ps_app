@@ -735,9 +735,12 @@ export default function MentorBookingScreen() {
 
   function handleCancel() {
     if (!quota?.booking) return;
+    const mentorAccepted = quota.booking.status === "confirmed";
     Alert.alert(
       "ยืนยันการยกเลิก",
-      "สิทธิ์การจอง 1 ครั้งจะหมดไป ไม่สามารถจองใหม่ได้",
+      mentorAccepted
+        ? "Mentor ยืนยันการนัดแล้ว หากยกเลิกตอนนี้ สิทธิ์การจอง 1 ครั้งจะหมดไป ไม่สามารถจองใหม่ได้"
+        : "Mentor ยังไม่ได้รับนัด หากยกเลิกตอนนี้ สิทธิ์การจองจะได้รับคืน",
       [
         { text: "ไม่ใช่", style: "cancel" },
         { text: "ยืนยันยกเลิก", style: "destructive", onPress: () => { void doCancel(); } },
