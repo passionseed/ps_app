@@ -173,12 +173,16 @@ export default function HackathonPhaseScreen() {
                   `[PhaseScreen] Activity ${i + 1} "${activity.title}" is locked`,
                 );
               }
+              const isTeamActivity = activity.submission_scope === "team" ||
+                (activity.assessments ?? []).some((a: any) => a.metadata?.is_group_submission === true);
+              const teamStatus = isTeamActivity ? (teamSubmissionStatuses[activity.id] ?? null) : null;
               return (
               <ActivityCard
                   key={activity.id}
                   activity={activity}
                   index={i}
                   locked={locked}
+                  teamSubmissionStatus={teamStatus as any}
                 />
               );
             })}
@@ -193,17 +197,20 @@ function ActivityCard({
   activity,
   index,
   locked,
+  teamSubmissionStatus,
 }: {
   activity: HackathonPhaseActivityWithStatus;
   index: number;
   locked: boolean;
+  teamSubmissionStatus?: string | null;
 }) {
-  const displayStatus: ActivityDisplayStatus = locked ? "locked" : activity.submissionStatus;
-  const isCompleted = activity.submissionStatus === "passed" || activity.submissionStatus === "submitted";
-  const isDraft = activity.submissionStatus === "draft";
-  const isRevision = activity.submissionStatus === "revision_required";
   const isTeam = activity.submission_scope === "team" ||
     (activity.assessments ?? []).some((a: any) => a.metadata?.is_group_submission === true);
+  const effectiveStatus = isTeam && teamSubmissionStatus ? teamSubmissionStatus : activity.submissionStatus;
+  const displayStatus: ActivityDisplayStatus = locked ? "locked" : effectiveStatus as ActivityDisplayStatus;
+  const isCompleted = effectiveStatus === "passed" || effectiveStatus === "submitted";
+  const isDraft = effectiveStatus === "draft";
+  const isRevision = effectiveStatus === "revision_required";
 
   return (
     <Pressable
