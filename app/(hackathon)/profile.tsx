@@ -24,6 +24,10 @@ import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
 import { supabase } from "../../lib/supabase";
 import { getInitialEmoji, getNextEmoji } from "../../lib/hackathon-emoji";
 import {
+  uploadAssetToSupabase,
+  formatUploadError,
+} from "../../lib/storageUpload";
+import {
   readCachedHackathonProfile,
   writeCachedHackathonProfile,
   getHackathonProfileCacheStatus,
@@ -384,38 +388,28 @@ export default function HackathonProfileScreen() {
 
       setUploadingAvatar(true);
 
-      const uri = asset.uri;
       const fileExt =
         asset.mimeType?.split("/").pop()?.split("+")[0] ||
-        uri.split(".").pop()?.split("?")[0] ||
+        asset.uri.split(".").pop()?.split("?")[0] ||
         "jpg";
       const fileName = `avatar.${fileExt}`;
-      const filePath = `${team.id}/${fileName}`;
-      const contentType = asset.mimeType || `image/${fileExt}`;
 
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Upload to Supabase storage
-      const { error: uploadError } = await supabase.storage
-        .from("hackathon-team-avatars")
-        .upload(filePath, arrayBuffer, {
-          contentType,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        console.error("[Profile] avatar upload failed", uploadError);
-        Alert.alert("Error", "Failed to upload avatar.");
+      // Use shared Android-safe upload helper
+      let uploadResult;
+      try {
+        uploadResult = await uploadAssetToSupabase(
+          { uri: asset.uri, fileName, mimeType: asset.mimeType },
+          "hackathon-team-avatars",
+          () => `${team.id}/${fileName}`
+        );
+      } catch (e: unknown) {
+        const message = formatUploadError(e);
+        console.error("[Profile] avatar upload failed", e);
+        Alert.alert("Error", message);
         return;
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("hackathon-team-avatars")
-        .getPublicUrl(filePath);
-
-      const avatarUrl = urlData.publicUrl;
+      const avatarUrl = uploadResult.url;
 
       // Update team record
       const { error: updateError } = await supabase

@@ -351,7 +351,7 @@ function ImageUploadBlock({
     return (
       <View style={styles.uploadBlock}>
         <View style={styles.imagePreviewWrap}>
-          <Image source={{ uri: submittedImageUrl }} style={styles.imagePreview} resizeMode="cover" />
+          <Image source={{ uri: submittedImageUrl }} style={styles.imagePreview} resizeMode="contain" />
           <View style={styles.uploadBadge}>
             <AppText style={styles.uploadBadgeText}>✓</AppText>
           </View>
@@ -367,7 +367,7 @@ function ImageUploadBlock({
     <View style={styles.uploadBlock}>
       {pickedFile ? (
         <View style={styles.imagePreviewWrap}>
-          <Image source={{ uri: pickedFile.uri }} style={styles.imagePreview} resizeMode="cover" />
+          <Image source={{ uri: pickedFile.uri }} style={styles.imagePreview} resizeMode="contain" />
           <Pressable style={styles.changeBtn} onPress={onClear}>
             <AppText style={styles.changeBtnText}>เปลี่ยนรูปภาพ</AppText>
           </Pressable>
@@ -1544,8 +1544,8 @@ const styles = StyleSheet.create({
   },
   uploadEmptyIcon: { fontSize: 32 },
   uploadEmptyLabel: { fontSize: 14, color: WHITE55 },
-  imagePreviewWrap: { borderRadius: 16, overflow: "hidden" },
-  imagePreview: { width: "100%", height: 220, borderRadius: 16 },
+  imagePreviewWrap: { borderRadius: 16, overflow: "hidden", backgroundColor: CARD_BG },
+  imagePreview: { width: "100%", height: 280, borderRadius: 16, backgroundColor: CARD_BG },
   uploadOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.5)",

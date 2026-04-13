@@ -1,7 +1,11 @@
-import * as FileSystem from "expo-file-system/legacy";
 import { readHackathonParticipant } from "./hackathon-mode";
 import { computeTeamRank } from "./hackathonRanking";
 import { supabase } from "./supabase";
+import {
+  uploadAssetToSupabase,
+  formatUploadError,
+  isRetryableUploadError,
+} from "./storageUpload";
 
 export type SubmitResult = {
   submissionId: string;
@@ -353,28 +357,22 @@ export async function submitFile(
   const participant = await readHackathonParticipant();
   if (!participant) throw new Error("Not logged in");
 
-  const ext = fileName.split('.').pop() ?? "bin";
-  const path = `${participant.id}/${activityId}/${Date.now()}.${ext}`;
+  const ext = fileName.split(".").pop() ?? "bin";
 
-  // Use expo-file-system to read local files — works on both iOS and Android.
-  // fetch(fileUri) fails on Android for local file:// URIs.
-  const base64 = await FileSystem.readAsStringAsync(fileUri, {
-    encoding: "base64",
-  });
-  const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  // Use shared Android-safe upload helper
+  let uploadResult;
+  try {
+    uploadResult = await uploadAssetToSupabase(
+      { uri: fileUri, fileName, mimeType },
+      "hackathon_submissions",
+      () => `${participant.id}/${activityId}/${Date.now()}.${ext}`
+    );
+  } catch (e: unknown) {
+    throw new Error(formatUploadError(e));
+  }
 
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from("hackathon_submissions")
-    .upload(path, binary, { contentType: mimeType });
-
-  if (uploadError) throw new Error(uploadError.message);
-
-  const { data: publicUrlData } = supabase.storage
-    .from("hackathon_submissions")
-    .getPublicUrl(path);
-    
-  const fileUrl = publicUrlData.publicUrl;
-  const isImage = mimeType.startsWith("image/");
+  const fileUrl = uploadResult.url;
+  const isImage = uploadResult.mimeType.startsWith("image/");
 
   // Delete previous submission for this assessment before inserting new one
   await supabase
