@@ -6,6 +6,7 @@ import {
   Platform,
   Alert,
   Linking,
+  InteractionManager,
   Animated as RNAnimated,
   Dimensions,
   Pressable,
@@ -33,6 +34,21 @@ import {
 } from "../lib/theme";
 
 const { width, height } = Dimensions.get("window");
+
+const waitForAlertDismissal = async () => {
+  if (Platform.OS !== "ios") return;
+
+  await new Promise<void>((resolve) => {
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(resolve, 250);
+    });
+  });
+};
+
+const openSystemSettings = async () => {
+  await waitForAlertDismissal();
+  await Linking.openSettings();
+};
 
 const COPY = {
   th: {
@@ -142,8 +158,7 @@ export default function LandingPage() {
               text: "Settings",
               onPress: async () => {
                 try {
-                  await new Promise((r) => setTimeout(r, 100));
-                  await Linking.openSettings();
+                  await openSystemSettings();
                 } catch {
                   Alert.alert("Unable to Open Settings", "Please open your device Settings app manually to manage permissions.");
                 }

@@ -39,7 +39,7 @@ import * as WebBrowser from "expo-web-browser";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { setUserLanguage, user, appLanguage } = useAuth();
+  const { setUserLanguage, user, appLanguage, signOut, isHackathon, signOutHackathon } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -48,6 +48,8 @@ export default function SettingsScreen() {
   const copy = {
     back: isThai ? "กลับ" : "Back",
     settings: isThai ? "ตั้งค่า" : "Settings",
+    logout: isThai ? "ออกจากระบบ" : "Log Out",
+    logoutConfirm: isThai ? "คุณต้องการออกจากระบบหรือไม่?" : "Are you sure you want to log out?",
     language: isThai ? "ภาษา" : "Language",
     notifications: isThai ? "การแจ้งเตือน" : "Notifications",
     push: isThai ? "การแจ้งเตือนแบบพุช" : "Push Notifications",
@@ -324,6 +326,38 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
             </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Account</Text>
+              <View style={styles.card}>
+                <Pressable
+                  style={styles.logoutRow}
+                  onPress={() => {
+                    Alert.alert(
+                      copy.logout,
+                      copy.logoutConfirm,
+                      [
+                        { text: isThai ? "ยกเลิก" : "Cancel", style: "cancel" },
+                        {
+                          text: copy.logout,
+                          style: "destructive",
+                          onPress: async () => {
+                            if (isHackathon) {
+                              await signOutHackathon();
+                            } else {
+                              await signOut();
+                            }
+                            router.replace("/");
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={styles.logoutText}>{copy.logout}</Text>
+                </Pressable>
+              </View>
+            </View>
           </>
         )}
       </ScrollView>
@@ -489,5 +523,15 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(0, 0, 0, 0.05)",
     marginHorizontal: Space.xl,
+  },
+  logoutRow: {
+    paddingHorizontal: Space.xl,
+    paddingVertical: Space.lg,
+    alignItems: "center",
+  },
+  logoutText: {
+    fontSize: 15,
+    color: "#EF4444",
+    fontWeight: "600",
   },
 });

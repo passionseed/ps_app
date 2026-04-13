@@ -6,15 +6,16 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
+  Alert,
 } from "react-native";
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { AppText as Text } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
-import { getPlans, getPlanCount, MAX_PLANS_PER_USER } from "../../lib/admissionPlans";
+import { getPlans, MAX_PLANS_PER_USER } from "../../lib/admissionPlans";
 import type { AdmissionPlan } from "../../lib/admissionPlans";
 import {
   PageBg,
@@ -22,9 +23,7 @@ import {
   Border,
   Shadow,
   Radius,
-  Accent,
   Space,
-  Type,
   Gradient,
 } from "../../lib/theme";
 
@@ -42,11 +41,14 @@ export default function PlansListScreen() {
       const data = await getPlans();
       setPlans(data);
     } catch (error) {
-      console.error("Failed to load plans:", error);
+      Alert.alert(
+        isThai ? "เกิดข้อผิดพลาด" : "Error",
+        isThai ? "ไม่สามารถโหลดแผนได้" : "Failed to load plans"
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isThai]);
 
   useFocusEffect(
     useCallback(() => {
@@ -64,7 +66,6 @@ export default function PlansListScreen() {
         empty: "ยังไม่มีแผนสมัคร",
         emptySubtext: "สร้างแผนสมัครเพื่อวางแผนการสมัคร TCAS",
         programs: "สาขา",
-        rounds: "รอบ",
       }
     : {
         title: "Admission Plans",
@@ -73,7 +74,6 @@ export default function PlansListScreen() {
         empty: "No admission plans yet",
         emptySubtext: "Create a plan to organize your TCAS applications",
         programs: "programs",
-        rounds: "rounds",
       };
 
   if (loading) {
@@ -125,9 +125,7 @@ export default function PlansListScreen() {
             renderItem={({ item }) => (
               <PlanCard
                 plan={item}
-                isThai={isThai}
                 programsLabel={copy.programs}
-                roundsLabel={copy.rounds}
                 onPress={() => router.push(`/plans/${item.id}`)}
               />
             )}
@@ -162,15 +160,11 @@ export default function PlansListScreen() {
 
 function PlanCard({
   plan,
-  isThai,
   programsLabel,
-  roundsLabel,
   onPress,
 }: {
   plan: AdmissionPlan;
-  isThai: boolean;
   programsLabel: string;
-  roundsLabel: string;
   onPress: () => void;
 }) {
   return (
@@ -181,7 +175,7 @@ function PlanCard({
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle}>{plan.name}</Text>
         <Text style={styles.cardMeta}>
-          {plan.rounds?.length ?? 0} {roundsLabel}
+          {plan.rounds?.length ?? 0} {programsLabel}
         </Text>
       </View>
       <Text style={styles.cardArrow}>→</Text>

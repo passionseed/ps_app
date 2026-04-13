@@ -7,18 +7,21 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  TextInput,
 } from "react-native";
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { useLocalSearchParams, router } from "expo-router";
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { AppText as Text } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
 import {
   getPlanById,
   deletePlan,
   removeProgramFromRound,
+  reorderProgramsInRound,
+  updatePlanName,
 } from "../../lib/admissionPlans";
 import type { AdmissionPlan } from "../../lib/admissionPlans";
 import {
@@ -30,7 +33,6 @@ import {
   Accent,
   Space,
   Type,
-  Gradient,
 } from "../../lib/theme";
 
 const ROUND_NAMES: Record<number, string> = {
@@ -45,6 +47,8 @@ export default function PlanDetailScreen() {
   const { planId } = useLocalSearchParams<{ planId: string }>();
   const [plan, setPlan] = useState<AdmissionPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
 
   const { appLanguage } = useAuth();
   const insets = useSafeAreaInsets();
@@ -57,15 +61,20 @@ export default function PlanDetailScreen() {
       const data = await getPlanById(planId);
       setPlan(data);
     } catch (error) {
-      console.error("Failed to load plan:", error);
+      Alert.alert(
+        isThai ? "เกิดข้อผิดพลาด" : "Error",
+        isThai ? "ไม่สามารถโหลดแผนได้" : "Failed to load plan"
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadPlan();
-  }, [planId]);
+  useFocusEffect(
+    useCallback(() => {
+      loadPlan();
+    }, [planId])
+  );
 
   const handleDelete = () => {
     if (!plan) return;
@@ -85,7 +94,10 @@ export default function PlanDetailScreen() {
               await deletePlan(plan.id);
               router.back();
             } catch (error) {
-              console.error("Failed to delete plan:", error);
+              Alert.alert(
+                isThai ? "เกิดข้อผิดพลาด" : "Error",
+                isThai ? "ไม่สามารถลบแผนได้" : "Failed to delete plan"
+              );
             }
           },
         },
@@ -97,9 +109,75 @@ export default function PlanDetailScreen() {
     if (!plan) return;
     try {
       await removeProgramFromRound(plan.id, roundNumber, programId);
-      loadPlan(); // Refresh
+      loadPlan();
     } catch (error) {
-      console.error("Failed to remove program:", error);
+      Alert.alert(
+        isThai ? "เกิดข้อผิดพลาด" : "Error",
+        isThai ? "ไม่สามารถลบสาขาได้" : "Failed to remove program"
+      );
+    }
+  };
+
+  const handleMoveProgram = async (roundNumber: number, fromIndex: number, toIndex: number) => {
+    if (!plan) return;
+    const roundPrograms = plan.rounds?.filter((r) => r.round_number === roundNumber) || [];
+    if (fromIndex < 0 || fromIndex >= roundPrograms.length) return;
+    if (toIndex < 0 || toIndex >= roundPrograms.length) return;
+
+    const newOrder = [...roundPrograms];
+    const [moved] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, moved);
+
+    try {
+      await reorderProgramsInRound(
+        plan.id,
+        roundNumber,
+        newOrder.map((rp) => rp.program_id)
+      );
+      loadPlan();
+    } catch (error) {
+      Alert.alert(
+        isThai ? "เกิดข้อผิดพลาด" : "Error",
+        isThai ? "ไม่สามารถจัดลำดับใหม่ได้" : "Failed to reorder programs"
+      );
+    }
+  };
+
+  const handleUpdateName = async () => {
+    if (!plan) return;
+    const trimmed = editedName.trim();
+    if (!trimmed) {
+      Alert.alert(
+        isThai ? "ชื่อว่างเปล่า" : "Empty Name",
+        isThai ? "กรุณาใส่ชื่อแผน" : "Please enter a plan name",
+        [
+          { text: isThai ? "ยกเลิก" : "Cancel", style: "cancel", onPress: handleCancelEditName },
+          { text: isThai ? "ตกลง" : "OK" }
+        ]
+      );
+      return;
+    }
+    try {
+      await updatePlanName(plan.id, trimmed);
+      setIsEditingName(false);
+      loadPlan();
+    } catch (error) {
+      Alert.alert(
+        isThai ? "เกิดข้อผิดพลาด" : "Error",
+        isThai ? "ไม่สามารถอัปเดตชื่อได้" : "Failed to update name"
+      );
+    }
+  };
+
+  const handleCancelEditName = () => {
+    setIsEditingName(false);
+    if (plan) setEditedName(plan.name);
+  };
+
+  const startEditingName = () => {
+    if (plan) {
+      setEditedName(plan.name);
+      setIsEditingName(true);
     }
   };
 
@@ -151,9 +229,30 @@ export default function PlanDetailScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>{plan.name}</Text>
+          {isEditingName ? (
+            <View style={styles.nameEditContainer}>
+              <TextInput
+                style={[styles.nameInput, isThai && { fontFamily: "BaiJamjuree_400Regular", paddingTop: 4 }]}
+                value={editedName}
+                onChangeText={setEditedName}
+                autoFocus
+                onSubmitEditing={handleUpdateName}
+              />
+              <Pressable style={styles.cancelNameButton} onPress={handleCancelEditName}>
+                <Text style={styles.cancelNameButtonText}>✕</Text>
+              </Pressable>
+              <Pressable style={styles.saveNameButton} onPress={handleUpdateName}>
+                <Text style={styles.saveNameButtonText}>✓</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable onPress={startEditingName}>
+              <Text style={styles.title}>{plan.name}</Text>
+            </Pressable>
+          )}
           <Text style={styles.subtitle}>
             {plan.rounds?.length ?? 0} {isThai ? "สาขา" : "programs"}
+            {!isEditingName && <Text style={styles.editHint}> {isThai ? "(แตะเพื่อแก้ไข)" : "(tap to edit)"}</Text>}
           </Text>
         </View>
 
@@ -191,6 +290,9 @@ export default function PlanDetailScreen() {
                       ? program.program_name
                       : (program.program_name_en ?? program.program_name);
 
+                    const canMoveUp = index > 0;
+                    const canMoveDown = index < roundPrograms.length - 1;
+
                     return (
                       <View key={rp.id} style={styles.programCard}>
                         <View style={styles.programContent}>
@@ -206,12 +308,32 @@ export default function PlanDetailScreen() {
                             )}
                           </View>
                         </View>
-                        <Pressable
-                          style={styles.removeButton}
-                          onPress={() => handleRemoveProgram(roundNum, rp.program_id)}
-                        >
-                          <Text style={styles.removeButtonText}>×</Text>
-                        </Pressable>
+                        <View style={styles.programActions}>
+                          {roundPrograms.length > 1 && (
+                            <View style={styles.reorderButtons}>
+                              <Pressable
+                                style={[styles.reorderButton, !canMoveUp && styles.reorderButtonDisabled]}
+                                onPress={() => canMoveUp && handleMoveProgram(roundNum, index, index - 1)}
+                                disabled={!canMoveUp}
+                              >
+                                <Text style={[styles.reorderButtonText, !canMoveUp && styles.reorderButtonTextDisabled]}>↑</Text>
+                              </Pressable>
+                              <Pressable
+                                style={[styles.reorderButton, !canMoveDown && styles.reorderButtonDisabled]}
+                                onPress={() => canMoveDown && handleMoveProgram(roundNum, index, index + 1)}
+                                disabled={!canMoveDown}
+                              >
+                                <Text style={[styles.reorderButtonText, !canMoveDown && styles.reorderButtonTextDisabled]}>↓</Text>
+                              </Pressable>
+                            </View>
+                          )}
+                          <Pressable
+                            style={styles.removeButton}
+                            onPress={() => handleRemoveProgram(roundNum, rp.program_id)}
+                          >
+                            <Text style={styles.removeButtonText}>×</Text>
+                          </Pressable>
+                        </View>
                       </View>
                     );
                   })}
@@ -268,6 +390,54 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: ThemeText.primary,
+  },
+  nameEditContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  nameInput: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: "700",
+    color: ThemeText.primary,
+    fontFamily: "LibreFranklin_400Regular",
+    padding: Space.sm,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Accent.yellow,
+  },
+  saveNameButton: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    backgroundColor: Accent.yellow,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  saveNameButtonText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111",
+  },
+  cancelNameButton: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    backgroundColor: "#E5E7EB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelNameButtonText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  editHint: {
+    fontSize: 12,
+    color: ThemeText.tertiary,
+    fontWeight: "400",
   },
   subtitle: {
     fontSize: 14,
@@ -366,6 +536,35 @@ const styles = StyleSheet.create({
   removeButtonText: {
     fontSize: 18,
     color: "#DC2626",
+  },
+  programActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  reorderButtons: {
+    flexDirection: "row",
+    gap: Space.xs,
+  },
+  reorderButton: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.full,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  reorderButtonDisabled: {
+    backgroundColor: "#E5E7EB",
+    opacity: 0.5,
+  },
+  reorderButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: ThemeText.secondary,
+  },
+  reorderButtonTextDisabled: {
+    color: ThemeText.tertiary,
   },
   deleteButton: {
     backgroundColor: "#FEE2E2",

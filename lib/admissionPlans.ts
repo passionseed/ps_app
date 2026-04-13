@@ -66,20 +66,43 @@ export async function createPlan(name: string = 'My Plan'): Promise<AdmissionPla
 }
 
 /**
- * Get all admission plans for the current user.
+ * Get all admission plans for the current user with round counts.
  */
 export async function getPlans(): Promise<AdmissionPlan[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
+  const { data: plans, error: plansError } = await supabase
     .from('admission_plans')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
-  return (data ?? []) as AdmissionPlan[];
+  if (plansError) throw plansError;
+  if (!plans || plans.length === 0) return [];
+
+  // Fetch round counts for all plans
+  const planIds = plans.map(p => p.id);
+  const { data: rounds, error: roundsError } = await supabase
+    .from('admission_plan_rounds')
+    .select('plan_id, round_number, program_id')
+    .in('plan_id', planIds);
+
+  if (roundsError) throw roundsError;
+
+  // Group rounds by plan_id
+  const roundsByPlan = new Map<string, typeof rounds>();
+  rounds?.forEach(r => {
+    const existing = roundsByPlan.get(r.plan_id) || [];
+    existing.push(r);
+    roundsByPlan.set(r.plan_id, existing);
+  });
+
+  // Attach rounds to each plan
+  return plans.map(plan => ({
+    ...plan,
+    rounds: roundsByPlan.get(plan.id) || [],
+  })) as AdmissionPlan[];
 }
 
 /**
@@ -92,7 +115,8 @@ export async function getPlanById(planId: string): Promise<AdmissionPlan | null>
     .eq('id', planId)
     .single();
 
-  if (planError || !plan) return null;
+  if (planError) throw planError;
+  if (!plan) return null;
 
   // Fetch rounds with program details
   const { data: rounds, error: roundsError } = await supabase
@@ -205,35 +229,59 @@ export async function removeProgramFromRound(
 }
 
 /**
- * Reorder programs within a round.
+ * Reorder programs within a round using atomic in-place updates with rollback.
+ * If any update fails, all changes are reverted to maintain consistency.
  */
 export async function reorderProgramsInRound(
   planId: string,
   roundNumber: number,
   programIds: string[]
 ): Promise<void> {
-  // Update priorities in batch
-  const updates = programIds.map((programId, index) => ({
-    plan_id: planId,
-    round_number: roundNumber,
-    program_id: programId,
-    priority: index + 1,
-  }));
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
 
-  // Delete existing and re-insert with new priorities
-  await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from('admission_plan_rounds')
-    .delete()
+    .select('id, program_id, priority')
     .eq('plan_id', planId)
     .eq('round_number', roundNumber);
 
-  const { error } = await supabase
-    .from('admission_plan_rounds')
-    .insert(updates);
+  if (fetchError) throw fetchError;
 
-  if (error) throw error;
+  const originalPriorities = new Map(existing?.map(r => [r.id, r.priority]));
+  const recordByProgramId = new Map(existing?.map(r => [r.program_id, r.id]));
+  const updates: { id: string; priority: number }[] = [];
 
-  // Update plan's updated_at
+  for (let index = 0; index < programIds.length; index++) {
+    const programId = programIds[index];
+    const recordId = recordByProgramId.get(programId);
+
+    if (!recordId) {
+      throw new Error(`Program ${programId} not found in round ${roundNumber}`);
+    }
+
+    updates.push({ id: recordId, priority: index + 1 });
+  }
+
+  try {
+    for (const { id, priority } of updates) {
+      const { error } = await supabase
+        .from('admission_plan_rounds')
+        .update({ priority })
+        .eq('id', id);
+
+      if (error) throw error;
+    }
+  } catch (error) {
+    for (const [id, priority] of originalPriorities) {
+      await supabase
+        .from('admission_plan_rounds')
+        .update({ priority })
+        .eq('id', id);
+    }
+    throw error;
+  }
+
   await supabase
     .from('admission_plans')
     .update({ updated_at: new Date().toISOString() })

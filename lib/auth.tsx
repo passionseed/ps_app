@@ -109,6 +109,7 @@ type AuthContext = {
   signInWithApple: () => Promise<void>;
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   signOutHackathon: () => Promise<void>;
+  signOut: () => Promise<void>;
   setGuestLanguage: (language: GuestLanguage) => Promise<void>;
   setUserLanguage: (language: GuestLanguage) => void;
   enterAsGuest: () => void;
@@ -127,6 +128,7 @@ const AuthContext = createContext<AuthContext>({
   signInWithApple: async () => {},
   signInWithEmailPassword: async () => {},
   signOutHackathon: async () => {},
+  signOut: async () => {},
   setGuestLanguage: async () => {},
   setUserLanguage: () => {},
   enterAsGuest: () => {},
@@ -399,6 +401,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("[Auth] signOutHackathon done");
   };
 
+  const signOut = async () => {
+    console.log("[Auth] signOut start");
+    await supabase.auth.signOut();
+    clearHackathonScreenDataCache();
+    setProfileLanguageState(null);
+    setIsGuest(false);
+    console.log("[Auth] signOut done");
+  };
+
   const signInWithOAuth = async (
     provider: "google" | "apple",
     redirectTo: string
@@ -511,6 +522,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithApple,
         signInWithEmailPassword,
         signOutHackathon,
+        signOut,
         setGuestLanguage,
         setUserLanguage,
         enterAsGuest,

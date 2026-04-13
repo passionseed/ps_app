@@ -86,6 +86,28 @@ function journeyToCareerPath(journey: StudentJourney): CareerPath {
         : undefined,
   }));
 
+  const generateExplanation = (type: "passion" | "future" | "world", score: number | null): string => {
+    if (score === null) return "ยังไม่มีข้อมูลเพียงพอ";
+    if (score >= 85) {
+      if (type === "passion") return "คุณมีความสนใจและกระตือรือร้นในด้านนี้สูงมาก";
+      if (type === "future") return "อนาคตของอาชีพนี้สดใสและมีแนวโน้มเติบโต";
+      return "ตลาดแรงงานต้องการบุคลากรด้านนี้จำนวนมาก";
+    }
+    if (score >= 70) {
+      if (type === "passion") return "คุณมีความสนใจในด้านนี้ในระดับดี";
+      if (type === "future") return "อนาคตของอาชีพนี้มีแนวโน้มที่ดี";
+      return "มีความต้องการบุคลากรด้านนี้ในระดับดี";
+    }
+    if (score >= 50) {
+      if (type === "passion") return "คุณมีความสนใจในด้านนี้ในระดับปานกลาง";
+      if (type === "future") return "อนาคตของอาชีพนี้อยู่ในระดับปานกลาง";
+      return "ความต้องการบุคลากรอยู่ในระดับปานกลาง";
+    }
+    if (type === "passion") return "อาจต้องสำรวจเพิ่มเติมว่านี่คือสิ่งที่คุณรักจริงๆ";
+    if (type === "future") return "อาชีพนี้อาจมีความท้าทายในระยะยาว";
+    return "ตลาดแรงงานอาจมีการแข่งขันสูง";
+  };
+
   return {
     id: journey.id,
     label: journey.title,
@@ -96,9 +118,9 @@ function journeyToCareerPath(journey: StudentJourney): CareerPath {
     worldScore,
     journeyScore,
     explanations: {
-      passion: "",
-      future: "",
-      world: "",
+      passion: generateExplanation("passion", passionScore),
+      future: generateExplanation("future", futureScore),
+      world: generateExplanation("world", worldScore),
     },
     confidence,
     steps,

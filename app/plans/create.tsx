@@ -7,10 +7,12 @@ import {
   ScrollView,
   Pressable,
   TextInput,
+  Alert,
 } from "react-native";
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { router } from "expo-router";
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { AppText as Text } from "../../components/AppText";
@@ -26,7 +28,6 @@ import {
   Radius,
   Accent,
   Space,
-  Type,
   Gradient,
 } from "../../lib/theme";
 
@@ -50,23 +51,30 @@ export default function CreatePlanScreen() {
   const insets = useSafeAreaInsets();
   const isThai = appLanguage === "th";
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [programs, count] = await Promise.all([
-          getSavedPrograms(),
-          getPlanCount(),
-        ]);
-        setSavedPrograms(programs);
-        setCanCreate(count < MAX_PLANS_PER_USER);
-      } catch (error) {
-        console.error("Failed to load data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [programs, count] = await Promise.all([
+        getSavedPrograms(),
+        getPlanCount(),
+      ]);
+      setSavedPrograms(programs);
+      setCanCreate(count < MAX_PLANS_PER_USER);
+    } catch (error) {
+      Alert.alert(
+        isThai ? "เกิดข้อผิดพลาด" : "Error",
+        isThai ? "ไม่สามารถโหลดข้อมูลได้" : "Failed to load data"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [isThai]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const toggleProgram = (roundNumber: number, programId: string) => {
     setSelectedPrograms((prev) => {
@@ -85,21 +93,33 @@ export default function CreatePlanScreen() {
     return selectedPrograms[roundNumber]?.includes(programId) ?? false;
   };
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleCreate = async () => {
     if (saving) return;
 
-    const hasPrograms = Object.values(selectedPrograms).some((arr) => arr.length > 0);
-    if (!hasPrograms) {
-      // Show error - need at least one program
+    const trimmedName = planName.trim();
+    if (!trimmedName) {
+      setError(isThai ? "กรุณาใส่ชื่อแผน" : "Please enter a plan name");
       return;
     }
 
+    const hasPrograms = Object.values(selectedPrograms).some((arr) => arr.length > 0);
+    if (!hasPrograms) {
+      setError(isThai ? "กรุณาเลือกอย่างน้อยหนึ่งสาขา" : "Please select at least one program");
+      return;
+    }
+    setError(null);
+
     setSaving(true);
     try {
-      const plan = await createPlanWithPrograms(planName, selectedPrograms);
+      const plan = await createPlanWithPrograms(trimmedName, selectedPrograms);
       router.replace(`/plans/${plan.id}`);
     } catch (error) {
-      console.error("Failed to create plan:", error);
+      Alert.alert(
+        isThai ? "เกิดข้อผิดพลาด" : "Error",
+        isThai ? "ไม่สามารถสร้างแผนได้" : "Failed to create plan"
+      );
     } finally {
       setSaving(false);
     }
@@ -215,6 +235,12 @@ export default function CreatePlanScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>{copy.selectPrograms}</Text>
+
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>⚠️ {error}</Text>
+          </View>
+        )}
 
         {/* Rounds with saved programs */}
         {[1, 2, 3, 4, 5].map((roundNum) => (
@@ -449,5 +475,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: ThemeText.primary,
+  },
+  errorContainer: {
+    backgroundColor: "#FEE2E2",
+    borderRadius: Radius.lg,
+    padding: Space.lg,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  errorText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#DC2626",
   },
 });
