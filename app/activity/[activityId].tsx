@@ -10,6 +10,7 @@ import {
   Animated as RNAnimated,
   PanResponder,
 } from "react-native";
+import * as Sentry from "@sentry/react-native";
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { WebView } from "react-native-webview";
 import * as ImagePicker from 'expo-image-picker';
@@ -1451,8 +1452,24 @@ export default function ActivityDetailScreen() {
       } else {
         router.replace(getPathlabReflectionRoute(enrollmentId));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error completing activity:", error);
+      // Skip if helper already captured (has __sentryCaptured flag)
+      if (!error?.__sentryCaptured) {
+        Sentry.captureException(error, {
+          tags: {
+            component: "PathLabActivityScreen",
+            action: "handleComplete",
+            activityId,
+            enrollmentId,
+          },
+          extra: {
+            hasAssessmentData: !!assessmentData,
+            hasPathAssessment: !!activity?.path_assessment,
+            errorMessage: error?.message,
+          },
+        });
+      }
       Alert.alert("Error", "Failed to complete activity. Please try again.");
     } finally {
       setCompleting(false);

@@ -58,7 +58,7 @@ export default function DailyPathScreen() {
     // Try session cache first (instant, already loaded from navigation)
     const sessionBundle = getCachedPathDayBundle(enrollmentId);
     // Also try MMKV persistent cache
-    const persistentBundle = sessionBundle ?? readCachedPathDayBundle(enrollmentId);
+    const persistentBundle = sessionBundle ?? await readCachedPathDayBundle(enrollmentId);
     const cachedBundle = persistentBundle;
 
     if (cachedBundle) {

@@ -1,4 +1,5 @@
 import { readHackathonParticipant } from "./hackathon-mode";
+import * as Sentry from "@sentry/react-native";
 import { computeTeamRank } from "./hackathonRanking";
 import { supabase } from "./supabase";
 import {
@@ -145,34 +146,61 @@ export async function submitTextAnswer(
   const participant = await readHackathonParticipant();
   if (!participant) throw new Error("Not logged in");
 
-  // Delete previous submission for this assessment before inserting new one
-  await supabase
-    .from("hackathon_phase_activity_submissions")
-    .delete()
-    .eq("participant_id", participant.id)
-    .eq("assessment_id", assessmentId);
+  try {
+    // Delete previous submission for this assessment before inserting new one
+    const { error: deleteError } = await supabase
+      .from("hackathon_phase_activity_submissions")
+      .delete()
+      .eq("participant_id", participant.id)
+      .eq("assessment_id", assessmentId);
 
-  const { data, error } = await supabase
-    .from("hackathon_phase_activity_submissions")
-    .insert({
-      participant_id: participant.id,
-      activity_id: activityId,
-      assessment_id: assessmentId,
-      text_answer: textAnswer,
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
+    if (deleteError) {
+      throw Object.assign(new Error(deleteError.message), { stage: "delete_previous" });
+    }
 
-  if (error) throw new Error(error.message);
+    const { data, error } = await supabase
+      .from("hackathon_phase_activity_submissions")
+      .insert({
+        participant_id: participant.id,
+        activity_id: activityId,
+        assessment_id: assessmentId,
+        text_answer: textAnswer,
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-  // Award score immediately after submit (non-blocking)
-  awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
-    console.warn("[score] awardScore failed", e)
-  );
+    if (error) {
+      throw Object.assign(new Error(error.message), { stage: "insert_submission" });
+    }
 
-  return { submissionId: data.id, url: null };
+    // Award score immediately after submit (non-blocking)
+    awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
+      console.warn("[score] awardScore failed", e)
+    );
+
+    return { submissionId: data.id, url: null };
+  } catch (e: any) {
+    Sentry.captureException(e, {
+      tags: {
+        component: "hackathon-submit",
+        action: "submitTextAnswer",
+        activityId,
+        assessmentId,
+        stage: e?.stage || "unknown",
+      },
+      extra: {
+        participantId: participant.id,
+        textAnswerLength: textAnswer?.length,
+        errorMessage: e?.message,
+        stage: e?.stage,
+      },
+    });
+    // Mark as captured so screen-level catch can avoid duplicate reporting
+    (e as any).__sentryCaptured = true;
+    throw e;
+  }
 }
 
 export type ActivitySubmissionStatus = {
@@ -207,7 +235,27 @@ export async function fetchActivitySubmissions(
     .eq("activity_id", activityId)
     .order("submitted_at", { ascending: false });
 
-  if (error || !data) return [];
+  if (error) {
+    const fetchError = Object.assign(new Error(error.message), {
+      stage: "query_submissions",
+      code: error.code,
+      __sentryCaptured: true,
+    });
+    Sentry.captureException(fetchError, {
+      tags: {
+        component: "hackathon-submit",
+        action: "fetchActivitySubmissions",
+        activityId,
+        stage: "query_submissions",
+      },
+      extra: {
+        participantId: participant.id,
+        errorCode: error.code,
+        errorMessage: error.message,
+      },
+    });
+    throw fetchError;
+  }
   return data as SubmissionRecord[];
 }
 
@@ -368,41 +416,94 @@ export async function submitFile(
       () => `${participant.id}/${activityId}/${Date.now()}.${ext}`
     );
   } catch (e: unknown) {
-    throw new Error(formatUploadError(e));
+    const formattedMessage = formatUploadError(e);
+    const formattedError = new Error(formattedMessage);
+    Object.assign(formattedError, { stage: "upload_storage", originalError: e });
+    // Capture original error to preserve network failure details, with formatted message as context
+    Sentry.captureException(e instanceof Error ? e : new Error(String(e)), {
+      tags: {
+        component: "hackathon-submit",
+        action: "submitFile",
+        activityId,
+        assessmentId,
+        stage: "upload_storage",
+      },
+      extra: {
+        participantId: participant.id,
+        fileName,
+        mimeType,
+        formattedErrorMessage: formattedMessage,
+        originalErrorType: e?.constructor?.name,
+        originalErrorString: String(e),
+      },
+    });
+    // Mark as captured so screen-level catch can avoid duplicate reporting
+    (formattedError as any).__sentryCaptured = true;
+    throw formattedError;
   }
 
   const fileUrl = uploadResult.url;
   const isImage = uploadResult.mimeType.startsWith("image/");
 
-  // Delete previous submission for this assessment before inserting new one
-  await supabase
-    .from("hackathon_phase_activity_submissions")
-    .delete()
-    .eq("participant_id", participant.id)
-    .eq("assessment_id", assessmentId);
+  try {
+    // Delete previous submission for this assessment before inserting new one
+    const { error: deleteError } = await supabase
+      .from("hackathon_phase_activity_submissions")
+      .delete()
+      .eq("participant_id", participant.id)
+      .eq("assessment_id", assessmentId);
 
-  const { data, error } = await supabase
-    .from("hackathon_phase_activity_submissions")
-    .insert({
-      participant_id: participant.id,
-      activity_id: activityId,
-      assessment_id: assessmentId,
-      image_url: isImage ? fileUrl : null,
-      file_urls: isImage ? null : [fileUrl],
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
+    if (deleteError) {
+      throw Object.assign(new Error(deleteError.message), { stage: "delete_previous" });
+    }
 
-  if (error) throw new Error(error.message);
+    const { data, error } = await supabase
+      .from("hackathon_phase_activity_submissions")
+      .insert({
+        participant_id: participant.id,
+        activity_id: activityId,
+        assessment_id: assessmentId,
+        image_url: isImage ? fileUrl : null,
+        file_urls: isImage ? null : [fileUrl],
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-  // Award score immediately after submit (non-blocking)
-  awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
-    console.warn("[score] awardScore failed", e)
-  );
+    if (error) {
+      throw Object.assign(new Error(error.message), { stage: "insert_submission" });
+    }
 
-  return { submissionId: data.id, url: fileUrl };
+    // Award score immediately after submit (non-blocking)
+    awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
+      console.warn("[score] awardScore failed", e)
+    );
+
+    return { submissionId: data.id, url: fileUrl };
+  } catch (e: any) {
+    Sentry.captureException(e, {
+      tags: {
+        component: "hackathon-submit",
+        action: "submitFile",
+        activityId,
+        assessmentId,
+        stage: e?.stage || "unknown",
+      },
+      extra: {
+        participantId: participant.id,
+        fileName,
+        mimeType,
+        isImage: uploadResult?.mimeType?.startsWith("image/"),
+        fileUrl: uploadResult?.url,
+        errorMessage: e?.message,
+        stage: e?.stage,
+      },
+    });
+    // Mark as captured so screen-level catch can avoid duplicate reporting
+    (e as any).__sentryCaptured = true;
+    throw e;
+  }
 }
 
 // ---------------------------------------------------------------------------

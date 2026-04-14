@@ -1,4 +1,5 @@
 // PathLab API functions for mobile app
+import * as Sentry from "@sentry/react-native";
 import { supabase } from "./supabase";
 import { getResetTimestamp, clearResetTimestamp } from "./pathlabSession";
 import {
@@ -937,23 +938,49 @@ export async function submitAssessment(params: {
   quizAnswers?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }): Promise<PathAssessmentSubmission> {
-  const { data, error } = await supabase
-    .from("path_assessment_submissions")
-    .insert({
-      progress_id: params.progressId,
-      assessment_id: params.assessmentId,
-      text_answer: params.textAnswer || null,
-      file_urls: params.fileUrls || null,
-      image_url: params.imageUrl || null,
-      quiz_answers: params.quizAnswers || null,
-      metadata: params.metadata || null,
-      submitted_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from("path_assessment_submissions")
+      .insert({
+        progress_id: params.progressId,
+        assessment_id: params.assessmentId,
+        text_answer: params.textAnswer || null,
+        file_urls: params.fileUrls || null,
+        image_url: params.imageUrl || null,
+        quiz_answers: params.quizAnswers || null,
+        metadata: params.metadata || null,
+        submitted_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-  if (error) throw new Error(error.message);
-  return data;
+    if (error) {
+      throw Object.assign(new Error(error.message), { stage: "insert_submission", code: error.code });
+    }
+    return data;
+  } catch (e: any) {
+    Sentry.captureException(e, {
+      tags: {
+        component: "pathlab",
+        action: "submitAssessment",
+        progressId: params.progressId,
+        assessmentId: params.assessmentId,
+        stage: e?.stage || "unknown",
+      },
+      extra: {
+        hasTextAnswer: !!params.textAnswer,
+        hasFileUrls: !!params.fileUrls?.length,
+        hasImageUrl: !!params.imageUrl,
+        hasQuizAnswers: !!params.quizAnswers,
+        errorMessage: e?.message,
+        errorCode: e?.code,
+        stage: e?.stage,
+      },
+    });
+    // Mark as captured so caller can avoid duplicate reporting
+    e.__sentryCaptured = true;
+    throw e;
+  }
 }
 
 // LEGACY: Keep for backwards compatibility during transition
@@ -1325,7 +1352,7 @@ export async function getRecommendedSeeds(options?: {
     recommendedSeedsInFlight.set(requestKey, promise);
     return await promise;
   } catch (error) {
-    const cached = readCachedSeedRecommendations();
+    const cached = await readCachedSeedRecommendations();
     if (cached) {
       writeRecommendedSeedsMemoryCache(resolvedUserId, cached);
       return {
@@ -1337,6 +1364,9 @@ export async function getRecommendedSeeds(options?: {
     const availableSeeds =
       options?.fallbackSeeds ??
       await getAvailableSeeds({ userId: resolvedUserId });
+    if (!availableSeeds) {
+      throw new Error("No seeds available for recommendations");
+    }
     const affinity = resolvedUserId
       ? await computeAffinityProfile(resolvedUserId)
       : null;

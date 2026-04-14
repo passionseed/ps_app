@@ -52,7 +52,7 @@ export default function IkigaiScreen() {
   const loadData = useCallback(async () => {
     try {
       // Load coverage from cache
-      const payload = readCachedSeedRecommendations();
+      const payload = await readCachedSeedRecommendations();
       const coverage = payload?.coverage ?? {
         activeCount: 0,
         exploredCount: 0,

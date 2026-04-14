@@ -222,6 +222,16 @@ module.exports = {
           androidCollapsedTitle: "#{unread} new notifications"
         }
       ],
+      [
+        "expo-build-properties",
+        {
+          android: {
+            // Disable Android 12+ native splash screen API to prevent
+            // SurfaceControl NPE crash on Realme/OPPO devices (ColorOS bug)
+            enableAndroid12SplashScreenAPI: false,
+          },
+        },
+      ],
       ...(process.env.SENTRY_DISABLE_PLUGIN === "1" ? [] : [sentryPlugin]),
     ],
     extra: {

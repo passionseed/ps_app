@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as Sentry from "@sentry/react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { BlurView } from "expo-blur";
@@ -966,36 +967,108 @@ export default function HackathonActivityScreen() {
         } else {
           const file = pickedFiles[a.id];
           if (file) {
-            await submitFile(activity.id, a.id, file.uri, file.fileName, file.mimeType);
+            const result = await submitFile(activity.id, a.id, file.uri, file.fileName, file.mimeType);
+            createdSubmissionIds.push(result.submissionId);
           }
         }
       }
-
-      const newSubmissions = await fetchActivitySubmissions(activity.id);
-      setPastSubmissions(newSubmissions);
-      setAnswers({});
-      setPickedFiles({});
-      invalidateHackathonProgressCache();
-
-      setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 3000);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       console.error("[submit] error:", e?.message, e?.stack ?? e);
-      // Rollback: delete any text submissions created before the file upload failed
+      // Send to Sentry with context for debugging network/Supabase failures
+      // Skip if helper already captured (has __sentryCaptured flag)
+      if (!e?.__sentryCaptured) {
+        Sentry.captureException(e, {
+          tags: {
+            component: "HackathonActivityScreen",
+            action: "submit",
+            activityId: activity?.id,
+          },
+          extra: {
+            assessmentCount: activity?.assessments?.length ?? 0,
+            assessmentTypes: activity?.assessments?.map((a) => a.assessment_type),
+            createdSubmissionIds,
+            errorMessage: e?.message,
+          },
+        });
+      }
+      // Rollback: delete any submissions created before the failure
       if (createdSubmissionIds.length > 0) {
-        const { error: deleteErr } = await supabase
-          .from("hackathon_phase_activity_submissions")
-          .delete()
-          .in("id", createdSubmissionIds);
-        if (deleteErr) {
-          console.warn("[submit] rollback failed", deleteErr.message);
+        try {
+          const { error: deleteErr } = await supabase
+            .from("hackathon_phase_activity_submissions")
+            .delete()
+            .in("id", createdSubmissionIds);
+          if (deleteErr) {
+            console.warn("[submit] rollback failed", deleteErr.message);
+            // Track rollback failures separately - this is a data consistency issue
+            Sentry.captureException(new Error(`Rollback failed: ${deleteErr.message}`), {
+              tags: {
+                component: "HackathonActivityScreen",
+                action: "submit_rollback",
+                activityId: activity?.id,
+              },
+              extra: {
+                createdSubmissionIds,
+                rollbackErrorCode: deleteErr.code,
+                rollbackErrorMessage: deleteErr.message,
+                originalErrorMessage: e?.message,
+              },
+            });
+          }
+        } catch (rollbackError: any) {
+          // Catch thrown exceptions from the delete request itself (network failures)
+          console.error("[submit] rollback threw:", rollbackError?.message);
+          Sentry.captureException(rollbackError, {
+            tags: {
+              component: "HackathonActivityScreen",
+              action: "submit_rollback_threw",
+              activityId: activity?.id,
+            },
+            extra: {
+              createdSubmissionIds,
+              rollbackErrorMessage: rollbackError?.message,
+              rollbackErrorStack: rollbackError?.stack,
+              originalErrorMessage: e?.message,
+            },
+          });
         }
       }
       setSubmitError(e.message ?? "การส่งคำตอบล้มเหลว");
-    } finally {
       setSubmitting(false);
+      return;
     }
+
+    // Submission succeeded - now refresh submissions (errors here don't rollback)
+    try {
+      const newSubmissions = await fetchActivitySubmissions(activity.id);
+      setPastSubmissions(newSubmissions);
+    } catch (e: any) {
+      // Refresh failed but submission succeeded - log to Sentry but don't rollback
+      console.warn("[submit] refresh failed after successful submit:", e?.message);
+      if (!e?.__sentryCaptured) {
+        Sentry.captureException(e, {
+          tags: {
+            component: "HackathonActivityScreen",
+            action: "submit_refresh_failed",
+            activityId: activity?.id,
+          },
+          extra: {
+            createdSubmissionIds,
+            errorMessage: e?.message,
+            stage: e?.stage,
+          },
+        });
+      }
+      // Still clear form and show success since submission worked
+    }
+
+    setAnswers({});
+    setPickedFiles({});
+    invalidateHackathonProgressCache();
+    setSubmitted(true);
+    setTimeout(() => setSubmitted(false), 3000);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSubmitting(false);
   }
 
   if (loading) {
