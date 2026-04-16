@@ -1,8 +1,16 @@
+function getEnvVar(name: string): string | undefined {
+  try {
+    return process.env[name];
+  } catch {
+    return undefined;
+  }
+}
+
 const runtimeConfig = {
-  supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-  supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-  supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-  expoProjectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+  supabaseUrl: getEnvVar("EXPO_PUBLIC_SUPABASE_URL"),
+  supabasePublishableKey: getEnvVar("EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+  supabaseAnonKey: getEnvVar("EXPO_PUBLIC_SUPABASE_ANON_KEY"),
+  expoProjectId: getEnvVar("EXPO_PUBLIC_PROJECT_ID"),
 } as const;
 
 type RuntimeConfigKey = keyof typeof runtimeConfig;
@@ -10,6 +18,7 @@ type RuntimeConfigKey = keyof typeof runtimeConfig;
 const LABELS: Record<RuntimeConfigKey, string> = {
   supabaseUrl: "EXPO_PUBLIC_SUPABASE_URL",
   supabasePublishableKey: "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  supabaseAnonKey: "EXPO_PUBLIC_SUPABASE_ANON_KEY",
   expoProjectId: "EXPO_PUBLIC_PROJECT_ID",
 };
 
