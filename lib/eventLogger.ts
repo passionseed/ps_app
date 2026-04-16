@@ -280,3 +280,39 @@ export async function logSeedCompleted(params: {
 export async function logDirectionFinderViewed(): Promise<void> {
   await logEvent('direction_finder_viewed', buildDirectionFinderViewedEventData());
 }
+
+/**
+ * Log upload attempt metrics for monitoring upload success/failure rates.
+ */
+export async function logUploadAttempt(params: {
+  stage: string;
+  success: boolean;
+  durationMs?: number;
+  errorMessage?: string;
+  fileSize?: number;
+  uriScheme?: string;
+}): Promise<void> {
+  await logEvent("upload_attempt", {
+    stage: params.stage,
+    success: params.success,
+    duration_ms: params.durationMs,
+    error_message: params.errorMessage,
+    file_size: params.fileSize,
+    uri_scheme: params.uriScheme,
+  });
+}
+
+/**
+ * Log upload completion metrics.
+ */
+export async function logUploadComplete(params: {
+  durationMs: number;
+  fileSize: number;
+  uriScheme: string;
+}): Promise<void> {
+  await logEvent("upload_complete", {
+    duration_ms: params.durationMs,
+    file_size: params.fileSize,
+    uri_scheme: params.uriScheme,
+  });
+}

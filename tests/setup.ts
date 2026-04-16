@@ -31,3 +31,17 @@ vi.mock("expo-file-system", () => ({
   createDownloadResumable: vi.fn(),
   DocumentDirectoryPath: "/mock/documents",
 }));
+
+vi.mock("expo-file-system/legacy", () => ({
+  getInfoAsync: vi.fn(),
+  readAsStringAsync: vi.fn(),
+  writeAsStringAsync: vi.fn(),
+  deleteAsync: vi.fn(),
+  moveAsync: vi.fn(),
+  copyAsync: vi.fn(),
+  makeDirectoryAsync: vi.fn(),
+  readDirectoryAsync: vi.fn(),
+  createDownloadResumable: vi.fn(),
+  cacheDirectory: "/mock/cache/",
+  documentDirectory: "/mock/documents/",
+}));

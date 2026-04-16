@@ -2,13 +2,17 @@
 // Shared Android-safe upload pipeline for Supabase Storage
 // Works with local/content URIs from ImagePicker on both iOS and Android
 
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
+import { Platform } from "react-native";
+import * as Sentry from "@sentry/react-native";
 import { supabase } from "./supabase";
+import { logErrorToStorage } from "./asyncStorage";
+import { logUploadAttempt, logUploadComplete } from "./eventLogger";
 
 export type UploadAssetInput = {
   uri: string;
   fileName: string;
-  mimeType?: string;
+  mimeType: string;
 };
 
 export type UploadResult = {
@@ -74,12 +78,7 @@ function normalizeAsset(input: UploadAssetInput): UploadAssetInput {
   return { uri, fileName, mimeType };
 }
 
-/**
- * Read file bytes safely using Expo FileSystem.
- * Avoids fetch(uri).arrayBuffer() which fails on Android for local/content URIs.
- */
 async function readBytes(uri: string): Promise<Uint8Array> {
-  // For data URIs, decode directly
   if (uri.startsWith("data:")) {
     const parts = uri.split(",");
     if (parts.length < 2 || !parts[1]) {
@@ -89,9 +88,29 @@ async function readBytes(uri: string): Promise<Uint8Array> {
     return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   }
 
-  // For file:// URIs and content:// URIs on Android, use expo-file-system
+  let fileUri = uri;
+  if (uri.startsWith("content://")) {
+    try {
+      const cacheDir = FileSystem.cacheDirectory ?? null;
+      if (!cacheDir) {
+        throw new UploadStageError("read_bytes", "Cache directory not available");
+      }
+      const tempFilePath = `${cacheDir}upload_${Date.now()}.tmp`;
+      await FileSystem.copyAsync({
+        from: uri,
+        to: tempFilePath,
+      });
+      fileUri = tempFilePath;
+    } catch (e: any) {
+      throw new UploadStageError(
+        "read_bytes",
+        `Failed to copy content file: ${e?.message || String(e)}`
+      );
+    }
+  }
+
   try {
-    const base64 = await FileSystem.readAsStringAsync(uri, {
+    const base64 = await FileSystem.readAsStringAsync(fileUri, {
       encoding: "base64",
     });
     return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -112,58 +131,259 @@ async function readBytes(uri: string): Promise<Uint8Array> {
  * @param pathFormat Function to generate storage path from normalized asset
  * @returns Public URL and metadata
  */
+export type UploadDiagnostics = {
+  uriScheme: string;
+  uriLength: number;
+  isContentUri: boolean;
+  isFileUri: boolean;
+  isDataUri: boolean;
+  platform: string;
+  platformVersion: string | number;
+  fileSize?: number;
+  stage: UploadStage;
+};
+
+function captureUploadBreadcrumb(
+  message: string,
+  data: Record<string, unknown>
+) {
+  Sentry.addBreadcrumb({
+    category: "upload",
+    message,
+    data,
+    level: "info",
+  });
+}
+
+function captureUploadDiagnostics(
+  uri: string,
+  stage: UploadStage,
+  bytes?: Uint8Array
+): UploadDiagnostics {
+  return {
+    uriScheme: uri.split(":")[0] || "unknown",
+    uriLength: uri.length,
+    isContentUri: uri.startsWith("content://"),
+    isFileUri: uri.startsWith("file://"),
+    isDataUri: uri.startsWith("data:"),
+    platform: Platform.OS,
+    platformVersion: Platform.Version,
+    fileSize: bytes?.length,
+    stage,
+  };
+}
+
+function captureAndLogUploadError(
+  error: Error,
+  stage: UploadStage,
+  diagnostics: UploadDiagnostics
+): void {
+  const errorWithContext = Object.assign(error, {
+    stage,
+    diagnostics,
+    timestamp: Date.now(),
+  });
+
+  Sentry.captureException(errorWithContext, {
+    tags: { stage, component: "storageUpload" },
+    extra: diagnostics,
+  });
+
+  logErrorToStorage(error, diagnostics).catch(() => {});
+}
+
+async function uploadWithRetry(
+  bucket: string,
+  path: string,
+  bytes: Uint8Array,
+  mimeType: string,
+  maxRetries = 2
+): Promise<void> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      captureUploadBreadcrumb(
+        `Upload attempt ${attempt + 1}/${maxRetries + 1}`,
+        { path, bytesLength: bytes.length, attempt }
+      );
+
+      const { error } = await supabase.storage
+        .from(bucket)
+        .upload(path, bytes, {
+          contentType: mimeType,
+          upsert: true,
+        });
+
+      if (error) throw new Error(error.message);
+
+      captureUploadBreadcrumb("Upload successful", { path, attempt });
+      return;
+    } catch (e: any) {
+      lastError = e;
+      captureUploadBreadcrumb("Upload attempt failed", {
+        path,
+        attempt,
+        error: e?.message,
+      });
+
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError || new Error("Upload failed after retries");
+}
+
 export async function uploadAssetToSupabase(
   input: UploadAssetInput,
   bucket: string,
   pathFormat: (asset: UploadAssetInput) => string
 ): Promise<UploadResult> {
-  // 1. Validate and normalize
+  const startTime = Date.now();
+  const uriScheme = input.uri.split(":")[0] || "unknown";
+
+  captureUploadBreadcrumb("Starting upload process", {
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+    uriPrefix: input.uri.substring(0, 30) + "...",
+  });
+
   let normalized: UploadAssetInput;
   try {
     normalized = normalizeAsset(input);
+    captureUploadBreadcrumb("Asset normalized", {
+      fileName: normalized.fileName,
+      mimeType: normalized.mimeType,
+    });
   } catch (e: any) {
+    captureAndLogUploadError(
+      e instanceof Error ? e : new Error(String(e)),
+      "validate",
+      captureUploadDiagnostics(input.uri, "validate")
+    );
+    logUploadAttempt({
+      stage: "validate",
+      success: false,
+      durationMs: Date.now() - startTime,
+      errorMessage: e.message,
+      uriScheme,
+    }).catch(() => {});
     throw new UploadStageError("validate", e.message);
   }
 
-  // 2. Read bytes
   let bytes: Uint8Array;
   try {
     bytes = await readBytes(normalized.uri);
+    captureUploadBreadcrumb("File read successfully", {
+      bytesLength: bytes.length,
+    });
   } catch (e: any) {
-    throw e; // Already wrapped
+    captureAndLogUploadError(
+      e instanceof Error ? e : new Error(String(e)),
+      "read_bytes",
+      captureUploadDiagnostics(normalized.uri, "read_bytes")
+    );
+    logUploadAttempt({
+      stage: "read_bytes",
+      success: false,
+      durationMs: Date.now() - startTime,
+      errorMessage: e.message,
+      uriScheme,
+    }).catch(() => {});
+    throw e;
   }
 
   if (!bytes || bytes.length === 0) {
-    throw new UploadStageError("read_bytes", "Empty file payload");
+    const error = new UploadStageError("read_bytes", "Empty file payload");
+    captureAndLogUploadError(
+      error,
+      "read_bytes",
+      captureUploadDiagnostics(normalized.uri, "read_bytes", bytes)
+    );
+    logUploadAttempt({
+      stage: "read_bytes",
+      success: false,
+      durationMs: Date.now() - startTime,
+      errorMessage: "Empty file payload",
+      fileSize: 0,
+      uriScheme,
+    }).catch(() => {});
+    throw error;
   }
 
-  // 3. Upload to storage
   const path = pathFormat(normalized);
-  let uploadError: Error | null = null;
-  try {
-    const { error } = await supabase.storage
-      .from(bucket)
-      .upload(path, bytes, {
-        contentType: normalized.mimeType,
-        upsert: true,
-      });
-    if (error) uploadError = new Error(error.message);
-  } catch (e: any) {
-    uploadError = e;
-  }
 
-  if (uploadError) {
+  try {
+    await uploadWithRetry(bucket, path, bytes, normalized.mimeType);
+  } catch (e: any) {
+    captureAndLogUploadError(
+      e instanceof Error ? e : new Error(String(e)),
+      "upload_storage",
+      {
+        ...captureUploadDiagnostics(normalized.uri, "upload_storage", bytes),
+        path,
+        bucket,
+      } as UploadDiagnostics
+    );
+    logUploadAttempt({
+      stage: "upload_storage",
+      success: false,
+      durationMs: Date.now() - startTime,
+      errorMessage: e.message,
+      fileSize: bytes.length,
+      uriScheme,
+    }).catch(() => {});
     throw new UploadStageError(
       "upload_storage",
-      uploadError.message || "Storage upload failed"
+      e.message || "Storage upload failed"
     );
   }
 
-  // 4. Get public URL
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
   if (!urlData?.publicUrl) {
-    throw new UploadStageError("public_url", "Failed to get public URL");
+    const error = new UploadStageError(
+      "public_url",
+      "Failed to get public URL"
+    );
+    captureAndLogUploadError(
+      error,
+      "public_url",
+      captureUploadDiagnostics(normalized.uri, "public_url", bytes)
+    );
+    logUploadAttempt({
+      stage: "public_url",
+      success: false,
+      durationMs: Date.now() - startTime,
+      errorMessage: "Failed to get public URL",
+      fileSize: bytes.length,
+      uriScheme,
+    }).catch(() => {});
+    throw error;
   }
+
+  const durationMs = Date.now() - startTime;
+
+  captureUploadBreadcrumb("Upload complete", {
+    path,
+    url: urlData.publicUrl.substring(0, 50) + "...",
+  });
+
+  logUploadAttempt({
+    stage: "complete",
+    success: true,
+    durationMs,
+    fileSize: bytes.length,
+    uriScheme,
+  }).catch(() => {});
+
+  logUploadComplete({
+    durationMs,
+    fileSize: bytes.length,
+    uriScheme,
+  }).catch(() => {});
 
   return {
     url: urlData.publicUrl,

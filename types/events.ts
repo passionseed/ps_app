@@ -35,6 +35,10 @@ export const EVENT_TYPES = {
   SEED_STARTED: 'seed_started',
   SEED_COMPLETED: 'seed_completed',
   DIRECTION_FINDER_VIEWED: 'direction_finder_viewed',
+
+  // Upload analytics
+  UPLOAD_ATTEMPT: 'upload_attempt',
+  UPLOAD_COMPLETE: 'upload_complete',
 } as const;
 
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
@@ -78,6 +82,19 @@ export interface EventDataMap {
   };
   direction_finder_viewed: {
     source: 'profile_ikigai';
+  };
+  upload_attempt: {
+    stage: string;
+    success: boolean;
+    duration_ms?: number;
+    error_message?: string;
+    file_size?: number;
+    uri_scheme?: string;
+  };
+  upload_complete: {
+    duration_ms: number;
+    file_size: number;
+    uri_scheme: string;
   };
 }
 
