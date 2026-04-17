@@ -1,6 +1,6 @@
 // components/hackathon/HackathonBackground.tsx
 import { useEffect } from "react";
-import { StyleSheet, Dimensions, View } from "react-native";
+import { StyleSheet, Dimensions, View, Platform } from "react-native";
 import { Canvas, Circle as SkiaCircle, Blur, Group, Oval, Path, Rect, LinearGradient, vec } from "@shopify/react-native-skia";
 import { useSharedValue, withRepeat, withTiming, Easing, useDerivedValue, SharedValue, runOnJS } from "react-native-reanimated";
 
@@ -107,6 +107,19 @@ export const SkiaJellyfish = ({ scale = 1, opacity = 1, time, seed = 0 }: { scal
 };
 
 export function HackathonBackground({ topGlowOffsetY = 0 }: { topGlowOffsetY?: number }) {
+  // Web fallback - Skia not supported on web
+  if (Platform.OS === "web") {
+    return (
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: "#03050a" },
+        ]}
+        pointerEvents="none"
+      />
+    );
+  }
+
   // Global time driver
   const time = useSharedValue(0);
   useEffect(() => {

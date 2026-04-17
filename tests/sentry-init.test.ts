@@ -15,14 +15,14 @@ describe("sentry startup config", () => {
   it("uses a production-safe monitoring profile with release metadata", async () => {
     const mod = await loadSentryModule();
 
-    expect(
-      mod.getSentryInitOptions({
-        isDev: false,
-        environment: "production",
-        release: "com.passionseed.app@1.0.4+42",
-        dist: "42",
-      }),
-    ).toEqual({
+    const opts = mod.getSentryInitOptions({
+      isDev: false,
+      environment: "production",
+      release: "com.passionseed.app@1.0.4+42",
+      dist: "42",
+    });
+
+    expect(opts).toMatchObject({
       dsn: "https://7b4ad4da49242478ad4aef96a6dd2a41@o4511084030328832.ingest.us.sentry.io/4511089087873024",
       environment: "production",
       release: "com.passionseed.app@1.0.4+42",
@@ -32,9 +32,13 @@ describe("sentry startup config", () => {
       enableAutoPerformanceTracing: true,
       enableAppStartTracking: true,
       enableNativeFramesTracking: true,
+      attachStacktrace: true,
+      enableCaptureFailedRequests: true,
       tracesSampleRate: 0.2,
       profilesSampleRate: 0.2,
     });
+    expect(opts.beforeSend).toBeTypeOf("function");
+    expect(opts.integrations).toBeTypeOf("function");
   });
 
   it("uses full sampling and logs during development", async () => {

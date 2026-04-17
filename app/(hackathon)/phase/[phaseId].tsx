@@ -115,9 +115,6 @@ export default function HackathonPhaseScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Glow orbs */}
-      <View style={styles.glowCyan} pointerEvents="none" />
-      <View style={styles.glowBlue} pointerEvents="none" />
 
       {/* Back button */}
       <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
@@ -288,22 +285,11 @@ function ActivityCard({
 function StatusIcon({ status }: { status: ActivityDisplayStatus }) {
   const color = statusColorValue(status);
   
-  if (status === "passed") {
+  if (status === "passed" || status === "submitted") {
     return (
       <View style={[styles.statusIconWrap, { backgroundColor: "rgba(74,222,128,0.15)", borderColor: "rgba(74,222,128,0.4)" }]}>
         <Svg width="14" height="14" viewBox="0 0 16 16">
           <Polyline points="3,8 7,12 13,4" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      </View>
-    );
-  }
-  
-  if (status === "submitted") {
-    return (
-      <View style={[styles.statusIconWrap, { backgroundColor: "rgba(145,196,227,0.15)", borderColor: "rgba(145,196,227,0.4)" }]}>
-        <Svg width="14" height="14" viewBox="0 0 16 16">
-          <Polyline points="4,8 12,8" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          <Polyline points="8,4 12,8 8,12" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       </View>
     );
@@ -369,16 +355,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
 
-  glowCyan: {
-    position: "absolute", top: -80, left: -80,
-    width: 300, height: 300, borderRadius: 150,
-    backgroundColor: CYAN, opacity: 0.07,
-  },
-  glowBlue: {
-    position: "absolute", top: 100, right: -100,
-    width: 250, height: 250, borderRadius: 125,
-    backgroundColor: BLUE, opacity: 0.05,
-  },
+
   headerActions: {
     position: "absolute",
     left: Space.lg,

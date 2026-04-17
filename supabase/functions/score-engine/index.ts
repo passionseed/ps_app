@@ -7,10 +7,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Gemini API config
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const GEMINI_MODEL = "gemini-2.5-flash";
+// MiniMax API config
+const MINIMAX_API_KEY = Deno.env.get("MINIMAX_API_KEY") ?? "";
+const MINIMAX_BASE_URL = "https://api.minimaxi.com/anthropic";
+const MINIMAX_MODEL = "MiniMax-M2.7-highspeed";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,7 +149,7 @@ Respond with JSON in this format:
 }
 
 /**
- * Call Gemini API to extract ikigai scores
+ * Call MiniMax API to extract ikigai scores
  */
 async function extractIkigaiScores(
   openResponse: string,
@@ -158,8 +158,8 @@ async function extractIkigaiScores(
   interestLevel: number,
   seedTitle?: string
 ): Promise<{ scores: IkigaiScores; analysis: string }> {
-  if (!GEMINI_API_KEY) {
-    throw new Error("Gemini API key not configured");
+  if (!MINIMAX_API_KEY) {
+    throw new Error("MiniMax API key not configured");
   }
 
   const prompt = buildScoringPrompt(
@@ -170,49 +170,40 @@ async function extractIkigaiScores(
     seedTitle
   );
 
-  const geminiPayload = {
-    contents: [
-      {
-        parts: [
-          {
-            text: prompt,
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.3,
-      maxOutputTokens: 1024,
-      responseMimeType: "application/json",
-    },
-  };
-
   const response = await fetch(
-    `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    `${MINIMAX_BASE_URL}/v1/messages`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${MINIMAX_API_KEY}`,
+        "x-api-key": MINIMAX_API_KEY,
       },
-      body: JSON.stringify(geminiPayload),
+      body: JSON.stringify({
+        model: MINIMAX_MODEL,
+        max_tokens: 1024,
+        temperature: 0.3,
+        messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+      }),
     }
   );
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
-    console.error("[score-engine] Gemini API error:", {
+    console.error("[score-engine] MiniMax API error:", {
       status: response.status,
       statusText: response.statusText,
       body: errorText,
     });
     throw new Error(
-      `Gemini API error (${response.status}): ${errorText || response.statusText}`
+      `MiniMax API error (${response.status}): ${errorText || response.statusText}`
     );
   }
 
   const data = await response.json();
-  const responseText =
-    data.candidates?.[0]?.content?.parts?.[0]?.text ||
+  const contentBlocks = data.content || [];
+  const textBlock = contentBlocks.find((block: any) => block.type === "text");
+  const responseText = textBlock?.text ||
     '{"scores":{"passion":5,"mission":5,"vocation":5,"profession":5,"overall":5},"analysis":"No analysis available"}';
 
   // Parse the JSON response
@@ -233,7 +224,7 @@ async function extractIkigaiScores(
       analysis: parsed.analysis || "Analysis not available",
     };
   } catch (parseError) {
-    console.error("[score-engine] Failed to parse Gemini response:", responseText);
+    console.error("[score-engine] Failed to parse MiniMax response:", responseText);
     // Return default scores if parsing fails
     return {
       scores: {

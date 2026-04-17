@@ -16,10 +16,14 @@ import {
   getChallengeSummary,
   getEmptyHackathonProgramHome,
 } from "../../lib/hackathonProgram";
+import { getInboxPreview } from "../../lib/hackathonInbox";
+import { useHackathonPushNotifications } from "../../lib/hooks/useHackathonPushNotifications";
 import { Accent, PageBg, Space, Text as ThemeText, Radius, Type } from "../../lib/theme";
 import type { HackathonProgramHome } from "../../types/hackathon-program";
+import type { InboxPreview } from "../../types/hackathon-inbox";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { InboxCard } from "../../components/Hackathon/InboxCard";
 
 // --- Subcomponents for Polish ---
 
@@ -37,21 +41,22 @@ function Badge({ label, color, bgColor }: { label: string, color: string, bgColo
 
 export default function HackathonProgramHomeScreen() {
   const [data, setData] = useState<HackathonProgramHome | null>(null);
+  const [inboxPreview, setInboxPreview] = useState<InboxPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
 
+  useHackathonPushNotifications();
+
   const load = useCallback(async () => {
     try {
-      const home = await getCurrentHackathonProgramHome();
-      const isEmpty =
-        JSON.stringify(home) === JSON.stringify(getEmptyHackathonProgramHome());
+      const [home, preview] = await Promise.all([
+        getCurrentHackathonProgramHome(),
+        getInboxPreview(),
+      ]);
 
-      if (isEmpty || !home.program || home.phases.length === 0) {
-        setData(home);
-      } else {
-        setData(home);
-      }
+      setData(home);
+      setInboxPreview(preview);
     } catch {
       setData(getEmptyHackathonProgramHome());
     } finally {
@@ -154,10 +159,10 @@ export default function HackathonProgramHomeScreen() {
       <View style={styles.section}>
         <GlassCard size="medium" style={styles.teamCard}>
           <View style={styles.cardHeader}>
-             <Badge 
-                label="TEAM" 
-                color={ThemeText.primary} 
-                bgColor={PageBg.default} 
+             <Badge
+                label="TEAM"
+                color={ThemeText.primary}
+                bgColor={PageBg.default}
              />
              <AppText style={styles.metaCopy}>
                ID: {data.team?.id?.substring(0, 6) ?? "---"}
@@ -167,6 +172,10 @@ export default function HackathonProgramHomeScreen() {
             {data.team?.name ?? data.team?.team_name ?? "Not assigned to a team yet"}
           </AppText>
         </GlassCard>
+      </View>
+
+      <View style={styles.section}>
+        <InboxCard preview={inboxPreview} loading={loading} />
       </View>
 
       {selectedChallenge ? (

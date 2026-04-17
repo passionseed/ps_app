@@ -264,21 +264,25 @@ function TabBarButton({
   return (
     <Pressable onPress={onPress} style={styles.tabButton}>
       <Animated.View style={[styles.iconContainer, animatedIconStyle, { width: 24, height: 24, zIndex: -1 }]}>
-        <Canvas style={{ width: 64, height: 64, position: "absolute", top: -20, left: -20 }} pointerEvents="none">
-          <Group transform={[{ translateX: 20 }, { translateY: 20 }]}>
-            <SkiaPath
-              path={pathStr}
-              color={isFocused ? theme.accent : "rgba(255,255,255,0.4)"}
-              style="stroke"
-              strokeWidth={1.5}
-              strokeJoin="round"
-              strokeCap="round"
-            >
-              {isFocused && <Shadow dx={0} dy={0} blur={4.8} color={theme.accent} />}
-              {isFocused && <Shadow dx={0} dy={0} blur={9.6} color={theme.accent} />}
-            </SkiaPath>
-          </Group>
-        </Canvas>
+        {Platform.OS !== "web" ? (
+          <Canvas style={{ width: 64, height: 64, position: "absolute", top: -20, left: -20 }} pointerEvents="none">
+            <Group transform={[{ translateX: 20 }, { translateY: 20 }]}>
+              <SkiaPath
+                path={pathStr}
+                color={isFocused ? theme.accent : "rgba(255,255,255,0.4)"}
+                style="stroke"
+                strokeWidth={1.5}
+                strokeJoin="round"
+                strokeCap="round"
+              >
+                {isFocused && <Shadow dx={0} dy={0} blur={4.8} color={theme.accent} />}
+                {isFocused && <Shadow dx={0} dy={0} blur={9.6} color={theme.accent} />}
+              </SkiaPath>
+            </Group>
+          </Canvas>
+        ) : (
+          <FontAwesome name={theme.icon} size={20} color={isFocused ? theme.accent : "rgba(255,255,255,0.4)"} />
+        )}
       </Animated.View>
 
       <Animated.Text

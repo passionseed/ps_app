@@ -184,6 +184,7 @@ module.exports = {
     },
     web: {
       bundler: "metro",
+      output: "server",
       favicon: "./assets/favicon.png",
     },
     plugins: [

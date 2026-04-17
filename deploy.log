@@ -1,0 +1,12 @@
+> Project export: server - exported 13 minutes ago
+- Preparing project
+- Creating deployment
+✔ Created deployment
+
+🎉 Your deployment is ready
+
+Dashboard       https://expo.dev/projects/baca732a-c7d8-4bd2-9742-48cc2a5e939f/hosting/deployments
+Deployment URL  https://passion-seed--jronus083q.expo.app
+
+🚀 When you are ready to deploy to production:
+  $ eas deploy --prod

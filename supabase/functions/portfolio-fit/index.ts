@@ -7,7 +7,9 @@ const CORS = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+const MINIMAX_API_KEY = Deno.env.get("MINIMAX_API_KEY")!;
+const MINIMAX_BASE_URL = "https://api.minimaxi.com/anthropic";
+const MINIMAX_MODEL = "MiniMax-M2.7-highspeed";
 const SCORE_VERSION = 1;
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -44,7 +46,7 @@ function isCacheFresh(scoredAt: string): boolean {
   return Date.now() - new Date(scoredAt).getTime() < CACHE_MAX_AGE_MS;
 }
 
-// ── AI scoring via Gemini ───────────────────────────────────────────────
+// ── AI scoring via MiniMax ───────────────────────────────────────────────
 
 interface AiScoringResult {
   alignment_score: number; // 0-100
@@ -52,7 +54,7 @@ interface AiScoringResult {
   narrative: string;
 }
 
-async function scoreWithGemini(params: {
+async function scoreWithMiniMax(params: {
   portfolioItems: Array<{
     item_type: string;
     title: string;
@@ -107,23 +109,31 @@ Rules:
 - Limit gaps to the 2-3 most important missing elements
 - Write narrative and suggestions in Thai`;
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
-  const response = await fetch(geminiUrl, {
+  const response = await fetch(`${MINIMAX_BASE_URL}/v1/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${MINIMAX_API_KEY}`,
+      "x-api-key": MINIMAX_API_KEY,
+    },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
+      model: MINIMAX_MODEL,
+      max_tokens: 1024,
+      temperature: 0.7,
+      messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`);
+    throw new Error(`MiniMax API error: ${response.status}`);
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const contentBlocks = data.content || [];
+  const textBlock = contentBlocks.find((block: any) => block.type === "text");
+  const text = textBlock?.text ?? "";
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON in Gemini response");
+  if (!jsonMatch) throw new Error("No JSON in MiniMax response");
   return JSON.parse(jsonMatch[0]);
 }
 
@@ -305,7 +315,7 @@ async function handleScore(req: Request): Promise<Response> {
         // High confidence: 30% semantic + 70% AI alignment
         confidence = "high";
         try {
-          const aiResult = await scoreWithGemini({
+          const aiResult = await scoreWithMiniMax({
             portfolioItems: items.map((it) => ({
               item_type: it.item_type,
               title: it.title,
@@ -324,7 +334,7 @@ async function handleScore(req: Request): Promise<Response> {
           gaps = aiResult.gaps ?? [];
         } catch (e) {
           // Degrade gracefully — return semantic score without narrative, never 500
-          console.error("Gemini scoring failed:", e);
+          console.error("MiniMax scoring failed:", e);
           confidence = "medium";
           fitScore = semanticScore;
         }

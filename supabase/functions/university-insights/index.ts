@@ -6,7 +6,9 @@ const supabase = createClient(
 );
 
 const EXA_API_KEY = Deno.env.get("EXA_API_KEY")!;
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+const MINIMAX_API_KEY = Deno.env.get("MINIMAX_API_KEY")!;
+const MINIMAX_BASE_URL = "https://api.minimaxi.com/anthropic";
+const MINIMAX_MODEL = "MiniMax-M2.7-highspeed";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -132,21 +134,28 @@ Return ONLY a JSON object (no markdown fences) with:
   "news": [{ "title": "...", "url": "...", "snippet": "...", "publishedDate": "..." }]
 }`;
 
-  // Fix 5: Handle Gemini API failures — don't cache bad results
+  // Fix 5: Handle MiniMax API failures — don't cache bad results
   let aiParsed: Record<string, any> = {};
   try {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
-    const aiRes = await fetch(geminiUrl, {
+    const aiRes = await fetch(`${MINIMAX_BASE_URL}/v1/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${MINIMAX_API_KEY}`,
+        "x-api-key": MINIMAX_API_KEY,
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: aiPrompt }] }],
-        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1024 },
+        model: MINIMAX_MODEL,
+        max_tokens: 1024,
+        temperature: 0.7,
+        messages: [{ role: "user", content: [{ type: "text", text: aiPrompt }] }],
       }),
     });
     if (aiRes.ok) {
       const aiData = await aiRes.json();
-      const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+      const contentBlocks = aiData.content || [];
+      const textBlock = contentBlocks.find((block: any) => block.type === "text");
+      const rawText = textBlock?.text ?? "{}";
       aiParsed = JSON.parse(rawText);
     }
   } catch { /* fallback — partial data */ }

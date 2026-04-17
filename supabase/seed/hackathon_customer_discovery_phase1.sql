@@ -22,9 +22,9 @@ INSERT INTO public.hackathon_program_phases (
 VALUES (
   'f1000000-0000-0000-0000-000000000010',
   'f1000000-0000-0000-0000-000000000001',
-  'phase-1-customer-discovery',
-  'Phase 1: Customer Discovery',
-  'Systems-thinking customer discovery: understand the system, gather interview evidence, map leverage points, and decide whether to proceed.',
+  'phase-1-problem-finding',
+  'Phase 1: Problem Finding & Ideation',
+  'Identify real problems through user interviews. Target: interview 5-10 users, gather insights, and create a validated Problem Statement.',
   1,
   'released',
   '2026-04-07T00:00:00Z',
@@ -34,11 +34,114 @@ ON CONFLICT (program_id, slug) DO NOTHING;
 
 UPDATE public.hackathon_program_phases
 SET
-  title = 'Phase 1: Customer Discovery',
-  description = 'Systems-thinking customer discovery: understand the system, gather interview evidence, map leverage points, and decide whether to proceed.',
+  title = 'Phase 1: Problem Finding & Ideation',
+  description = 'Identify real problems through user interviews. Target: interview 5-10 users, gather insights, and create a validated Problem Statement.',
   status = 'released',
-  due_at = '2026-04-26T23:59:59Z'
+  starts_at = '2026-04-07T00:00:00Z',
+  ends_at = '2026-04-26T23:59:59Z'
 WHERE id = 'f1000000-0000-0000-0000-000000000010';
+
+-- Phase 2: Prototyping (27 Apr - 10 May)
+INSERT INTO public.hackathon_program_phases (
+  id,
+  program_id,
+  slug,
+  title,
+  description,
+  phase_number,
+  status,
+  starts_at,
+  ends_at
+)
+VALUES (
+  'f1000000-0000-0000-0000-000000000020',
+  'f1000000-0000-0000-0000-000000000001',
+  'phase-2-prototyping',
+  'Phase 2: Prototyping',
+  'Design and build a testable prototype. Form: app mockup, AI workflow, landing page, simulation, or any format that demonstrates your solution clearly.',
+  2,
+  'locked',
+  '2026-04-27T00:00:00Z',
+  '2026-05-10T23:59:59Z'
+)
+ON CONFLICT (program_id, slug) DO NOTHING;
+
+UPDATE public.hackathon_program_phases
+SET
+  title = 'Phase 2: Prototyping',
+  description = 'Design and build a testable prototype. Form: app mockup, AI workflow, landing page, simulation, or any format that demonstrates your solution clearly.',
+  status = 'locked',
+  starts_at = '2026-04-27T00:00:00Z',
+  ends_at = '2026-05-10T23:59:59Z'
+WHERE id = 'f1000000-0000-0000-0000-000000000020';
+
+-- Phase 3: User Testing (11 May - 21 May)
+INSERT INTO public.hackathon_program_phases (
+  id,
+  program_id,
+  slug,
+  title,
+  description,
+  phase_number,
+  status,
+  starts_at,
+  ends_at
+)
+VALUES (
+  'f1000000-0000-0000-0000-000000000030',
+  'f1000000-0000-0000-0000-000000000001',
+  'phase-3-user-testing',
+  'Phase 3: User Testing',
+  'Test your prototype with 3-5 real users, collect structured feedback, and iterate to improve your solution.',
+  3,
+  'locked',
+  '2026-05-11T00:00:00Z',
+  '2026-05-21T23:59:59Z'
+)
+ON CONFLICT (program_id, slug) DO NOTHING;
+
+UPDATE public.hackathon_program_phases
+SET
+  title = 'Phase 3: User Testing',
+  description = 'Test your prototype with 3-5 real users, collect structured feedback, and iterate to improve your solution.',
+  status = 'locked',
+  starts_at = '2026-05-11T00:00:00Z',
+  ends_at = '2026-05-21T23:59:59Z'
+WHERE id = 'f1000000-0000-0000-0000-000000000030';
+
+-- Phase 4: Video Submission (22 May)
+INSERT INTO public.hackathon_program_phases (
+  id,
+  program_id,
+  slug,
+  title,
+  description,
+  phase_number,
+  status,
+  starts_at,
+  ends_at
+)
+VALUES (
+  'f1000000-0000-0000-0000-000000000040',
+  'f1000000-0000-0000-0000-000000000001',
+  'phase-4-video-submission',
+  'Phase 4: Video Submission',
+  'Submit your final video presentation (3-5 minutes) with prototype demonstration. Submission deadline: 22 May 2026 at 23:59.',
+  4,
+  'locked',
+  '2026-05-22T00:00:00Z',
+  '2026-05-22T23:59:59Z'
+)
+ON CONFLICT (program_id, slug) DO NOTHING;
+
+UPDATE public.hackathon_program_phases
+SET
+  title = 'Phase 4: Video Submission',
+  description = 'Submit your final video presentation (3-5 minutes) with prototype demonstration. Submission deadline: 22 May 2026 at 23:59.',
+  status = 'locked',
+  starts_at = '2026-05-22T00:00:00Z',
+  ends_at = '2026-05-22T23:59:59Z'
+WHERE id = 'f1000000-0000-0000-0000-000000000040';
 
 INSERT INTO public.hackathon_phase_playlists (
   id,

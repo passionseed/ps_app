@@ -1,7 +1,8 @@
 import { memo, useCallback } from "react";
-import { Pressable, StyleProp, StyleSheet, ViewStyle } from "react-native";
+import { Pressable, StyleProp, StyleSheet, ViewStyle, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Canvas, Path, interpolateColors } from "@shopify/react-native-skia";
+import { FontAwesome } from "@expo/vector-icons";
 import Animated, {
   useAnimatedStyle,
   useDerivedValue,
@@ -28,6 +29,29 @@ function SkiaBackButtonComponent({
   variant = "light",
   accessibilityLabel = "Go back",
 }: SkiaBackButtonProps) {
+  // Web fallback - Skia not supported on web
+  if (Platform.OS === "web") {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={[
+          styles.base,
+          variant === "dark" ? styles.darkBase : styles.lightBase,
+          style,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        hitSlop={8}
+      >
+        <FontAwesome
+          name="chevron-left"
+          size={ICON_SIZE}
+          color={variant === "dark" ? "rgba(255,255,255,0.92)" : "#1F2937"}
+        />
+      </Pressable>
+    );
+  }
+
   const pressProgress = useSharedValue(0);
 
   const iconColor = useDerivedValue(() => {
@@ -93,24 +117,32 @@ function SkiaBackButtonComponent({
         onPressOut={handlePressOut}
         onPress={onPress}
       >
-        <Canvas style={styles.canvas}>
-          <Path
-            path={CHEVRON_PATH}
-            color={iconShadowColor}
-            style="stroke"
-            strokeWidth={3.4}
-            strokeCap="round"
-            strokeJoin="round"
+        {Platform.OS !== "web" ? (
+          <Canvas style={styles.canvas}>
+            <Path
+              path={CHEVRON_PATH}
+              color={iconShadowColor}
+              style="stroke"
+              strokeWidth={3.4}
+              strokeCap="round"
+              strokeJoin="round"
+            />
+            <Path
+              path={CHEVRON_PATH}
+              color={iconColor}
+              style="stroke"
+              strokeWidth={2.2}
+              strokeCap="round"
+              strokeJoin="round"
+            />
+          </Canvas>
+        ) : (
+          <FontAwesome
+            name="chevron-left"
+            size={ICON_SIZE}
+            color={variant === "dark" ? "rgba(255,255,255,0.92)" : "#1F2937"}
           />
-          <Path
-            path={CHEVRON_PATH}
-            color={iconColor}
-            style="stroke"
-            strokeWidth={2.2}
-            strokeCap="round"
-            strokeJoin="round"
-          />
-        </Canvas>
+        )}
       </Pressable>
     </Animated.View>
   );

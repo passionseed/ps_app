@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
 import { AppText } from "../../components/AppText";
 import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJellyfishLoader";
+import { InboxCard } from "../../components/Hackathon/InboxCard";
 import { Space } from "../../lib/theme";
 import {
   getCachedHackathonHomeBundle,
@@ -18,6 +19,9 @@ import {
   type TeamImpact,
   type ScoreBreakdownItem,
 } from "../../lib/hackathon-submit";
+import { getInboxPreview } from "../../lib/hackathonInbox";
+import { useHackathonPushNotifications } from "../../lib/hooks/useHackathonPushNotifications";
+import type { InboxPreview } from "../../types/hackathon-inbox";
 
 type MentorPreview = { id: string; full_name: string; photo_url?: string };
 
@@ -43,6 +47,9 @@ export default function HackathonHomeScreen() {
   const [scoreModalVisible, setScoreModalVisible] = useState(false);
   const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdownItem[]>([]);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [inboxPreview, setInboxPreview] = useState<InboxPreview | null>(null);
+
+  useHackathonPushNotifications();
 
   useFocusEffect(
     useCallback(() => {
@@ -54,9 +61,13 @@ export default function HackathonHomeScreen() {
         setLoading(true);
       }
 
-      loadHackathonHomeBundle()
-        .then((bundle) => {
+      Promise.all([
+        loadHackathonHomeBundle(),
+        getInboxPreview(),
+      ])
+        .then(([bundle, preview]) => {
           setImpact(bundle.impact);
+          setInboxPreview(preview);
         })
         .finally(() => {
           setLoading(false);
@@ -204,6 +215,8 @@ export default function HackathonHomeScreen() {
           </View>
           <AppText variant="bold" style={styles.placeholderBadgeCyan}>Browse Guides →</AppText>
         </Pressable>
+
+        <InboxCard preview={inboxPreview} loading={loading} darkTheme />
 
         {/* Placeholders */}
         <Pressable style={styles.placeholderCard} onPress={() => router.push("/(hackathon)/mentor-booking")}>

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, Platform, ActivityIndicator } from "react-native";
 import {
   BlurMask,
   Canvas,
@@ -21,6 +21,15 @@ const SIZE = 132;
 const CENTER = SIZE / 2;
 
 export function HackathonJellyfishLoader() {
+  // Web fallback - Skia not supported on web
+  if (Platform.OS === "web") {
+    return (
+      <View style={styles.root}>
+        <ActivityIndicator size="large" color="#91C4E3" />
+      </View>
+    );
+  }
+
   const spin = useSharedValue(0);
   const bob = useSharedValue(0);
   const pulse = useSharedValue(1);

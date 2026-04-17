@@ -1,9 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
-const GEMINI_PRIMARY_MODEL = "gemini-3.1-flash-lite-preview";
-const GEMINI_FALLBACK_MODEL = "gemini-2.5-flash-lite";
+const MINIMAX_API_KEY = Deno.env.get("MINIMAX_API_KEY") ?? "";
+const MINIMAX_BASE_URL = "https://api.minimaxi.com/anthropic";
+const MINIMAX_PRIMARY_MODEL = "MiniMax-M2.7-highspeed";
+const MINIMAX_FALLBACK_MODEL = "MiniMax-M2.7";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  if (!GEMINI_API_KEY) {
+  if (!MINIMAX_API_KEY) {
     return new Response(JSON.stringify({ error: "AI service not configured" }), {
       status: 503,
       headers: { ...CORS, "Content-Type": "application/json" },
@@ -122,29 +122,47 @@ Deno.serve(async (req) => {
   const systemPrompt = typeof system_prompt === "string" ? system_prompt.slice(0, MAX_INPUT_LENGTH) : "You are a helpful assistant.";
   const isGreeting = mode === "greeting";
 
-  // Build conversation history in Gemini format
-  const contents = trimmedMessages.map((msg: any) => ({
-    role: msg.role === "user" ? "user" : "model",
-    parts: [{ text: String(msg.content ?? "").slice(0, MAX_INPUT_LENGTH) }],
+  // Build conversation history in Anthropic/MiniMax format
+  const anthropicMessages = trimmedMessages.map((msg: any) => ({
+    role: msg.role === "user" ? "user" : "assistant",
+    content: [{ type: "text", text: String(msg.content ?? "").slice(0, MAX_INPUT_LENGTH) }],
   }));
 
-  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  const finalSystemPrompt = isGreeting
+    ? `${systemPrompt}\n\nStart the conversation with a friendly greeting in Thai.`
+    : systemPrompt;
 
-  const request = {
-    contents,
-    systemInstruction: isGreeting
-      ? `${systemPrompt}\n\nStart the conversation with a friendly greeting in Thai.`
-      : systemPrompt,
-    generationConfig: {
-      temperature: isGreeting ? 0.8 : 0.7,
-      maxOutputTokens: isGreeting ? 256 : MAX_OUTPUT_TOKENS,
-    },
-  };
+  async function callMiniMax(model: string): Promise<string> {
+    const response = await fetch(`${MINIMAX_BASE_URL}/v1/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${MINIMAX_API_KEY}`,
+        "x-api-key": MINIMAX_API_KEY,
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: isGreeting ? 256 : MAX_OUTPUT_TOKENS,
+        temperature: isGreeting ? 0.8 : 0.7,
+        system: finalSystemPrompt,
+        messages: anthropicMessages,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`MiniMax API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    // Extract text from Anthropic-style response
+    const contentBlocks = data.content || [];
+    const textBlock = contentBlocks.find((block: any) => block.type === "text");
+    return textBlock?.text ?? "";
+  }
 
   try {
-    const primaryModel = genAI.getGenerativeModel({ model: GEMINI_PRIMARY_MODEL });
-    const result = await primaryModel.generateContent(request);
-    const reply = result.response.text() ?? "";
+    const reply = await callMiniMax(MINIMAX_PRIMARY_MODEL);
 
     return new Response(JSON.stringify({ reply }), {
       status: 200,
@@ -154,9 +172,7 @@ Deno.serve(async (req) => {
     console.error("[ai-chat] Primary model failed:", primaryError);
 
     try {
-      const fallbackModel = genAI.getGenerativeModel({ model: GEMINI_FALLBACK_MODEL });
-      const result = await fallbackModel.generateContent(request);
-      const reply = result.response.text() ?? "";
+      const reply = await callMiniMax(MINIMAX_FALLBACK_MODEL);
 
       return new Response(JSON.stringify({ reply }), {
         status: 200,

@@ -53,8 +53,17 @@ export function getSentryInitOptions({
     enableAutoPerformanceTracing: true,
     enableAppStartTracking: true,
     enableNativeFramesTracking: true,
+    attachStacktrace: true,
+    enableCaptureFailedRequests: true,
+    beforeSend(event) {
+      if (isDev) {
+        console.log("[Sentry] Captured event:", event.exception?.values?.[0]?.type, event.exception?.values?.[0]?.value);
+      }
+      return event;
+    },
     tracesSampleRate: isDev ? 1 : 0.2,
     profilesSampleRate: isDev ? 1 : 0.2,
+    integrations: (integrations) => integrations,
   };
 }
 
@@ -124,7 +133,30 @@ export function initializeSentry(
     return;
   }
 
-  Sentry.init(getSentryInitOptions(runtimeContext));
-  annotateSentryRuntime(runtimeContext);
-  didInitializeSentry = true;
+  try {
+    Sentry.init(getSentryInitOptions(runtimeContext));
+    annotateSentryRuntime(runtimeContext);
+    didInitializeSentry = true;
+    if (runtimeContext.isDev) {
+      console.log("[Sentry] Initialized successfully");
+    }
+  } catch (e) {
+    console.error("[Sentry] Failed to initialize:", e);
+  }
+}
+
+export function captureException(error: unknown, context?: Record<string, unknown>) {
+  if (!didInitializeSentry) {
+    console.warn("[Sentry] Not initialized, logging to console instead:", error);
+    return;
+  }
+  Sentry.captureException(error, context ? { extra: context } : undefined);
+}
+
+export function captureMessage(message: string, level: "fatal" | "error" | "warning" | "info" | "debug" = "info") {
+  if (!didInitializeSentry) {
+    console.log(`[Sentry:${level}] ${message}`);
+    return;
+  }
+  Sentry.captureMessage(message, level);
 }
