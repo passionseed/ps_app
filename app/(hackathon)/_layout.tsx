@@ -23,6 +23,7 @@ import { useState, useCallback } from "react";
 import { useFocusEffect } from "expo-router";
 import { readHackathonToken } from "../../lib/hackathon-mode";
 import { AppText } from "../../components/AppText";
+import { useAuth } from "../../lib/auth";
 
 // Design Tokens from Hackathon Design System
 export const HACK_COLORS = {
@@ -299,6 +300,7 @@ function TabBarButton({
 
 export default function HackathonLayout() {
   const [teamGate, setTeamGate] = useState<"loading" | "ok" | "blocked">("loading");
+  const { signOutHackathon } = useAuth();
 
   useEffect(() => {
     void preloadHackathonHomeBundle();
@@ -308,11 +310,12 @@ export default function HackathonLayout() {
   useFocusEffect(
     useCallback(() => {
       readHackathonToken().then(async (token) => {
-        if (!token) { setTeamGate("blocked"); return; }
+        if (!token) { signOutHackathon(); return; }
         try {
           const r = await fetch("https://www.passionseed.org/api/hackathon/student/team", {
             headers: { Authorization: `Bearer ${token}` },
           });
+          if (r.status === 401) { signOutHackathon(); return; }
           const data = await r.json();
           if (!data.team || data.member_count <= 1) setTeamGate("blocked");
           else setTeamGate("ok");
@@ -342,6 +345,12 @@ export default function HackathonLayout() {
         <AppText style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", textAlign: "center", lineHeight: 24 }}>
           การเข้าร่วม Hackathon ต้องมีทีมที่มีสมาชิกอย่างน้อย 2 คน{"\n"}กรุณาติดต่อผู้จัดงานเพื่อเข้าร่วมทีม
         </AppText>
+        <Pressable
+          onPress={() => signOutHackathon()}
+          style={{ marginTop: 8, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" }}
+        >
+          <AppText style={{ fontSize: 15, color: "rgba(255,255,255,0.7)" }}>กลับไปหน้าเข้าสู่ระบบ</AppText>
+        </Pressable>
       </View>
     );
   }
