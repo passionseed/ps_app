@@ -1,22 +1,40 @@
 // lib/asyncStorage.ts
 // Drop-in replacement for @react-native-async-storage/async-storage.
 // Uses the global localStorage polyfill installed by expo-sqlite/localStorage/install
-// (imported early in lib/supabase.ts). This avoids the "Native module is null" error
+// (imported early in index.js). This avoids the "Native module is null" error
 // on physical devices and keeps the test bundle free of react-native transitive deps.
+
+// Import the polyfill installer to ensure it's loaded before any storage calls
+import "expo-sqlite/localStorage/install";
 
 type Callback = ((error?: Error | null) => void) | undefined;
 
 function store(): Storage {
-  if (typeof localStorage === "undefined") {
-    throw new Error(
-      "localStorage not available — ensure expo-sqlite/localStorage/install is imported before any storage call"
-    );
+  if (typeof localStorage === "undefined" || localStorage === null) {
+    console.warn("[asyncStorage] localStorage not available - using in-memory fallback");
+    return memoryStorageApi;
   }
   return localStorage;
 }
 
+// In-memory fallback when localStorage is not available
+const memoryStorage = new Map<string, string>();
+const memoryStorageApi = {
+  getItem: (key: string): string | null => memoryStorage.get(key) ?? null,
+  setItem: (key: string, value: string): void => { memoryStorage.set(key, value); },
+  removeItem: (key: string): void => { memoryStorage.delete(key); },
+  clear: (): void => { memoryStorage.clear(); },
+  key: (index: number): string | null => Array.from(memoryStorage.keys())[index] ?? null,
+  get length(): number { return memoryStorage.size; },
+} satisfies Storage;
+
 export async function getItem(key: string, _callback?: Callback): Promise<string | null> {
-  return store().getItem(key);
+  try {
+    return store().getItem(key);
+  } catch (e) {
+    console.warn("[asyncStorage] Failed to getItem:", e);
+    return null;
+  }
 }
 
 export async function setItem(key: string, value: string, _callback?: Callback): Promise<void> {
@@ -28,11 +46,20 @@ export async function setItem(key: string, value: string, _callback?: Callback):
 }
 
 export async function removeItem(key: string, _callback?: Callback): Promise<void> {
-  store().removeItem(key);
+  try {
+    store().removeItem(key);
+  } catch (e) {
+    console.warn("[asyncStorage] Failed to removeItem:", e);
+  }
 }
 
 export async function getAllKeys(_callback?: (error?: Error | null, keys?: string[]) => void): Promise<string[]> {
-  return Object.keys(store());
+  try {
+    return Object.keys(store());
+  } catch (e) {
+    console.warn("[asyncStorage] Failed to getAllKeys:", e);
+    return [];
+  }
 }
 
 export async function clear(_callback?: Callback): Promise<void> {
