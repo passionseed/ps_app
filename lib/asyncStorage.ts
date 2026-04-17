@@ -42,3 +42,38 @@ export async function clear(_callback?: Callback): Promise<void> {
     console.warn("[asyncStorage] Failed to clear — storage may be full:", e);
   }
 }
+
+const ERROR_LOG_KEY = "ps_error_logs";
+const MAX_ERROR_LOGS = 50;
+
+/** Log error details to localStorage for debugging. Stores last 50 errors. */
+export async function logErrorToStorage(
+  error: Error,
+  context?: Record<string, unknown>
+): Promise<void> {
+  try {
+    const existing = await getItem(ERROR_LOG_KEY);
+    const logs: Array<{
+      timestamp: number;
+      message: string;
+      stack?: string;
+      context?: Record<string, unknown>;
+    }> = existing ? JSON.parse(existing) : [];
+
+    logs.push({
+      timestamp: Date.now(),
+      message: error.message,
+      stack: error.stack,
+      context,
+    });
+
+    // Keep only last N errors
+    if (logs.length > MAX_ERROR_LOGS) {
+      logs.shift();
+    }
+
+    await setItem(ERROR_LOG_KEY, JSON.stringify(logs));
+  } catch {
+    // Silently fail - don't crash when logging errors
+  }
+}
