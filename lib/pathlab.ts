@@ -134,14 +134,20 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function stringifyError(error: unknown) {
-  if (error instanceof Error) return error.message;
+function stringifyError(error: unknown): string {
+  if (error == null) return "Unknown error";
+  if (error instanceof Error) return error.message || "Error";
   if (typeof error === "string") return error;
+  if (typeof error !== "object") return String(error);
   try {
-    return JSON.stringify(error);
-  } catch {
-    return String(error);
-  }
+    const str = JSON.stringify(error);
+    if (str !== undefined && str !== "undefined") return str;
+  } catch {}
+  try {
+    const str = String(error);
+    if (str !== undefined && str !== "undefined" && str !== "[object Object]") return str;
+  } catch {}
+  return "Unknown error";
 }
 
 function isRetryableSupabaseError(error: unknown) {

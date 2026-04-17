@@ -54,14 +54,52 @@ const RETRYABLE_MESSAGES = [
   "cloudflare",
 ];
 
-function stringifyError(error: unknown) {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  try {
-    return JSON.stringify(error);
-  } catch {
+/**
+ * Safely convert an error to a string representation.
+ * Handles edge cases where error might be undefined, null, or non-serializable.
+ */
+function stringifyError(error: unknown): string {
+  // Handle null/undefined explicitly
+  if (error == null) {
+    return "Unknown error";
+  }
+
+  // Handle Error instances
+  if (error instanceof Error) {
+    return error.message || "Error";
+  }
+
+  // Handle strings
+  if (typeof error === "string") {
+    return error;
+  }
+
+  // Handle numbers, booleans, etc.
+  if (typeof error !== "object") {
     return String(error);
   }
+
+  // Try to stringify objects safely
+  try {
+    const str = JSON.stringify(error);
+    if (str !== undefined && str !== "undefined") {
+      return str;
+    }
+  } catch {
+    // JSON.stringify failed (circular reference, etc.)
+  }
+
+  // Final fallback
+  try {
+    const str = String(error);
+    if (str !== undefined && str !== "undefined" && str !== "[object Object]") {
+      return str;
+    }
+  } catch {
+    // String() failed
+  }
+
+  return "Unknown error";
 }
 
 async function getSupabaseClient() {
@@ -69,7 +107,7 @@ async function getSupabaseClient() {
   return mod.supabase;
 }
 
-function isRetryable(error: unknown) {
+function isRetryable(error: unknown): boolean {
   const message = stringifyError(error).toLowerCase();
   return RETRYABLE_MESSAGES.some((snippet) => message.includes(snippet));
 }
@@ -86,12 +124,14 @@ async function withRetry<T>(
     } catch (error) {
       lastError = error;
       if (!isRetryable(error) || attempt === attempts) {
-        throw new Error(stringifyError(error) || fallback);
+        const errorMessage = stringifyError(error);
+        throw new Error(errorMessage || fallback || "Operation failed");
       }
       await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
     }
   }
-  throw new Error(stringifyError(lastError) || fallback);
+  const lastErrorMessage = stringifyError(lastError);
+  throw new Error(lastErrorMessage || fallback || "Operation failed after retries");
 }
 
 function normalizeSubmissionStatus(
