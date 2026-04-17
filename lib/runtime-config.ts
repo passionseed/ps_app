@@ -1,7 +1,10 @@
+import { captureMessage, captureException } from "./sentry";
+
 function getEnvVar(name: string): string | undefined {
   try {
     return process.env[name];
-  } catch {
+  } catch (e) {
+    captureException(e, { context: `getEnvVar(${name})` });
     return undefined;
   }
 }
@@ -48,6 +51,24 @@ export function getSupabaseConfigErrorMessage(): string | null {
   ]);
 
   if (missing.length === 0) return null;
+
+  const diagnosticInfo = {
+    missing,
+    envVarNames: Object.keys(process.env).filter(k => k.startsWith("EXPO_PUBLIC_")),
+    hasSupabaseUrl: !!runtimeConfig.supabaseUrl,
+    hasSupabasePublishableKey: !!runtimeConfig.supabasePublishableKey,
+    supabaseUrlValue: runtimeConfig.supabaseUrl?.substring(0, 20) || "undefined",
+    publishableKeyValue: runtimeConfig.supabasePublishableKey?.substring(0, 20) || "undefined",
+  };
+  
+  captureMessage(
+    `Runtime config error: ${missing.join(", ")}`,
+    "error"
+  );
+  captureMessage(
+    `Runtime config diagnostic: ${JSON.stringify(diagnosticInfo)}`,
+    "info"
+  );
 
   return `Missing app runtime config: ${missing.join(", ")}`;
 }
