@@ -306,9 +306,10 @@ function RootLayout() {
     return <AnimatedSplash />;
   }
 
-  if (configError) {
-    return <ConfigErrorScreen message={configError} />;
-  }
+  // Config error screen disabled - app will continue with fallback behavior
+  // if (configError) {
+  //   return <ConfigErrorScreen message={configError} />;
+  // }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
