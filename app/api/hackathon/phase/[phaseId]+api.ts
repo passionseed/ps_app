@@ -26,10 +26,17 @@ function json(data: unknown, init?: ResponseInit) {
 
 function getEnvVar(name: string): string | undefined {
   try {
-    return process.env[name]?.trim();
-  } catch {
-    return undefined;
-  }
+    if (typeof process !== 'undefined' && process.env?.[name]) {
+      return process.env[name]?.trim();
+    }
+  } catch {}
+  
+  try {
+    const globalValue = (globalThis as any)[name];
+    if (globalValue) return globalValue?.trim();
+  } catch {}
+  
+  return undefined;
 }
 
 function getSupabaseClient() {

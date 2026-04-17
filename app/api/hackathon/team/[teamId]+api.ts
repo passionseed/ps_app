@@ -11,10 +11,17 @@ const SERVER_STORAGE = {
 
 function getEnvVar(name: string): string | undefined {
   try {
-    return process.env[name]?.trim();
-  } catch {
-    return undefined;
-  }
+    if (typeof process !== 'undefined' && process.env?.[name]) {
+      return process.env[name]?.trim();
+    }
+  } catch {}
+  
+  try {
+    const globalValue = (globalThis as any)[name];
+    if (globalValue) return globalValue?.trim();
+  } catch {}
+  
+  return undefined;
 }
 
 function getRouteSupabase() {
@@ -113,9 +120,11 @@ export async function GET(_request: Request, { teamId }: { teamId: string }) {
     );
   } catch (error) {
     console.error("[api/hackathon/team] Failed to load team bundle", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isConfigError = errorMessage.includes("Missing Supabase");
     return Response.json(
-      { error: "Failed to load team data" },
-      { status: 500 },
+      { error: "Failed to load team data", details: errorMessage, isConfigError },
+      { status: isConfigError ? 503 : 500 },
     );
   }
 }
