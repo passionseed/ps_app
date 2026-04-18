@@ -1,63 +1,76 @@
-import { useAudioPlayer, type AudioPlayer } from 'expo-audio';
+import { Platform } from "react-native";
 
-// Sound instances
+let audioModule: typeof import("expo-audio") | null = null;
+if (Platform.OS !== "web") {
+  try {
+    audioModule = require("expo-audio");
+  } catch {
+    audioModule = null;
+  }
+}
+
+type AudioPlayer = {
+  play(): Promise<void>;
+  remove(): void;
+};
+
 let npcSpeakSound: AudioPlayer | null = null;
 let activityCompleteSound: AudioPlayer | null = null;
 
-/**
- * Initialize audio system and preload sounds
- */
 export async function initializeSounds() {
+  if (!audioModule || Platform.OS === "web") {
+    return;
+  }
+
   try {
-    // Preload sounds - handle missing files gracefully
+    const { useAudioPlayer } = audioModule;
     try {
-      npcSpeakSound = useAudioPlayer(require('../assets/sounds/npc-speak.mp3'));
-    } catch (error) {
-      console.warn('[Sounds] npc-speak.mp3 not found - see assets/sounds/README.md');
+      npcSpeakSound = useAudioPlayer(require("../assets/sounds/npc-speak.mp3"));
+    } catch {
+      console.warn("[Sounds] npc-speak.mp3 not found - see assets/sounds/README.md");
     }
 
     try {
-      activityCompleteSound = useAudioPlayer(require('../assets/sounds/activity-complete.mp3'));
-    } catch (error) {
-      console.warn('[Sounds] activity-complete.mp3 not found - see assets/sounds/README.md');
+      activityCompleteSound = useAudioPlayer(require("../assets/sounds/activity-complete.mp3"));
+    } catch {
+      console.warn("[Sounds] activity-complete.mp3 not found - see assets/sounds/README.md");
     }
 
-    console.log('[Sounds] Initialized successfully');
+    console.log("[Sounds] Initialized successfully");
   } catch (error) {
-    console.error('[Sounds] Failed to initialize audio system:', error);
+    console.error("[Sounds] Failed to initialize audio system:", error);
   }
 }
 
-/**
- * Play sound when NPC starts speaking
- */
 export async function playNPCSpeakSound() {
+  if (Platform.OS === "web" || !npcSpeakSound) {
+    return;
+  }
+
   try {
-    if (npcSpeakSound) {
-      await npcSpeakSound.play();
-    }
+    await npcSpeakSound.play();
   } catch (error) {
-    console.error('[Sounds] Failed to play NPC speak sound:', error);
+    console.error("[Sounds] Failed to play NPC speak sound:", error);
   }
 }
 
-/**
- * Play sound when activity is completed
- */
 export async function playActivityCompleteSound() {
+  if (Platform.OS === "web" || !activityCompleteSound) {
+    return;
+  }
+
   try {
-    if (activityCompleteSound) {
-      await activityCompleteSound.play();
-    }
+    await activityCompleteSound.play();
   } catch (error) {
-    console.error('[Sounds] Failed to play activity complete sound:', error);
+    console.error("[Sounds] Failed to play activity complete sound:", error);
   }
 }
 
-/**
- * Cleanup sound resources
- */
 export async function cleanupSounds() {
+  if (Platform.OS === "web") {
+    return;
+  }
+
   try {
     if (npcSpeakSound) {
       npcSpeakSound.remove();
@@ -67,8 +80,8 @@ export async function cleanupSounds() {
       activityCompleteSound.remove();
       activityCompleteSound = null;
     }
-    console.log('[Sounds] Cleaned up successfully');
+    console.log("[Sounds] Cleaned up successfully");
   } catch (error) {
-    console.error('[Sounds] Failed to cleanup:', error);
+    console.error("[Sounds] Failed to cleanup:", error);
   }
 }

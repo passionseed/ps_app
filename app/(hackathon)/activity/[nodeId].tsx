@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   TextInput,
@@ -1209,6 +1210,26 @@ export default function HackathonActivityScreen() {
           nextSwipeThresholdSV.value = 0;
           nextSwipePulse.value = 1;
         }}
+        onMomentumScrollEnd={(e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          const scrollY_val = contentOffset.y;
+          if (swipePrevEnabled && scrollY_val < -SWIPE_NEXT_THRESHOLD * 0.6) {
+            handleSwipeToPrevious();
+          }
+          const maxScrollY = Math.max(0, contentSize.height - layoutMeasurement.height);
+          const overscrollY = scrollY_val - maxScrollY;
+          if (swipeNextEnabled && overscrollY > SWIPE_NEXT_THRESHOLD * 0.6) {
+            handleSwipeToNext();
+          }
+          prevSwipeProgress.value = 0;
+          prevReadyProgress.value = 0;
+          prevSwipeThresholdSV.value = 0;
+          prevSwipePulse.value = 1;
+          nextSwipeProgress.value = 0;
+          bottomReadyProgress.value = 0;
+          nextSwipeThresholdSV.value = 0;
+          nextSwipePulse.value = 1;
+        }}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -1404,6 +1425,31 @@ export default function HackathonActivityScreen() {
           />
         )}
       </Animated.ScrollView>
+      {Platform.OS === "web" && siblings.length > 0 && (
+        <View style={styles.webNavButtons}>
+          {swipePrevEnabled && (
+            <Pressable
+              style={styles.webNavButton}
+              onPress={handleSwipeToPrevious}
+            >
+              <AppText style={styles.webNavButtonText}>← ก่อนหน้า</AppText>
+            </Pressable>
+          )}
+          <View style={{ flex: 1 }} />
+          {allAssessmentsSubmitted && swipeNextEnabled ? (
+            <Pressable
+              style={[styles.webNavButton, styles.webNavButtonPrimary]}
+              onPress={handleSwipeToNext}
+            >
+              <AppText style={[styles.webNavButtonText, styles.webNavButtonTextPrimary]}>
+                ถัดไป →
+              </AppText>
+            </Pressable>
+          ) : (
+            <AppText style={styles.webNavLockedText}>จบภารกิจนี้ก่อนไปต่อ</AppText>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -1706,5 +1752,41 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(145, 196, 227, 0.3)",
     marginVertical: 8,
+  },
+
+  webNavButtons: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 12,
+    backgroundColor: "rgba(3, 5, 10, 0.95)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+  },
+  webNavButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  webNavButtonPrimary: {
+    backgroundColor: CYAN,
+  },
+  webNavButtonText: {
+    fontSize: 14,
+    color: WHITE,
+    fontWeight: "600",
+  },
+  webNavButtonTextPrimary: {
+    color: "#000",
+  },
+  webNavLockedText: {
+    fontSize: 13,
+    color: WHITE55,
   },
 });

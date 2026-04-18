@@ -88,6 +88,33 @@ async function readBytes(uri: string): Promise<Uint8Array> {
     return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   }
 
+  if (uri.startsWith("blob:")) {
+    try {
+      const response = await fetch(uri);
+      if (!response.ok) {
+        throw new UploadStageError("read_bytes", `Failed to fetch blob: ${response.status}`);
+      }
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (reader.result instanceof ArrayBuffer) {
+            resolve(new Uint8Array(reader.result));
+          } else {
+            reject(new UploadStageError("read_bytes", "Failed to read blob as ArrayBuffer"));
+          }
+        };
+        reader.onerror = () => reject(new UploadStageError("read_bytes", "FileReader error"));
+        reader.readAsArrayBuffer(blob);
+      });
+    } catch (e: any) {
+      throw new UploadStageError(
+        "read_bytes",
+        `Failed to read blob: ${e?.message || String(e)}`
+      );
+    }
+  }
+
   let fileUri = uri;
   if (uri.startsWith("content://")) {
     try {

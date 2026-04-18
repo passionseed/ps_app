@@ -1,4 +1,3 @@
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
 import { getExpoProjectId } from "./runtime-config";
@@ -9,25 +8,31 @@ export {
   sendPathNotificationEvent,
 } from "./pathNotifications";
 
-/**
- * Track whether the native notifications module is available.
- * On Android, Firebase may not be initialized if google-services.json
- * is missing or misconfigured, which causes all Notifications calls to throw.
- */
-let _notificationsAvailable = true;
+let Notifications: typeof import("expo-notifications") | null = null;
+if (Platform.OS !== "web") {
+  try {
+    Notifications = require("expo-notifications");
+  } catch {
+    Notifications = null;
+  }
+}
 
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} catch {
-  _notificationsAvailable = false;
+let _notificationsAvailable = !!Notifications;
+
+if (Notifications) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch {
+    _notificationsAvailable = false;
+  }
 }
 
 /** Check if push notifications are available on this device. */
@@ -76,7 +81,7 @@ async function updateNotificationProfile(
 }
 
 export async function requestPushPermissions(): Promise<string | null> {
-  if (!_notificationsAvailable) {
+  if (!_notificationsAvailable || !Notifications) {
     return null;
   }
 
@@ -108,8 +113,6 @@ export async function requestPushPermissions(): Promise<string | null> {
 
     return token.data;
   } catch (error) {
-    // Firebase not initialized on Android (missing google-services.json),
-    // or other native notification module errors. Degrade gracefully.
     console.warn("[notifications] Push permissions request failed:", error);
     _notificationsAvailable = false;
     return null;
@@ -151,7 +154,7 @@ export async function scheduleDailyReminder(
   title: string = "Time to grow! 🌱",
   body: string = "Continue your daily learning path.",
 ): Promise<string | null> {
-  if (!_notificationsAvailable) {
+  if (!_notificationsAvailable || !Notifications) {
     return null;
   }
 
@@ -168,7 +171,7 @@ export async function scheduleDailyReminder(
         type: "daily",
         hour,
         minute,
-      } as Notifications.DailyTriggerInput,
+      } as import("expo-notifications").DailyTriggerInput,
     });
 
     return identifier;
@@ -180,7 +183,7 @@ export async function scheduleDailyReminder(
 }
 
 export async function cancelAllReminders(): Promise<void> {
-  if (!_notificationsAvailable) {
+  if (!_notificationsAvailable || !Notifications) {
     return;
   }
 

@@ -1,7 +1,16 @@
 import * as WebBrowser from "expo-web-browser";
-import * as AppleAuthentication from "expo-apple-authentication";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
+
+// Conditional import of Apple Authentication (native-only)
+let AppleAuthentication: typeof import("expo-apple-authentication") | null = null;
+if (Platform.OS === "ios") {
+  try {
+    AppleAuthentication = require("expo-apple-authentication");
+  } catch {
+    AppleAuthentication = null;
+  }
+}
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { getSupabaseRuntimeConfig } from "./runtime-config";
@@ -452,7 +461,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithApple = async () => {
-    if (Platform.OS !== "ios") {
+    if (Platform.OS !== "ios" || !AppleAuthentication) {
       await signInWithOAuth("apple", "passion-seed://apple-auth");
       return;
     }

@@ -35,7 +35,7 @@ import {
 } from "../../lib/hackathonProfileCache";
 import type { HackathonTeam } from "../../types/hackathon-program";
 
-const BG = "transparent";
+const BG = "#03050a";
 const CYAN = "#91C4E3";
 const CYAN_BORDER = "rgba(145,196,227,0.1)";
 const WHITE = "#FFFFFF";
@@ -830,7 +830,7 @@ function QItem({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "transparent" },
+  root: { flex: 1, backgroundColor: BG },
   content: {
     padding: Space.xl,
     paddingBottom: 120,

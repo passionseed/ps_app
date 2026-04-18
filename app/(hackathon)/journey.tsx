@@ -30,7 +30,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 // Tokens
-const BG = "transparent";
+const BG = "#03050a";
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
 const CARD_BG = "rgba(13,18,25,0.95)";
@@ -74,9 +74,7 @@ function CircularProgress({ percent, size = 64, strokeWidth = 6 }: { percent: nu
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          originX={cx}
-          originY={cy}
-          rotation="-90"
+          transform={`rotate(-90, ${cx}, ${cy})`}
         />
       </Svg>
       <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>

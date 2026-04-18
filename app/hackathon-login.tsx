@@ -91,7 +91,7 @@ export default function HackathonLoginScreen() {
   }
 
   return (
-    <Pressable style={styles.root} onPress={Keyboard.dismiss} accessible={false}>
+    <Pressable style={styles.root} onPress={Platform.OS !== "web" ? Keyboard.dismiss : undefined} accessible={false}>
       {/* Ambient glow orbs and Skia creature SVGs */}
       <HackathonBackground topGlowOffsetY={Platform.OS === "android" ? 72 : 0} />
 
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     paddingBottom: Space["3xl"],
     gap: Space.xl,
   },
-  backRow: { alignSelf: "flex-start" },
+  backRow: { alignSelf: "center" },
 
   header: { gap: Space.sm },
   eyebrow: {

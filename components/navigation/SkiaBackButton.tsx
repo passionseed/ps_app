@@ -30,7 +30,7 @@ function SkiaBackButtonComponent({
   accessibilityLabel = "Go back",
 }: SkiaBackButtonProps) {
   // Web fallback - Skia not supported on web
-  if (Platform.OS === "web") {
+  if ((Platform.OS as string) === "web") {
     return (
       <Pressable
         onPress={onPress}
@@ -117,7 +117,7 @@ function SkiaBackButtonComponent({
         onPressOut={handlePressOut}
         onPress={onPress}
       >
-        {Platform.OS !== "web" ? (
+        {(Platform.OS as string) !== "web" ? (
           <Canvas style={styles.canvas}>
             <Path
               path={CHEVRON_PATH}
@@ -156,6 +156,8 @@ const styles = StyleSheet.create({
     height: BUTTON_SIZE,
     borderRadius: Radius.full,
     overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
   },
   lightBase: {
     backgroundColor: "rgba(255,255,255,0.92)",

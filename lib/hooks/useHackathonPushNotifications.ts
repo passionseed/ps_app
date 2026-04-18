@@ -1,15 +1,31 @@
 import { useEffect, useRef, useCallback } from "react";
-import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 import { router } from "expo-router";
 import { readHackathonParticipant } from "../hackathon-mode";
 import { registerPushToken } from "../hackathonPushTokens";
 import { markInboxItemRead } from "../hackathonInbox";
 
+let Notifications: typeof import("expo-notifications") | null = null;
+if (Platform.OS !== "web") {
+  try {
+    Notifications = require("expo-notifications");
+  } catch {
+    Notifications = null;
+  }
+}
+
+type EventSubscription = {
+  remove(): void;
+};
+
 export function useHackathonPushNotifications() {
-  const notificationListener = useRef<Notifications.EventSubscription>();
-  const responseListener = useRef<Notifications.EventSubscription>();
+  const notificationListener = useRef<EventSubscription | undefined>();
+  const responseListener = useRef<EventSubscription | undefined>();
 
   const registerToken = useCallback(async () => {
+    if (!Notifications) {
+      return;
+    }
     try {
       const participant = await readHackathonParticipant();
       if (participant?.id) {
@@ -21,7 +37,7 @@ export function useHackathonPushNotifications() {
   }, []);
 
   const handleNotificationResponse = useCallback(
-    async (response: Notifications.NotificationResponse) => {
+    async (response: import("expo-notifications").NotificationResponse) => {
       const data = response.notification.request.content.data;
 
       if (data?.type === "inbox_item") {
@@ -48,6 +64,10 @@ export function useHackathonPushNotifications() {
   );
 
   useEffect(() => {
+    if (!Notifications) {
+      return;
+    }
+
     registerToken();
 
     notificationListener.current =

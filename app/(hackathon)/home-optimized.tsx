@@ -168,7 +168,7 @@ export default function HackathonHomeScreenOptimized() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "transparent" },
+  root: { flex: 1, backgroundColor: "#03050a" },
   loadingRoot: { flex: 1, alignItems: "center", justifyContent: "center", gap: Space.md },
   loadingText: { color: CYAN, fontSize: 14, fontFamily: "BaiJamjuree_500Medium", letterSpacing: 0.4 },
   content: {

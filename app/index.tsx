@@ -12,7 +12,6 @@ import {
   Pressable,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import * as AppleAuthentication from "expo-apple-authentication";
 import * as Haptics from "expo-haptics";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";

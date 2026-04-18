@@ -1,26 +1,26 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-/**
- * Register or update a push token for a hackathon participant.
- * Call this when participant logs in or on app initialization.
- *
- * Gracefully handles the case where Firebase is not initialized on Android
- * (e.g. missing google-services.json) by returning early.
- *
- * @param participantId - The ID of the hackathon participant
- * @throws Error if Supabase operation fails
- */
+let Notifications: typeof import("expo-notifications") | null = null;
+if (Platform.OS !== "web") {
+  try {
+    Notifications = require("expo-notifications");
+  } catch {
+    Notifications = null;
+  }
+}
+
 export async function registerPushToken(participantId: string): Promise<void> {
-  // Get Expo push token
+  if (!Notifications) {
+    return;
+  }
+
   let pushToken: string;
   try {
     const tokenData = await Notifications.getExpoPushTokenAsync();
     pushToken = tokenData.data;
   } catch (error) {
-    // Push token not available (e.g., on web, simulator, or Firebase not initialized)
-    console.warn('[hackathonPushTokens] Push token not available:', error);
+    console.warn("[hackathonPushTokens] Push token not available:", error);
     return;
   }
 
