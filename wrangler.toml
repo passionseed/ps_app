@@ -1,0 +1,27 @@
+# Cloudflare Pages configuration for Passion Seed
+# Docs: https://developers.cloudflare.com/pages/platform/wrangler-configuration/
+
+name = "passion-seed"
+compatibility_date = "2025-04-17"
+compatibility_flags = ["nodejs_compat"]
+
+# Build configuration
+[build]
+command = "npx expo export -p web"
+cwd = "."
+
+# Upload directory (Expo web export output)
+[site]
+bucket = "./dist"
+
+# Cloudflare Pages Functions (API routes)
+[[functions]]
+name = "api"
+route = "/api/*"
+
+# Environment variables (set via Cloudflare dashboard or wrangler secret)
+[env.production]
+name = "passion-seed"
+
+[env.preview]
+name = "passion-seed-preview"
