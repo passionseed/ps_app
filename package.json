@@ -13,10 +13,7 @@
     "generate:pathlab": "npx tsx scripts/generate-pathlab/index.ts",
     "generate:pathlab:batch": "npx tsx scripts/generate-pathlab/batch.ts",
     "build:android-local": "eas build --local -p android --profile preview",
-    "build:ios-local": "SENTRY_DISABLE_PLUGIN=1 SENTRY_DISABLE_AUTO_UPLOAD=true SENTRY_ALLOW_FAILURE=true NODE_ENV=production eas build --local -p ios --profile production",
-    "export:web": "npx expo export -p web",
-    "deploy:cf": "npm run export:web && wrangler pages deploy dist --project-name=passion-seed",
-    "deploy:cf:preview": "npm run export:web && wrangler pages deploy dist --project-name=passion-seed --branch=preview"
+    "build:ios-local": "SENTRY_DISABLE_PLUGIN=1 SENTRY_DISABLE_AUTO_UPLOAD=true SENTRY_ALLOW_FAILURE=true NODE_ENV=production eas build --local -p ios --profile production"
   },
   "dependencies": {
     "@expo-google-fonts/bai-jamjuree": "^0.4.1",
@@ -75,6 +72,7 @@
     "react-native-youtube-iframe": "^2.4.1"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1032.0",
     "@google/generative-ai": "^0.24.1",
     "@types/react": "~19.2.14",
     "dotenv": "^17.3.1",

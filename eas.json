@@ -9,7 +9,11 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "APP_NAME_SUFFIX": " (Development)"
+        "APP_NAME_SUFFIX": " (Development)",
+        "EXPO_PUBLIC_SUPABASE_URL": "[REDACTED_SUPABASE_URL]/",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "[REDACTED_PUBLISHABLE_KEY]",
+        "EXPO_PUBLIC_PROJECT_ID": "baca732a-c7d8-4bd2-9742-48cc2a5e939f",
+        "EXPO_PUBLIC_CLOUDFLARE_DOMAIN": "cdn.passionseed.org"
       }
     },
     "simulator": {
@@ -17,7 +21,11 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "APP_NAME_SUFFIX": " (Development)"
+        "APP_NAME_SUFFIX": " (Development)",
+        "EXPO_PUBLIC_SUPABASE_URL": "[REDACTED_SUPABASE_URL]/",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "[REDACTED_PUBLISHABLE_KEY]",
+        "EXPO_PUBLIC_PROJECT_ID": "baca732a-c7d8-4bd2-9742-48cc2a5e939f",
+        "EXPO_PUBLIC_CLOUDFLARE_DOMAIN": "cdn.passionseed.org"
       },
       "ios": {
         "simulator": true
@@ -35,19 +43,18 @@
         "EXPO_PUBLIC_SUPABASE_URL": "[REDACTED_SUPABASE_URL]/",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "[REDACTED_PUBLISHABLE_KEY]",
         "EXPO_PUBLIC_PROJECT_ID": "baca732a-c7d8-4bd2-9742-48cc2a5e939f",
+        "EXPO_PUBLIC_CLOUDFLARE_DOMAIN": "cdn.passionseed.org",
         "GOOGLE_SERVICES_JSON": "./google-services.json"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "android": {
-        "buildType": "apk"
-      },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "[REDACTED_SUPABASE_URL]/",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "[REDACTED_PUBLISHABLE_KEY]",
         "EXPO_PUBLIC_PROJECT_ID": "baca732a-c7d8-4bd2-9742-48cc2a5e939f",
+        "EXPO_PUBLIC_CLOUDFLARE_DOMAIN": "cdn.passionseed.org",
         "GOOGLE_SERVICES_JSON": "./google-services.json"
       }
     }

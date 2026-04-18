@@ -1,25 +1,17 @@
-import Constants from "expo-constants";
-
 /**
- * Get environment variable from Expo Constants.
- * EAS env vars are build-time only; we embed them in app.config.js extra field
- * to make them available at runtime via Constants.expoConfig.extra.
+ * Get environment variable from process.env.
+ * EXPO_PUBLIC_* vars are automatically available at runtime on all platforms
+ * (web, iOS, Android) when prefixed with EXPO_PUBLIC_.
  */
 function getEnvVar(name: string): string | undefined {
-  try {
-    const extra = (Constants.expoConfig as any)?.extra;
-    const value = extra?.[name];
-    return typeof value === "string" ? value : undefined;
-  } catch {
-    return undefined;
-  }
+  const value = process.env[name];
+  return typeof value === "string" ? value : undefined;
 }
 
 const runtimeConfig = {
-  supabaseUrl: getEnvVar("supabaseUrl"),
-  supabasePublishableKey: getEnvVar("supabasePublishableKey"),
-  supabaseAnonKey: getEnvVar("supabaseAnonKey"),
-  expoProjectId: (Constants.expoConfig as any)?.extra?.eas?.projectId,
+  supabaseUrl: getEnvVar("EXPO_PUBLIC_SUPABASE_URL"),
+  supabasePublishableKey: getEnvVar("EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+  expoProjectId: getEnvVar("EXPO_PUBLIC_PROJECT_ID"),
 } as const;
 
 type RuntimeConfigKey = keyof typeof runtimeConfig;
@@ -27,7 +19,6 @@ type RuntimeConfigKey = keyof typeof runtimeConfig;
 const LABELS: Record<RuntimeConfigKey, string> = {
   supabaseUrl: "supabaseUrl",
   supabasePublishableKey: "supabasePublishableKey",
-  supabaseAnonKey: "supabaseAnonKey",
   expoProjectId: "eas.projectId",
 };
 
@@ -46,7 +37,6 @@ export function getSupabaseRuntimeConfig() {
   return {
     url: runtimeConfig.supabaseUrl?.trim() ?? "",
     publishableKey: runtimeConfig.supabasePublishableKey?.trim() ?? "",
-    anonKey: runtimeConfig.supabaseAnonKey?.trim() ?? "",
   };
 }
 

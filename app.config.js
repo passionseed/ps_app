@@ -240,10 +240,6 @@ module.exports = {
       eas: {
         projectId: "baca732a-c7d8-4bd2-9742-48cc2a5e939f",
       },
-      // Runtime environment variables (EAS env vars are build-time only)
-      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-      supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     },
     autolinking: {
       exclude: ["expo-glass-effect", "expo-apple-authentication"],

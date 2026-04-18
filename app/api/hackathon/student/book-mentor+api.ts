@@ -1,3 +1,5 @@
+import { readHackathonToken } from "../../../lib/hackathon-mode";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -10,15 +12,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const token = await readHackathonToken();
+    if (!token) {
       return Response.json(
         { error: "Not authenticated" },
         { status: 401 }
       );
     }
-
-    const token = authHeader.replace("Bearer ", "");
 
     const res = await fetch(
       "https://www.passionseed.org/api/hackathon/student/book-mentor",
