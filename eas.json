@@ -41,6 +41,9 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "[REDACTED_SUPABASE_URL]/",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "[REDACTED_PUBLISHABLE_KEY]",
