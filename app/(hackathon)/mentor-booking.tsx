@@ -10,6 +10,7 @@ import {
   Alert,
   Dimensions,
   Linking,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -333,10 +334,10 @@ function BookingForm({
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(
-      `https://www.passionseed.org/api/hackathon/student/mentor-slots?mentor_id=${mentor.id}&duration=30`,
-      { signal: controller.signal }
-    )
+    const slotsUrl = Platform.OS === "web"
+      ? `/api/hackathon/student/mentor-slots?mentor_id=${mentor.id}&duration=30`
+      : `https://www.passionseed.org/api/hackathon/student/mentor-slots?mentor_id=${mentor.id}&duration=30`;
+    fetch(slotsUrl, { signal: controller.signal })
       .then(async (res) => {
         if (res.status === 404) return { slots: null };
         const data = await res.json();
@@ -378,7 +379,11 @@ function BookingForm({
 
       const notes = `Track: ${selectedTrack}\n\nรายละเอียด Idea:\n${ideaDetail.trim()}\n\nสิ่งที่ต้องการให้ Mentor ช่วย:\n${mentorNeed.trim()}`;
 
-      const res = await fetch("https://www.passionseed.org/api/hackathon/student/book-mentor", {
+      const apiUrl = Platform.OS === "web"
+        ? "/api/hackathon/student/book-mentor"
+        : "https://www.passionseed.org/api/hackathon/student/book-mentor";
+
+      const res = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ mentor_id: mentor.id, slot_datetime: selectedSlot, notes }),
@@ -681,7 +686,10 @@ export default function MentorBookingScreen() {
     const token = await readHackathonToken();
     if (!token) { setQuotaLoading(false); return; }
     try {
-      const res = await fetch("https://www.passionseed.org/api/hackathon/student/mentor-quota", {
+      const quotaUrl = Platform.OS === "web"
+        ? "/api/hackathon/student/mentor-quota"
+        : "https://www.passionseed.org/api/hackathon/student/mentor-quota";
+      const res = await fetch(quotaUrl, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -713,10 +721,10 @@ export default function MentorBookingScreen() {
     try {
       const token = await readHackathonToken();
       if (!token) { setCancelError("ไม่พบ session กรุณาเข้าสู่ระบบใหม่"); return; }
-      const res = await fetch(
-        `https://www.passionseed.org/api/hackathon/student/cancel-booking/${quota.booking.id}`,
-        { method: "POST", headers: { Authorization: `Bearer ${token}` } }
-      );
+      const cancelUrl = Platform.OS === "web"
+        ? `/api/hackathon/student/cancel-booking/${quota.booking.id}`
+        : `https://www.passionseed.org/api/hackathon/student/cancel-booking/${quota.booking.id}`;
+      const res = await fetch(cancelUrl, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json().catch(() => ({}));
       console.log("cancel response", res.status, data);
       if (!res.ok) {
