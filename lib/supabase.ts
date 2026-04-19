@@ -7,9 +7,8 @@ import {
 } from "./runtime-config";
 
 const supabaseConfigError = getSupabaseConfigErrorMessage();
-const { url: supabaseUrl, publishableKey, anonKey } =
+const { url: supabaseUrl, publishableKey: supabaseAnonKey } =
   getSupabaseRuntimeConfig();
-const supabaseAnonKey = anonKey || publishableKey;
 
 function createMissingConfigProxy(message: string) {
   const noopSubscription = { unsubscribe: () => {} };
@@ -39,7 +38,7 @@ export const supabase = supabaseConfigError
   ? (createMissingConfigProxy(supabaseConfigError) as ReturnType<
       typeof createClient
     >)
-  : createClient(supabaseUrl, publishableKey, {
+  : createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         storage: localStorage,
         autoRefreshToken: true,

@@ -1,13 +1,13 @@
 // lib/storageUpload.ts
-// Shared Android-safe upload pipeline for Backblaze B2 Storage
+// Shared Android-safe upload pipeline for Supabase Storage
 // Works with local/content URIs from ImagePicker on both iOS and Android
 
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
 import * as Sentry from "@sentry/react-native";
+import { supabase } from "./supabase";
 import { logErrorToStorage } from "./asyncStorage";
 import { logUploadAttempt, logUploadComplete } from "./eventLogger";
-import { getB2UploadUrl } from "./b2Upload";
 
 export type UploadAssetInput = {
   uri: string;
@@ -225,16 +225,43 @@ async function uploadWithRetry(
   bytes: Uint8Array,
   mimeType: string,
   maxRetries = 2
-): Promise<string> {
-  const { uploadToB2, getB2PublicUrl } = await import("./b2Upload");
-  
-  try {
-    return await uploadToB2(bucket, path, bytes, mimeType, maxRetries);
-  } catch (error) {
-    // Fallback to generating URL format if upload fails
-    console.warn("B2 upload failed, using URL format:", error);
-    return getB2PublicUrl(bucket, path);
+): Promise<void> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      captureUploadBreadcrumb(
+        `Upload attempt ${attempt + 1}/${maxRetries + 1}`,
+        { path, bytesLength: bytes.length, attempt }
+      );
+
+      const { error } = await supabase.storage
+        .from(bucket)
+        .upload(path, bytes, {
+          contentType: mimeType,
+          upsert: true,
+        });
+
+      if (error) throw new Error(error.message);
+
+      captureUploadBreadcrumb("Upload successful", { path, attempt });
+      return;
+    } catch (e: any) {
+      lastError = e;
+      captureUploadBreadcrumb("Upload attempt failed", {
+        path,
+        attempt,
+        error: e?.message,
+      });
+
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
   }
+
+  throw lastError || new Error("Upload failed after retries");
 }
 
 export async function uploadAssetToSupabase(
@@ -316,9 +343,8 @@ export async function uploadAssetToSupabase(
 
   const path = pathFormat(normalized);
 
-  let publicUrl: string;
   try {
-    publicUrl = await uploadWithRetry(bucket, path, bytes, normalized.mimeType);
+    await uploadWithRetry(bucket, path, bytes, normalized.mimeType);
   } catch (e: any) {
     captureAndLogUploadError(
       e instanceof Error ? e : new Error(String(e)),
@@ -343,11 +369,33 @@ export async function uploadAssetToSupabase(
     );
   }
 
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+  if (!urlData?.publicUrl) {
+    const error = new UploadStageError(
+      "public_url",
+      "Failed to get public URL"
+    );
+    captureAndLogUploadError(
+      error,
+      "public_url",
+      captureUploadDiagnostics(normalized.uri, "public_url", bytes)
+    );
+    logUploadAttempt({
+      stage: "public_url",
+      success: false,
+      durationMs: Date.now() - startTime,
+      errorMessage: "Failed to get public URL",
+      fileSize: bytes.length,
+      uriScheme,
+    }).catch(() => {});
+    throw error;
+  }
+
   const durationMs = Date.now() - startTime;
 
   captureUploadBreadcrumb("Upload complete", {
     path,
-    url: publicUrl.substring(0, 50) + "...",
+    url: urlData.publicUrl.substring(0, 50) + "...",
   });
 
   logUploadAttempt({
@@ -365,7 +413,7 @@ export async function uploadAssetToSupabase(
   }).catch(() => {});
 
   return {
-    url: publicUrl,
+    url: urlData.publicUrl,
     path,
     mimeType: normalized.mimeType,
     fileName: normalized.fileName,

@@ -240,10 +240,17 @@ module.exports = {
       eas: {
         projectId: "baca732a-c7d8-4bd2-9742-48cc2a5e939f",
       },
-      // Runtime environment variables
-      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || "[REDACTED_SUPABASE_URL]",
-      supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "[REDACTED_PUBLISHABLE_KEY]",
-      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "[REDACTED_ANON_KEY]",
+<<<<<<< HEAD
+      // Runtime environment variables (EAS env vars are build-time only)
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+=======
+      // Runtime environment variables (EAS env vars are build-time only)
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+>>>>>>> f1d37df (chore: remove one-time B2/cloudflare migration infrastructure)
     },
     autolinking: {
       exclude: ["expo-glass-effect", "expo-apple-authentication"],
