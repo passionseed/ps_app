@@ -1,3 +1,4 @@
+import { supabase } from "./supabase";
 import { computeTeamRank, type TeamScoreRow } from "./hackathonRanking";
 import type {
   HackathonAdminActivityRow,
@@ -647,10 +648,6 @@ export function buildHackathonAdminDashboardFromRows(
   };
 }
 
-async function getSupabaseClient() {
-  const mod = await import("./supabase");
-  return mod.supabase;
-}
 
 function getQueryErrorMessage(error: unknown) {
   if (
@@ -676,7 +673,6 @@ async function loadList<T>(query: PromiseLike<{ data: T[] | null; error: unknown
 export async function getHackathonAdminDashboard(
   programSlug = "super-seed-hackathon",
 ): Promise<HackathonAdminDashboard> {
-  const supabase = await getSupabaseClient();
 
   const { data: program, error: programError } = await supabase
     .from("hackathon_programs")

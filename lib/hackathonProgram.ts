@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+import { readHackathonParticipant } from "./hackathon-mode";
 import type {
   HackathonModuleGateStatus,
   HackathonModuleProgress,
@@ -100,11 +102,6 @@ function stringifyError(error: unknown): string {
   }
 
   return "Unknown error";
-}
-
-async function getSupabaseClient() {
-  const mod = await import("./supabase");
-  return mod.supabase;
 }
 
 function isRetryable(error: unknown): boolean {
@@ -330,9 +327,6 @@ export function getChallengeSummary(
 
 export async function getCurrentHackathonTeamMembership(): Promise<HackathonTeamMembership | null> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
-
-    const { readHackathonParticipant } = await import("./hackathon-mode");
     const participant = await readHackathonParticipant();
     if (!participant?.id) return null;
 
@@ -349,14 +343,14 @@ export async function getCurrentHackathonTeamMembership(): Promise<HackathonTeam
 
 export async function getCurrentHackathonProgramHome(): Promise<HackathonProgramHome> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
-
     // Program/phases should still load even when the local participant session
     // is missing. Team/enrollment remain optional.
-    const { readHackathonParticipant } = await import("./hackathon-mode");
+    console.log("[home] step 1: supabase=", typeof supabase, "from=", typeof supabase?.from);
     const participant = await readHackathonParticipant();
+    console.log("[home] step 2: participant=", participant?.id ?? "null");
 
     // Load the single active program directly.
+    console.log("[home] step 3: querying programs");
     const { data: programs, error: progErr } = await supabase
       .from("hackathon_programs")
       .select("*")
@@ -440,7 +434,6 @@ export async function getHackathonPhaseDetail(
   phaseId: string,
 ): Promise<HackathonPhaseDetail> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
     const [{ data: phase }, { data: playlists }] = await Promise.all([
       supabase
         .from("hackathon_program_phases")
@@ -482,7 +475,6 @@ export async function getHackathonPhaseDetail(
 
 export async function getHackathonModuleDetail(moduleId: string) {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
     const { data, error } = await supabase
       .from("hackathon_phase_modules")
       .select("*")
@@ -507,7 +499,6 @@ export async function getHackathonJourneyModules(
   phaseId: string,
 ): Promise<Array<HackathonPhaseModule & { ends_at: string | null }>> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
 
     const { data: phase, error: phaseError } = await supabase
       .from("hackathon_program_phases")
@@ -550,7 +541,6 @@ export async function getModuleActivityProgress(
   currentNodeId: string | null;
 }> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
 
     const { data: module, error: moduleError } = await supabase
       .from("hackathon_phase_modules")
@@ -619,7 +609,6 @@ export async function completeActivityNode(
   userId: string,
 ): Promise<void> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
     const { error } = await supabase
       .from("student_node_progress")
       .upsert(

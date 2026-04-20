@@ -1,16 +1,12 @@
+import { supabase } from "./supabase";
 import type {
   HackathonChallenge,
   HackathonTeamProgramEnrollment,
   HackathonTrack,
 } from "../types/hackathon-program";
 
-async function getSupabaseClient() {
-  const mod = await import("./supabase");
-  return mod.supabase;
-}
 
 export async function getHackathonTracksWithChallenges(): Promise<HackathonTrack[]> {
-  const supabase = await getSupabaseClient();
 
   const { data, error } = await supabase
     .from("hackathon_tracks")
@@ -38,7 +34,6 @@ export async function updateSelectedHackathonChallenge(params: {
   enrollmentId: string;
   challengeId: string;
 }): Promise<void> {
-  const supabase = await getSupabaseClient();
 
   const { error } = await supabase
     .from("hackathon_team_program_enrollments")
@@ -56,7 +51,6 @@ export async function updateSelectedHackathonChallenge(params: {
 export async function getEnrollmentSelectedChallenge(
   enrollmentId: string,
 ): Promise<HackathonTeamProgramEnrollment | null> {
-  const supabase = await getSupabaseClient();
 
   const { data, error } = await supabase
     .from("hackathon_team_program_enrollments")

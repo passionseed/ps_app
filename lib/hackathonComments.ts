@@ -1,3 +1,4 @@
+import { supabase } from "./supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type {
   CommentRecord,
@@ -7,10 +8,6 @@ import type {
 } from "../types/hackathon-comments";
 import { readHackathonToken } from "./hackathon-mode";
 
-async function getSupabaseClient() {
-  const mod = await import("./supabase");
-  return mod.supabase;
-}
 
 async function invokeHackathonCommentMutation(
   body: Record<string, unknown>
@@ -21,7 +18,6 @@ async function invokeHackathonCommentMutation(
     return false;
   }
 
-  const supabase = await getSupabaseClient();
   const { error } = await supabase.functions.invoke("hackathon-comments", {
     body,
     headers: {
@@ -48,7 +44,6 @@ export async function createActivityComment(
   participantId: string,
   content: string
 ): Promise<CommentRecord> {
-  const supabase = await getSupabaseClient();
   const trimmedContent = content.trim();
 
   const { data, error } = await supabase
@@ -76,7 +71,6 @@ export async function createCommentReply(
   participantId: string,
   content: string
 ): Promise<ReplyRecord> {
-  const supabase = await getSupabaseClient();
   const trimmedContent = content.trim();
 
   const { data, error } = await supabase
@@ -104,7 +98,6 @@ export async function updateComment(
   participantId: string,
   content: string
 ): Promise<CommentRecord> {
-  const supabase = await getSupabaseClient();
   const trimmedContent = content.trim();
 
   const { data, error } = await supabase
@@ -145,7 +138,6 @@ export async function deleteComment(
     return;
   }
 
-  const supabase = await getSupabaseClient();
 
   let query = supabase
     .from("hackathon_activity_comments")
@@ -177,7 +169,6 @@ export async function updateReply(
   participantId: string,
   content: string
 ): Promise<ReplyRecord> {
-  const supabase = await getSupabaseClient();
   const trimmedContent = content.trim();
 
   const { data, error } = await supabase
@@ -218,7 +209,6 @@ export async function deleteReply(
     return;
   }
 
-  const supabase = await getSupabaseClient();
 
   let query = supabase
     .from("hackathon_activity_comment_replies")
@@ -248,7 +238,6 @@ export async function getActivityComments(
   activityId: string,
   limit?: number
 ): Promise<CommentWithReplies[]> {
-  const supabase = await getSupabaseClient();
 
   let query = supabase
     .from("hackathon_activity_comments")
@@ -300,7 +289,6 @@ export async function getActivityComments(
 export async function getCommentReplies(
   commentId: string
 ): Promise<ReplyWithParticipant[]> {
-  const supabase = await getSupabaseClient();
 
   const { data, error } = await supabase
     .from("hackathon_activity_comment_replies")
@@ -339,7 +327,6 @@ export async function subscribeToActivityComments(
   activityId: string,
   callback: (comments: CommentWithReplies[]) => void
 ): Promise<RealtimeChannel> {
-  const supabase = await getSupabaseClient();
 
   // Create a unique channel name for this activity
   const channelName = `activity-comments-${activityId}`;
@@ -386,6 +373,5 @@ export async function subscribeToActivityComments(
 export async function unsubscribeFromActivityComments(
   channel: RealtimeChannel
 ): Promise<void> {
-  const supabase = await getSupabaseClient();
   await supabase.removeChannel(channel);
 }

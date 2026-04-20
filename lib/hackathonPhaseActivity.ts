@@ -1,12 +1,8 @@
+import { supabase } from "./supabase";
 import type {
   HackathonPhaseWithActivities,
   HackathonPhaseActivityDetail,
 } from "../types/hackathon-phase-activity";
-
-async function getSupabaseClient() {
-  const mod = await import("./supabase");
-  return mod.supabase;
-}
 
 /**
  * Fetch a single phase with all its activities (content + assessments).
@@ -15,7 +11,6 @@ async function getSupabaseClient() {
 export async function getPhaseWithActivities(
   phaseId: string
 ): Promise<HackathonPhaseWithActivities | null> {
-  const supabase = await getSupabaseClient();
 
   const { data, error } = await supabase
     .from("hackathon_program_phases")
@@ -111,7 +106,6 @@ export async function getPhaseWithActivities(
 export async function getProgramPhasesWithActivities(
   programId: string
 ): Promise<HackathonPhaseWithActivities[]> {
-  const supabase = await getSupabaseClient();
 
   const { data, error } = await supabase
     .from("hackathon_program_phases")
@@ -204,7 +198,6 @@ export async function getProgramPhasesWithActivities(
 export async function getHackathonActivityDetail(
   activityId: string,
 ): Promise<HackathonPhaseActivityDetail | null> {
-  const supabase = await getSupabaseClient();
 
   const { data, error } = await supabase
     .from("hackathon_phase_activities")
@@ -276,7 +269,6 @@ type HackathonProgramPhaseActivitySummary = {
 export async function getProgramPhaseActivitySummaries(
   programId: string
 ): Promise<HackathonProgramPhaseActivitySummary[]> {
-  const supabase = await getSupabaseClient();
 
   const { data, error } = await supabase
     .from("hackathon_program_phases")

@@ -871,17 +871,28 @@ export default function HackathonActivityScreen() {
     }
   };
 
+  function applyBundleToState(bundle: {
+    activity: HackathonPhaseActivityDetail | null;
+    participant: HackathonParticipant | null;
+    pastSubmissions: SubmissionRecord[];
+    teammateSubmissions: TeammateSubmissionRecord[];
+    siblings: { id: string; title: string }[];
+    blockedMessage: string | null;
+  }) {
+    setActivity(bundle.activity);
+    setParticipant(bundle.participant);
+    setPastSubmissions(bundle.pastSubmissions);
+    setTeammateSubmissions(bundle.teammateSubmissions);
+    setSiblings(bundle.siblings);
+    setBlockedMessage(bundle.blockedMessage);
+  }
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       const cached = nodeId ? getCachedHackathonActivityBundle(nodeId) : null;
       if (cached) {
-        setActivity(cached.activity);
-        setParticipant(cached.participant);
-        setPastSubmissions(cached.pastSubmissions);
-        setTeammateSubmissions(cached.teammateSubmissions);
-        setSiblings(cached.siblings);
-        setBlockedMessage(cached.blockedMessage);
+        applyBundleToState(cached);
         setLoading(false);
       } else {
         setLoading(true);
@@ -894,12 +905,7 @@ export default function HackathonActivityScreen() {
             loadHackathonActivityBundle(nodeId!),
           ]);
           if (!cancelled) {
-            setActivity(bundle.activity);
-            setParticipant(bundle.participant);
-            setPastSubmissions(bundle.pastSubmissions);
-            setTeammateSubmissions(bundle.teammateSubmissions);
-            setBlockedMessage(bundle.blockedMessage);
-            setSiblings(bundle.siblings);
+            applyBundleToState(bundle);
           }
         } finally {
           if (!cancelled) setLoading(false);
@@ -931,19 +937,21 @@ export default function HackathonActivityScreen() {
     }
   }, [nodeId, siblings, swipeNextEnabledSV, swipePrevEnabledSV]);
 
+  // Check if all assessments have been submitted (not just any submission)
+  const allAssessmentsSubmitted = activity?.assessments.every((a) =>
+    pastSubmissions.some((s) => (s as any).assessment_id === a.id)
+  ) ?? false;
   const canSubmit = activity
     ? activity.assessments.length === 0
       ? true
       : activity.assessments.every((a) =>
           a.assessment_type === "text_answer"
-            ? (answers[a.id] ?? "").trim().length > 0
+            // Already submitted: allow resubmit even if field is empty (Android re-mount clears answers)
+            ? (answers[a.id] ?? "").trim().length > 0 ||
+              pastSubmissions.some((s) => (s as any).assessment_id === a.id)
             : pickedFiles[a.id] != null
         )
     : false;
-  // Check if all assessments have been submitted (not just any submission)
-  const allAssessmentsSubmitted = activity?.assessments.every((a) =>
-    pastSubmissions.some((s) => (s as any).assessment_id === a.id)
-  ) ?? false;
   const hasAnySubmission = pastSubmissions.length > 0;
   const isTeamSubmissionActivity =
     activity?.submission_scope === "team" ||
@@ -963,7 +971,10 @@ export default function HackathonActivityScreen() {
 
       for (const a of activity.assessments) {
         if (a.assessment_type === "text_answer") {
-          const result = await submitTextAnswer(activity.id, a.id, answers[a.id] ?? "");
+          // Fall back to previous submission text if field was cleared by Android re-mount
+          const latestPast = pastSubmissions.find((s) => (s as any).assessment_id === a.id);
+          const textToSubmit = (answers[a.id] ?? "").trim() || latestPast?.text_answer || "";
+          const result = await submitTextAnswer(activity.id, a.id, textToSubmit);
           createdSubmissionIds.push(result.submissionId);
         } else {
           const file = pickedFiles[a.id];
@@ -1063,7 +1074,6 @@ export default function HackathonActivityScreen() {
       // Still clear form and show success since submission worked
     }
 
-    setAnswers({});
     setPickedFiles({});
     invalidateHackathonProgressCache();
     setSubmitted(true);

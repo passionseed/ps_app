@@ -15,6 +15,8 @@ import {
   preloadHackathonPhaseBundle,
   type HackathonJourneyPhaseCard,
 } from "../../lib/hackathonScreenData";
+import { getSupabaseRuntimeConfig } from "../../lib/runtime-config";
+import Constants from "expo-constants";
 import type { HackathonProgramHome } from "../../types/hackathon-program";
 import type { TeamImpact } from "../../lib/hackathon-submit";
 // Journey data stays on the lightweight getProgramPhaseActivitySummaries query path.
@@ -267,6 +269,7 @@ export default function HackathonJourneyScreen() {
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0 });
   const [loading, setLoading] = useState(!cachedBundle);
   const [refreshing, setRefreshing] = useState(false);
+  const [debugMsg, setDebugMsg] = useState("");
   const currentPhaseCard =
     phaseCards.find((card) => card.isActive) ??
     phaseCards.find((card) => card.phase.status === "released") ??
@@ -288,10 +291,13 @@ export default function HackathonJourneyScreen() {
       const bundle = await loadHackathonJourneyBundle({
         forceRefresh: refreshing,
       });
+      setDebugMsg(`OK: program=${bundle.data.program?.id?.slice(0,8) ?? "null"} phases=${bundle.data.phases.length} cards=${bundle.phaseCards.length}`);
       setData(bundle.data);
       setPhaseCards(bundle.phaseCards);
       setImpact(bundle.impact);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? `${err.message}\n${err.stack?.split("\n").slice(1,4).join(" | ")}` : String(err);
+      setDebugMsg(`ERR: ${msg}`);
       setData({
         team: null,
         enrollment: null,
@@ -419,6 +425,18 @@ export default function HackathonJourneyScreen() {
         ) : (
           <View style={styles.emptyPhases}>
             <AppText style={{ color: WHITE28 }}>No phases available yet.</AppText>
+            {!!debugMsg && (
+              <AppText style={{ color: "yellow", fontSize: 11, marginTop: 8, textAlign: "center" }}>{debugMsg}</AppText>
+            )}
+            {(() => {
+              const cfg = getSupabaseRuntimeConfig();
+              const extra = (Constants.expoConfig as any)?.extra;
+              return (
+                <AppText style={{ color: "cyan", fontSize: 10, marginTop: 8, textAlign: "center" }}>
+                  {`url:${cfg.url.slice(-20)||"MISSING"}\nanon:${cfg.anonKey ? cfg.anonKey.slice(0,10)+"..." : "MISSING"}\npub:${cfg.publishableKey ? cfg.publishableKey.slice(0,10)+"..." : "MISSING"}\nextra keys:${extra ? Object.keys(extra).join(",") : "null"}`}
+                </AppText>
+              );
+            })()}
           </View>
         )}
       </ScrollView>

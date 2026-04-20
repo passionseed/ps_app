@@ -1,3 +1,4 @@
+import { supabase } from "./supabase";
 import { queryClient, queryKeys } from "./queryClient";
 
 /**
@@ -5,10 +6,6 @@ import { queryClient, queryKeys } from "./queryClient";
  * Call these before navigation to warm up the cache.
  */
 
-async function getSupabaseClient() {
-  const mod = await import("./supabase");
-  return mod.supabase;
-}
 
 /**
  * Prefetch hackathon home bundle data.
@@ -21,7 +18,6 @@ export async function prefetchHackathonHome(participantId: string | null) {
   await queryClient.prefetchQuery({
     queryKey: queryKeys.hackathon.teamMembership(participantId),
     queryFn: async () => {
-      const supabase = await getSupabaseClient();
       const { data } = await supabase
         .from("hackathon_team_members")
         .select("*")
@@ -38,7 +34,6 @@ export async function prefetchHackathonHome(participantId: string | null) {
  * Call this when user hovers/clicks on a phase card.
  */
 export async function prefetchPhaseDetail(phaseId: string) {
-  const supabase = await getSupabaseClient();
 
   await Promise.all([
     // Prefetch phase
@@ -78,7 +73,6 @@ export async function prefetchTeamWithMembers(teamId: string) {
   await queryClient.prefetchQuery({
     queryKey: queryKeys.hackathon.team(teamId),
     queryFn: async () => {
-      const supabase = await getSupabaseClient();
       const [{ data: teamData }, { data: memberRows }] = await Promise.all([
         supabase
           .from("hackathon_teams")

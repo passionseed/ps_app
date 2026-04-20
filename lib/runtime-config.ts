@@ -35,7 +35,7 @@ export function getMissingRuntimeConfig(
 
 export function getSupabaseRuntimeConfig() {
   return {
-    url: runtimeConfig.supabaseUrl?.trim() ?? "",
+    url: runtimeConfig.supabaseUrl?.trim().replace(/\/$/, "") ?? "",
     publishableKey: runtimeConfig.supabasePublishableKey?.trim() ?? "",
   };
 }

@@ -1,3 +1,4 @@
+import { supabase } from "../supabase";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys, staleTimes } from "../queryClient";
 import type {
@@ -16,10 +17,6 @@ type ParticipantInfo = {
   team_emoji?: string;
 };
 
-async function getSupabaseClient() {
-  const mod = await import("../supabase");
-  return mod.supabase;
-}
 
 type HackathonHomeBundleResponse = HackathonProgramHome & {
   membership?: HackathonTeamMembership | null;
@@ -267,7 +264,6 @@ export function useTeamEnrollment(
     queryFn: async (): Promise<HackathonTeamProgramEnrollment | null> => {
       if (!teamId || !programId) return null;
 
-      const supabase = await getSupabaseClient();
       const { data, error } = await supabase
         .from("hackathon_team_program_enrollments")
         .select("*")
@@ -296,7 +292,6 @@ export function useParticipant(participantId: string | null | undefined) {
     queryFn: async (): Promise<ParticipantInfo | null> => {
       if (!participantId) return null;
 
-      const supabase = await getSupabaseClient();
       const { data, error } = await supabase
         .from("hackathon_participants")
         .select("id, name, university, track, team_emoji")
@@ -321,7 +316,6 @@ export function useParticipants(participantIds: string[]) {
     queryFn: async (): Promise<ParticipantInfo[]> => {
       if (participantIds.length === 0) return [];
 
-      const supabase = await getSupabaseClient();
       const { data, error } = await supabase
         .from("hackathon_participants")
         .select("id, name, university, track, team_emoji")

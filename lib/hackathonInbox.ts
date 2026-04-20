@@ -1,3 +1,4 @@
+import { supabase } from "./supabase";
 import type {
   InboxItem,
   InboxItemWithUnread,
@@ -8,10 +9,6 @@ import type {
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { readHackathonParticipant } from "./hackathon-mode";
 
-async function getSupabaseClient() {
-  const mod = await import("./supabase");
-  return mod.supabase;
-}
 
 const RETRYABLE_MESSAGES = [
   "network request failed",
@@ -74,7 +71,6 @@ export async function getInboxItems(
   options: GetInboxItemsOptions = {}
 ): Promise<InboxItemsResponse> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
     const participant = await readHackathonParticipant();
 
     if (!participant?.id) {
@@ -125,7 +121,6 @@ export async function getInboxItems(
 
 export async function getUnreadInboxCount(): Promise<number> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
     const participant = await readHackathonParticipant();
 
     if (!participant?.id) {
@@ -148,7 +143,6 @@ export async function getUnreadInboxCount(): Promise<number> {
 
 export async function getInboxPreview(): Promise<InboxPreview | null> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
     const participant = await readHackathonParticipant();
 
     if (!participant?.id) {
@@ -185,7 +179,6 @@ export async function getInboxPreview(): Promise<InboxPreview | null> {
 
 export async function markInboxItemRead(itemId: string): Promise<void> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
     const participant = await readHackathonParticipant();
 
     if (!participant?.id) {
@@ -206,7 +199,6 @@ export async function markInboxItemRead(itemId: string): Promise<void> {
 
 export async function markAllInboxItemsRead(): Promise<void> {
   return withRetry(async () => {
-    const supabase = await getSupabaseClient();
     const participant = await readHackathonParticipant();
 
     if (!participant?.id) {
@@ -228,7 +220,6 @@ export async function markAllInboxItemsRead(): Promise<void> {
 export async function subscribeToInbox(
   callback: (unreadCount: number) => void
 ): Promise<RealtimeChannel | null> {
-  const supabase = await getSupabaseClient();
   const participant = await readHackathonParticipant();
 
   if (!participant?.id) {
@@ -260,6 +251,5 @@ export async function subscribeToInbox(
 export async function unsubscribeFromInbox(
   channel: RealtimeChannel
 ): Promise<void> {
-  const supabase = await getSupabaseClient();
   await supabase.removeChannel(channel);
 }

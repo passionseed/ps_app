@@ -1,3 +1,4 @@
+import { supabase } from "./supabase";
 import type { HackathonTeamMembership } from "../types/hackathon-program";
 
 export interface HackathonTeamReflection {
@@ -12,10 +13,6 @@ export interface HackathonTeamReflection {
   updated_at?: string;
 }
 
-async function getSupabaseClient() {
-  const mod = await import("./supabase");
-  return mod.supabase;
-}
 
 async function getCurrentMembership(): Promise<HackathonTeamMembership | null> {
   const { getCurrentHackathonTeamMembership } = await import("./hackathonProgram");
@@ -25,7 +22,6 @@ async function getCurrentMembership(): Promise<HackathonTeamMembership | null> {
 export async function getTeamReflectionsForPhase(
   phaseId: string,
 ): Promise<HackathonTeamReflection[]> {
-  const supabase = await getSupabaseClient();
   const membership = await getCurrentMembership();
   if (!membership?.team_id) return [];
 
@@ -49,7 +45,6 @@ export async function createHackathonTeamReflection(input: {
   newReality: string;
   keyInsight: string;
 }) {
-  const supabase = await getSupabaseClient();
   const membership = await getCurrentMembership();
   if (!membership?.team_id) {
     throw new Error("You must join a hackathon team before submitting a reflection.");
