@@ -2,6 +2,20 @@ import type { HackathonPhaseActivitySubmissionStatus } from "../types/hackathon-
 import type { HackathonReleaseStatus } from "../types/hackathon-release";
 import type { HackathonProgramPhase } from "../types/hackathon-program";
 
+const SUBMISSION_STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  submitted: "Submitted",
+  revision_required: "Needs revision",
+  passed: "Passed",
+  graded: "Graded",
+  completed: "Completed",
+};
+
+export function formatSubmissionStatusLabel(status: string | null | undefined): string {
+  if (!status) return "Unknown";
+  return SUBMISSION_STATUS_LABELS[status.toLowerCase()] ?? status;
+}
+
 export type { HackathonReleaseStatus } from "../types/hackathon-release";
 
 type ActivityAccessInput = {

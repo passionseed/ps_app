@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { corsHeaders, withCors } from "../../../../lib/apiCors";
 
 const CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=600";
 const MEMBER_SELECT = "id, name, university, track, team_emoji";
@@ -44,9 +45,13 @@ function getRouteSupabase() {
   });
 }
 
-export async function GET(_request: Request, { teamId }: { teamId: string }) {
+export async function OPTIONS(request: Request) {
+  return new Response(null, { status: 200, headers: corsHeaders(request) });
+}
+
+export async function GET(request: Request, { teamId }: { teamId: string }) {
   if (!teamId?.trim()) {
-    return Response.json({ error: "Team ID is required" }, { status: 400 });
+    return Response.json({ error: "Team ID is required" }, withCors({ status: 400 }, request));
   }
 
   try {
@@ -65,7 +70,7 @@ export async function GET(_request: Request, { teamId }: { teamId: string }) {
     if (memberResult.error) throw memberResult.error;
     if (scoreResult.error) throw scoreResult.error;
     if (!teamResult.data) {
-      return Response.json({ error: "Team not found" }, { status: 404 });
+      return Response.json({ error: "Team not found" }, withCors({ status: 404 }, request));
     }
 
     const memberIds = Array.from(
@@ -112,11 +117,11 @@ export async function GET(_request: Request, { teamId }: { teamId: string }) {
         members,
         scores: scoreResult.data ?? [],
       },
-      {
+      withCors({
         headers: {
           "Cache-Control": CACHE_CONTROL,
         },
-      },
+      }, request),
     );
   } catch (error) {
     console.error("[api/hackathon/team] Failed to load team bundle", error);
@@ -124,7 +129,7 @@ export async function GET(_request: Request, { teamId }: { teamId: string }) {
     const isConfigError = errorMessage.includes("Missing Supabase");
     return Response.json(
       { error: "Failed to load team data", details: errorMessage, isConfigError },
-      { status: isConfigError ? 503 : 500 },
+      withCors({ status: isConfigError ? 503 : 500 }, request),
     );
   }
 }

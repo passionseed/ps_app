@@ -1,3 +1,9 @@
+import { corsHeaders, withCors } from "../../../../lib/apiCors";
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, { status: 200, headers: corsHeaders(request) });
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -6,7 +12,7 @@ export async function POST(request: Request) {
     if (!mentor_id || !slot_datetime) {
       return Response.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        withCors({ status: 400 }, request)
       );
     }
 
@@ -14,7 +20,7 @@ export async function POST(request: Request) {
     if (!authHeader?.startsWith("Bearer ")) {
       return Response.json(
         { error: "Not authenticated" },
-        { status: 401 }
+        withCors({ status: 401 }, request)
       );
     }
 
@@ -34,12 +40,12 @@ export async function POST(request: Request) {
 
     const data = await res.json().catch(() => ({}));
 
-    return Response.json(data, { status: res.status });
+    return Response.json(data, withCors({ status: res.status }, request));
   } catch (error) {
     console.error("[book-mentor] Error:", error);
     return Response.json(
       { error: "Internal server error" },
-      { status: 500 }
+      withCors({ status: 500 }, request)
     );
   }
 }

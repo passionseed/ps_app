@@ -1,10 +1,16 @@
+import { corsHeaders, withCors } from "../../../../../lib/apiCors";
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, { status: 200, headers: corsHeaders(request) });
+}
+
 export async function POST(request: Request, { id }: { id: string }) {
   try {
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return Response.json(
         { error: "Not authenticated" },
-        { status: 401 }
+        withCors({ status: 401 }, request)
       );
     }
 
@@ -20,12 +26,12 @@ export async function POST(request: Request, { id }: { id: string }) {
 
     const data = await res.json().catch(() => ({}));
 
-    return Response.json(data, { status: res.status });
+    return Response.json(data, withCors({ status: res.status }, request));
   } catch (error) {
     console.error("[cancel-booking] Error:", error);
     return Response.json(
       { error: "Internal server error" },
-      { status: 500 }
+      withCors({ status: 500 }, request)
     );
   }
 }

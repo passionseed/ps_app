@@ -1,3 +1,9 @@
+import { corsHeaders } from "../../../../lib/apiCors";
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, { status: 200, headers: corsHeaders(request) });
+}
+
 import {
   invalidateHackathonHomeCache,
   invalidatePhaseCache,

@@ -5,6 +5,7 @@ import type {
   HackathonPhasePlaylist,
   HackathonProgramPhase,
 } from "../../../../types/hackathon-program";
+import { corsHeaders, withCors } from "../../../../lib/apiCors";
 
 const CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=600";
 
@@ -14,14 +15,18 @@ const SERVER_STORAGE = {
   removeItem: () => Promise.resolve(),
 };
 
-function json(data: unknown, init?: ResponseInit) {
-  return Response.json(data, {
+function json(data: unknown, init: ResponseInit, request: Request) {
+  return Response.json(data, withCors({
     ...init,
     headers: {
       "Cache-Control": CACHE_CONTROL,
-      ...(init?.headers ?? {}),
+      ...(init.headers as Record<string,string> ?? {}),
     },
-  });
+  }, request));
+}
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, { status: 200, headers: corsHeaders(request) });
 }
 
 function getEnvVar(name: string): string | undefined {
@@ -60,7 +65,7 @@ function getSupabaseClient() {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { phaseId }: { phaseId: string },
 ) {
   try {
@@ -80,7 +85,7 @@ export async function GET(
 
     if (phaseResult.error || !phaseResult.data) {
       if (phaseResult.error?.code === "PGRST116" || !phaseResult.data) {
-        return json({ error: "Phase not found" }, { status: 404 });
+        return json({ error: "Phase not found" }, { status: 404 }, request);
       }
       throw phaseResult.error;
     }
@@ -113,9 +118,9 @@ export async function GET(
       })),
     };
 
-    return json(detail);
+    return json(detail, {}, request);
   } catch (error) {
     console.error("[api/hackathon/phase/[phaseId]] failed to load phase detail", error);
-    return json({ error: "Unable to load hackathon phase" }, { status: 500 });
+    return json({ error: "Unable to load hackathon phase" }, { status: 500 }, request);
   }
 }
