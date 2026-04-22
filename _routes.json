@@ -3,3 +3,4 @@
   "include": ["/*"],
   "exclude": ["/_astro/*", "/_expo/*", "/assets/*", "/client/assets/*", "/client/_expo/*", "/favicon.ico"]
 }
+# Cloudflare Pages deployment marker
