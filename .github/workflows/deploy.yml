@@ -7,48 +7,14 @@ on:
 
 jobs:
   deploy:
-    name: Export & Deploy
+    name: Trigger Cloudflare Pages Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
+      # Cloudflare Pages runs its own build (pnpm expo export -p web)
+      # using env vars already configured in the Cloudflare Pages dashboard.
+      # The _cf_routes.json file is copied into the dist/ via the build command
+      # (cp _cf_routes.json dist/_routes.json) configured in Cloudflare Pages settings.
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Export web
-        run: pnpm run export:web
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-
-      - name: Configure Cloudflare Pages env vars
-        run: |
-          for var in EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
-            echo "Setting \$var in Cloudflare Pages..."
-          done
-        env:
-          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          SB_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          SB_ANON: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          SB_PUB: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-
-      - name: Copy _routes.json for SPA routing
-        run: cp _routes.json dist/_routes.json
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: ps-app
-          directory: dist
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
