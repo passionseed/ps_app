@@ -41,11 +41,14 @@ jobs:
           SB_ANON: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           SB_PUB: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
+      - name: Copy _routes.json for SPA routing
+        run: cp _routes.json dist/_routes.json
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: passion-seed
+          projectName: ps-app
           directory: dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
