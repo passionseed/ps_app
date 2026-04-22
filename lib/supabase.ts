@@ -1,6 +1,9 @@
 import "react-native-url-polyfill/auto";
-import "expo-sqlite/localStorage/install";
 import { createClient } from "@supabase/supabase-js";
+
+if (typeof window !== "undefined") {
+  import("expo-sqlite/localStorage/install");
+}
 import {
   getSupabaseConfigErrorMessage,
   getSupabaseRuntimeConfig,
@@ -34,13 +37,21 @@ function createMissingConfigProxy(message: string) {
   };
 }
 
+const inBrowser = typeof window !== "undefined";
+
+const noopStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
+
 export const supabase = supabaseConfigError
   ? (createMissingConfigProxy(supabaseConfigError) as ReturnType<
       typeof createClient
     >)
   : createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
-        storage: localStorage,
+        storage: inBrowser ? localStorage : noopStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
