@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  deployments: write
+
 jobs:
   deploy:
     name: Build & Deploy to Cloudflare Pages
@@ -42,5 +46,5 @@ jobs:
           projectName: ps-app
           directory: dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          wrangler-version: "3"
+
 
