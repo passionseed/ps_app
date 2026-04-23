@@ -21,6 +21,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { AppText } from "../../../components/AppText";
+import { Ionicons } from "@expo/vector-icons";
 import { HackathonJellyfishLoader } from "../../../components/Hackathon/HackathonJellyfishLoader";
 import { HackathonSwipeDonut } from "../../../components/Hackathon/HackathonSwipeDonut";
 import { WaterFlowHint } from "../../../components/Hackathon/WaterFlowHint";
@@ -28,6 +29,8 @@ import { ActivityCommentsPreview } from "../../../components/Hackathon/ActivityC
 import HackathonEvidenceComic from "../../../components/Hackathon/HackathonEvidenceComic";
 import HackathonWebtoon from "../../../components/Hackathon/HackathonWebtoon";
 import { getHackathonActivityHref } from "../../../lib/hackathonActivityRoute";
+import { getLatestRevisionFeedback } from "../../../lib/hackathonInbox";
+import type { InboxItemWithUnread } from "../../../types/hackathon-inbox";
 import { parseHackathonComicContent } from "../../../lib/hackathonComic";
 import {
   getCachedHackathonActivityBundle,
@@ -634,7 +637,7 @@ function TeammateSubmissionsList({
 
 // ── Main screen ───────────────────────────────────────────────────
 export default function HackathonActivityScreen() {
-  const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
+  const { nodeId, isRevision } = useLocalSearchParams<{ nodeId: string; isRevision?: string }>();
   const cachedBundle = nodeId ? getCachedHackathonActivityBundle(nodeId) : null;
 
   const [siblings, setSiblings] = useState<{id: string, title: string}[]>(
@@ -687,11 +690,33 @@ export default function HackathonActivityScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [contentSectionY, setContentSectionY] = useState(0);
+  const [revisionFeedback, setRevisionFeedback] = useState<InboxItemWithUnread | null>(null);
+  const [feedbackExpanded, setFeedbackExpanded] = useState(false);
+  const scrollRef = useRef<Animated.ScrollView>(null);
+  const assessmentSectionY = useRef(0);
+  const submissionSectionY = useRef(0);
 
   const buttonScale = useSharedValue(1);
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
   }));
+
+  useEffect(() => { setFeedbackExpanded(false); setRevisionFeedback(null); }, [nodeId]);
+
+  useEffect(() => {
+    if (revisionFeedback && !loading) {
+      const tryScroll = (attempt: number) => {
+        const y = submissionSectionY.current || assessmentSectionY.current || contentSectionY;
+        if (y > 0) {
+          (scrollRef.current as any)?.scrollTo?.({ y, animated: true });
+        } else if (attempt < 3) {
+          setTimeout(() => tryScroll(attempt + 1), 300);
+        }
+      };
+      const timer = setTimeout(() => tryScroll(0), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [revisionFeedback, loading]);
 
   useEffect(() => {
     const anySubmitted = pastSubmissions.length > 0;
@@ -911,6 +936,13 @@ export default function HackathonActivityScreen() {
           if (!cancelled) setLoading(false);
         }
       })();
+
+      if (isRevision === 'true' && nodeId) {
+        getLatestRevisionFeedback(nodeId).then(item => {
+          if (!cancelled) setRevisionFeedback(item);
+        });
+      }
+
       return () => { cancelled = true; };
     }, [nodeId])
   );
@@ -1193,6 +1225,7 @@ export default function HackathonActivityScreen() {
       </Animated.View>
 
       <Animated.ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}
         showsVerticalScrollIndicator={false}
@@ -1285,9 +1318,49 @@ export default function HackathonActivityScreen() {
           </View>
         )}
 
+        {/* ── Revision feedback banner ──────────────────────── */}
+        {revisionFeedback && (
+          <Pressable
+            onPress={() => setFeedbackExpanded(prev => !prev)}
+            onLayout={(e) => { assessmentSectionY.current = e.nativeEvent.layout.y; }}
+            style={{
+              backgroundColor: "rgba(251,191,36,0.10)",
+              borderWidth: 1,
+              borderColor: "rgba(251,191,36,0.25)",
+              borderRadius: 10,
+              padding: 14,
+              marginBottom: 12,
+              flexDirection: "row",
+              alignItems: "flex-start",
+              gap: 10,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Toggle mentor feedback"
+          >
+            <Ionicons name="chatbubble-ellipses" size={18} color="#FBBF24" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <AppText style={{ fontSize: 13, color: "#FBBF24", fontFamily: "BaiJamjuree_600SemiBold", marginBottom: 4 }}>
+                Mentor feedback
+              </AppText>
+              <AppText
+                style={{ fontSize: 14, lineHeight: 20, color: WHITE75, fontFamily: "BaiJamjuree_400Regular" }}
+                numberOfLines={feedbackExpanded ? undefined : 2}
+              >
+                {revisionFeedback.body}
+              </AppText>
+            </View>
+            <Ionicons
+              name={feedbackExpanded ? "chevron-up" : "chevron-down"}
+              size={18}
+              color="rgba(251,191,36,0.6)"
+              style={{ marginTop: 2 }}
+            />
+          </Pressable>
+        )}
+
         {/* Assessments + Submit button */}
         {activity.assessments.length > 0 && (
-          <>
+          <View onLayout={(e) => { submissionSectionY.current = e.nativeEvent.layout.y; }}>
             {activity.assessments.map((a) => {
               // Find latest submission for this assessment to show preview
               const latestSub = pastSubmissions.find(
@@ -1361,7 +1434,7 @@ export default function HackathonActivityScreen() {
                 )}
               </Pressable>
             </Animated.View>
-          </>
+          </View>
         )}
 
         {/* Global submit error (visible regardless of assessment type) */}

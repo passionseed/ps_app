@@ -45,6 +45,8 @@ export interface InboxPreview {
 export interface AssessmentReviewMetadata {
   submission_id: string;
   review_id: string;
+  activity_id?: string;
+  submission_status?: string;
   activity_title?: string;
   score_awarded?: number;
   points_possible?: number;

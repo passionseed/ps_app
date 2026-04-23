@@ -1,12 +1,9 @@
-> Project export: server - exported 13 minutes ago
-- Preparing project
-- Creating deployment
-✔ Created deployment
+> Project export: server
+⠋ Preparing project⠙ Preparing project⠹ Preparing project⠸ Preparing project⠼ Preparing project⠴ Preparing project⠦ Preparing project⠧ Preparing project⠇ Preparing project⠏ Preparing project⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment✔ Created deployment
+⠋ Promoting deployment to production⠙ Promoting deployment to production⠹ Promoting deployment to production⠸ Promoting deployment to production⠼ Promoting deployment to production✔ Promoted deployment to production
 
 🎉 Your deployment is ready
 
 Dashboard       https://expo.dev/projects/baca732a-c7d8-4bd2-9742-48cc2a5e939f/hosting/deployments
-Deployment URL  https://passion-seed--jronus083q.expo.app
-
-🚀 When you are ready to deploy to production:
-  $ eas deploy --prod
+Deployment URL  https://passion-seed--h7flprvubu.expo.app
+Production URL  https://passion-seed.expo.app

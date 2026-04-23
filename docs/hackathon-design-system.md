@@ -198,3 +198,16 @@ Alternatively, multiple layered, highly transparent radial gradients can simulat
 
 ### Assets & Illustrations
 Always use the specialized Hackathon assets (Jellyfish, Clione, custom icons) from the `assets/hackathon/Creature/` directory. For SVGs, use `react-native-svg` or Skia's `ImageSVG`. They should typically be wrapped in an `Animated.View` applying a continuous, slow `float` animation to enhance the oceanic sensation.
+
+---
+
+## 6. Anti-Patterns
+
+### No Accent Bars
+Do **not** use thick colored left-border bars (accent bars) on cards or feedback snippets. They feel heavy and out of place in the bioluminescent aesthetic. Status is communicated through:
+- Tinted icon colors inside subtle icon circles
+- Small status pill badges with tinted backgrounds
+- CTA button style differentiation (e.g. purple glow for revision actions)
+
+### No Truncated Feedback
+Mentor feedback text should always be shown in full on card views. Truncating feedback to 2–3 lines hides critical information the student needs to act on. If space is a concern, use a collapsible section — never silently cut text.

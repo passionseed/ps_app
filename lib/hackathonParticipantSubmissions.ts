@@ -2,6 +2,14 @@ import * as Sentry from "@sentry/react-native";
 import { readHackathonParticipant } from "./hackathon-mode";
 import { supabase } from "./supabase";
 
+export type LatestFeedback = {
+  body: string;
+  type: "assessment_review" | "mentor_comment";
+  createdAt: string;
+  scoreAwarded?: number;
+  pointsPossible?: number;
+};
+
 export type ParticipantSubmissionDashboardRow = {
   id: string;
   activityId: string;
@@ -15,6 +23,8 @@ export type ParticipantSubmissionDashboardRow = {
   /** Short preview; full text lives on the activity screen */
   textPreview: string | null;
   hasAttachment: boolean;
+  commentCount: number;
+  latestFeedback: LatestFeedback | null;
 };
 
 type RawSub = {
@@ -96,6 +106,8 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       assessmentId: r.assessment_id,
       textPreview: previewText(r.text_answer),
       hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
+      commentCount: 0,
+      latestFeedback: null,
     }));
   }
 
@@ -104,10 +116,56 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
     ...new Set(actList.map((a) => a.phase_id).filter(Boolean) as string[]),
   ];
 
-  const { data: phases } = await supabase
-    .from("hackathon_program_phases")
-    .select("id, title, phase_number")
-    .in("id", phaseIds);
+  // Fetch phases, comment counts, and inbox feedback in parallel
+  const [{ data: phases }, commentCountsResult, inboxResult] = await Promise.all([
+    supabase
+      .from("hackathon_program_phases")
+      .select("id, title, phase_number")
+      .in("id", phaseIds),
+    supabase
+      .from("hackathon_activity_comments")
+      .select("activity_id")
+      .in("activity_id", activityIds)
+      .is("deleted_at", null),
+    supabase
+      .from("hackathon_participant_inbox_items")
+      .select("metadata, body, type, created_at")
+      .eq("participant_id", participant.id)
+      .in("type", ["assessment_review", "mentor_comment"])
+      .order("created_at", { ascending: false }),
+  ]);
+
+  // Build comment count map: activityId → count
+  const commentCountMap = new Map<string, number>();
+  for (const c of (commentCountsResult.data ?? []) as { activity_id: string }[]) {
+    commentCountMap.set(c.activity_id, (commentCountMap.get(c.activity_id) ?? 0) + 1);
+  }
+
+  // Build reverse lookup: submission UUID → activity_id
+  const submissionToActivity = new Map(rows.map(r => [r.id, r.activity_id]));
+
+  // Build latest feedback map: activityId → LatestFeedback (first match wins)
+  const feedbackMap = new Map<string, LatestFeedback>();
+  for (const item of (inboxResult.data ?? []) as {
+    metadata: Record<string, unknown>;
+    body: string;
+    type: string;
+    created_at: string;
+  }[]) {
+    const subId = typeof item.metadata?.submission_id === 'string'
+      ? item.metadata.submission_id : undefined;
+    const actId = (typeof item.metadata?.activity_id === 'string'
+      ? item.metadata.activity_id : undefined)
+      ?? (subId ? submissionToActivity.get(subId) : undefined);
+    if (!actId || feedbackMap.has(actId)) continue;
+    feedbackMap.set(actId, {
+      body: item.body,
+      type: item.type as LatestFeedback["type"],
+      createdAt: item.created_at,
+      scoreAwarded: item.metadata?.score_awarded as number | undefined,
+      pointsPossible: item.metadata?.points_possible as number | undefined,
+    });
+  }
 
   const phaseById = new Map(
     ((phases ?? []) as PhaseRow[]).map((p) => [p.id, p]),
@@ -129,6 +187,8 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       assessmentId: r.assessment_id,
       textPreview: previewText(r.text_answer),
       hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
+      commentCount: commentCountMap.get(r.activity_id) ?? 0,
+      latestFeedback: feedbackMap.get(r.activity_id) ?? null,
     };
   });
 }

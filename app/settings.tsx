@@ -6,6 +6,11 @@ import {
   Switch,
   Animated,
   Alert,
+  TextInput,
+  Modal,
+  Linking,
+  Platform,
+  ActivityIndicator,
 } from "react-native";
 import { AppText as Text } from "../components/AppText";
 import { PathLabSkiaLoader } from "../components/PathLabSkiaLoader";
@@ -39,10 +44,13 @@ import * as WebBrowser from "expo-web-browser";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { setUserLanguage, user, appLanguage, signOut, isHackathon, signOutHackathon } = useAuth();
+  const { setUserLanguage, user, appLanguage, signOut, isHackathon, signOutHackathon, session } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const isThai = appLanguage === "th";
   const copy = {
@@ -67,6 +75,81 @@ export default function SettingsScreen() {
     version: isThai ? "เวอร์ชัน" : "Version",
     privacy: isThai ? "นโยบายความเป็นส่วนตัว" : "Privacy Policy",
     tos: isThai ? "ข้อกำหนดการให้บริการ" : "Terms of Service",
+    contactSupport: isThai ? "ติดต่อฝ่ายสนับสนุน" : "Contact Support",
+    contactSupportDesc: isThai
+      ? "ส่งอีเมลถึงทีมงานของเรา"
+      : "Send an email to our team",
+    deleteAccount: isThai ? "ลบบัญชี" : "Delete Account",
+    deleteAccountDesc: isThai
+      ? "ลบบัญชีและข้อมูลทั้งหมดถาวร"
+      : "Permanently delete your account and all data",
+    deleteAccountWarning: isThai
+      ? "การลบบัญชีนี้ไม่สามารถเลิกทำได้ ข้อมูลทั้งหมดของคุณจะถูกลบอย่างถาวรรวมถึงโปรไฟล์ การลงทะเบียน และการสะท้อนคิด"
+      : "Deleting your account cannot be undone. All your data will be permanently deleted including your profile, enrollments, and reflections.",
+    deleteConfirmPrompt: isThai
+      ? "พิมพ์ DELETE เพื่อยืนยัน"
+      : "Type DELETE to confirm",
+    cancel: isThai ? "ยกเลิก" : "Cancel",
+    delete: isThai ? "ลบบัญชี" : "Delete Account",
+    account: isThai ? "บัญชี" : "Account",
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user?.id || deleteConfirmText !== "DELETE") return;
+
+    setDeleting(true);
+    try {
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+      if (!supabaseUrl || !publishableKey) {
+        throw new Error("Missing Supabase configuration");
+      }
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/delete-user-account`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`,
+          "apikey": publishableKey,
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          confirmDelete: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete account");
+      }
+
+      setShowDeleteModal(false);
+      Alert.alert(
+        isThai ? "บัญชีถูกลบแล้ว" : "Account Deleted",
+        isThai
+          ? "ข้อมูลบัญชีของคุณถูกลบอย่างถาวรแล้ว"
+          : "Your account has been permanently deleted.",
+        [{ text: "OK", onPress: () => router.replace("/") }]
+      );
+    } catch (error) {
+      Alert.alert(
+        isThai ? "เกิดข้อผิดพลาด" : "Error",
+        error instanceof Error ? error.message : (isThai ? "ไม่สามารถลบบัญชีได้" : "Could not delete account")
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleContactSupport = () => {
+    const email = "support@passionseed.org";
+    const subject = isThai ? "คำขอสนับสนุนจากแอป Passion Seed" : "Support Request from Passion Seed App";
+    const body = isThai
+      ? `\n\n---\nรายละเอียดอุปกรณ์:\nอุปกรณ์: ${Platform.OS}\nเวอร์ชันแอป: ${Constants.expoConfig?.version || "Unknown"}`
+      : `\n\n---\nDevice Info:\nPlatform: ${Platform.OS}\nApp Version: ${Constants.expoConfig?.version || "Unknown"}`;
+
+    Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
   const RadioButton = ({ selected }: { selected: boolean }) => {
@@ -196,6 +279,57 @@ export default function SettingsScreen() {
   return (
     <LinearGradient colors={["#FFFFFF", "#F9F5FF", "#F3EAFF"]} style={styles.container}>
       <StatusBar style="dark" />
+
+      {/* Delete Account Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{copy.deleteAccount}</Text>
+            <Text style={styles.modalWarning}>{copy.deleteAccountWarning}</Text>
+            <Text style={styles.modalPrompt}>{copy.deleteConfirmPrompt}</Text>
+            <TextInput
+              style={styles.deleteInput}
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              placeholder="DELETE"
+              placeholderTextColor="#9CA3AF"
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={styles.modalCancelBtn}
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText("");
+                }}
+                disabled={deleting}
+              >
+                <Text style={styles.modalCancelText}>{copy.cancel}</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.modalDeleteBtn,
+                  deleteConfirmText !== "DELETE" && styles.modalDeleteBtnDisabled,
+                ]}
+                onPress={handleDeleteAccount}
+                disabled={deleteConfirmText !== "DELETE" || deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalDeleteText}>{copy.delete}</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
@@ -328,8 +462,16 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Account</Text>
+              <Text style={styles.sectionTitle}>{copy.account}</Text>
               <View style={styles.card}>
+                <Pressable
+                  style={styles.optionRow}
+                  onPress={handleContactSupport}
+                >
+                  <Text style={styles.optionText}>{copy.contactSupport}</Text>
+                  <Text style={styles.chevron}>›</Text>
+                </Pressable>
+                <View style={styles.optionDivider} />
                 <Pressable
                   style={styles.logoutRow}
                   onPress={() => {
@@ -355,6 +497,16 @@ export default function SettingsScreen() {
                   }}
                 >
                   <Text style={styles.logoutText}>{copy.logout}</Text>
+                </Pressable>
+                <View style={styles.optionDivider} />
+                <Pressable
+                  style={styles.deleteRow}
+                  onPress={() => {
+                    setDeleteConfirmText("");
+                    setShowDeleteModal(true);
+                  }}
+                >
+                  <Text style={styles.deleteText}>{copy.deleteAccount}</Text>
                 </Pressable>
               </View>
             </View>
@@ -532,6 +684,97 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 15,
     color: "#EF4444",
+    fontWeight: "600",
+  },
+  deleteRow: {
+    paddingHorizontal: Space.xl,
+    paddingVertical: Space.lg,
+    alignItems: "center",
+  },
+  deleteText: {
+    fontSize: 15,
+    color: "#DC2626",
+    fontWeight: "500",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Space.xl,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.xl,
+    padding: Space.xl,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: Space.md,
+    textAlign: "center",
+  },
+  modalWarning: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+    marginBottom: Space.lg,
+    textAlign: "center",
+  },
+  modalPrompt: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    marginBottom: Space.sm,
+  },
+  deleteInput: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: Radius.md,
+    paddingHorizontal: Space.lg,
+    paddingVertical: Space.md,
+    fontSize: 16,
+    color: "#111827",
+    marginBottom: Space.xl,
+    textAlign: "center",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: Space.md,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: Space.md,
+    alignItems: "center",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  modalCancelText: {
+    fontSize: 15,
+    color: "#6B7280",
+    fontWeight: "600",
+  },
+  modalDeleteBtn: {
+    flex: 1,
+    paddingVertical: Space.md,
+    alignItems: "center",
+    borderRadius: Radius.md,
+    backgroundColor: "#DC2626",
+  },
+  modalDeleteBtnDisabled: {
+    backgroundColor: "#FCA5A5",
+  },
+  modalDeleteText: {
+    fontSize: 15,
+    color: "#FFFFFF",
     fontWeight: "600",
   },
 });

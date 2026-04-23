@@ -35,8 +35,11 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
-      - name: Copy SPA routing config
-        run: cp _cf_routes.json dist/_routes.json
+      - name: Move server HTML to root for SPA routing
+        run: |
+          cp _cf_routes.json dist/_routes.json
+          mv dist/server/* dist/ 2>/dev/null || true
+          cp -r dist/client/* dist/ 2>/dev/null || true
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1

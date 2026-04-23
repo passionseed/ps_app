@@ -253,3 +253,23 @@ export async function unsubscribeFromInbox(
 ): Promise<void> {
   await supabase.removeChannel(channel);
 }
+
+export async function getLatestRevisionFeedback(
+  activityId: string
+): Promise<InboxItemWithUnread | null> {
+  return withRetry(async () => {
+    const participant = await readHackathonParticipant();
+    if (!participant?.id) return null;
+    const { data, error } = await supabase
+      .from("hackathon_participant_inbox_items")
+      .select("*")
+      .eq("participant_id", participant.id)
+      .eq("type", "assessment_review")
+      .filter("metadata->>'activity_id'", "eq", activityId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(`Failed to fetch revision feedback: ${error.message}`);
+    return data ? mapInboxItemWithUnread(data as InboxItem) : null;
+  }, "Unable to load revision feedback");
+}
