@@ -23,11 +23,13 @@ import YoutubePlayer from "react-native-youtube-iframe";
 import { AppText } from "../../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { HackathonJellyfishLoader } from "../../../components/Hackathon/HackathonJellyfishLoader";
+import { HackathonBackground } from "../../../components/Hackathon/HackathonBackground";
 import { HackathonSwipeDonut } from "../../../components/Hackathon/HackathonSwipeDonut";
 import { WaterFlowHint } from "../../../components/Hackathon/WaterFlowHint";
 import { ActivityCommentsPreview } from "../../../components/Hackathon/ActivityCommentsPreview";
 import HackathonEvidenceComic from "../../../components/Hackathon/HackathonEvidenceComic";
 import HackathonWebtoon from "../../../components/Hackathon/HackathonWebtoon";
+import ChatComicViewer, { type ChatComicData, type ChatComicMetadata } from "../../../components/Hackathon/ChatComicViewer";
 import { getHackathonActivityHref } from "../../../lib/hackathonActivityRoute";
 import { getLatestRevisionFeedback } from "../../../lib/hackathonInbox";
 import type { InboxItemWithUnread } from "../../../types/hackathon-inbox";
@@ -86,6 +88,7 @@ function contentTypeLabel(type: string): string {
   switch (type) {
     case "npc_chat":    return "พูดคุยกับ NPC";
     case "ai_chat":     return "พูดคุยกับ AI";
+    case "chat_comic":  return "แชท";
     case "video":       return "วิดีโอ";
     case "short_video": return "วิดีโอ";
     case "text":        return "บทความ";
@@ -141,10 +144,28 @@ function isWebtoonContent(item: HackathonPhaseActivityContent): boolean {
   return getWebtoonContent(item) !== null;
 }
 
+function getChatComicContent(item: HackathonPhaseActivityContent): ChatComicData | null {
+  if (item.content_type !== "chat_comic") return null;
+  try {
+    const parsed = JSON.parse(item.content_body ?? "{}");
+    if (parsed.messages && Array.isArray(parsed.messages)) {
+      return parsed as ChatComicData;
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return null;
+}
+
+function isChatComicContent(item: HackathonPhaseActivityContent): boolean {
+  return getChatComicContent(item) !== null;
+}
+
 function primaryContentType(content: HackathonPhaseActivityContent[]): string {
   if (content.length === 0) return "กิจกรรม";
   if (isComicContent(content[0])) return "การ์ตูน";
   if (isWebtoonContent(content[0])) return "เว็บตูน";
+  if (isChatComicContent(content[0])) return "แชท";
   return contentTypeLabel(content[0].content_type);
 }
 
@@ -287,6 +308,19 @@ function ContentBlock({
         viewportHeight={viewportHeight}
         contentSectionY={contentSectionY}
       />
+    );
+  }
+
+  const chatComic = getChatComicContent(item);
+  if (chatComic) {
+    return (
+      <View style={{ height: viewportHeight - 80, marginHorizontal: -Space.lg }}>
+        <ChatComicViewer
+          data={chatComic}
+          metadata={item.metadata as ChatComicMetadata}
+          title={item.content_title}
+        />
+      </View>
     );
   }
 
@@ -541,11 +575,56 @@ function AssessmentBlock({
   );
 }
 
-function PastSubmissionsList({ submissions }: { submissions: SubmissionRecord[] }) {
+function PastSubmissionsList({
+  submissions,
+  highlight,
+  onRevise,
+  revisionFeedback,
+}: {
+  submissions: SubmissionRecord[];
+  highlight?: boolean;
+  onRevise?: () => void;
+  revisionFeedback?: InboxItemWithUnread | null;
+}) {
+  console.log('[PastSubmissionsList] submissions count:', submissions.length, 'first:', submissions[0]?.id);
   if (submissions.length === 0) return null;
   return (
-    <View style={styles.pastSubmissionsBlock}>
-      <AppText style={styles.assessmentLabel}>ประวัติการส่ง</AppText>
+    <View
+      style={[
+        styles.pastSubmissionsBlock,
+        highlight && styles.pastSubmissionsBlockHighlight,
+      ]}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <AppText style={styles.assessmentLabel}>ผลงานของคุณ</AppText>
+        {onRevise && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.reviseInlineBtn,
+              pressed && { opacity: 0.8 },
+            ]}
+            onPress={onRevise}
+          >
+            <AppText style={styles.reviseInlineText}>แก้ไข →</AppText>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Feedback inline in submissions list */}
+      {revisionFeedback && (
+        <View style={styles.feedbackInlineCard}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <Ionicons name="chatbubble-ellipses" size={14} color="#FBBF24" />
+            <AppText style={{ fontSize: 12, color: "#FBBF24", fontFamily: "BaiJamjuree_700Bold" }}>
+              Feedback จาก mentor
+            </AppText>
+          </View>
+          <AppText style={{ fontSize: 13, lineHeight: 19, color: WHITE75, fontFamily: "BaiJamjuree_400Regular" }}>
+            {revisionFeedback.body}
+          </AppText>
+        </View>
+      )}
+
       {submissions.map((sub) => (
         <SubmissionCard key={sub.id} submission={sub} />
       ))}
@@ -637,7 +716,11 @@ function TeammateSubmissionsList({
 
 // ── Main screen ───────────────────────────────────────────────────
 export default function HackathonActivityScreen() {
-  const { nodeId, isRevision } = useLocalSearchParams<{ nodeId: string; isRevision?: string }>();
+  const { nodeId, isRevision, viewSubmission } = useLocalSearchParams<{
+    nodeId: string;
+    isRevision?: string;
+    viewSubmission?: string;
+  }>();
   const cachedBundle = nodeId ? getCachedHackathonActivityBundle(nodeId) : null;
 
   const [siblings, setSiblings] = useState<{id: string, title: string}[]>(
@@ -646,6 +729,7 @@ export default function HackathonActivityScreen() {
   const [blockedMessage, setBlockedMessage] = useState<string | null>(
     cachedBundle?.blockedMessage ?? null,
   );
+  const [isAdmin, setIsAdmin] = useState(cachedBundle?.isAdmin ?? false);
 
   const SWIPE_NEXT_THRESHOLD = 120;
   const PULL_HINT_SLIDE_PX = 104;
@@ -703,31 +787,46 @@ export default function HackathonActivityScreen() {
 
   useEffect(() => { setFeedbackExpanded(false); setRevisionFeedback(null); }, [nodeId]);
 
+  // Auto-scroll to submission section when coming from "View Submission" button or revision
   useEffect(() => {
-    if (revisionFeedback && !loading) {
-      const tryScroll = (attempt: number) => {
-        const y = submissionSectionY.current || assessmentSectionY.current || contentSectionY;
-        if (y > 0) {
-          (scrollRef.current as any)?.scrollTo?.({ y, animated: true });
-        } else if (attempt < 3) {
-          setTimeout(() => tryScroll(attempt + 1), 300);
-        }
-      };
-      const timer = setTimeout(() => tryScroll(0), 400);
-      return () => clearTimeout(timer);
-    }
-  }, [revisionFeedback, loading]);
+    const shouldScroll = (viewSubmission === "true" || isRevision === "true") && !loading;
+    if (!shouldScroll) return;
+
+    const tryScroll = (attempt: number) => {
+      // Prefer assessment section (where user can revise), fallback to submission section
+      const targetY = assessmentSectionY.current || submissionSectionY.current || contentSectionY;
+      if (targetY > 0) {
+        (scrollRef.current as any)?.scrollTo?.({ y: targetY, animated: true });
+      } else if (attempt < 10) {
+        setTimeout(() => tryScroll(attempt + 1), 400);
+      }
+    };
+    // Wait longer for layout + images to settle before scrolling
+    const timer = setTimeout(() => tryScroll(0), 1200);
+    return () => clearTimeout(timer);
+  }, [viewSubmission, isRevision, loading]);
 
   useEffect(() => {
-    const anySubmitted = pastSubmissions.length > 0;
+    const isTeamActivity =
+      activity?.submission_scope === "team" ||
+      (activity?.assessments ?? []).some((a) => a.metadata?.is_group_submission === true);
+
+    const anySubmitted = pastSubmissions.length > 0 ||
+      (isTeamActivity && teammateSubmissions.length > 0);
     isSubmittedSV.value = anySubmitted ? 1 : 0;
 
     // Check if ALL assessments have been submitted (for multi-assessment activities)
-    const allSubmitted = activity?.assessments.every((a) =>
-      pastSubmissions.some((s) => (s as any).assessment_id === a.id)
-    ) ?? false;
+    // For team activities, teammate submissions also count
+    const allSubmitted = activity?.assessments.every((a) => {
+      const selfSubmitted = pastSubmissions.some((s) => (s as any).assessment_id === a.id);
+      if (selfSubmitted) return true;
+      if (isTeamActivity) {
+        return teammateSubmissions.some((s) => (s as any).assessment_id === a.id);
+      }
+      return false;
+    }) ?? false;
     isAllSubmittedSV.value = allSubmitted ? 1 : 0;
-  }, [pastSubmissions, activity]);
+  }, [pastSubmissions, teammateSubmissions, activity]);
 
   const triggerSwipeHaptic = useCallback((milestone: number) => {
     if (milestone <= 0) return;
@@ -861,7 +960,7 @@ export default function HackathonActivityScreen() {
 
   const handleSwipeToNext = () => {
     const currentIndex = siblings.findIndex(s => s.id === nodeId);
-    const isSubmitted = allAssessmentsSubmitted;
+    const isSubmitted = allAssessmentsSubmitted || isAdmin;
     console.log(`[SwipeNext] activity="${activity?.title}" index=${currentIndex} submissions=${pastSubmissions.length} isSubmitted=${isSubmitted}`);
 
     if (!isSubmitted) {
@@ -903,6 +1002,7 @@ export default function HackathonActivityScreen() {
     teammateSubmissions: TeammateSubmissionRecord[];
     siblings: { id: string; title: string }[];
     blockedMessage: string | null;
+    isAdmin?: boolean;
   }) {
     setActivity(bundle.activity);
     setParticipant(bundle.participant);
@@ -910,6 +1010,7 @@ export default function HackathonActivityScreen() {
     setTeammateSubmissions(bundle.teammateSubmissions);
     setSiblings(bundle.siblings);
     setBlockedMessage(bundle.blockedMessage);
+    setIsAdmin(bundle.isAdmin ?? false);
   }
 
   useFocusEffect(
@@ -937,14 +1038,20 @@ export default function HackathonActivityScreen() {
         }
       })();
 
-      if (isRevision === 'true' && nodeId) {
+      // Load revision feedback if coming from revision flow OR if viewing submission
+      // Also load if there are past submissions (user may have navigated directly)
+      if (nodeId) {
+        console.log('[Activity] Loading revision feedback for nodeId:', nodeId);
         getLatestRevisionFeedback(nodeId).then(item => {
+          console.log('[Activity] Revision feedback result:', item ? 'found' : 'null', item?.body?.substring(0, 50));
           if (!cancelled) setRevisionFeedback(item);
+        }).catch(err => {
+          console.error('[Activity] Error loading revision feedback:', err);
         });
       }
 
       return () => { cancelled = true; };
-    }, [nodeId])
+    }, [nodeId, isRevision, viewSubmission])
   );
 
   useEffect(() => {
@@ -969,10 +1076,21 @@ export default function HackathonActivityScreen() {
     }
   }, [nodeId, siblings, swipeNextEnabledSV, swipePrevEnabledSV]);
 
+  const hasAnySubmission = pastSubmissions.length > 0;
+  const isTeamSubmissionActivity =
+    activity?.submission_scope === "team" ||
+    (activity?.assessments ?? []).some((a) => a.metadata?.is_group_submission === true);
+
   // Check if all assessments have been submitted (not just any submission)
-  const allAssessmentsSubmitted = activity?.assessments.every((a) =>
-    pastSubmissions.some((s) => (s as any).assessment_id === a.id)
-  ) ?? false;
+  // For team activities, teammate submissions also count
+  const allAssessmentsSubmitted = activity?.assessments.every((a) => {
+    const selfSubmitted = pastSubmissions.some((s) => (s as any).assessment_id === a.id);
+    if (selfSubmitted) return true;
+    if (isTeamSubmissionActivity) {
+      return teammateSubmissions.some((s) => (s as any).assessment_id === a.id);
+    }
+    return false;
+  }) ?? false;
   const canSubmit = activity
     ? activity.assessments.length === 0
       ? true
@@ -984,10 +1102,6 @@ export default function HackathonActivityScreen() {
             : pickedFiles[a.id] != null
         )
     : false;
-  const hasAnySubmission = pastSubmissions.length > 0;
-  const isTeamSubmissionActivity =
-    activity?.submission_scope === "team" ||
-    (activity?.assessments ?? []).some((a) => a.metadata?.is_group_submission === true);
   const showTeammateSubmissions = true;
   const blurTeammateSubmissions = !isTeamSubmissionActivity && !hasAnySubmission;
 
@@ -1085,7 +1199,10 @@ export default function HackathonActivityScreen() {
     // Submission succeeded - now refresh submissions (errors here don't rollback)
     try {
       const newSubmissions = await fetchActivitySubmissions(activity.id);
+      console.log('[submit] refreshed submissions:', newSubmissions.length);
       setPastSubmissions(newSubmissions);
+      // Clear revision feedback since user has resubmitted
+      setRevisionFeedback(null);
     } catch (e: any) {
       // Refresh failed but submission succeeded - log to Sentry but don't rollback
       console.warn("[submit] refresh failed after successful submit:", e?.message);
@@ -1107,6 +1224,7 @@ export default function HackathonActivityScreen() {
     }
 
     setPickedFiles({});
+    setAnswers({});
     invalidateHackathonProgressCache();
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);
@@ -1122,7 +1240,7 @@ export default function HackathonActivityScreen() {
     );
   }
 
-  if (blockedMessage) {
+  if (blockedMessage && !isAdmin) {
     return (
       <View style={styles.loadingRoot}>
         <AppText style={[styles.bodyText, { color: WHITE55, textAlign: "center", paddingHorizontal: Space.xl }]}>
@@ -1161,6 +1279,7 @@ export default function HackathonActivityScreen() {
 
   return (
     <View style={styles.root}>
+      <HackathonBackground />
       {/* Glow orb */}
       <View style={styles.glowCyan} pointerEvents="none" />
 
@@ -1205,10 +1324,10 @@ export default function HackathonActivityScreen() {
         style={[
           styles.pullOverlayBottom,
           { paddingBottom: Math.max(insets.bottom, 4) + 12 },
-          allAssessmentsSubmitted ? nextPullOverlayStyle : undefined,
+          (allAssessmentsSubmitted || isAdmin) ? nextPullOverlayStyle : undefined,
         ]}
       >
-        {allAssessmentsSubmitted ? (
+        {allAssessmentsSubmitted || isAdmin ? (
           swipeNextEnabled ? (
             <HackathonSwipeDonut
               direction="next"
@@ -1479,7 +1598,28 @@ export default function HackathonActivityScreen() {
         ) : null}
 
         {/* Past Submissions */}
-        <PastSubmissionsList submissions={pastSubmissions} />
+        <PastSubmissionsList
+          submissions={pastSubmissions}
+          highlight={viewSubmission === "true"}
+          revisionFeedback={revisionFeedback}
+          onRevise={
+            revisionFeedback
+              ? () => {
+                  // Scroll to assessment section for revision
+                  const y =
+                    assessmentSectionY.current ||
+                    submissionSectionY.current ||
+                    contentSectionY;
+                  if (y > 0) {
+                    (scrollRef.current as any)?.scrollTo?.({
+                      y,
+                      animated: true,
+                    });
+                  }
+                }
+              : undefined
+          }
+        />
 
         {/* Teammate Submissions */}
         {showTeammateSubmissions ? (
@@ -1502,7 +1642,7 @@ export default function HackathonActivityScreen() {
         )}
 
         {/* Static Swipe Hint — only show when ALL assessments submitted */}
-        {siblings.length > 0 && allAssessmentsSubmitted && (
+        {siblings.length > 0 && (allAssessmentsSubmitted || isAdmin) && (
           <WaterFlowHint
             label={currentIndex < siblings.length - 1 ? "ปัดขึ้นเพื่อไปกิจกรรมถัดไป" : "ปัดขึ้นเพื่อกลับสู่แผนที่"}
           />
@@ -1519,7 +1659,7 @@ export default function HackathonActivityScreen() {
             </Pressable>
           )}
           <View style={{ flex: 1 }} />
-          {allAssessmentsSubmitted && swipeNextEnabled ? (
+          {(allAssessmentsSubmitted || isAdmin) && swipeNextEnabled ? (
             <Pressable
               style={[styles.webNavButton, styles.webNavButtonPrimary]}
               onPress={handleSwipeToNext}
@@ -1668,6 +1808,35 @@ const styles = StyleSheet.create({
 
   // Past Submissions
   pastSubmissionsBlock: { gap: Space.sm, marginTop: Space.md },
+  pastSubmissionsBlockHighlight: {
+    backgroundColor: "rgba(145,196,227,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.2)",
+    borderRadius: 16,
+    padding: Space.md,
+    marginHorizontal: -Space.md,
+  },
+  reviseInlineBtn: {
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: "rgba(248,113,113,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.3)",
+  },
+  reviseInlineText: {
+    fontSize: 11,
+    color: "#F87171",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  feedbackInlineCard: {
+    backgroundColor: "rgba(251,191,36,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(251,191,36,0.2)",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
   pastSubmissionCard: {
     backgroundColor: "rgba(255,255,255,0.03)",
     borderWidth: 1,
@@ -1795,6 +1964,7 @@ const styles = StyleSheet.create({
 
   // Submit
   button41: {
+    marginTop: Space.xl,
     paddingVertical: 12,
     paddingHorizontal: 26,
     borderRadius: 14,

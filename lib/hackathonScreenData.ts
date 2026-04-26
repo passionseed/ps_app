@@ -114,6 +114,7 @@ export type HackathonJourneyBundle = {
   data: HackathonProgramHome;
   impact: TeamImpact | null;
   phaseCards: HackathonJourneyPhaseCard[];
+  isAdmin: boolean;
 };
 
 export type HackathonPhaseActivityWithStatus = HackathonPhaseActivityDetail & {
@@ -140,6 +141,7 @@ export type HackathonActivityBundle = {
   teammateSubmissions: TeammateSubmissionRecord[];
   siblings: HackathonActivitySibling[];
   blockedMessage: string | null;
+  isAdmin: boolean;
 };
 
 function buildJourneyPhaseCards(
@@ -213,12 +215,15 @@ async function createJourneyBundle(): Promise<HackathonJourneyBundle> {
   const home = await getCurrentHackathonProgramHome();
   const teamId = home.team?.id;
   const impactPromise = teamId ? fetchTeamImpact(teamId).catch(() => null) : Promise.resolve(null);
+  const participant = await readHackathonParticipant();
+  const isAdmin = await checkIsHackathonAdmin(participant);
 
   if (!home.program || home.phases.length === 0) {
     return {
       data: home,
       impact: await impactPromise,
       phaseCards: [],
+      isAdmin,
     };
   }
 
@@ -232,6 +237,7 @@ async function createJourneyBundle(): Promise<HackathonJourneyBundle> {
     data: home,
     impact: await impactPromise,
     phaseCards: buildJourneyPhaseCards(home, phaseSummaries, submissionStatuses),
+    isAdmin,
   };
 }
 
@@ -327,7 +333,7 @@ async function buildActivitySiblings(
       .maybeSingle(),
     supabase
       .from("hackathon_phase_activities")
-      .select("id, title, display_order, status, is_draft")
+      .select("id, title, display_order, status, is_draft, submission_scope")
       .eq("phase_id", activity.phase_id)
       .order("display_order", { ascending: true }),
   ]);
@@ -337,9 +343,21 @@ async function buildActivitySiblings(
     return { blockedMessage: null, siblings: [] };
   }
 
-  const siblingSubmissionStatuses = await fetchActivitySubmissionStatuses(
-    visibleSiblings.filter(Boolean).map((sibling) => sibling.id),
-  );
+  const siblingIds = visibleSiblings.filter(Boolean).map((sibling) => sibling.id);
+  const [siblingSubmissionStatuses, siblingTeamStatuses] = await Promise.all([
+    fetchActivitySubmissionStatuses(siblingIds),
+    fetchTeamActivitySubmissionStatuses(siblingIds),
+  ]);
+
+  function getPrevStatus(index: number): HackathonPhaseActivitySubmissionStatus | null {
+    if (index <= 0) return null;
+    const prev = visibleSiblings[index - 1]!;
+    const isTeam = prev.submission_scope === "team";
+    const status = isTeam
+      ? (siblingTeamStatuses[prev.id] ?? null)
+      : (siblingSubmissionStatuses[prev.id] ?? null);
+    return (status as HackathonPhaseActivitySubmissionStatus | null) ?? "not_started";
+  }
 
   const siblingsWithAccess = visibleSiblings.filter(Boolean).map((sibling, index) => ({
     id: sibling.id,
@@ -347,21 +365,13 @@ async function buildActivitySiblings(
     accessible: isHackathonActivityAccessible({
       phaseStatus: phaseData?.status,
       activityStatus: sibling.status,
-      previousActivitySubmissionStatus:
-        index > 0
-          ? ((siblingSubmissionStatuses[visibleSiblings[index - 1]!.id] ??
-              "not_started") as HackathonPhaseActivitySubmissionStatus)
-          : null,
+      previousActivitySubmissionStatus: getPrevStatus(index),
       isAdmin,
     }),
   }));
 
   const currentIndex = visibleSiblings.findIndex((sibling) => sibling.id === activity.id);
-  const previousSubmissionStatus =
-    currentIndex > 0
-      ? ((siblingSubmissionStatuses[visibleSiblings[currentIndex - 1]!.id] ??
-          "not_started") as HackathonPhaseActivitySubmissionStatus)
-      : null;
+  const previousSubmissionStatus = getPrevStatus(currentIndex);
   const currentAccessible = isHackathonActivityAccessible({
     phaseStatus: phaseData?.status,
     activityStatus: activity.status,
@@ -390,6 +400,8 @@ async function createActivityBundle(activityId: string): Promise<HackathonActivi
       Promise.resolve(readHackathonParticipant()),
     ]);
 
+  const isAdmin = await checkIsHackathonAdmin(participant);
+
   if (!activity) {
     return {
       activity: null,
@@ -398,10 +410,10 @@ async function createActivityBundle(activityId: string): Promise<HackathonActivi
       teammateSubmissions,
       siblings: [],
       blockedMessage: null,
+      isAdmin,
     };
   }
 
-  const isAdmin = await checkIsHackathonAdmin(participant);
   const { siblings, blockedMessage } = await buildActivitySiblings(activity, isAdmin);
 
   return {
@@ -411,6 +423,7 @@ async function createActivityBundle(activityId: string): Promise<HackathonActivi
     teammateSubmissions,
     siblings,
     blockedMessage,
+    isAdmin,
   };
 }
 

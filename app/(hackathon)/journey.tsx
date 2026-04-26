@@ -126,17 +126,19 @@ function AnimatedVerticalPhaseCard({
   card,
   index,
   isLast,
+  isAdmin,
 }: {
   card: HackathonJourneyPhaseCard;
   index: number;
   isLast: boolean;
+  isAdmin: boolean;
 }) {
   const dueDate = formatDate(card.phase.due_at ?? card.phase.ends_at);
   const pct = card.activityCount > 0 ? Math.round((card.completedCount / card.activityCount) * 100) : 0;
   const phaseNumString = String(card.phase.phase_number).padStart(2, "0");
   
   const isCompleted = pct === 100;
-  const isLocked = card.phase.status !== "released";
+  const isLocked = !isAdmin && card.phase.status !== "released";
 
   return (
     <Animated.View 
@@ -266,6 +268,7 @@ export default function HackathonJourneyScreen() {
   const [impact, setImpact] = useState<TeamImpact | null>(
     cachedBundle?.impact ?? null,
   );
+  const [isAdmin, setIsAdmin] = useState(cachedBundle?.isAdmin ?? false);
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0 });
   const [loading, setLoading] = useState(!cachedBundle);
   const [refreshing, setRefreshing] = useState(false);
@@ -282,6 +285,7 @@ export default function HackathonJourneyScreen() {
       setData(cached.data);
       setPhaseCards(cached.phaseCards);
       setImpact(cached.impact);
+      setIsAdmin(cached.isAdmin ?? false);
       setLoading(false);
     } else if (!cached) {
       setLoading(true);
@@ -295,6 +299,7 @@ export default function HackathonJourneyScreen() {
       setData(bundle.data);
       setPhaseCards(bundle.phaseCards);
       setImpact(bundle.impact);
+      setIsAdmin(bundle.isAdmin);
     } catch (err) {
       const msg = err instanceof Error ? `${err.message}\n${err.stack?.split("\n").slice(1,4).join(" | ")}` : String(err);
       setDebugMsg(`ERR: ${msg}`);
@@ -414,11 +419,12 @@ export default function HackathonJourneyScreen() {
         {phaseCards.length > 0 ? (
           <View style={styles.timelineSection}>
             {phaseCards.map((card, index) => (
-              <AnimatedVerticalPhaseCard 
-                key={card.phase.id} 
-                card={card} 
-                index={index} 
-                isLast={index === phaseCards.length - 1} 
+              <AnimatedVerticalPhaseCard
+                key={card.phase.id}
+                card={card}
+                index={index}
+                isLast={index === phaseCards.length - 1}
+                isAdmin={isAdmin}
               />
             ))}
           </View>

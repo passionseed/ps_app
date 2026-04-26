@@ -14,6 +14,7 @@ import Svg, { Polyline } from "react-native-svg";
 import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { HackathonJellyfishLoader } from "../../../components/Hackathon/HackathonJellyfishLoader";
+import { HackathonBackground } from "../../../components/Hackathon/HackathonBackground";
 import { getHackathonActivityHref } from "../../../lib/hackathonActivityRoute";
 import { isHackathonActivityAccessible } from "../../../lib/hackathonRelease";
 import {
@@ -115,6 +116,7 @@ export default function HackathonPhaseScreen() {
 
   return (
     <View style={styles.root}>
+      <HackathonBackground />
 
       {/* Back button */}
       <View style={[styles.headerActions, { top: insets.top + Space.xs }]}>
@@ -259,7 +261,7 @@ function ActivityCard({
                 </AppText>
               ) : null}
               
-              <View style={styles.activityMeta}>
+                  <View style={styles.activityMeta}>
                 <AppText style={[styles.metaChip, isTeam && styles.metaChipTeam]}>
                   {isTeam ? "👥 ทีม" : "👤 เดี่ยว"}
                 </AppText>
@@ -270,9 +272,49 @@ function ActivityCard({
                   <AppText style={styles.metaChip}>📝 {activity.assessments.length > 1 ? `${activity.assessments.length} คำถาม` : formatAssessment(activity.assessments[0].assessment_type)}</AppText>
                 ) : null}
               </View>
+
+              {/* View Submission button for submitted activities */}
+              {(isCompleted || isRevision) && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.viewSubmissionBtn,
+                    pressed && { opacity: 0.8 },
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push({
+                      pathname: "/(hackathon)/activity/[nodeId]",
+                      params: {
+                        nodeId: activity.id,
+                        viewSubmission: "true",
+                        ...(isRevision ? { isRevision: "true" } : {}),
+                      },
+                    });
+                  }}
+                >
+                  <Svg width="12" height="12" viewBox="0 0 16 16">
+                    <Polyline
+                      points="3,8 7,12 13,4"
+                      fill="none"
+                      stroke={isRevision ? "#F87171" : "#4ADE80"}
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                  <AppText
+                    style={[
+                      styles.viewSubmissionText,
+                      isRevision && { color: "#F87171" },
+                    ]}
+                  >
+                    {isRevision ? "ดู feedback & แก้ไข" : "ดูผลงานของคุณ"}
+                  </AppText>
+                </Pressable>
+              )}
             </View>
           </View>
-          
+
           <View style={styles.arrowContainer}>
             <AppText style={styles.arrow}>{locked ? "🔒" : "→"}</AppText>
           </View>
@@ -439,6 +481,25 @@ const styles = StyleSheet.create({
     marginLeft: Space.sm,
   },
   arrow: { fontSize: 16, color: WHITE55, fontWeight: "500" },
+
+  viewSubmissionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: "rgba(74,222,128,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.2)",
+    alignSelf: "flex-start",
+  },
+  viewSubmissionText: {
+    fontSize: 12,
+    color: "#4ADE80",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
 
   statusIconWrap: {
     width: 28,
