@@ -180,11 +180,13 @@ function InboxItemCard({
   index,
   onPress,
   onRevisePress,
+  onViewSubmissionPress,
 }: {
   item: InboxItemWithUnread;
   index: number;
   onPress: (item: InboxItemWithUnread) => void;
   onRevisePress?: (activityId: string) => void;
+  onViewSubmissionPress?: (activityId: string) => void;
 }) {
   const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.system;
   const meta = item.metadata as Record<string, unknown> | undefined;
@@ -194,6 +196,7 @@ function InboxItemCard({
   const activityId = typeof meta?.activity_id === "string" && meta.activity_id ? meta.activity_id : null;
   const submissionStatus = typeof meta?.submission_status === "string" ? meta.submission_status : null;
   const showRevise = submissionStatus === "revision_required" && activityId;
+  const showViewSubmission = activityId && (item.type === "assessment_review" || item.type === "mentor_comment") && !showRevise;
   const feedbackBody = typeof meta?.reviewer_name === "string" ? `Reviewed by ${meta.reviewer_name}` : null;
   const enterDelay = Math.min(300 + index * 60, 800);
 
@@ -254,6 +257,14 @@ function InboxItemCard({
               >
                 <Ionicons name="refresh" size={16} color={WHITE} style={{ marginRight: 6 }} />
                 <AppText variant="bold" style={styles.revisionCtaText}>Revise & resubmit</AppText>
+              </Pressable>
+            ) : showViewSubmission ? (
+              <Pressable
+                style={({ pressed }) => [styles.viewSubmissionBtn, pressed && { opacity: 0.85 }]}
+                onPress={() => { hapticMedium(); onViewSubmissionPress?.(activityId!); }}
+              >
+                <Ionicons name="eye" size={16} color={CYAN} style={{ marginRight: 6 }} />
+                <AppText variant="bold" style={styles.viewSubmissionBtnText}>ดูผลงานของคุณ</AppText>
               </Pressable>
             ) : item.action_url ? (
               <View style={styles.openHint}>
@@ -337,7 +348,14 @@ export default function InboxScreen() {
   const handleRevisePress = (activityId: string) => {
     router.push({
       pathname: "/(hackathon)/activity/[nodeId]",
-      params: { nodeId: activityId, isRevision: "true" },
+      params: { nodeId: activityId, isRevision: "true", viewSubmission: "true" },
+    });
+  };
+
+  const handleViewSubmissionPress = (activityId: string) => {
+    router.push({
+      pathname: "/(hackathon)/activity/[nodeId]",
+      params: { nodeId: activityId, viewSubmission: "true" },
     });
   };
 
@@ -446,6 +464,7 @@ export default function InboxScreen() {
                     index={index}
                     onPress={handlePress}
                     onRevisePress={handleRevisePress}
+                    onViewSubmissionPress={handleViewSubmissionPress}
                   />
                 </Fragment>
               );
@@ -538,6 +557,8 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", alignItems: "center", marginTop: 2 },
   revisionCta: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 99, backgroundColor: "#9D81AC", shadowColor: "#9D81AC", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 16, elevation: 8 },
   revisionCtaText: { fontSize: 14, color: WHITE, fontFamily: "BaiJamjuree_700Bold" },
+  viewSubmissionBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, backgroundColor: "rgba(145,196,227,0.12)", borderWidth: 1, borderColor: "rgba(145,196,227,0.3)" },
+  viewSubmissionBtnText: { fontSize: 14, color: CYAN, fontFamily: "BaiJamjuree_700Bold" },
   openHint: { flexDirection: "row", alignItems: "center", gap: 4, marginLeft: "auto" },
   openHintText: { fontSize: 12, color: CYAN, fontFamily: "BaiJamjuree_600SemiBold" },
 

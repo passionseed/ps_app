@@ -259,17 +259,76 @@ export async function getLatestRevisionFeedback(
 ): Promise<InboxItemWithUnread | null> {
   return withRetry(async () => {
     const participant = await readHackathonParticipant();
+    console.log('[getLatestRevisionFeedback] participant:', participant?.id, 'activityId:', activityId);
     if (!participant?.id) return null;
-    const { data, error } = await supabase
+
+    // Debug: fetch ALL review/comment items for this participant to see what metadata keys they use
+    const { data: allItems } = await supabase
+      .from("hackathon_participant_inbox_items")
+      .select("id, type, metadata, created_at")
+      .eq("participant_id", participant.id)
+      .in("type", ["assessment_review", "mentor_comment"])
+      .order("created_at", { ascending: false })
+      .limit(10);
+    console.log('[getLatestRevisionFeedback] ALL review items:', allItems?.map(i => ({ id: i.id, type: i.type, metadata: i.metadata })));
+
+    // Try activity_id in metadata first
+    const { data: byActivityId, error: err1 } = await supabase
       .from("hackathon_participant_inbox_items")
       .select("*")
       .eq("participant_id", participant.id)
-      .eq("type", "assessment_review")
+      .in("type", ["assessment_review", "mentor_comment"])
       .filter("metadata->>'activity_id'", "eq", activityId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (error) throw new Error(`Failed to fetch revision feedback: ${error.message}`);
-    return data ? mapInboxItemWithUnread(data as InboxItem) : null;
+
+    console.log('[getLatestRevisionFeedback] byActivityId:', byActivityId ? 'found' : 'null', 'error:', err1?.message);
+    if (byActivityId) return mapInboxItemWithUnread(byActivityId as InboxItem);
+
+    // Fallback: find latest submission for this activity, then lookup by submission_id
+    const { data: latestSub } = await supabase
+      .from("hackathon_phase_activity_submissions")
+      .select("id")
+      .eq("participant_id", participant.id)
+      .eq("activity_id", activityId)
+      .order("submitted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    console.log('[getLatestRevisionFeedback] latestSub:', latestSub?.id);
+
+    if (latestSub?.id) {
+      // Try multiple metadata key variations
+      const { data: bySubId, error: err2 } = await supabase
+        .from("hackathon_participant_inbox_items")
+        .select("*")
+        .eq("participant_id", participant.id)
+        .in("type", ["assessment_review", "mentor_comment"])
+        .or(`metadata->>submission_id.eq.${latestSub.id},metadata->>activity_id.eq.${activityId}`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      console.log('[getLatestRevisionFeedback] bySubId:', bySubId ? 'found' : 'null', 'error:', err2?.message);
+      if (bySubId) return mapInboxItemWithUnread(bySubId as InboxItem);
+
+      // Fallback: use contains operator for JSONB
+      const { data: byContains, error: err3 } = await supabase
+        .from("hackathon_participant_inbox_items")
+        .select("*")
+        .eq("participant_id", participant.id)
+        .in("type", ["assessment_review", "mentor_comment"])
+        .contains("metadata", { submission_id: latestSub.id })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      console.log('[getLatestRevisionFeedback] byContains:', byContains ? 'found' : 'null', 'error:', err3?.message);
+      if (byContains) return mapInboxItemWithUnread(byContains as InboxItem);
+    }
+
+    if (err1) throw new Error(`Failed to fetch revision feedback: ${err1.message}`);
+    return null;
   }, "Unable to load revision feedback");
 }

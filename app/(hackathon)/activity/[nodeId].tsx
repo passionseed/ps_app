@@ -314,7 +314,7 @@ function ContentBlock({
   const chatComic = getChatComicContent(item);
   if (chatComic) {
     return (
-      <View style={{ height: viewportHeight - 80, marginHorizontal: -Space.lg }}>
+      <View style={{ height: Math.min(520, viewportHeight * 0.65), marginHorizontal: -Space.lg }}>
         <ChatComicViewer
           data={chatComic}
           metadata={item.metadata as ChatComicMetadata}

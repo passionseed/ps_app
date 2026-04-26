@@ -1,10 +1,11 @@
-# Task Tracker — Event Personalization + Admin Seed Editor
+# Chat Comic UX Redesign — Task Tracker
 
-| # | Task | Status |
-|---|------|--------|
-| 1 | DB Migration: `tags` column + user_events RLS | `done` ✅ |
-| 2 | Create `lib/userSignals.ts` | `done` ✅ |
-| 3 | Update `types/seeds.ts` + SELECT query | `done` ✅ |
-| 4 | Wire affinity into `seedRecommendations.ts` | `done` ✅ |
-| 5 | Admin Seed Editor screen | `done` ✅ |
-| 6 | Bump version | `done` ✅ |
+| Task | Status | File(s) |
+|------|--------|---------|
+| Task 1: Redesign root layout (full-screen, no card) | not_started | ChatComicViewer.tsx |
+| Task 2: Simplify animation to scale pop | not_started | ChatComicViewer.tsx |
+| Task 3: Add shimmer hint, remove tap overlay | not_started | ChatComicViewer.tsx |
+| Task 4: Typing indicator only on sender change | not_started | ChatComicViewer.tsx |
+| Task 5: Add faint gradient background | not_started | ChatComicViewer.tsx |
+| Task 6: Update activity screen integration | not_started | [nodeId].tsx |
+| Task 7: Final polish (spacing, typography) | not_started | ChatComicViewer.tsx |

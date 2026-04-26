@@ -9,6 +9,7 @@ export type HackathonPhaseActivityContentType =
   | 'pdf'
   | 'ai_chat'
   | 'npc_chat'
+  | 'chat_comic'
   | 'infographic_comic'
   | 'webtoon';
 

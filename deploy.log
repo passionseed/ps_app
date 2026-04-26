@@ -1,9 +1,14 @@
+★ eas-cli@18.8.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
 > Project export: server
-⠋ Preparing project⠙ Preparing project⠹ Preparing project⠸ Preparing project⠼ Preparing project⠴ Preparing project⠦ Preparing project⠧ Preparing project⠇ Preparing project⠏ Preparing project⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment✔ Created deployment
-⠋ Promoting deployment to production⠙ Promoting deployment to production⠹ Promoting deployment to production⠸ Promoting deployment to production⠼ Promoting deployment to production✔ Promoted deployment to production
+⠋ Preparing project⠙ Preparing project⠹ Preparing project⠸ Preparing project⠼ Preparing project⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment⠏ Creating deployment⠋ Creating deployment⠙ Creating deployment⠹ Creating deployment⠸ Creating deployment⠼ Creating deployment⠴ Creating deployment⠦ Creating deployment⠧ Creating deployment⠇ Creating deployment✔ Created deployment
+⠋ Promoting deployment to production⠙ Promoting deployment to production⠹ Promoting deployment to production⠸ Promoting deployment to production⠼ Promoting deployment to production⠴ Promoting deployment to production✔ Promoted deployment to production
 
 🎉 Your deployment is ready
 
 Dashboard       https://expo.dev/projects/baca732a-c7d8-4bd2-9742-48cc2a5e939f/hosting/deployments
-Deployment URL  https://passion-seed--h7flprvubu.expo.app
+Deployment URL  https://passion-seed--e2qwi32mrj.expo.app
 Production URL  https://passion-seed.expo.app
