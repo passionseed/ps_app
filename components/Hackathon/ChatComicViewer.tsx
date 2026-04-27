@@ -57,7 +57,7 @@ const LINE_GREEN = "#85e249";
 const SENDER_TEXT = "rgba(255,255,255,0.85)";
 
 const MENTOR_SENDERS = ["Mentor Kai", "mentor kai", "Mentor", "P'Seed", "p'seed"];
-const PSEED_LOGO = require("../../assets/apple-touch-icon.png");
+const PSEED_LOGO = require("../../assets/images/NPC.png");
 
 // ── Helpers ───────────────────────────────────────────────────────
 function isMentor(sender: string): boolean {
@@ -350,7 +350,7 @@ function ChatBubble({
     <View style={onLeft ? styles.avatarColLeft : styles.avatarColRight}>
       {showAvatarAndName ? (
         <View style={styles.avatar}>
-          {message.avatar === "pseed" ? (
+          {message.avatar === "pseed" || isMentor(message.sender) ? (
             <Image source={PSEED_LOGO} style={styles.avatarImage} />
           ) : isAvatarUrl ? (
             <Image source={{ uri: message.avatar }} style={styles.avatarImage} />
