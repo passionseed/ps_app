@@ -11,8 +11,9 @@ import {
   View,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  clamp,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
@@ -48,18 +49,12 @@ interface ChatComicViewerProps {
   title?: string | null;
 }
 
-// ── Tokens ────────────────────────────────────────────────────────
-const BG = "#03050a";
+// ── Tokens (LINE Theme) ───────────────────────────────────────────
+const LINE_BG = "#8ba2b9"; // Classic LINE blue-gray background
 const WHITE = "#FFFFFF";
-const WHITE75 = "rgba(255,255,255,0.75)";
-const WHITE55 = "rgba(255,255,255,0.55)";
-const WHITE28 = "rgba(255,255,255,0.28)";
-const CYAN = "#91C4E3";
-const GREEN_BUBBLE = "#1F3A2F";
-const GREEN_BUBBLE_BORDER = "rgba(74,222,128,0.25)";
-const GRAY_BUBBLE = "rgba(30,35,42,0.95)";
-const GRAY_BUBBLE_BORDER = "rgba(255,255,255,0.08)";
-const TYPING_DOT = "rgba(145,196,227,0.6)";
+const BLACK_TEXT = "#111111";
+const LINE_GREEN = "#85e249";
+const SENDER_TEXT = "rgba(255,255,255,0.85)";
 
 const MENTOR_SENDERS = ["Mentor Kai", "mentor kai", "Mentor", "P'Seed", "p'seed"];
 const PSEED_LOGO = require("../../assets/apple-touch-icon.png");
@@ -88,13 +83,13 @@ function autoLinkText(text: string): React.ReactNode {
       return (
         <AppText
           key={i}
-          style={{ color: CYAN, textDecorationLine: "underline" }}
+          style={{ color: "#003399", textDecorationLine: "underline" }}
         >
           {part}
         </AppText>
       );
     }
-    return <AppText key={i}>{part}</AppText>;
+    return <AppText key={i} style={{ color: BLACK_TEXT }}>{part}</AppText>;
   });
 }
 
@@ -112,7 +107,7 @@ function ShimmerHint({ visible }: { visible: boolean }) {
   }, [visible, shimmer]);
 
   const shimmerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(shimmer.value, [0, 1], [0.3, 0.7]),
+    opacity: interpolate(shimmer.value, [0, 1], [0.4, 1]),
   }));
 
   if (!visible) return null;
@@ -157,6 +152,7 @@ function TypingIndicator() {
 
   return (
     <View style={styles.typingRow}>
+      <View style={styles.avatarPlaceholder} />
       <View style={styles.typingBubble}>
         <Animated.View style={[styles.typingDot, s1]} />
         <Animated.View style={[styles.typingDot, s2]} />
@@ -166,112 +162,100 @@ function TypingIndicator() {
   );
 }
 
-function ChatBubble({
-  message,
-  isRevealed,
-}: {
-  message: ChatComicMessage;
-  isRevealed: boolean;
-}) {
-  const fromMentor = isMentor(message.sender) || message.avatar === "pseed";
-  const scale = useSharedValue(0.95);
-
-  useEffect(() => {
-    if (isRevealed) {
-      scale.value = withSpring(1, { damping: 20, stiffness: 300 });
-    }
-  }, [isRevealed, scale]);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: scale.value,
-  }));
-
-  if (!isRevealed) return null;
-
-  return (
-    <Animated.View
-      style={[
-        styles.messageRow,
-        fromMentor ? styles.rowLeft : styles.rowRight,
-      ]}
-    >
-      <Animated.View
-        style={[
-          styles.bubbleWrap,
-          animStyle,
-          fromMentor ? styles.bubbleWrapLeft : styles.bubbleWrapRight,
-        ]}
-      >
-        {/* Avatar */}
-        <View style={[styles.avatar, fromMentor ? styles.avatarLeft : styles.avatarRight]}>
-          {message.avatar === "pseed" ? (
-            <Image source={PSEED_LOGO} style={styles.avatarImage} />
-          ) : (
-            <AppText style={styles.avatarText}>{message.avatar}</AppText>
-          )}
-        </View>
-
-        {/* Bubble */}
-        <View
-          style={[
-            styles.bubble,
-            fromMentor ? styles.bubbleLeft : styles.bubbleRight,
-          ]}
-        >
-          <AppText
-            style={[
-              styles.senderLabel,
-              fromMentor ? { color: CYAN } : { color: "#4ADE80" },
-            ]}
-          >
-            {message.sender}
-          </AppText>
-
-          {message.type === "text" && (
-            <AppText style={styles.bubbleText}>
-              {autoLinkText(message.content)}
-            </AppText>
-          )}
-
-          {message.type === "image" && (
-            <ChatImage content={message.content} caption={message.caption} />
-          )}
-
-          {message.type === "video" && (
-            <ChatVideo content={message.content} caption={message.caption} />
-          )}
-        </View>
-      </Animated.View>
-    </Animated.View>
-  );
-}
-
 function ChatImage({ content, caption }: { content: string; caption?: string }) {
   const [expanded, setExpanded] = useState(false);
-  const { width } = useWindowDimensions();
-  const imgWidth = Math.min(width - 100, 200);
+  const { width, height } = useWindowDimensions();
+  const imgWidth = Math.min(width - 140, 240);
+
+  // Zoom gestures
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((event) => {
+      scale.value = clamp(savedScale.value * event.scale, 1, 4);
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      if (scale.value <= 1.1) {
+        scale.value = withSpring(1);
+        savedScale.value = 1;
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      }
+    });
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      if (scale.value > 1) {
+        translateX.value = savedTranslateX.value + event.translationX;
+        translateY.value = savedTranslateY.value + event.translationY;
+      }
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  const composed = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ] as any,
+  }));
+
+  const resetAndClose = useCallback(() => {
+    setExpanded(false);
+    scale.value = 1;
+    savedScale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
+  }, [scale, savedScale, translateX, translateY, savedTranslateX, savedTranslateY]);
 
   return (
     <>
-      <Pressable onPress={() => setExpanded(true)}>
+      <Pressable onPress={() => setExpanded(true)} style={styles.chatImageWrap}>
         <Image
           source={{ uri: content }}
-          style={[styles.chatImage, { width: imgWidth, height: imgWidth * 0.65 }]}
+          style={[styles.chatImage, { width: imgWidth, height: imgWidth * 1.2 }]}
           resizeMode="cover"
         />
+        {caption ? (
+          <View style={styles.captionWrap}>
+            <AppText style={styles.captionText}>{caption}</AppText>
+          </View>
+        ) : null}
       </Pressable>
-      {caption ? <AppText style={styles.captionText}>{caption}</AppText> : null}
 
-      <Modal visible={expanded} transparent animationType="fade">
-        <Pressable style={styles.imageModal} onPress={() => setExpanded(false)}>
-          <Image
-            source={{ uri: content }}
-            style={styles.imageModalImg}
-            resizeMode="contain"
-          />
-          <AppText style={styles.imageModalHint}>แตะเพื่อปิด</AppText>
-        </Pressable>
+      <Modal visible={expanded} transparent animationType="fade" onRequestClose={resetAndClose}>
+        <View style={styles.imageModal}>
+          <Pressable style={styles.closeBtn} onPress={resetAndClose}>
+            <AppText style={styles.closeBtnText}>×</AppText>
+          </Pressable>
+          
+          <GestureDetector gesture={composed}>
+            <Animated.Image
+              source={{ uri: content }}
+              style={[styles.imageModalImg, animatedStyle]}
+              resizeMode="contain"
+            />
+          </GestureDetector>
+
+          {scale.value === 1 && (
+            <AppText style={styles.imageModalHint}>จีบนิ้วเพื่อซูม • แตะปุ่มปิด</AppText>
+          )}
+        </View>
       </Modal>
     </>
   );
@@ -279,17 +263,112 @@ function ChatImage({ content, caption }: { content: string; caption?: string }) 
 
 function ChatVideo({ content, caption }: { content: string; caption?: string }) {
   const { width } = useWindowDimensions();
-  const imgWidth = Math.min(width - 100, 200);
+  const imgWidth = Math.min(width - 140, 240);
 
   return (
-    <View>
+    <View style={styles.chatImageWrap}>
       <View style={[styles.videoThumb, { width: imgWidth, height: imgWidth * 0.56 }]}>
-        <AppText style={styles.videoPlayIcon}>▶</AppText>
+        <View style={styles.playIconWrap}>
+          <AppText style={styles.videoPlayIcon}>▶</AppText>
+        </View>
         <AppText style={styles.videoUrl} numberOfLines={1}>
           {content}
         </AppText>
       </View>
-      {caption ? <AppText style={styles.captionText}>{caption}</AppText> : null}
+      {caption ? (
+        <View style={styles.captionWrap}>
+          <AppText style={styles.captionText}>{caption}</AppText>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function ChatBubble({
+  message,
+  isRevealed,
+  showAvatarAndName,
+}: {
+  message: ChatComicMessage;
+  isRevealed: boolean;
+  showAvatarAndName: boolean;
+}) {
+  const fromMentor = isMentor(message.sender) || message.avatar === "pseed";
+  const scale = useSharedValue(0.8);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (isRevealed) {
+      scale.value = withSpring(1, { damping: 20, stiffness: 300 });
+      opacity.value = withTiming(1, { duration: 150 });
+    }
+  }, [isRevealed, scale, opacity]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  if (!isRevealed) return null;
+
+  const BubbleContent = (
+    <View style={[styles.bubbleWrap, fromMentor ? styles.bubbleWrapLeft : styles.bubbleWrapRight]}>
+      {fromMentor && showAvatarAndName && (
+        <AppText style={styles.senderLabel}>{message.sender}</AppText>
+      )}
+      <Animated.View style={[animStyle]}>
+        <View
+          style={[
+            styles.bubble,
+            fromMentor ? styles.bubbleLeft : styles.bubbleRight,
+            !showAvatarAndName && fromMentor && { borderTopLeftRadius: 16 },
+            !showAvatarAndName && !fromMentor && { borderTopRightRadius: 16 },
+          ]}
+        >
+          {message.type === "text" && (
+            <AppText style={styles.bubbleText}>
+              {autoLinkText(message.content)}
+            </AppText>
+          )}
+          {message.type === "image" && (
+            <ChatImage content={message.content} caption={message.caption} />
+          )}
+          {message.type === "video" && (
+            <ChatVideo content={message.content} caption={message.caption} />
+          )}
+        </View>
+      </Animated.View>
+    </View>
+  );
+
+  const AvatarEl = (
+    <View style={styles.avatarCol}>
+      {showAvatarAndName ? (
+        <View style={styles.avatar}>
+          {message.avatar === "pseed" ? (
+            <Image source={PSEED_LOGO} style={styles.avatarImage} />
+          ) : (
+            <AppText style={styles.avatarText}>{message.avatar.substring(0, 1).toUpperCase()}</AppText>
+          )}
+        </View>
+      ) : (
+        <View style={styles.avatarPlaceholder} />
+      )}
+    </View>
+  );
+
+  return (
+    <View style={[styles.messageRow, fromMentor ? styles.rowLeft : styles.rowRight, !showAvatarAndName && styles.messageRowCompact]}>
+      {fromMentor ? (
+        <>
+          {AvatarEl}
+          {BubbleContent}
+        </>
+      ) : (
+        <>
+          {BubbleContent}
+        </>
+      )}
     </View>
   );
 }
@@ -307,7 +386,6 @@ export default function ChatComicViewer({
   const [isTyping, setIsTyping] = useState(false);
   const [isComplete, setIsComplete] = useState(!clickToReveal);
   const scrollRef = useRef<ScrollView>(null);
-  const { height: viewportHeight } = useWindowDimensions();
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -316,7 +394,7 @@ export default function ChatComicViewer({
   }, []);
 
   const revealNext = useCallback(() => {
-    if (isComplete || isTyping) return;
+    if (isComplete || isTyping || !clickToReveal) return;
 
     const showTyping = shouldShowTyping(messages, revealedCount);
 
@@ -344,7 +422,7 @@ export default function ChatComicViewer({
       });
       scrollToBottom();
     }
-  }, [isComplete, isTyping, messages, revealedCount, scrollToBottom]);
+  }, [isComplete, isTyping, clickToReveal, messages, revealedCount, scrollToBottom]);
 
   // Auto-scroll when new messages appear
   useEffect(() => {
@@ -355,13 +433,6 @@ export default function ChatComicViewer({
 
   return (
     <View style={styles.root}>
-      {/* Faint gradient background */}
-      <LinearGradient
-        colors={["rgba(5,10,20,1)", "rgba(3,5,10,1)", "rgba(5,10,20,1)"]}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
       {/* Sticky header */}
       {title ? (
         <View style={styles.header}>
@@ -381,31 +452,44 @@ export default function ChatComicViewer({
           e.stopPropagation?.();
         }}
       >
-
-        {messages.map((msg, i) => (
-          <ChatBubble
-            key={i}
-            message={msg}
-            isRevealed={i < revealedCount}
-          />
-        ))}
-
-        {isTyping && <TypingIndicator />}
-
-        {isComplete && (
-          <View style={styles.completeRow}>
-            <AppText style={styles.completeText}>— จบการสนทนา —</AppText>
+        <Pressable 
+          onPress={revealNext} 
+          style={styles.revealWrapper}
+          // Only enable press if click to reveal is on and not complete
+          disabled={!clickToReveal || isComplete}
+        >
+          <View style={styles.dateLabelWrap}>
+            <View style={styles.dateLabel}>
+              <AppText style={styles.dateLabelText}>วันนี้</AppText>
+            </View>
           </View>
-        )}
 
-        {/* Shimmer hint at bottom */}
-        <ShimmerHint visible={!isComplete && hasMore} />
+          {messages.map((msg, i) => {
+            const prevMsg = i > 0 ? messages[i - 1] : null;
+            const showAvatarAndName = !prevMsg || prevMsg.sender !== msg.sender;
+
+            return (
+              <ChatBubble
+                key={i}
+                message={msg}
+                isRevealed={i < revealedCount}
+                showAvatarAndName={showAvatarAndName}
+              />
+            );
+          })}
+
+          {isTyping && <TypingIndicator />}
+
+          {isComplete && (
+            <View style={styles.completeRow}>
+              <AppText style={styles.completeText}>— จบการสนทนา —</AppText>
+            </View>
+          )}
+
+          {/* Shimmer hint at bottom */}
+          <ShimmerHint visible={!isComplete && hasMore && clickToReveal} />
+        </Pressable>
       </ScrollView>
-
-      {/* Tap anywhere to reveal next */}
-      {clickToReveal && !isComplete && (
-        <Pressable style={styles.tapArea} onPress={revealNext} />
-      )}
     </View>
   );
 }
@@ -414,45 +498,63 @@ export default function ChatComicViewer({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: BG,
+    backgroundColor: LINE_BG,
+    overflow: "hidden",
   },
   scroll: {
     flex: 1,
+    overflow: "hidden",
   },
   scrollContent: {
-    paddingHorizontal: Space.sm,
-    paddingVertical: Space.sm,
-    gap: Space.xs,
-    paddingBottom: 20,
     flexGrow: 1,
     justifyContent: "flex-end",
   },
+  revealWrapper: {
+    flexGrow: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    gap: 8,
+    paddingBottom: 40,
+    justifyContent: "flex-end",
+  },
 
-  // Header (sticky at top)
+  // Header
   header: {
     paddingHorizontal: Space.md,
-    paddingTop: Space.xs,
-    paddingBottom: Space.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(74,107,130,0.2)",
-    backgroundColor: "rgba(3,5,10,0.95)",
+    paddingTop: Space.sm,
+    paddingBottom: Space.sm,
+    backgroundColor: "#2a3641",
+    alignItems: "center",
   },
   headerTitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: WHITE,
-    textAlign: "center",
   },
 
-  // Tap area (invisible overlay for interaction)
-  tapArea: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "transparent",
+  // Date Label
+  dateLabelWrap: {
+    alignItems: "center",
+    marginVertical: 12,
+  },
+  dateLabel: {
+    backgroundColor: "rgba(0,0,0,0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  dateLabelText: {
+    fontSize: 11,
+    color: WHITE,
   },
 
   // Message row
   messageRow: {
     flexDirection: "row",
     width: "100%",
+    marginBottom: 4,
+  },
+  messageRowCompact: {
+    marginTop: -4,
   },
   rowLeft: {
     justifyContent: "flex-start",
@@ -462,173 +564,219 @@ const styles = StyleSheet.create({
   },
 
   bubbleWrap: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    maxWidth: "80%",
-    gap: 4,
+    maxWidth: "75%",
   },
   bubbleWrapLeft: {
-    flexDirection: "row",
+    alignItems: "flex-start",
   },
   bubbleWrapRight: {
-    flexDirection: "row-reverse",
+    alignItems: "flex-end",
   },
 
   // Avatar
+  avatarCol: {
+    width: 36,
+    marginRight: 8,
+    alignItems: "center",
+  },
   avatar: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "rgba(145,196,227,0.12)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.2)",
+    overflow: "hidden",
   },
-  avatarLeft: {
-    marginRight: 4,
-  },
-  avatarRight: {
-    marginLeft: 4,
+  avatarPlaceholder: {
+    width: 36,
+    height: 36,
+    marginRight: 8,
   },
   avatarText: {
-    fontSize: 13,
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#666",
   },
   avatarImage: {
-    width: 26,
-    height: 26,
+    width: "100%",
+    height: "100%",
+  },
+
+  // Sender Name
+  senderLabel: {
+    fontSize: 11,
+    color: SENDER_TEXT,
+    marginBottom: 2,
+    marginLeft: 2,
   },
 
   // Bubble
   bubble: {
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    gap: 2,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
   },
   bubbleLeft: {
-    backgroundColor: GRAY_BUBBLE,
-    borderWidth: 1,
-    borderColor: GRAY_BUBBLE_BORDER,
-    borderBottomLeftRadius: 4,
+    backgroundColor: WHITE,
+    borderTopLeftRadius: 4,
   },
   bubbleRight: {
-    backgroundColor: GREEN_BUBBLE,
-    borderWidth: 1,
-    borderColor: GREEN_BUBBLE_BORDER,
-    borderBottomRightRadius: 4,
-  },
-  senderLabel: {
-    fontSize: 10,
-    fontFamily: "BaiJamjuree_600SemiBold",
-    marginBottom: 1,
+    backgroundColor: LINE_GREEN,
+    borderTopRightRadius: 4,
   },
   bubbleText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: WHITE75,
+    fontSize: 15,
+    lineHeight: 22,
+    color: BLACK_TEXT,
     fontFamily: "BaiJamjuree_400Regular",
   },
 
   // Media
+  chatImageWrap: {
+    borderRadius: 12,
+    overflow: "hidden",
+    marginVertical: 2,
+    backgroundColor: "rgba(0,0,0,0.05)",
+  },
   chatImage: {
-    borderRadius: 8,
-    marginTop: 2,
-    maxWidth: 180,
+    borderRadius: 12,
+  },
+  captionWrap: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255,255,255,0.9)",
   },
   captionText: {
-    fontSize: 10,
-    color: WHITE55,
-    marginTop: 2,
+    fontSize: 12,
+    color: "#333",
     fontFamily: "BaiJamjuree_400Regular",
   },
   videoThumb: {
-    borderRadius: 8,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "#333",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
-    gap: 4,
+  },
+  playIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
   },
   videoPlayIcon: {
     fontSize: 20,
-    color: WHITE75,
+    color: WHITE,
+    marginLeft: 4, // optical centering
   },
   videoUrl: {
-    fontSize: 9,
-    color: WHITE28,
-    paddingHorizontal: 6,
+    fontSize: 10,
+    color: "rgba(255,255,255,0.6)",
+    paddingHorizontal: 12,
   },
 
   // Image modal
   imageModal: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.92)",
+    backgroundColor: "rgba(0,0,0,0.95)",
     alignItems: "center",
     justifyContent: "center",
   },
   imageModalImg: {
-    width: "90%",
-    height: "70%",
+    width: "100%",
+    height: "100%",
   },
   imageModalHint: {
-    marginTop: 16,
-    fontSize: 13,
-    color: WHITE55,
-    fontFamily: "BaiJamjuree_400Regular",
+    position: "absolute",
+    bottom: 40,
+    fontSize: 14,
+    color: WHITE,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  closeBtn: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  closeBtnText: {
+    fontSize: 30,
+    color: WHITE,
+    lineHeight: 34,
   },
 
   // Typing
   typingRow: {
     flexDirection: "row",
     justifyContent: "flex-start",
-    paddingHorizontal: 2,
+    marginTop: 4,
   },
   typingBubble: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    backgroundColor: GRAY_BUBBLE,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: GRAY_BUBBLE_BORDER,
-    marginLeft: 32,
+    gap: 4,
+    backgroundColor: WHITE,
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
   },
   typingDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: TYPING_DOT,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#aaa",
   },
 
   // Complete
   completeRow: {
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 16,
   },
   completeText: {
-    fontSize: 10,
-    color: WHITE28,
-    fontFamily: "BaiJamjuree_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.5)",
   },
 
   // Shimmer hint
   shimmerHint: {
     alignItems: "center",
-    paddingVertical: 8,
-    gap: 4,
+    paddingVertical: 12,
+    gap: 6,
+    marginTop: 8,
   },
   shimmerLine: {
-    width: 30,
-    height: 3,
+    width: 40,
+    height: 4,
     borderRadius: 2,
-    backgroundColor: CYAN,
+    backgroundColor: "rgba(255,255,255,0.8)",
   },
   shimmerText: {
-    fontSize: 10,
-    color: "rgba(145,196,227,0.5)",
-    fontFamily: "BaiJamjuree_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "500",
   },
 });
