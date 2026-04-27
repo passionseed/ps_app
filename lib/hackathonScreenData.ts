@@ -343,21 +343,9 @@ async function buildActivitySiblings(
     return { blockedMessage: null, siblings: [] };
   }
 
-  const siblingIds = visibleSiblings.filter(Boolean).map((sibling) => sibling.id);
-  const [siblingSubmissionStatuses, siblingTeamStatuses] = await Promise.all([
-    fetchActivitySubmissionStatuses(siblingIds),
-    fetchTeamActivitySubmissionStatuses(siblingIds),
-  ]);
-
-  function getPrevStatus(index: number): HackathonPhaseActivitySubmissionStatus | null {
-    if (index <= 0) return null;
-    const prev = visibleSiblings[index - 1]!;
-    const isTeam = prev.submission_scope === "team";
-    const status = isTeam
-      ? (siblingTeamStatuses[prev.id] ?? null)
-      : (siblingSubmissionStatuses[prev.id] ?? null);
-    return (status as HackathonPhaseActivitySubmissionStatus | null) ?? "not_started";
-  }
+  const siblingSubmissionStatuses = await fetchActivitySubmissionStatuses(
+    visibleSiblings.filter(Boolean).map((sibling) => sibling.id),
+  );
 
   const siblingsWithAccess = visibleSiblings.filter(Boolean).map((sibling, index) => ({
     id: sibling.id,
@@ -365,13 +353,21 @@ async function buildActivitySiblings(
     accessible: isHackathonActivityAccessible({
       phaseStatus: phaseData?.status,
       activityStatus: sibling.status,
-      previousActivitySubmissionStatus: getPrevStatus(index),
+      previousActivitySubmissionStatus:
+        index > 0
+          ? ((siblingSubmissionStatuses[visibleSiblings[index - 1]!.id] ??
+            "not_started") as HackathonPhaseActivitySubmissionStatus)
+          : null,
       isAdmin,
     }),
   }));
 
   const currentIndex = visibleSiblings.findIndex((sibling) => sibling.id === activity.id);
-  const previousSubmissionStatus = getPrevStatus(currentIndex);
+  const previousSubmissionStatus =
+    currentIndex > 0
+      ? ((siblingSubmissionStatuses[visibleSiblings[currentIndex - 1]!.id] ??
+        "not_started") as HackathonPhaseActivitySubmissionStatus)
+      : null;
   const currentAccessible = isHackathonActivityAccessible({
     phaseStatus: phaseData?.status,
     activityStatus: activity.status,
