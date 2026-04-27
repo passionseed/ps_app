@@ -265,53 +265,49 @@ export async function fetchTeammateActivitySubmissions(
   const participant = await readHackathonParticipant();
   if (!participant) return [];
 
-  const { data: membership, error: membershipError } = await supabase
+  const { data: membership } = await supabase
     .from("hackathon_team_members")
     .select("team_id")
     .eq("participant_id", participant.id)
     .maybeSingle();
 
-  if (membershipError || !membership?.team_id) return [];
+  if (!membership?.team_id) return [];
 
-  const { data: members, error: membersError } = await supabase
-    .from("hackathon_team_members")
-    .select("participant_id")
-    .eq("team_id", membership.team_id);
-
-  if (membersError || !members) return [];
-
-  const teammateIds = members
-    .filter(Boolean)
-    .map((member) => member.participant_id)
-    .filter((id): id is string => Boolean(id) && id !== participant.id);
-
-  if (teammateIds.length === 0) return [];
-
-  const { data: submissions, error: submissionsError } = await supabase
-    .from("hackathon_phase_activity_submissions")
-    .select("id, participant_id, assessment_id, text_answer, image_url, file_urls, submitted_at")
-    .in("participant_id", teammateIds)
+  const { data: teamSub } = await supabase
+    .from("hackathon_phase_activity_team_submissions")
+    .select("id, assessment_id, text_answer, image_url, file_urls, submitted_at, submitted_by")
+    .eq("team_id", membership.team_id)
     .eq("activity_id", activityId)
     .order("submitted_at", { ascending: false });
 
-  if (submissionsError || !submissions) return [];
+  if (!teamSub || teamSub.length === 0) return [];
 
-  const { data: participants, error: participantsError } = await supabase
+  const submitterIds = [...new Set(teamSub.map((s) => s.submitted_by).filter(Boolean))]
+    .filter((id) => id !== participant.id);
+
+  if (submitterIds.length === 0) return [];
+
+  const { data: participants } = await supabase
     .from("hackathon_participants")
     .select("id, name")
-    .in("id", teammateIds);
+    .in("id", submitterIds);
 
-  if (participantsError || !participants) return [];
-
-  const participantNameMap = new Map(
-    participants.filter(Boolean).map((row) => [row.id, row.name ?? "Teammate"])
+  const nameMap = new Map(
+    (participants ?? []).map((p) => [p.id, p.name ?? "Teammate"])
   );
 
-  return submissions.filter(Boolean).map((submission) => ({
-    ...(submission as SubmissionRecord),
-    participant_id: submission.participant_id,
-    participant_name: participantNameMap.get(submission.participant_id) ?? "Teammate",
-  }));
+  return teamSub
+    .filter((s) => s.submitted_by && s.submitted_by !== participant.id)
+    .map((s) => ({
+      id: s.id,
+      assessment_id: s.assessment_id,
+      text_answer: s.text_answer,
+      image_url: s.image_url,
+      file_urls: s.file_urls,
+      submitted_at: s.submitted_at,
+      participant_id: s.submitted_by,
+      participant_name: nameMap.get(s.submitted_by) ?? "Teammate",
+    }));
 }
 
 export async function fetchActivitySubmissionStatuses(
@@ -338,8 +334,7 @@ export async function fetchActivitySubmissionStatuses(
 
 /**
  * Returns team-level submission statuses for activities.
- * If ANY team member has submitted an activity with status "submitted" or "passed",
- * that activity is marked as "passed" for the whole team.
+ * Queries the team_submissions table directly by team_id.
  */
 export async function fetchTeamActivitySubmissionStatuses(
   activityIds: string[]
@@ -348,7 +343,6 @@ export async function fetchTeamActivitySubmissionStatuses(
   const participant = await readHackathonParticipant();
   if (!participant) return {};
 
-  // Find the participant's team
   const { data: membership } = await supabase
     .from("hackathon_team_members")
     .select("team_id")
@@ -357,40 +351,18 @@ export async function fetchTeamActivitySubmissionStatuses(
 
   if (!membership?.team_id) return {};
 
-  // Get all team member IDs
-  const { data: members } = await supabase
-    .from("hackathon_team_members")
-    .select("participant_id")
-    .eq("team_id", membership.team_id);
-
-  const memberIds = (members ?? [])
-    .filter(Boolean)
-    .map((m: any) => m.participant_id)
-    .filter(Boolean);
-
-  if (memberIds.length === 0) return {};
-
-  // Find any submission from any team member for these activities
   const { data, error } = await supabase
-    .from("hackathon_phase_activity_submissions")
+    .from("hackathon_phase_activity_team_submissions")
     .select("activity_id, status")
-    .in("participant_id", memberIds)
+    .eq("team_id", membership.team_id)
     .in("activity_id", activityIds);
 
   if (error || !data) return {};
 
-  // For team work, one valid submission clears the gate for everyone.
-  const statusPriority = { passed: 3, submitted: 2, draft: 1 };
   const map: Record<string, string> = {};
   for (const s of data) {
-    const normalizedStatus =
+    map[s.activity_id] =
       s.status === "passed" || s.status === "submitted" ? "passed" : s.status;
-    const current = map[s.activity_id];
-    const currentPriority = statusPriority[current as keyof typeof statusPriority] ?? 0;
-    const newPriority = statusPriority[normalizedStatus as keyof typeof statusPriority] ?? 0;
-    if (newPriority > currentPriority) {
-      map[s.activity_id] = normalizedStatus;
-    }
   }
   return map;
 }
@@ -582,14 +554,15 @@ export async function fetchTeamScoreBreakdown(teamId: string): Promise<ScoreBrea
   return breakdown;
 }
 
-/** Returns the team's current total score, or 0 if not found. */
+/** Returns the team's current total score by summing events in real-time. */
 export async function fetchTeamScore(teamId: string): Promise<number> {
   const { data } = await supabase
-    .from("hackathon_team_scores")
-    .select("total_score")
-    .eq("team_id", teamId)
-    .maybeSingle();
-  return data?.total_score ?? 0;
+    .from("hackathon_team_score_events")
+    .select("points_awarded")
+    .eq("team_id", teamId);
+
+  if (!data || data.length === 0) return 0;
+  return data.reduce((sum: number, e: any) => sum + (e.points_awarded ?? 0), 0);
 }
 
 export type TeamImpact = {
@@ -602,21 +575,20 @@ export type TeamImpact = {
 /**
  * Fetches team impact stats in parallel:
  * - activitiesCompleted: distinct activities submitted by any team member
- * - score: total_score from hackathon_team_scores
- * - rankPercent: percentile rank among all teams with a score (top X%)
+ * - score: real-time sum of points_awarded from hackathon_team_score_events
+ * - rank: based on hackathon_team_scores.total_score (pre-computed, kept in sync on each scoring event)
  */
 export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
   const participant = await readHackathonParticipant();
 
-  const [scoreResult, submissionsResult, allScoresResult, allTeamsResult] = await Promise.all([
-    // Team score
+  const [scoreEventsResult, submissionsResult, teamSubmissionsResult, allScoresResult, allTeamsResult] = await Promise.all([
+    // Team score: calculate in real-time from score events
     supabase
-      .from("hackathon_team_scores")
-      .select("total_score")
-      .eq("team_id", teamId)
-      .maybeSingle(),
+      .from("hackathon_team_score_events")
+      .select("points_awarded")
+      .eq("team_id", teamId),
 
-    // Distinct activities completed by any member of this team
+    // Individual-scope activities completed by any member of this team
     participant?.id
       ? supabase
           .from("hackathon_team_members")
@@ -633,7 +605,14 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
           })
       : Promise.resolve({ data: [] }),
 
-    // All team scores for rank computation
+    // Team-scope activities completed by this team
+    supabase
+      .from("hackathon_phase_activity_team_submissions")
+      .select("activity_id")
+      .eq("team_id", teamId)
+      .eq("status", "submitted"),
+
+    // All team scores for rank computation (pre-computed totals)
     supabase
       .from("hackathon_team_scores")
       .select("team_id, total_score")
@@ -645,11 +624,17 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
       .select("id"),
   ]);
 
-  const score = scoreResult.data?.total_score ?? 0;
+  // Calculate score in real-time from events
+  const scoreEvents: any[] = (scoreEventsResult.data ?? []).filter(Boolean);
+  const score = scoreEvents.reduce((sum: number, e: any) => sum + (e.points_awarded ?? 0), 0);
 
-  // Count distinct activity_ids
-  const submissions = ((submissionsResult as any).data ?? []).filter(Boolean);
-  const uniqueActivities = new Set(submissions.filter(Boolean).map((s: any) => s?.activity_id).filter(Boolean));
+  // Count distinct activity_ids from both individual and team submissions
+  const individualSubs = ((submissionsResult as any).data ?? []).filter(Boolean);
+  const teamSubs = (teamSubmissionsResult.data ?? []).filter(Boolean);
+  const uniqueActivities = new Set([
+    ...individualSubs.map((s: any) => s?.activity_id).filter(Boolean),
+    ...teamSubs.map((s: any) => s?.activity_id).filter(Boolean),
+  ]);
   const activitiesCompleted = uniqueActivities.size;
 
   // Rank: 1 + number of teams with a strictly higher score.

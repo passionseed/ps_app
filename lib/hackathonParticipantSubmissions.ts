@@ -85,6 +85,31 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
   }
 
   const rows = (subs ?? []) as RawSub[];
+
+  // Also fetch team-scope submissions for this participant's team
+  const { data: membership } = await supabase
+    .from("hackathon_team_members")
+    .select("team_id")
+    .eq("participant_id", participant.id)
+    .maybeSingle();
+
+  if (membership?.team_id) {
+    const { data: teamSubs } = await supabase
+      .from("hackathon_phase_activity_team_submissions")
+      .select("id, activity_id, status, submitted_at, assessment_id, text_answer, image_url, file_urls")
+      .eq("team_id", membership.team_id)
+      .order("submitted_at", { ascending: false });
+
+    if (teamSubs) {
+      const existingActivityIds = new Set(rows.map((r) => r.activity_id));
+      for (const ts of teamSubs as RawSub[]) {
+        if (!existingActivityIds.has(ts.activity_id)) {
+          rows.push(ts);
+        }
+      }
+    }
+  }
+
   if (rows.length === 0) return [];
 
   const activityIds = [...new Set(rows.map((r) => r.activity_id).filter(Boolean))];

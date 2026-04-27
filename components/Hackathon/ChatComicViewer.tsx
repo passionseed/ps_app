@@ -61,7 +61,8 @@ const GRAY_BUBBLE = "rgba(30,35,42,0.95)";
 const GRAY_BUBBLE_BORDER = "rgba(255,255,255,0.08)";
 const TYPING_DOT = "rgba(145,196,227,0.6)";
 
-const MENTOR_SENDERS = ["Mentor Kai", "mentor kai", "Mentor"];
+const MENTOR_SENDERS = ["Mentor Kai", "mentor kai", "Mentor", "P'Seed", "p'seed"];
+const PSEED_LOGO = require("../../assets/apple-touch-icon.png");
 
 // ── Helpers ───────────────────────────────────────────────────────
 function isMentor(sender: string): boolean {
@@ -172,7 +173,7 @@ function ChatBubble({
   message: ChatComicMessage;
   isRevealed: boolean;
 }) {
-  const fromMentor = isMentor(message.sender);
+  const fromMentor = isMentor(message.sender) || message.avatar === "pseed";
   const scale = useSharedValue(0.95);
 
   useEffect(() => {
@@ -204,7 +205,11 @@ function ChatBubble({
       >
         {/* Avatar */}
         <View style={[styles.avatar, fromMentor ? styles.avatarLeft : styles.avatarRight]}>
-          <AppText style={styles.avatarText}>{message.avatar}</AppText>
+          {message.avatar === "pseed" ? (
+            <Image source={PSEED_LOGO} style={styles.avatarImage} />
+          ) : (
+            <AppText style={styles.avatarText}>{message.avatar}</AppText>
+          )}
         </View>
 
         {/* Bubble */}
@@ -488,6 +493,10 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 13,
+  },
+  avatarImage: {
+    width: 26,
+    height: 26,
   },
 
   // Bubble

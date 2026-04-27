@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabaseState = {
   maybeSingle: vi.fn(),
-  memberRows: vi.fn(),
-  orderedSubmissions: vi.fn(),
+  teamSubmissions: vi.fn(),
   participantRows: vi.fn(),
   from: vi.fn((table: string) => {
     if (table === "hackathon_team_members") {
@@ -14,22 +13,18 @@ const supabaseState = {
               return { maybeSingle: supabaseState.maybeSingle };
             }
 
-            if (column === "team_id") {
-              return supabaseState.memberRows();
-            }
-
             throw new Error(`Unexpected eq on hackathon_team_members: ${column}=${value}`);
           }),
         })),
       };
     }
 
-    if (table === "hackathon_phase_activity_submissions") {
+    if (table === "hackathon_phase_activity_team_submissions") {
       return {
         select: vi.fn(() => ({
-          in: vi.fn(() => ({
+          eq: vi.fn(() => ({
             eq: vi.fn(() => ({
-              order: supabaseState.orderedSubmissions,
+              order: supabaseState.teamSubmissions,
             })),
           })),
         })),
@@ -49,8 +44,7 @@ const supabaseState = {
   reset() {
     supabaseState.from.mockClear();
     supabaseState.maybeSingle.mockReset();
-    supabaseState.memberRows.mockReset();
-    supabaseState.orderedSubmissions.mockReset();
+    supabaseState.teamSubmissions.mockReset();
     supabaseState.participantRows.mockReset();
   },
 };
@@ -71,6 +65,12 @@ vi.mock("expo-file-system/legacy", () => ({
   readAsStringAsync: vi.fn(),
 }));
 
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() },
+}));
+
+vi.mock("expo-sqlite/localStorage/install", () => ({}));
+
 describe("fetchTeammateActivitySubmissions", () => {
   beforeEach(() => {
     supabaseState.reset();
@@ -86,19 +86,11 @@ describe("fetchTeammateActivitySubmissions", () => {
       data: { team_id: "team-1" },
       error: null,
     });
-    supabaseState.memberRows.mockResolvedValue({
-      data: [
-        { participant_id: "participant-self" },
-        { participant_id: "participant-a" },
-        { participant_id: "participant-b" },
-      ],
-      error: null,
-    });
-    supabaseState.orderedSubmissions.mockResolvedValue({
+    supabaseState.teamSubmissions.mockResolvedValue({
       data: [
         {
           id: "submission-b",
-          participant_id: "participant-b",
+          submitted_by: "participant-b",
           text_answer: "Drafted slides",
           image_url: null,
           file_urls: null,
@@ -106,7 +98,7 @@ describe("fetchTeammateActivitySubmissions", () => {
         },
         {
           id: "submission-a",
-          participant_id: "participant-a",
+          submitted_by: "participant-a",
           text_answer: "Interview synthesis",
           image_url: null,
           file_urls: null,

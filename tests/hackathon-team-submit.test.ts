@@ -3,10 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const readHackathonParticipant = vi.fn();
 
 type TeamMembershipRow = { participant_id: string; team_id?: string };
-type SubmissionRow = { participant_id: string; activity_id: string; status: string };
 
 let memberRows: TeamMembershipRow[] = [];
-let teamSubmissionRows: SubmissionRow[] = [];
+let teamSubmissionRows: { activity_id: string; status: string }[] = [];
 
 const supabaseState = {
   deleteEq: vi.fn(),
@@ -33,28 +32,22 @@ const supabaseState = {
             single: supabaseState.insertSingle,
           })),
         })),
-        select: vi.fn(() => ({
-          in: vi.fn((column: string, participantIds: string[]) => {
-            if (column === "participant_id") {
-              return {
-                in: vi.fn((activityColumn: string, activityIds: string[]) => {
-                  if (activityColumn !== "activity_id") {
-                    throw new Error(`Unexpected second in column ${activityColumn}`);
-                  }
-                  return Promise.resolve({
-                    data: teamSubmissionRows.filter(
-                      (row) =>
-                        participantIds.includes(row.participant_id) &&
-                        activityIds.includes(row.activity_id),
-                    ),
-                    error: null,
-                  });
-                }),
-              };
-            }
+      };
+    }
 
-            throw new Error(`Unexpected in on hackathon_phase_activity_submissions: ${column}`);
-          }),
+    if (table === "hackathon_phase_activity_team_submissions") {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn((_col: string, teamId: string) => ({
+            in: vi.fn((_col2: string, activityIds: string[]) =>
+              Promise.resolve({
+                data: teamSubmissionRows.filter((row) =>
+                  activityIds.includes(row.activity_id),
+                ),
+                error: null,
+              }),
+            ),
+          })),
         })),
       };
     }
@@ -142,7 +135,7 @@ const supabaseState = {
   setMemberRows(rows: TeamMembershipRow[]) {
     memberRows = rows;
   },
-  setTeamSubmissionRows(rows: SubmissionRow[]) {
+  setTeamSubmissionRows(rows: { activity_id: string; status: string }[]) {
     teamSubmissionRows = rows;
   },
   reset() {
@@ -177,6 +170,12 @@ vi.mock("expo-file-system/legacy", () => ({
   readAsStringAsync: vi.fn(),
 }));
 
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() },
+}));
+
+vi.mock("expo-sqlite/localStorage/install", () => ({}));
+
 describe("hackathon team submission behavior", () => {
   beforeEach(() => {
     supabaseState.reset();
@@ -197,7 +196,7 @@ describe("hackathon team submission behavior", () => {
       { participant_id: "participant-a", team_id: "team-1" },
     ]);
     supabaseState.setTeamSubmissionRows([
-      { participant_id: "participant-a", activity_id: "activity-4", status: "submitted" },
+      { activity_id: "activity-4", status: "submitted" },
     ]);
 
     const { fetchTeamActivitySubmissionStatuses } = await import("../lib/hackathon-submit");

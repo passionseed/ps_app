@@ -202,6 +202,7 @@ export default function HackathonHomeScreen() {
               <AppText style={styles.impactLabel}>SCORE{'\n'}EARNED</AppText>
             </Pressable>
           </View>
+          <AppText style={styles.impactNote}>แรงค์และอันดับยังไม่ใช่คะแนนสุดท้าย</AppText>
         </View>
 
         {/* Mentor Guides */}
@@ -356,6 +357,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.5,
     fontFamily: "BaiJamjuree_500Medium",
+  },
+  impactNote: {
+    fontSize: 12,
+    color: WHITE40,
+    textAlign: "center",
+    marginTop: 8,
+    fontFamily: "BaiJamjuree_400Regular",
   },
   impactDivider: {
     width: 1,

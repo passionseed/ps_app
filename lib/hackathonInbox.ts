@@ -296,16 +296,38 @@ export async function getLatestRevisionFeedback(
       .limit(1)
       .maybeSingle();
 
-    console.log('[getLatestRevisionFeedback] latestSub:', latestSub?.id);
+    // Also check team_submissions table (team-scope activities live here post-migration)
+    let teamSubId: string | undefined;
+    if (!latestSub) {
+      const { data: membership } = await supabase
+        .from("hackathon_team_members")
+        .select("team_id")
+        .eq("participant_id", participant.id)
+        .maybeSingle();
+      if (membership?.team_id) {
+        const { data: teamSub } = await supabase
+          .from("hackathon_phase_activity_team_submissions")
+          .select("id")
+          .eq("team_id", membership.team_id)
+          .eq("activity_id", activityId)
+          .order("submitted_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        teamSubId = teamSub?.id;
+      }
+    }
 
-    if (latestSub?.id) {
+    const subId = latestSub?.id ?? teamSubId;
+    console.log('[getLatestRevisionFeedback] latestSub:', subId);
+
+    if (subId) {
       // Try multiple metadata key variations
       const { data: bySubId, error: err2 } = await supabase
         .from("hackathon_participant_inbox_items")
         .select("*")
         .eq("participant_id", participant.id)
         .in("type", ["assessment_review", "mentor_comment"])
-        .or(`metadata->>submission_id.eq.${latestSub.id},metadata->>activity_id.eq.${activityId}`)
+        .or(`metadata->>submission_id.eq.${subId},metadata->>activity_id.eq.${activityId}`)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -319,7 +341,7 @@ export async function getLatestRevisionFeedback(
         .select("*")
         .eq("participant_id", participant.id)
         .in("type", ["assessment_review", "mentor_comment"])
-        .contains("metadata", { submission_id: latestSub.id })
+        .contains("metadata", { submission_id: subId })
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();

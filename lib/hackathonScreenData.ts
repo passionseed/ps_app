@@ -231,12 +231,23 @@ async function createJourneyBundle(): Promise<HackathonJourneyBundle> {
   const allActivityIds = phaseSummaries.flatMap((phase) =>
     (phase.activities ?? []).filter(Boolean).map((activity) => activity.id),
   );
-  const submissionStatuses = await fetchActivitySubmissionStatuses(allActivityIds);
+  const [submissionStatuses, teamStatuses] = await Promise.all([
+    fetchActivitySubmissionStatuses(allActivityIds),
+    fetchTeamActivitySubmissionStatuses(allActivityIds),
+  ]);
+
+  // Merge: team status wins when present (team-scope activities were migrated)
+  const mergedStatuses = { ...submissionStatuses };
+  for (const [actId, status] of Object.entries(teamStatuses)) {
+    if (!mergedStatuses[actId] || mergedStatuses[actId] === "not_started") {
+      mergedStatuses[actId] = status;
+    }
+  }
 
   return {
     data: home,
     impact: await impactPromise,
-    phaseCards: buildJourneyPhaseCards(home, phaseSummaries, submissionStatuses),
+    phaseCards: buildJourneyPhaseCards(home, phaseSummaries, mergedStatuses),
     isAdmin,
   };
 }
