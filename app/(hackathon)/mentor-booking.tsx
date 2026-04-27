@@ -68,6 +68,7 @@ type BookingInfo = {
 type QuotaInfo = {
   chances_left: 0 | 1;
   booking: BookingInfo | null;
+  assigned_mentor_ids: string[] | null;
 };
 
 const TRACKS = [
@@ -174,7 +175,7 @@ function MentorGrid({
 
   if (loading) return <View style={s.center}><ActivityIndicator color={CYAN} size="large" /></View>;
   if (error) return <View style={s.center}><AppText style={s.errorText}>{error}</AppText></View>;
-  if (mentors.length === 0) return <View style={s.center}><AppText style={{ color: WHITE40 }}>ยังไม่มี Mentor ในขณะนี้</AppText></View>;
+  if (mentors.length === 0) return <View style={s.center}><AppText style={{ color: WHITE40, textAlign: "center" }}>ยังไม่มี Mentor ในขณะนี้</AppText></View>;
 
   return (
     <View style={{ gap: Space.md }}>
@@ -761,19 +762,34 @@ export default function MentorBookingScreen() {
     setSelectedMentor(null);
   }
 
+  // Group mentors: only show those assigned to this team
+  // Healthcare mentors: show all unless quota used up
+  // Order: group mentors first, then healthcare
+  const assignedMentorIds = quota?.assigned_mentor_ids ?? null;
+  const healthcareQuotaUsed = quota !== null && quota.chances_left === 0;
+  const groupMentors = assignedMentorIds
+    ? mentors.filter((m) => m.session_type === "group" && assignedMentorIds.includes(m.id))
+    : [];
+  const healthcareMentors = healthcareQuotaUsed
+    ? []
+    : mentors.filter((m) => m.session_type === "healthcare");
+  const filteredMentors = [...groupMentors, ...healthcareMentors];
+
   // Determine what to show
   const hasActiveBooking = quota?.booking && quota.booking.status !== "cancelled";
   // Only show cancelled card if chances are used up (cancelled by student)
   const hasCancelledBooking = quota?.booking && quota.booking.status === "cancelled" && quota.chances_left === 0;
   const showBookingCard = hasActiveBooking || hasCancelledBooking;
-  const showForm = !showBookingCard && quota?.chances_left === 1;
+  const selectedIsGroupMentor = selectedMentor?.session_type === "group";
+  // Group mentor bookings are unlimited — always allow the form for group mentors
+  const showForm = (!showBookingCard && quota?.chances_left === 1) || (selectedIsGroupMentor && (step === "detail" || step === "form"));
 
   // Header back label
-  const backLabel = showBookingCard || step === "grid" ? "← Back" : step === "form" ? "← ข้อมูล Mentor" : "← เลือก Mentor";
+  const backLabel = step === "form" ? "← ข้อมูล Mentor" : step === "detail" && selectedMentor ? "← เลือก Mentor" : "← Back";
   function handleBack() {
-    if (showBookingCard || step === "grid") { router.back(); }
-    else if (step === "form") { goToStep("detail"); }
-    else { goToStep("grid"); setSelectedMentor(null); }
+    if (step === "form") { goToStep("detail"); }
+    else if (step === "detail") { goToStep("grid"); setSelectedMentor(null); }
+    else { router.back(); }
   }
 
   return (
@@ -790,14 +806,6 @@ export default function MentorBookingScreen() {
 
         {quotaLoading ? (
           <View style={s.center}><ActivityIndicator color={CYAN} size="large" /></View>
-        ) : showBookingCard ? (
-          <BookingCard
-            booking={quota!.booking!}
-            onCancel={handleCancel}
-            onRebook={handleRebook}
-            cancelling={cancelling}
-            cancelError={cancelError}
-          />
         ) : showForm && step === "form" && selectedMentor ? (
           <BookingForm
             mentor={selectedMentor}
@@ -809,16 +817,48 @@ export default function MentorBookingScreen() {
             mentor={selectedMentor}
             onBook={() => goToStep("form")}
           />
+        ) : showBookingCard && step === "grid" ? (
+          <>
+            <BookingCard
+              booking={quota!.booking!}
+              onCancel={handleCancel}
+              onRebook={handleRebook}
+              cancelling={cancelling}
+              cancelError={cancelError}
+            />
+            {/* Still allow booking a group mentor even with active healthcare booking */}
+            {groupMentors.length > 0 && (
+              <>
+                <AppText variant="bold" style={{ color: WHITE70, fontSize: 14, marginTop: Space.md }}>จอง Group Mentor</AppText>
+                <MentorGrid
+                  mentors={groupMentors}
+                  loading={mentorsLoading}
+                  error={null}
+                  onSelect={(m) => { setSelectedMentor(m); goToStep("detail"); }}
+                />
+              </>
+            )}
+          </>
+        ) : showBookingCard ? (
+          <BookingCard
+            booking={quota!.booking!}
+            onCancel={handleCancel}
+            onRebook={handleRebook}
+            cancelling={cancelling}
+            cancelError={cancelError}
+          />
         ) : (
           <>
-            {/* One-chance banner */}
-            <View style={s.onceNotice}>
-              <AppText variant="bold" style={s.onceNoticeTitle}>จองได้ 1 ครั้งต่อทีมเท่านั้น</AppText>
-              <AppText style={s.onceNoticeSub}>เลือก Mentor ที่ต้องการ แล้วกรอกข้อมูลทีม</AppText>
-            </View>
+            {/* One-chance banner — only when healthcare quota still available */}
+            {!healthcareQuotaUsed && (
+              <View style={s.onceNotice}>
+                <AppText variant="bold" style={s.onceNoticeTitle}>จองได้ 1 ครั้งต่อทีมเท่านั้น</AppText>
+                <AppText style={s.onceNoticeSub}>เลือก Mentor ที่ต้องการ แล้วกรอกข้อมูลทีม</AppText>
+              </View>
+            )}
 
             <MentorGrid
-              mentors={mentors}
+              mentors={filteredMentors}
               loading={mentorsLoading}
               error={mentorsError}
               onSelect={(m) => { setSelectedMentor(m); goToStep("detail"); }}

@@ -32,8 +32,8 @@ async function awardScore(
   assessmentId: string,
   participantId: string
 ): Promise<void> {
-  // 1. Get activity scope and assessment points in parallel
-  const [{ data: activity }, { data: assessment }] = await Promise.all([
+  // 1. Get activity scope + all assessments for this activity in parallel
+  const [{ data: activity }, { data: allAssessments }, { data: thisAssessment }] = await Promise.all([
     supabase
       .from("hackathon_phase_activities")
       .select("submission_scope")
@@ -41,12 +41,20 @@ async function awardScore(
       .maybeSingle(),
     supabase
       .from("hackathon_phase_activity_assessments")
-      .select("points_possible, metadata")
+      .select("points_possible")
+      .eq("activity_id", activityId),
+    supabase
+      .from("hackathon_phase_activity_assessments")
+      .select("metadata")
       .eq("id", assessmentId)
       .maybeSingle(),
   ]);
 
-  const pointsPossible = assessment?.points_possible ?? 0;
+  // Points = sum of all assessments in the activity
+  const pointsPossible = (allAssessments ?? []).reduce(
+    (sum, a) => sum + (a.points_possible ?? 0),
+    0
+  );
   if (pointsPossible <= 0) return; // nothing to award
 
   // 2. Find the team this participant belongs to
@@ -60,7 +68,7 @@ async function awardScore(
 
   // 3. Calculate points to award
   // is_group_submission in assessment metadata takes priority over activity submission_scope
-  const isGroupSubmission = (assessment?.metadata as any)?.is_group_submission === true;
+  const isGroupSubmission = (thisAssessment?.metadata as any)?.is_group_submission === true;
   const scope = isGroupSubmission ? "team" : (activity?.submission_scope ?? "individual");
   let pointsAwarded: number;
   let memberCount = 1;
@@ -80,20 +88,16 @@ async function awardScore(
   if (pointsAwarded <= 0) return;
 
   if (scope === "team") {
-    const { data: existingTeamEvent, error: existingTeamEventError } = await supabase
-      .from("hackathon_team_score_events")
+    // Check if another team member already submitted any assessment for this activity
+    const { data, error: lookupError } = await supabase
+      .from("hackathon_phase_activity_team_submissions")
       .select("id")
       .eq("team_id", membership.team_id)
       .eq("activity_id", activityId)
-      .eq("scope", "team")
+      .not("id", "eq", submissionId)
       .maybeSingle();
 
-    if (existingTeamEventError) {
-      console.warn("[score] team event lookup failed", existingTeamEventError.message);
-      return;
-    }
-
-    if (existingTeamEvent?.id) {
+    if (!lookupError && data?.id) {
       return;
     }
   }
@@ -648,4 +652,154 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
   const rank = computeTeamRank(teamId, allTeamIds, allScores);
 
   return { teamId, activitiesCompleted, score, rank };
+}
+
+// ---------------------------------------------------------------------------
+// Recalculate all team scores from submissions (ignores grading)
+// ---------------------------------------------------------------------------
+
+export async function recalculateAllTeamScores(): Promise<void> {
+  // 1. Fetch all assessments with points and activity metadata
+  const { data: assessments, error: assessErr } = await supabase
+    .from("hackathon_phase_activity_assessments")
+    .select("id, activity_id, points_possible, metadata");
+  if (assessErr || !assessments) {
+    console.error("[recalc] failed to load assessments", assessErr);
+    return;
+  }
+
+  const assessmentMap = new Map<string, { activityId: string; points: number; isGroup: boolean }>();
+  for (const a of assessments) {
+    assessmentMap.set(a.id, {
+      activityId: a.activity_id,
+      points: a.points_possible ?? 0,
+      isGroup: (a.metadata as any)?.is_group_submission === true,
+    });
+  }
+
+  // 2. Fetch all activities to determine scope
+  const { data: activities, error: actErr } = await supabase
+    .from("hackathon_phase_activities")
+    .select("id, submission_scope");
+  if (actErr || !activities) {
+    console.error("[recalc] failed to load activities", actErr);
+    return;
+  }
+
+  const scopeMap = new Map<string, string>();
+  for (const a of activities) {
+    scopeMap.set(a.id, a.submission_scope ?? "individual");
+  }
+
+  // 3. Fetch all individual submissions + team submissions
+  const [{ data: indSubs }, { data: teamSubs }] = await Promise.all([
+    supabase.from("hackathon_phase_activity_submissions").select("id, participant_id, assessment_id, activity_id"),
+    supabase.from("hackathon_phase_activity_team_submissions").select("id, team_id, assessment_id, activity_id"),
+  ]);
+
+  if (!indSubs && !teamSubs) {
+    console.error("[recalc] failed to load submissions");
+    return;
+  }
+
+  // 4. Build team score map
+  const teamScoreMap = new Map<string, number>();
+
+  // Fetch all team memberships
+  const { data: memberships } = await supabase
+    .from("hackathon_team_members")
+    .select("participant_id, team_id");
+  const memberTeamMap = new Map<string, string>();
+  for (const m of memberships ?? []) {
+    memberTeamMap.set(m.participant_id, m.team_id);
+  }
+
+  // Count team sizes
+  const teamSizeMap = new Map<string, number>();
+  for (const m of memberships ?? []) {
+    teamSizeMap.set(m.team_id, (teamSizeMap.get(m.team_id) ?? 0) + 1);
+  }
+
+  const teamScoreCache = new Map<string, Set<string>>();
+
+  function getScope(a: { activityId: string; isGroup: boolean }): string {
+    if (a.isGroup) return "team";
+    return scopeMap.get(a.activityId) ?? "individual";
+  }
+
+  for (const sub of indSubs ?? []) {
+    if (!sub.assessment_id) continue;
+    const a = assessmentMap.get(sub.assessment_id);
+    if (!a || a.points <= 0) continue;
+
+    const scope = getScope(a);
+    const teamId = memberTeamMap.get(sub.participant_id);
+    if (!teamId) continue;
+
+    if (scope === "individual") {
+      const memberCount = teamSizeMap.get(teamId) ?? 1;
+      const pts = Math.floor(a.points / memberCount);
+      teamScoreMap.set(teamId, (teamScoreMap.get(teamId) ?? 0) + pts);
+    } else {
+      if (!teamScoreCache.has(teamId)) teamScoreCache.set(teamId, new Set());
+      const set = teamScoreCache.get(teamId)!;
+      if (set.has(a.activityId)) continue;
+      set.add(a.activityId);
+      teamScoreMap.set(teamId, (teamScoreMap.get(teamId) ?? 0) + a.points);
+    }
+  }
+
+  for (const sub of teamSubs ?? []) {
+    if (!sub.assessment_id || !sub.team_id) continue;
+    const a = assessmentMap.get(sub.assessment_id);
+    if (!a || a.points <= 0) continue;
+
+    const scope = getScope(a);
+
+    if (scope === "individual") {
+      const memberCount = teamSizeMap.get(sub.team_id) ?? 1;
+      const pts = Math.floor(a.points / memberCount);
+      teamScoreMap.set(sub.team_id, (teamScoreMap.get(sub.team_id) ?? 0) + pts);
+    } else {
+      if (!teamScoreCache.has(sub.team_id)) teamScoreCache.set(sub.team_id, new Set());
+      const set = teamScoreCache.get(sub.team_id)!;
+      if (set.has(a.activityId)) continue;
+      set.add(a.activityId);
+      teamScoreMap.set(sub.team_id, (teamScoreMap.get(sub.team_id) ?? 0) + a.points);
+    }
+  }
+
+  // 5. Upsert all team scores
+  let updated = 0;
+  let created = 0;
+  for (const [teamId, score] of teamScoreMap) {
+    const { data: existingTeamScore } = await supabase
+      .from("hackathon_team_scores")
+      .select("id")
+      .eq("team_id", teamId)
+      .maybeSingle();
+
+    if (existingTeamScore?.id) {
+      const { error } = await supabase
+        .from("hackathon_team_scores")
+        .update({ total_score: score })
+        .eq("team_id", teamId);
+      if (error) {
+        console.warn("[recalc] failed to update team", teamId, error);
+      } else {
+        updated++;
+      }
+    } else {
+      const { error } = await supabase
+        .from("hackathon_team_scores")
+        .insert({ team_id: teamId, total_score: score });
+      if (error) {
+        console.warn("[recalc] failed to insert team", teamId, error);
+      } else {
+        created++;
+      }
+    }
+  }
+
+  console.log(`[recalc] Updated ${updated} teams, created ${created} teams`);
 }
