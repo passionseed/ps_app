@@ -262,6 +262,18 @@ export default function DiscoverScreen() {
                 {isThai ? "วางแผนการสมัคร" : "Plan your applications"}
               </Text>
             </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}
+              onPress={() => router.push("/career/compare")}
+            >
+              <Text style={styles.quickLinkIcon}>⚖️</Text>
+              <Text style={styles.quickLinkTitle}>
+                {isThai ? "เปรียบเทียบอาชีพ" : "Compare Careers"}
+              </Text>
+              <Text style={styles.quickLinkSubtitle}>
+                {isThai ? "เลือกอาชีพ 2 ตัวมาเทียบกัน" : "Compare 2 careers side by side"}
+              </Text>
+            </Pressable>
           </View>
         </View>
       </Animated.ScrollView>
