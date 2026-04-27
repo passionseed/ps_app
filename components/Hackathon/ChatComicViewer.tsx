@@ -28,7 +28,7 @@ import { Space } from "../../lib/theme";
 export interface ChatComicMessage {
   sender: string;
   avatar: string;
-  type: "text" | "image" | "video";
+  type: "text" | "image" | "video" | "system";
   content: string;
   caption?: string;
 }
@@ -164,10 +164,9 @@ function TypingIndicator() {
 
 function ChatImage({ content, caption }: { content: string; caption?: string }) {
   const [expanded, setExpanded] = useState(false);
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const imgWidth = Math.min(width - 140, 240);
 
-  // Zoom gestures
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -293,7 +292,9 @@ function ChatBubble({
   isRevealed: boolean;
   showAvatarAndName: boolean;
 }) {
-  const fromMentor = isMentor(message.sender) || message.avatar === "pseed";
+  // Mentor (Other) on LEFT, Students/Teams (Me) on RIGHT
+  const onLeft = isMentor(message.sender) || message.avatar === 'pseed';
+  
   const scale = useSharedValue(0.8);
   const opacity = useSharedValue(0);
 
@@ -311,18 +312,22 @@ function ChatBubble({
 
   if (!isRevealed) return null;
 
+  const isAvatarUrl = message.avatar && (message.avatar.startsWith("http") || message.avatar.startsWith("/"));
+
   const BubbleContent = (
-    <View style={[styles.bubbleWrap, fromMentor ? styles.bubbleWrapLeft : styles.bubbleWrapRight]}>
-      {fromMentor && showAvatarAndName && (
-        <AppText style={styles.senderLabel}>{message.sender}</AppText>
+    <View style={[styles.bubbleWrap, onLeft ? styles.bubbleWrapLeft : styles.bubbleWrapRight]}>
+      {showAvatarAndName && (
+        <AppText style={[styles.senderLabel, !onLeft && { textAlign: "right", marginRight: 2 }]}>
+          {message.sender}
+        </AppText>
       )}
       <Animated.View style={[animStyle]}>
         <View
           style={[
             styles.bubble,
-            fromMentor ? styles.bubbleLeft : styles.bubbleRight,
-            !showAvatarAndName && fromMentor && { borderTopLeftRadius: 16 },
-            !showAvatarAndName && !fromMentor && { borderTopRightRadius: 16 },
+            onLeft ? styles.bubbleLeft : styles.bubbleRight,
+            !showAvatarAndName && onLeft && { borderTopLeftRadius: 16 },
+            !showAvatarAndName && !onLeft && { borderTopRightRadius: 16 },
           ]}
         >
           {message.type === "text" && (
@@ -342,13 +347,15 @@ function ChatBubble({
   );
 
   const AvatarEl = (
-    <View style={styles.avatarCol}>
+    <View style={onLeft ? styles.avatarColLeft : styles.avatarColRight}>
       {showAvatarAndName ? (
         <View style={styles.avatar}>
           {message.avatar === "pseed" ? (
             <Image source={PSEED_LOGO} style={styles.avatarImage} />
+          ) : isAvatarUrl ? (
+            <Image source={{ uri: message.avatar }} style={styles.avatarImage} />
           ) : (
-            <AppText style={styles.avatarText}>{message.avatar.substring(0, 1).toUpperCase()}</AppText>
+            <AppText style={styles.avatarText}>{message.avatar || message.sender.substring(0, 1)}</AppText>
           )}
         </View>
       ) : (
@@ -358,8 +365,8 @@ function ChatBubble({
   );
 
   return (
-    <View style={[styles.messageRow, fromMentor ? styles.rowLeft : styles.rowRight, !showAvatarAndName && styles.messageRowCompact]}>
-      {fromMentor ? (
+    <View style={[styles.messageRow, onLeft ? styles.rowLeft : styles.rowRight, !showAvatarAndName && styles.messageRowCompact]}>
+      {onLeft ? (
         <>
           {AvatarEl}
           {BubbleContent}
@@ -367,6 +374,7 @@ function ChatBubble({
       ) : (
         <>
           {BubbleContent}
+          {AvatarEl}
         </>
       )}
     </View>
@@ -424,7 +432,6 @@ export default function ChatComicViewer({
     }
   }, [isComplete, isTyping, clickToReveal, messages, revealedCount, scrollToBottom]);
 
-  // Auto-scroll when new messages appear
   useEffect(() => {
     scrollToBottom();
   }, [revealedCount, scrollToBottom]);
@@ -433,14 +440,12 @@ export default function ChatComicViewer({
 
   return (
     <View style={styles.root}>
-      {/* Sticky header */}
       {title ? (
         <View style={styles.header}>
           <AppText variant="bold" style={styles.headerTitle}>{title}</AppText>
         </View>
       ) : null}
 
-      {/* Scrollable chat content */}
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
@@ -448,14 +453,12 @@ export default function ChatComicViewer({
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled={true}
         onTouchStart={(e) => {
-          // Capture touch so parent doesn't scroll
           e.stopPropagation?.();
         }}
       >
         <Pressable 
           onPress={revealNext} 
           style={styles.revealWrapper}
-          // Only enable press if click to reveal is on and not complete
           disabled={!clickToReveal || isComplete}
         >
           <View style={styles.dateLabelWrap}>
@@ -486,7 +489,6 @@ export default function ChatComicViewer({
             </View>
           )}
 
-          {/* Shimmer hint at bottom */}
           <ShimmerHint visible={!isComplete && hasMore && clickToReveal} />
         </Pressable>
       </ScrollView>
@@ -517,8 +519,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     justifyContent: "flex-end",
   },
-
-  // Header
   header: {
     paddingHorizontal: Space.md,
     paddingTop: Space.sm,
@@ -530,8 +530,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: WHITE,
   },
-
-  // Date Label
   dateLabelWrap: {
     alignItems: "center",
     marginVertical: 12,
@@ -546,8 +544,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: WHITE,
   },
-
-  // Message row
   messageRow: {
     flexDirection: "row",
     width: "100%",
@@ -562,7 +558,6 @@ const styles = StyleSheet.create({
   rowRight: {
     justifyContent: "flex-end",
   },
-
   bubbleWrap: {
     maxWidth: "75%",
   },
@@ -572,11 +567,14 @@ const styles = StyleSheet.create({
   bubbleWrapRight: {
     alignItems: "flex-end",
   },
-
-  // Avatar
-  avatarCol: {
+  avatarColLeft: {
     width: 36,
     marginRight: 8,
+    alignItems: "center",
+  },
+  avatarColRight: {
+    width: 36,
+    marginLeft: 8,
     alignItems: "center",
   },
   avatar: {
@@ -591,7 +589,6 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: 36,
     height: 36,
-    marginRight: 8,
   },
   avatarText: {
     fontSize: 16,
@@ -602,16 +599,12 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-
-  // Sender Name
   senderLabel: {
     fontSize: 11,
     color: SENDER_TEXT,
     marginBottom: 2,
     marginLeft: 2,
   },
-
-  // Bubble
   bubble: {
     borderRadius: 16,
     paddingHorizontal: 12,
@@ -638,8 +631,6 @@ const styles = StyleSheet.create({
     color: BLACK_TEXT,
     fontFamily: "BaiJamjuree_400Regular",
   },
-
-  // Media
   chatImageWrap: {
     borderRadius: 12,
     overflow: "hidden",
@@ -676,15 +667,13 @@ const styles = StyleSheet.create({
   videoPlayIcon: {
     fontSize: 20,
     color: WHITE,
-    marginLeft: 4, // optical centering
+    marginLeft: 4,
   },
   videoUrl: {
     fontSize: 10,
     color: "rgba(255,255,255,0.6)",
     paddingHorizontal: 12,
   },
-
-  // Image modal
   imageModal: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.95)",
@@ -722,8 +711,6 @@ const styles = StyleSheet.create({
     color: WHITE,
     lineHeight: 34,
   },
-
-  // Typing
   typingRow: {
     flexDirection: "row",
     justifyContent: "flex-start",
@@ -750,8 +737,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#aaa",
   },
-
-  // Complete
   completeRow: {
     alignItems: "center",
     paddingVertical: 16,
@@ -760,8 +745,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(255,255,255,0.5)",
   },
-
-  // Shimmer hint
   shimmerHint: {
     alignItems: "center",
     paddingVertical: 12,
