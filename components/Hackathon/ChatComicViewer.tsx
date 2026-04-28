@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -11,6 +12,7 @@ import {
   View,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   clamp,
@@ -57,9 +59,24 @@ const LINE_GREEN = "#85e249";
 const SENDER_TEXT = "rgba(255,255,255,0.85)";
 
 const MENTOR_SENDERS = ["Mentor Kai", "mentor kai", "Mentor", "P'Seed", "p'seed"];
-const PSEED_LOGO = require("../../assets/images/NPC.png");
+const PSEED_LOGO = require("../../assets/apple-touch-icon.png");
 
 // ── Helpers ───────────────────────────────────────────────────────
+function extractYouTubeId(url: string): string | null {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\s?]+)/,
+    /youtube\.com\/embed\/([^&\s?]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
 function isMentor(sender: string): boolean {
   return MENTOR_SENDERS.some((m) => sender.toLowerCase().includes(m.toLowerCase()));
 }
@@ -84,6 +101,7 @@ function autoLinkText(text: string): React.ReactNode {
         <AppText
           key={i}
           style={{ color: "#003399", textDecorationLine: "underline" }}
+          onPress={() => WebBrowser.openBrowserAsync(part)}
         >
           {part}
         </AppText>
@@ -263,23 +281,39 @@ function ChatImage({ content, caption }: { content: string; caption?: string }) 
 function ChatVideo({ content, caption }: { content: string; caption?: string }) {
   const { width } = useWindowDimensions();
   const imgWidth = Math.min(width - 140, 240);
+  const videoId = extractYouTubeId(content);
+  const thumbUrl = videoId ? `https://img.youtube.com/vi/${videoId}/0.jpg` : null;
+
+  const handleOpen = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    try {
+      await WebBrowser.openBrowserAsync(content);
+    } catch {
+      Linking.openURL(content).catch(() => {});
+    }
+  };
 
   return (
-    <View style={styles.chatImageWrap}>
+    <Pressable onPress={handleOpen} style={styles.chatImageWrap}>
       <View style={[styles.videoThumb, { width: imgWidth, height: imgWidth * 0.56 }]}>
-        <View style={styles.playIconWrap}>
+        {thumbUrl ? (
+          <Image source={{ uri: thumbUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : null}
+        <View style={[styles.playIconWrap, { marginBottom: 0 }]}>
           <AppText style={styles.videoPlayIcon}>▶</AppText>
         </View>
-        <AppText style={styles.videoUrl} numberOfLines={1}>
-          {content}
-        </AppText>
+        {!thumbUrl && (
+          <AppText style={styles.videoUrl} numberOfLines={1}>
+            {content}
+          </AppText>
+        )}
       </View>
       {caption ? (
         <View style={styles.captionWrap}>
           <AppText style={styles.captionText}>{caption}</AppText>
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -317,7 +351,7 @@ function ChatBubble({
   const BubbleContent = (
     <View style={[styles.bubbleWrap, onLeft ? styles.bubbleWrapLeft : styles.bubbleWrapRight]}>
       {showAvatarAndName && (
-        <AppText style={[styles.senderLabel, !onLeft && { textAlign: "right", marginRight: 2 }]}>
+        <AppText style={[styles.senderLabel, !onLeft && { textAlign: "right" }]}>
           {message.sender}
         </AppText>
       )}
@@ -350,7 +384,7 @@ function ChatBubble({
     <View style={onLeft ? styles.avatarColLeft : styles.avatarColRight}>
       {showAvatarAndName ? (
         <View style={styles.avatar}>
-          {message.avatar === "pseed" || isMentor(message.sender) ? (
+          {message.avatar === "pseed" ? (
             <Image source={PSEED_LOGO} style={styles.avatarImage} />
           ) : isAvatarUrl ? (
             <Image source={{ uri: message.avatar }} style={styles.avatarImage} />
