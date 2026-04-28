@@ -22,6 +22,14 @@ export type ParticipantSubmissionDashboardRow = {
   assessmentId: string | null;
   /** Short preview; full text lives on the activity screen */
   textPreview: string | null;
+  /** Full text answer for inline revision */
+  fullText: string | null;
+  /** Assessment type: text_answer, image_upload, file_upload */
+  assessmentType: string | null;
+  /** Submitted image URL */
+  imageUrl: string | null;
+  /** Submitted file URLs */
+  fileUrls: string[] | null;
   hasAttachment: boolean;
   commentCount: number;
   latestFeedback: LatestFeedback | null;
@@ -113,10 +121,22 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
   if (rows.length === 0) return [];
 
   const activityIds = [...new Set(rows.map((r) => r.activity_id).filter(Boolean))];
-  const { data: activities, error: actErr } = await supabase
-    .from("hackathon_phase_activities")
-    .select("id, title, phase_id")
-    .in("id", activityIds);
+  const [{ data: activities, error: actErr }, { data: assessments }] = await Promise.all([
+    supabase
+      .from("hackathon_phase_activities")
+      .select("id, title, phase_id")
+      .in("id", activityIds),
+    supabase
+      .from("hackathon_phase_activity_assessments")
+      .select("id, activity_id, assessment_type")
+      .in("activity_id", activityIds),
+  ]);
+
+  // Build assessment type map: assessmentId → assessment_type
+  const assessmentTypeMap = new Map<string, string>();
+  for (const a of (assessments ?? []) as { id: string; activity_id: string; assessment_type: string }[]) {
+    assessmentTypeMap.set(a.id, a.assessment_type);
+  }
 
   if (actErr || !activities) {
     return rows.map((r) => ({
@@ -130,6 +150,10 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       submittedAt: r.submitted_at,
       assessmentId: r.assessment_id,
       textPreview: previewText(r.text_answer),
+      fullText: r.text_answer?.trim() || null,
+      assessmentType: r.assessment_id ? assessmentTypeMap.get(r.assessment_id) ?? null : null,
+      imageUrl: r.image_url,
+      fileUrls: r.file_urls,
       hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
       commentCount: 0,
       latestFeedback: null,
@@ -211,6 +235,10 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       submittedAt: r.submitted_at,
       assessmentId: r.assessment_id,
       textPreview: previewText(r.text_answer),
+      fullText: r.text_answer?.trim() || null,
+      assessmentType: r.assessment_id ? assessmentTypeMap.get(r.assessment_id) ?? null : null,
+      imageUrl: r.image_url,
+      fileUrls: r.file_urls,
       hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
       commentCount: commentCountMap.get(r.activity_id) ?? 0,
       latestFeedback: feedbackMap.get(r.activity_id) ?? null,

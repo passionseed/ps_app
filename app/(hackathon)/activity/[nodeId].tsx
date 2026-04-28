@@ -716,10 +716,11 @@ function TeammateSubmissionsList({
 
 // ── Main screen ───────────────────────────────────────────────────
 export default function HackathonActivityScreen() {
-  const { nodeId, isRevision, viewSubmission } = useLocalSearchParams<{
+  const { nodeId, isRevision, viewSubmission, reviseOnly } = useLocalSearchParams<{
     nodeId: string;
     isRevision?: string;
     viewSubmission?: string;
+    reviseOnly?: string;
   }>();
   const cachedBundle = nodeId ? getCachedHackathonActivityBundle(nodeId) : null;
 
@@ -789,7 +790,7 @@ export default function HackathonActivityScreen() {
 
   // Auto-scroll to submission section when coming from "View Submission" button or revision
   useEffect(() => {
-    const shouldScroll = (viewSubmission === "true" || isRevision === "true") && !loading;
+    const shouldScroll = (viewSubmission === "true" || isRevision === "true" || reviseOnly === "true") && !loading;
     if (!shouldScroll) return;
 
     const tryScroll = (attempt: number) => {
@@ -804,7 +805,7 @@ export default function HackathonActivityScreen() {
     // Wait longer for layout + images to settle before scrolling
     const timer = setTimeout(() => tryScroll(0), 1200);
     return () => clearTimeout(timer);
-  }, [viewSubmission, isRevision, loading]);
+  }, [viewSubmission, isRevision, reviseOnly, loading]);
 
   useEffect(() => {
     const isTeamActivity =
@@ -1413,8 +1414,16 @@ export default function HackathonActivityScreen() {
           </View>
         </View>
 
-        {/* Content blocks */}
-        {activity.content.length > 0 ? (
+        {/* Content blocks — skip in reviseOnly mode */}
+        {reviseOnly === "true" ? (
+          <Pressable
+            style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: CYAN20, backgroundColor: "rgba(145,196,227,0.06)" }}
+            onPress={() => router.setParams({ reviseOnly: undefined })}
+          >
+            <Ionicons name="book-outline" size={16} color={CYAN} />
+            <AppText style={{ fontSize: 13, color: CYAN, fontFamily: "BaiJamjuree_600SemiBold" }}>Show full content</AppText>
+          </Pressable>
+        ) : activity.content.length > 0 ? (
           <View
             style={styles.contentSection}
             onLayout={(event) => setContentSectionY(event.nativeEvent.layout.y)}
