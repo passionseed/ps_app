@@ -810,7 +810,7 @@ export default function MentorBookingScreen() {
           <BookingForm
             mentor={selectedMentor}
             onBack={() => { goToStep("detail"); }}
-            onSuccess={() => { setQuotaLoading(true); fetchQuota(); }}
+            onSuccess={() => { setQuotaLoading(true); goToStep("grid"); setSelectedMentor(null); fetchQuota(); }}
           />
         ) : showForm && step === "detail" && selectedMentor ? (
           <MentorDetail
@@ -826,18 +826,6 @@ export default function MentorBookingScreen() {
               cancelling={cancelling}
               cancelError={cancelError}
             />
-            {/* Still allow booking a group mentor even with active healthcare booking */}
-            {groupMentors.length > 0 && (
-              <>
-                <AppText variant="bold" style={{ color: WHITE70, fontSize: 14, marginTop: Space.md }}>จอง Group Mentor</AppText>
-                <MentorGrid
-                  mentors={groupMentors}
-                  loading={mentorsLoading}
-                  error={null}
-                  onSelect={(m) => { setSelectedMentor(m); goToStep("detail"); }}
-                />
-              </>
-            )}
           </>
         ) : showBookingCard ? (
           <BookingCard
