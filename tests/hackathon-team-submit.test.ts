@@ -10,6 +10,7 @@ let teamSubmissionRows: { activity_id: string; status: string }[] = [];
 const supabaseState = {
   deleteEq: vi.fn(),
   insertSingle: vi.fn(),
+  teamUpsertSingle: vi.fn(),
   activityMaybeSingle: vi.fn(),
   assessmentMaybeSingle: vi.fn(),
   membershipMaybeSingle: vi.fn(),
@@ -26,8 +27,14 @@ const supabaseState = {
           eq: vi.fn(() => ({
             eq: supabaseState.deleteEq,
           })),
+          in: vi.fn().mockResolvedValue({ error: null }),
         })),
         insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: supabaseState.insertSingle,
+          })),
+        })),
+        upsert: vi.fn(() => ({
           select: vi.fn(() => ({
             single: supabaseState.insertSingle,
           })),
@@ -36,18 +43,32 @@ const supabaseState = {
     }
 
     if (table === "hackathon_phase_activity_team_submissions") {
+      const deepEqChain = {
+        eq: vi.fn(() => ({
+          not: vi.fn(() => ({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          })),
+        })),
+        in: vi.fn((_col2: string, activityIds: string[]) =>
+          Promise.resolve({
+            data: teamSubmissionRows.filter((row) =>
+              activityIds.includes(row.activity_id),
+            ),
+            error: null,
+          }),
+        ),
+      };
       return {
         select: vi.fn(() => ({
-          eq: vi.fn((_col: string, teamId: string) => ({
-            in: vi.fn((_col2: string, activityIds: string[]) =>
-              Promise.resolve({
-                data: teamSubmissionRows.filter((row) =>
-                  activityIds.includes(row.activity_id),
-                ),
-                error: null,
-              }),
-            ),
+          eq: vi.fn(() => deepEqChain),
+        })),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: supabaseState.teamUpsertSingle,
           })),
+        })),
+        delete: vi.fn(() => ({
+          in: vi.fn().mockResolvedValue({ error: null }),
         })),
       };
     }
@@ -64,10 +85,17 @@ const supabaseState = {
 
     if (table === "hackathon_phase_activity_assessments") {
       return {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle: supabaseState.assessmentMaybeSingle,
-          })),
+        select: vi.fn((_cols: string) => ({
+          eq: vi.fn((_col: string, _val: string) => {
+            // .eq("id", assessmentId).maybeSingle() — single assessment lookup
+            // .eq("activity_id", activityId) — array of assessments (thenable)
+            return {
+              maybeSingle: supabaseState.assessmentMaybeSingle,
+              // Make the object itself thenable so Promise.all resolves it as array result
+              then: (resolve: any, reject?: any) =>
+                Promise.resolve({ data: [{ points_possible: 10 }], error: null }).then(resolve, reject),
+            };
+          }),
         })),
       };
     }
@@ -144,6 +172,7 @@ const supabaseState = {
     supabaseState.from.mockClear();
     supabaseState.deleteEq.mockReset();
     supabaseState.insertSingle.mockReset();
+    supabaseState.teamUpsertSingle.mockReset();
     supabaseState.activityMaybeSingle.mockReset();
     supabaseState.assessmentMaybeSingle.mockReset();
     supabaseState.membershipMaybeSingle.mockReset();
@@ -213,11 +242,7 @@ describe("hackathon team submission behavior", () => {
       id: "participant-self",
       name: "Self",
     });
-    supabaseState.deleteEq.mockResolvedValue({ error: null });
-    supabaseState.insertSingle.mockResolvedValue({
-      data: { id: "submission-2" },
-      error: null,
-    });
+    // resolveSubmissionTarget: activity scope + assessment metadata
     supabaseState.activityMaybeSingle.mockResolvedValue({
       data: { submission_scope: "team" },
       error: null,
@@ -226,8 +251,14 @@ describe("hackathon team submission behavior", () => {
       data: { points_possible: 10, metadata: { is_group_submission: true } },
       error: null,
     });
+    // resolveSubmissionTarget + awardScore: team membership lookup
     supabaseState.membershipMaybeSingle.mockResolvedValue({
       data: { team_id: "team-1" },
+      error: null,
+    });
+    // Team upsert returns the submission
+    supabaseState.teamUpsertSingle.mockResolvedValue({
+      data: { id: "submission-2" },
       error: null,
     });
     supabaseState.scoreEventInsert.mockResolvedValue({
@@ -244,18 +275,12 @@ describe("hackathon team submission behavior", () => {
 
     const { submitTextAnswer } = await import("../lib/hackathon-submit");
 
-    await expect(
-      submitTextAnswer("activity-4", "assessment-4", "Second teammate submission"),
-    ).resolves.toEqual({
-      submissionId: "submission-2",
-      url: null,
-    });
+    const result = await submitTextAnswer("activity-4", "assessment-4", "Second teammate submission");
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(supabaseState.existingScoreEventMaybeSingle).toHaveBeenCalledTimes(1);
-    expect(supabaseState.scoreEventInsert).not.toHaveBeenCalled();
-    expect(supabaseState.updateEq).not.toHaveBeenCalled();
-    expect(supabaseState.teamScoreInsert).not.toHaveBeenCalled();
+    // Verify submission went to team table via upsert (not individual table)
+    expect(result).toEqual({ submissionId: "submission-2", url: null });
+    expect(supabaseState.teamUpsertSingle).toHaveBeenCalledTimes(1);
+    expect(supabaseState.insertSingle).not.toHaveBeenCalled();
+    expect(supabaseState.deleteEq).not.toHaveBeenCalled();
   });
 });

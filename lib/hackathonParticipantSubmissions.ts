@@ -10,6 +10,17 @@ export type LatestFeedback = {
   pointsPossible?: number;
 };
 
+export type SubmissionAnswer = {
+  assessmentId: string | null;
+  assessmentType: string | null;
+  submissionLabel: string | null;
+  textPreview: string | null;
+  fullText: string | null;
+  imageUrl: string | null;
+  fileUrls: string[] | null;
+  hasAttachment: boolean;
+};
+
 export type ParticipantSubmissionDashboardRow = {
   id: string;
   activityId: string;
@@ -19,20 +30,23 @@ export type ParticipantSubmissionDashboardRow = {
   phaseNumber: number | null;
   status: string | null;
   submittedAt: string;
+  /** @deprecated use answers[] instead for multi-assessment activities */
   assessmentId: string | null;
-  /** Short preview; full text lives on the activity screen */
+  /** @deprecated use answers[] */
   textPreview: string | null;
-  /** Full text answer for inline revision */
+  /** @deprecated use answers[] */
   fullText: string | null;
-  /** Assessment type: text_answer, image_upload, file_upload */
+  /** @deprecated use answers[] */
   assessmentType: string | null;
-  /** Submitted image URL */
+  /** @deprecated use answers[] */
   imageUrl: string | null;
-  /** Submitted file URLs */
+  /** @deprecated use answers[] */
   fileUrls: string[] | null;
   hasAttachment: boolean;
   commentCount: number;
   latestFeedback: LatestFeedback | null;
+  /** All assessment answers for this activity (one per assessment) */
+  answers: SubmissionAnswer[];
 };
 
 type RawSub = {
@@ -109,9 +123,13 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       .order("submitted_at", { ascending: false });
 
     if (teamSubs) {
-      const existingActivityIds = new Set(rows.map((r) => r.activity_id));
+      const existingKeys = new Set(
+        rows.map((r) => `${r.activity_id}:${r.assessment_id ?? ""}`),
+      );
       for (const ts of teamSubs as RawSub[]) {
-        if (!existingActivityIds.has(ts.activity_id)) {
+        const key = `${ts.activity_id}:${ts.assessment_id ?? ""}`;
+        if (!existingKeys.has(key)) {
+          existingKeys.add(key);
           rows.push(ts);
         }
       }
@@ -128,14 +146,17 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       .in("id", activityIds),
     supabase
       .from("hackathon_phase_activity_assessments")
-      .select("id, activity_id, assessment_type")
+      .select("id, activity_id, assessment_type, metadata")
       .in("activity_id", activityIds),
   ]);
 
   // Build assessment type map: assessmentId → assessment_type
   const assessmentTypeMap = new Map<string, string>();
-  for (const a of (assessments ?? []) as { id: string; activity_id: string; assessment_type: string }[]) {
+  const assessmentLabelMap = new Map<string, string>();
+  for (const a of (assessments ?? []) as { id: string; activity_id: string; assessment_type: string; metadata: Record<string, unknown> | null }[]) {
     assessmentTypeMap.set(a.id, a.assessment_type);
+    const label = (a.metadata as any)?.submission_label;
+    if (typeof label === "string") assessmentLabelMap.set(a.id, label);
   }
 
   if (actErr || !activities) {
@@ -157,6 +178,16 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
       commentCount: 0,
       latestFeedback: null,
+      answers: [{
+        assessmentId: r.assessment_id,
+        assessmentType: r.assessment_id ? assessmentTypeMap.get(r.assessment_id) ?? null : null,
+        submissionLabel: r.assessment_id ? assessmentLabelMap.get(r.assessment_id) ?? null : null,
+        textPreview: previewText(r.text_answer),
+        fullText: r.text_answer?.trim() || null,
+        imageUrl: r.image_url,
+        fileUrls: r.file_urls,
+        hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
+      }],
     }));
   }
 
@@ -221,10 +252,34 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
   );
   const activityById = new Map(actList.map((a) => [a.id, a]));
 
-  return rows.map((r) => {
+  // Group by activityId so multi-assessment activities appear as one card
+  const grouped = new Map<string, ParticipantSubmissionDashboardRow>();
+  for (const r of rows) {
     const act = activityById.get(r.activity_id);
     const ph = act?.phase_id ? phaseById.get(act.phase_id) : undefined;
-    return {
+    const answer: SubmissionAnswer = {
+      assessmentId: r.assessment_id,
+      assessmentType: r.assessment_id ? assessmentTypeMap.get(r.assessment_id) ?? null : null,
+      submissionLabel: r.assessment_id ? assessmentLabelMap.get(r.assessment_id) ?? null : null,
+      textPreview: previewText(r.text_answer),
+      fullText: r.text_answer?.trim() || null,
+      imageUrl: r.image_url,
+      fileUrls: r.file_urls,
+      hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
+    };
+
+    const existing = grouped.get(r.activity_id);
+    if (existing) {
+      existing.answers.push(answer);
+      // Use the latest submitted_at
+      if (r.submitted_at > existing.submittedAt) {
+        existing.submittedAt = r.submitted_at;
+      }
+      existing.hasAttachment = existing.hasAttachment || answer.hasAttachment;
+      continue;
+    }
+
+    grouped.set(r.activity_id, {
       id: r.id,
       activityId: r.activity_id,
       activityTitle: act?.title?.trim() || "Activity",
@@ -239,9 +294,12 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       assessmentType: r.assessment_id ? assessmentTypeMap.get(r.assessment_id) ?? null : null,
       imageUrl: r.image_url,
       fileUrls: r.file_urls,
-      hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
+      hasAttachment: answer.hasAttachment,
       commentCount: commentCountMap.get(r.activity_id) ?? 0,
       latestFeedback: feedbackMap.get(r.activity_id) ?? null,
-    };
-  });
+      answers: [answer],
+    });
+  }
+
+  return [...grouped.values()];
 }

@@ -577,17 +577,22 @@ function AssessmentBlock({
 
 function PastSubmissionsList({
   submissions,
+  assessments,
   highlight,
   onRevise,
   revisionFeedback,
 }: {
   submissions: SubmissionRecord[];
+  assessments: HackathonPhaseActivityAssessment[];
   highlight?: boolean;
   onRevise?: () => void;
   revisionFeedback?: InboxItemWithUnread | null;
 }) {
-  console.log('[PastSubmissionsList] submissions count:', submissions.length, 'first:', submissions[0]?.id);
   if (submissions.length === 0) return null;
+  const isMultiAnswer = new Set(submissions.map((s) => s.assessment_id)).size > 1;
+  const labelMap = new Map(
+    assessments.map((a) => [a.id, (a.metadata as any)?.submission_label as string | undefined]),
+  );
   return (
     <View
       style={[
@@ -613,57 +618,99 @@ function PastSubmissionsList({
       {/* Feedback inline in submissions list */}
       {revisionFeedback && (
         <View style={styles.feedbackInlineCard}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <Ionicons name="chatbubble-ellipses" size={14} color="#FBBF24" />
-            <AppText style={{ fontSize: 12, color: "#FBBF24", fontFamily: "BaiJamjuree_700Bold" }}>
-              Feedback จาก mentor
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <Ionicons name="chatbubble-ellipses" size={14} color="#91C4E3" />
+            <AppText style={{ fontSize: 10, color: "#91C4E3", fontFamily: "BaiJamjuree_700Bold", textTransform: "uppercase", letterSpacing: 1 }}>
+              Mentor Feedback
             </AppText>
           </View>
-          <AppText style={{ fontSize: 13, lineHeight: 19, color: WHITE75, fontFamily: "BaiJamjuree_400Regular" }}>
+          <AppText style={{ fontSize: 14, lineHeight: 22, color: "#FFFFFF", fontFamily: "BaiJamjuree_400Regular" }}>
             {revisionFeedback.body}
           </AppText>
         </View>
       )}
 
-      {submissions.map((sub) => (
-        <SubmissionCard key={sub.id} submission={sub} />
-      ))}
+      {isMultiAnswer ? (
+        /* Multi-assessment: one card with all answers inside */
+        <View style={styles.pastSubmissionCard}>
+          {submissions.map((sub, i) => (
+            <View key={sub.id} style={i > 0 ? styles.answerDivider : undefined}>
+              <AppText style={styles.answerLabel}>{labelMap.get(sub.assessment_id ?? "") ?? `คำตอบข้อ ${i + 1}`}</AppText>
+              {sub.text_answer ? (
+                <AppText style={styles.bodyText}>{sub.text_answer}</AppText>
+              ) : null}
+              {sub.image_url ? (
+                <Image source={{ uri: sub.image_url }} style={styles.pastSubmissionImage} resizeMode="cover" />
+              ) : null}
+              {sub.file_urls?.[0] ? (
+                <View style={styles.submissionFileBlock}>
+                  <Ionicons name="document-outline" size={16} color="#91C4E3" />
+                  <AppText style={styles.pastSubmissionFile}>{sub.file_urls[0].split("/").pop()}</AppText>
+                </View>
+              ) : null}
+            </View>
+          ))}
+          <AppText style={styles.pastSubmissionTime}>
+            {new Date(submissions[0].submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          </AppText>
+        </View>
+      ) : (
+        /* Single assessment: show as before */
+        <View style={styles.submissionThread}>
+          {submissions.map((sub) => (
+            <SubmissionCard key={sub.id} submission={sub} />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
 function SubmissionCard({
   submission,
+  attempt,
 }: {
   submission: SubmissionRecord | TeammateSubmissionRecord;
+  attempt?: number;
 }) {
   const participantName =
     "participant_name" in submission ? submission.participant_name : null;
 
   return (
     <View style={styles.pastSubmissionCard}>
-      {participantName ? (
-        <AppText variant="bold" style={styles.teammateName}>
-          {participantName}
+      <View style={styles.submissionCardHeader}>
+        {participantName ? (
+          <AppText variant="bold" style={styles.teammateName}>
+            {participantName}
+          </AppText>
+        ) : attempt ? (
+          <View style={styles.attemptBadge}>
+            <AppText style={styles.attemptBadgeText}>ATTEMPT {attempt}</AppText>
+          </View>
+        ) : null}
+        <AppText style={styles.pastSubmissionTime}>
+          {new Date(submission.submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
         </AppText>
-      ) : null}
-      <AppText style={styles.pastSubmissionTime}>
-        {new Date(submission.submitted_at).toLocaleString("th-TH")}
-      </AppText>
+      </View>
       {submission.text_answer ? (
-        <AppText style={styles.bodyText}>{submission.text_answer}</AppText>
+        <View style={styles.submissionContentBlock}>
+          <AppText style={styles.bodyText}>{submission.text_answer}</AppText>
+        </View>
       ) : null}
       {submission.image_url ? (
         <Image
           source={{ uri: submission.image_url }}
           style={styles.pastSubmissionImage}
-          resizeMode="contain"
+          resizeMode="cover"
         />
       ) : null}
       {submission.file_urls?.[0] ? (
-        <AppText style={styles.pastSubmissionFile}>
-          📁 {submission.file_urls[0].split("/").pop()}
-        </AppText>
+        <View style={styles.submissionFileBlock}>
+          <Ionicons name="document-outline" size={16} color="#91C4E3" />
+          <AppText style={styles.pastSubmissionFile}>
+            {submission.file_urls[0].split("/").pop()}
+          </AppText>
+        </View>
       ) : null}
     </View>
   );
@@ -671,11 +718,16 @@ function SubmissionCard({
 
 function TeammateSubmissionsList({
   submissions,
+  assessments,
   blurred,
 }: {
   submissions: TeammateSubmissionRecord[];
+  assessments: HackathonPhaseActivityAssessment[];
   blurred: boolean;
 }) {
+  const labelMap = new Map(
+    assessments.map((a) => [a.id, (a.metadata as any)?.submission_label as string | undefined]),
+  );
   return (
     <View style={styles.pastSubmissionsBlock}>
       <AppText style={styles.assessmentLabel}>ผลงานของเพื่อนร่วมทีม</AppText>
@@ -685,26 +737,64 @@ function TeammateSubmissionsList({
             ยังไม่มีการส่งจากเพื่อนร่วมทีม
           </AppText>
         ) : (
-          submissions.map((sub) => (
-            <SubmissionCard key={sub.id} submission={sub} />
-          ))
+          <View style={styles.submissionThread}>
+            {(() => {
+              // Group by teammate so multi-assessment answers appear as one block per person
+              const byPerson = new Map<string, TeammateSubmissionRecord[]>();
+              for (const sub of submissions) {
+                const key = sub.participant_id;
+                const arr = byPerson.get(key) ?? [];
+                arr.push(sub);
+                byPerson.set(key, arr);
+              }
+              return [...byPerson.values()].map((subs) => {
+                if (subs.length === 1) {
+                  return <SubmissionCard key={subs[0].id} submission={subs[0]} />;
+                }
+                return (
+                  <View key={subs[0].participant_id} style={styles.pastSubmissionCard}>
+                    <AppText variant="bold" style={styles.teammateName}>{subs[0].participant_name}</AppText>
+                    {subs.map((sub, i) => (
+                      <View key={sub.id} style={i > 0 ? styles.answerDivider : undefined}>
+                        <AppText style={styles.answerLabel}>{labelMap.get(sub.assessment_id ?? "") ?? `คำตอบข้อ ${i + 1}`}</AppText>
+                        {sub.text_answer ? <AppText style={styles.bodyText}>{sub.text_answer}</AppText> : null}
+                        {sub.image_url ? <Image source={{ uri: sub.image_url }} style={styles.pastSubmissionImage} resizeMode="cover" /> : null}
+                        {sub.file_urls?.[0] ? (
+                          <View style={styles.submissionFileBlock}>
+                            <Ionicons name="document-outline" size={16} color="#91C4E3" />
+                            <AppText style={styles.pastSubmissionFile}>{sub.file_urls[0].split("/").pop()}</AppText>
+                          </View>
+                        ) : null}
+                      </View>
+                    ))}
+                    <AppText style={styles.pastSubmissionTime}>
+                      {new Date(subs[0].submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </AppText>
+                  </View>
+                );
+              });
+            })()}
+          </View>
         )}
 
         {blurred ? (
           <View style={styles.teammateBlurOverlay} pointerEvents="none">
-            <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
             <LinearGradient
-              colors={["rgba(3,5,10,0.28)", "rgba(3,5,10,0.74)"]}
+              colors={["rgba(3,5,10,0.6)", "rgba(3,5,10,0.9)"]}
               start={{ x: 0.5, y: 0 }}
               end={{ x: 0.5, y: 1 }}
               style={StyleSheet.absoluteFillObject}
             />
             <View style={styles.teammateBlurCopy}>
+              <View style={styles.blurIconCircle}>
+                <Ionicons name="lock-closed" size={24} color="#91C4E3" />
+              </View>
               <AppText variant="bold" style={styles.teammateBlurTitle}>
-                ส่งของตัวเองก่อนเพื่อดูรายละเอียด
+                Locked
               </AppText>
               <AppText style={styles.teammateBlurBody}>
-                กิจกรรมเดี่ยวจะแสดงผลงานเพื่อนร่วมทีมแบบเบลอก่อน จนกว่าคุณจะส่งคำตอบของตัวเอง
+                Submit your own answer first to unlock your teammates' submissions.
               </AppText>
             </View>
           </View>
@@ -1153,27 +1243,17 @@ export default function HackathonActivityScreen() {
       // Rollback: delete any submissions created before the failure
       if (createdSubmissionIds.length > 0) {
         try {
-          const { error: deleteErr } = await supabase
-            .from("hackathon_phase_activity_submissions")
-            .delete()
-            .in("id", createdSubmissionIds);
-          if (deleteErr) {
-            console.warn("[submit] rollback failed", deleteErr.message);
-            // Track rollback failures separately - this is a data consistency issue
-            Sentry.captureException(new Error(`Rollback failed: ${deleteErr.message}`), {
-              tags: {
-                component: "HackathonActivityScreen",
-                action: "submit_rollback",
-                activityId: activity?.id,
-              },
-              extra: {
-                createdSubmissionIds,
-                rollbackErrorCode: deleteErr.code,
-                rollbackErrorMessage: deleteErr.message,
-                originalErrorMessage: e?.message,
-              },
-            });
-          }
+          // Try both tables — team submissions go to team table, individual to individual
+          await Promise.all([
+            supabase
+              .from("hackathon_phase_activity_submissions")
+              .delete()
+              .in("id", createdSubmissionIds),
+            supabase
+              .from("hackathon_phase_activity_team_submissions")
+              .delete()
+              .in("id", createdSubmissionIds),
+          ]);
         } catch (rollbackError: any) {
           // Catch thrown exceptions from the delete request itself (network failures)
           console.error("[submit] rollback threw:", rollbackError?.message);
@@ -1609,6 +1689,7 @@ export default function HackathonActivityScreen() {
         {/* Past Submissions */}
         <PastSubmissionsList
           submissions={pastSubmissions}
+          assessments={activity?.assessments ?? []}
           highlight={viewSubmission === "true"}
           revisionFeedback={revisionFeedback}
           onRevise={
@@ -1634,6 +1715,7 @@ export default function HackathonActivityScreen() {
         {showTeammateSubmissions ? (
           <TeammateSubmissionsList
             submissions={teammateSubmissions}
+            assessments={activity?.assessments ?? []}
             blurred={blurTeammateSubmissions}
           />
         ) : null}
@@ -1826,45 +1908,95 @@ const styles = StyleSheet.create({
     marginHorizontal: -Space.md,
   },
   reviseInlineBtn: {
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: "rgba(248,113,113,0.15)",
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "rgba(157,129,172,0.15)",
     borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.3)",
+    borderColor: "rgba(157,129,172,0.3)",
+    marginLeft: 'auto'
   },
   reviseInlineText: {
     fontSize: 11,
-    color: "#F87171",
+    color: "#9D81AC",
     fontFamily: "BaiJamjuree_700Bold",
   },
   feedbackInlineCard: {
-    backgroundColor: "rgba(251,191,36,0.08)",
+    backgroundColor: "rgba(145,196,227,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.2)",
-    borderRadius: 10,
-    padding: 10,
+    borderColor: "rgba(145,196,227,0.2)",
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 8,
   },
-  pastSubmissionCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 12,
-    padding: Space.md,
-    gap: 4,
+  submissionThread: {
+    gap: 12,
   },
-  pastSubmissionTime: { fontSize: 11, color: WHITE55, marginBottom: 4 },
-  pastSubmissionImage: { width: "100%", height: 150, borderRadius: 8, marginTop: 4 },
-  pastSubmissionFile: { fontSize: 13, color: CYAN },
-  teammateName: { fontSize: 14, color: WHITE, marginBottom: 2 },
-  teammateEmptyText: { fontSize: 13, color: WHITE55, lineHeight: 20 },
+  pastSubmissionCard: {
+    backgroundColor: "rgba(13,18,25,0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(74,107,130,0.35)",
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  answerDivider: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74,107,130,0.25)",
+    paddingTop: 12,
+  },
+  answerLabel: {
+    fontSize: 10,
+    color: "rgba(145,196,227,0.5)",
+    fontFamily: "BaiJamjuree_700Bold",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  submissionCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  attemptBadge: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  attemptBadgeText: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.5)",
+    fontFamily: "BaiJamjuree_700Bold",
+    letterSpacing: 1,
+  },
+  pastSubmissionTime: { fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "BaiJamjuree_400Regular" },
+  submissionContentBlock: {
+    backgroundColor: "rgba(255,255,255,0.02)",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  pastSubmissionImage: { width: "100%", height: 180, borderRadius: 10, marginTop: 4 },
+  submissionFileBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.02)",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  pastSubmissionFile: { fontSize: 13, color: "#91C4E3", fontFamily: "BaiJamjuree_400Regular" },
+  teammateName: { fontSize: 13, color: "#FFFFFF", fontFamily: "BaiJamjuree_700Bold" },
+  teammateEmptyText: { fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 20 },
   teammateSubmissionsWrap: {
     position: "relative",
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: "hidden",
-    gap: Space.sm,
-    minHeight: 96,
+    minHeight: 120,
   },
   teammateBlurOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1872,24 +2004,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: Space.lg,
   },
+  blurIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(145,196,227,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
   teammateBlurCopy: {
     maxWidth: 320,
     alignItems: "center",
     gap: Space.xs,
   },
   teammateBlurTitle: {
-    fontSize: 14,
-    color: WHITE,
+    fontSize: 16,
+    color: "#FFFFFF",
     textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
   },
   teammateBlurBody: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: WHITE75,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "rgba(255,255,255,0.7)",
     textAlign: "center",
+    fontFamily: "BaiJamjuree_400Regular"
   },
 
-  // Assessment
+  // Assessment// Assessment
   assessmentBlock: { gap: Space.sm },
   assessmentLabel: {
     fontSize: 10,

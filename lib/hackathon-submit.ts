@@ -142,6 +142,42 @@ async function awardScore(
   }
 }
 
+/**
+ * Determine whether a submission should go to the team table.
+ * Returns { isTeam: true, teamId } when team-scoped, otherwise { isTeam: false }.
+ */
+async function resolveSubmissionTarget(
+  activityId: string,
+  assessmentId: string,
+  participantId: string,
+): Promise<{ isTeam: false } | { isTeam: true; teamId: string }> {
+  const [{ data: activity }, { data: assessment }] = await Promise.all([
+    supabase
+      .from("hackathon_phase_activities")
+      .select("submission_scope")
+      .eq("id", activityId)
+      .maybeSingle(),
+    supabase
+      .from("hackathon_phase_activity_assessments")
+      .select("metadata")
+      .eq("id", assessmentId)
+      .maybeSingle(),
+  ]);
+
+  const isGroup = (assessment?.metadata as any)?.is_group_submission === true;
+  const isTeamScope = isGroup || activity?.submission_scope === "team";
+  if (!isTeamScope) return { isTeam: false };
+
+  const { data: membership } = await supabase
+    .from("hackathon_team_members")
+    .select("team_id")
+    .eq("participant_id", participantId)
+    .maybeSingle();
+
+  if (!membership?.team_id) return { isTeam: false };
+  return { isTeam: true, teamId: membership.team_id };
+}
+
 export async function submitTextAnswer(
   activityId: string,
   assessmentId: string,
@@ -151,27 +187,52 @@ export async function submitTextAnswer(
   if (!participant) throw new Error("Not logged in");
 
   try {
-    // Delete previous submission for this assessment before inserting new one
-    const { error: deleteError } = await supabase
-      .from("hackathon_phase_activity_submissions")
-      .delete()
-      .eq("participant_id", participant.id)
-      .eq("assessment_id", assessmentId);
+    const target = await resolveSubmissionTarget(activityId, assessmentId, participant.id);
 
-    if (deleteError) {
-      throw Object.assign(new Error(deleteError.message), { stage: "delete_previous" });
+    if (target.isTeam) {
+      // Upsert into team submissions table (UNIQUE on team_id, activity_id)
+      const { data, error } = await supabase
+        .from("hackathon_phase_activity_team_submissions")
+        .upsert(
+          {
+            team_id: target.teamId,
+            activity_id: activityId,
+            assessment_id: assessmentId,
+            submitted_by: participant.id,
+            text_answer: textAnswer,
+            status: "submitted",
+            submitted_at: new Date().toISOString(),
+          },
+          { onConflict: "team_id,activity_id,assessment_id" },
+        )
+        .select()
+        .single();
+
+      if (error) {
+        throw Object.assign(new Error(error.message), { stage: "insert_team_submission" });
+      }
+
+      awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
+        console.warn("[score] awardScore failed", e)
+      );
+
+      return { submissionId: data.id, url: null };
     }
 
+    // Individual submission — upsert so the BEFORE UPDATE trigger archives revisions
     const { data, error } = await supabase
       .from("hackathon_phase_activity_submissions")
-      .insert({
-        participant_id: participant.id,
-        activity_id: activityId,
-        assessment_id: assessmentId,
-        text_answer: textAnswer,
-        status: "submitted",
-        submitted_at: new Date().toISOString(),
-      })
+      .upsert(
+        {
+          participant_id: participant.id,
+          activity_id: activityId,
+          assessment_id: assessmentId,
+          text_answer: textAnswer,
+          status: "submitted",
+          submitted_at: new Date().toISOString(),
+        },
+        { onConflict: "participant_id,activity_id,assessment_id" },
+      )
       .select()
       .single();
 
@@ -179,7 +240,6 @@ export async function submitTextAnswer(
       throw Object.assign(new Error(error.message), { stage: "insert_submission" });
     }
 
-    // Award score immediately after submit (non-blocking)
     awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
       console.warn("[score] awardScore failed", e)
     );
@@ -201,7 +261,6 @@ export async function submitTextAnswer(
         stage: e?.stage,
       },
     });
-    // Mark as captured so screen-level catch can avoid duplicate reporting
     (e as any).__sentryCaptured = true;
     throw e;
   }
@@ -260,7 +319,35 @@ export async function fetchActivitySubmissions(
     });
     throw fetchError;
   }
-  return data as SubmissionRecord[];
+
+  const rows = (data ?? []) as SubmissionRecord[];
+
+  // Also include team-scope submissions so the submitter sees them
+  const { data: membership } = await supabase
+    .from("hackathon_team_members")
+    .select("team_id")
+    .eq("participant_id", participant.id)
+    .maybeSingle();
+
+  if (membership?.team_id) {
+    const { data: teamSubs } = await supabase
+      .from("hackathon_phase_activity_team_submissions")
+      .select("id, assessment_id, text_answer, image_url, file_urls, submitted_at")
+      .eq("team_id", membership.team_id)
+      .eq("activity_id", activityId)
+      .order("submitted_at", { ascending: false });
+
+    if (teamSubs) {
+      const existingAssessmentIds = new Set(rows.map((r) => r.assessment_id));
+      for (const ts of teamSubs as SubmissionRecord[]) {
+        if (!existingAssessmentIds.has(ts.assessment_id)) {
+          rows.push(ts);
+        }
+      }
+    }
+  }
+
+  return rows;
 }
 
 export async function fetchTeammateActivitySubmissions(
@@ -422,28 +509,53 @@ export async function submitFile(
   const isImage = uploadResult.mimeType.startsWith("image/");
 
   try {
-    // Delete previous submission for this assessment before inserting new one
-    const { error: deleteError } = await supabase
-      .from("hackathon_phase_activity_submissions")
-      .delete()
-      .eq("participant_id", participant.id)
-      .eq("assessment_id", assessmentId);
+    const target = await resolveSubmissionTarget(activityId, assessmentId, participant.id);
 
-    if (deleteError) {
-      throw Object.assign(new Error(deleteError.message), { stage: "delete_previous" });
+    if (target.isTeam) {
+      const { data, error } = await supabase
+        .from("hackathon_phase_activity_team_submissions")
+        .upsert(
+          {
+            team_id: target.teamId,
+            activity_id: activityId,
+            assessment_id: assessmentId,
+            submitted_by: participant.id,
+            image_url: isImage ? fileUrl : null,
+            file_urls: isImage ? null : [fileUrl],
+            status: "submitted",
+            submitted_at: new Date().toISOString(),
+          },
+          { onConflict: "team_id,activity_id,assessment_id" },
+        )
+        .select()
+        .single();
+
+      if (error) {
+        throw Object.assign(new Error(error.message), { stage: "insert_team_submission" });
+      }
+
+      awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
+        console.warn("[score] awardScore failed", e)
+      );
+
+      return { submissionId: data.id, url: fileUrl };
     }
 
+    // Individual submission — upsert so the BEFORE UPDATE trigger archives revisions
     const { data, error } = await supabase
       .from("hackathon_phase_activity_submissions")
-      .insert({
-        participant_id: participant.id,
-        activity_id: activityId,
-        assessment_id: assessmentId,
-        image_url: isImage ? fileUrl : null,
-        file_urls: isImage ? null : [fileUrl],
-        status: "submitted",
-        submitted_at: new Date().toISOString(),
-      })
+      .upsert(
+        {
+          participant_id: participant.id,
+          activity_id: activityId,
+          assessment_id: assessmentId,
+          image_url: isImage ? fileUrl : null,
+          file_urls: isImage ? null : [fileUrl],
+          status: "submitted",
+          submitted_at: new Date().toISOString(),
+        },
+        { onConflict: "participant_id,activity_id,assessment_id" },
+      )
       .select()
       .single();
 
@@ -451,7 +563,6 @@ export async function submitFile(
       throw Object.assign(new Error(error.message), { stage: "insert_submission" });
     }
 
-    // Award score immediately after submit (non-blocking)
     awardScore(data.id, activityId, assessmentId, participant.id).catch((e) =>
       console.warn("[score] awardScore failed", e)
     );
