@@ -102,12 +102,17 @@ async function awardScore(
     }
   }
 
-  // 4. Log the score event (idempotent via UNIQUE on submission_id)
+  // 4. Log the score event (idempotent via UNIQUE on submission_id / team_submission_id)
+  // Team-scope submissions live in hackathon_phase_activity_team_submissions, not the
+  // individual submissions table, so we use team_submission_id for those events.
+  const isTeamSub = scope === "team";
   const { error: eventError } = await supabase
     .from("hackathon_team_score_events")
     .insert({
       team_id: membership.team_id,
-      submission_id: submissionId,
+      ...(isTeamSub
+        ? { team_submission_id: submissionId }
+        : { submission_id: submissionId }),
       activity_id: activityId,
       participant_id: participantId,
       scope,
@@ -696,13 +701,7 @@ export type TeamImpact = {
 export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
   const participant = await readHackathonParticipant();
 
-  const [scoreEventsResult, submissionsResult, teamSubmissionsResult, allScoresResult, allTeamsResult] = await Promise.all([
-    // Team score: calculate in real-time from score events
-    supabase
-      .from("hackathon_team_score_events")
-      .select("points_awarded")
-      .eq("team_id", teamId),
-
+  const [submissionsResult, teamSubmissionsResult, allScoresResult, allTeamsResult] = await Promise.all([
     // Individual-scope activities completed by any member of this team
     participant?.id
       ? supabase
@@ -739,9 +738,11 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
       .select("id"),
   ]);
 
-  // Calculate score in real-time from events
-  const scoreEvents: any[] = (scoreEventsResult.data ?? []).filter(Boolean);
-  const score = scoreEvents.reduce((sum: number, e: any) => sum + (e.points_awarded ?? 0), 0);
+  // Score: read from pre-computed hackathon_team_scores (kept in sync by awardScore)
+  const allScoresForLookup: { team_id: string; total_score: number }[] =
+    ((allScoresResult.data as any) ?? []).filter(Boolean);
+  const thisTeamScore = allScoresForLookup.find((s) => s.team_id === teamId);
+  const score = thisTeamScore?.total_score ?? 0;
 
   // Count distinct activity_ids from both individual and team submissions
   const individualSubs = ((submissionsResult as any).data ?? []).filter(Boolean);
@@ -754,13 +755,11 @@ export async function fetchTeamImpact(teamId: string): Promise<TeamImpact> {
 
   // Rank: 1 + number of teams with a strictly higher score.
   // Teams with the same score share the same rank, including teams still at 0.
-  const allScores: { team_id: string; total_score: number }[] =
-    ((allScoresResult.data as any) ?? []).filter(Boolean);
   const allTeamIds = ((allTeamsResult.data as Array<{ id: string }> | null) ?? [])
     .filter(Boolean)
     .map((team) => team?.id)
     .filter(Boolean);
-  const rank = computeTeamRank(teamId, allTeamIds, allScores);
+  const rank = computeTeamRank(teamId, allTeamIds, allScoresForLookup);
 
   return { teamId, activitiesCompleted, score, rank };
 }

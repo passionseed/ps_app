@@ -354,9 +354,17 @@ async function buildActivitySiblings(
     return { blockedMessage: null, siblings: [] };
   }
 
-  const siblingSubmissionStatuses = await fetchActivitySubmissionStatuses(
-    visibleSiblings.filter(Boolean).map((sibling) => sibling.id),
-  );
+  const siblingIds = visibleSiblings.filter(Boolean).map((sibling) => sibling.id);
+  const [siblingSubmissionStatuses, siblingTeamStatuses] = await Promise.all([
+    fetchActivitySubmissionStatuses(siblingIds),
+    fetchTeamActivitySubmissionStatuses(siblingIds),
+  ]);
+  // Merge: team submission counts as submitted for siblings that are team-scoped
+  for (const sibling of visibleSiblings.filter(Boolean)) {
+    if (!siblingSubmissionStatuses[sibling.id] && siblingTeamStatuses[sibling.id]) {
+      siblingSubmissionStatuses[sibling.id] = siblingTeamStatuses[sibling.id];
+    }
+  }
 
   const siblingsWithAccess = visibleSiblings.filter(Boolean).map((sibling, index) => ({
     id: sibling.id,
