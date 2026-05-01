@@ -876,7 +876,13 @@ export default function HackathonActivityScreen() {
     transform: [{ scale: buttonScale.value }],
   }));
 
-  useEffect(() => { setFeedbackExpanded(false); setRevisionFeedback(null); }, [nodeId]);
+  useEffect(() => {
+    setFeedbackExpanded(false);
+    setRevisionFeedback(null);
+    // Reset scroll position when navigating between activities
+    (scrollRef.current as any)?.scrollTo?.({ y: 0, animated: false });
+    scrollY.value = 0;
+  }, [nodeId]);
 
   // Auto-scroll to submission section when coming from "View Submission" button or revision
   useEffect(() => {

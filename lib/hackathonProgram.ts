@@ -61,46 +61,23 @@ const RETRYABLE_MESSAGES = [
  * Handles edge cases where error might be undefined, null, or non-serializable.
  */
 function stringifyError(error: unknown): string {
-  // Handle null/undefined explicitly
-  if (error == null) {
-    return "Unknown error";
-  }
-
-  // Handle Error instances
-  if (error instanceof Error) {
-    return error.message || "Error";
-  }
-
-  // Handle strings
-  if (typeof error === "string") {
-    return error;
-  }
-
-  // Handle numbers, booleans, etc.
-  if (typeof error !== "object") {
-    return String(error);
-  }
-
-  // Try to stringify objects safely
+  if (error == null) return "Unknown error";
+  if (typeof error === "string") return error;
+  if (typeof error !== "object") return String(error);
+  // Duck-type Error objects (handles cross-realm errors where instanceof fails)
+  try {
+    if ("message" in error && typeof (error as Error).message === "string") {
+      return (error as Error).message || "Error";
+    }
+  } catch {}
   try {
     const str = JSON.stringify(error);
-    if (str !== undefined && str !== "undefined") {
-      return str;
-    }
-  } catch {
-    // JSON.stringify failed (circular reference, etc.)
-  }
-
-  // Final fallback
+    if (str && str !== "{}" && str !== "undefined") return str;
+  } catch {}
   try {
     const str = String(error);
-    if (str !== undefined && str !== "undefined" && str !== "[object Object]") {
-      return str;
-    }
-  } catch {
-    // String() failed
-  }
-
+    if (str && str !== "[object Object]" && str !== "undefined") return str;
+  } catch {}
   return "Unknown error";
 }
 

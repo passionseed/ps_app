@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,6 +14,12 @@ import type {
   HackathonAdminDashboard,
   HackathonAdminInboxItem,
 } from "../../../types/hackathon-admin";
+import {
+  buildPainPointFeedbackInput,
+  regradePainPointFeedback,
+  type FeedbackStyle,
+  type PainPointFeedbackResult,
+} from "../../../lib/hackathonAi";
 
 type GroupMode = "time" | "phase" | "activity";
 
@@ -52,6 +59,26 @@ export default function SubmissionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupMode>("time");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, PainPointFeedbackResult>>({});
+  const [gradingId, setGradingId] = useState<string | null>(null);
+
+  async function handleRegrade(item: HackathonAdminInboxItem, style: FeedbackStyle) {
+    if (!item.textAnswer) return;
+    setGradingId(item.submissionId);
+    try {
+      const input = buildPainPointFeedbackInput({
+        problemStatement: item.textAnswer,
+        customer: item.teamName ?? item.participantName ?? "",
+        evidenceText: item.textAnswer,
+      });
+      const result = await regradePainPointFeedback(input, style);
+      setFeedbackMap((prev) => ({ ...prev, [item.submissionId]: result }));
+    } catch {
+      // silent
+    } finally {
+      setGradingId(null);
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -208,6 +235,47 @@ export default function SubmissionsScreen() {
                           .join(" · ")}
                       </Text>
                     )}
+
+                    {/* Regen Feedback */}
+                    {item.textAnswer && (
+                      <View style={s.regenSection}>
+                        <Text style={s.expandedLabel}>Regen Feedback</Text>
+                        <View style={s.regenRow}>
+                          {(["concise", "kind", "actionable", "all"] as FeedbackStyle[]).map((style) => (
+                            <Pressable
+                              key={style}
+                              style={[s.regenBtn, gradingId === item.submissionId && s.regenBtnDisabled]}
+                              disabled={gradingId === item.submissionId}
+                              onPress={() => handleRegrade(item, style)}
+                            >
+                              <Text style={s.regenBtnText}>
+                                {style === "all" ? "All 3" : style.charAt(0).toUpperCase() + style.slice(1)}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                        {gradingId === item.submissionId && (
+                          <ActivityIndicator size="small" color="#22d3ee" style={{ marginTop: 8 }} />
+                        )}
+                        {feedbackMap[item.submissionId] && (
+                          <View style={s.feedbackResult}>
+                            <Text style={s.feedbackVerdict}>
+                              {feedbackMap[item.submissionId].verdict === "pass" ? "✅ Pass" : "🔄 Revise"}
+                            </Text>
+                            <Text style={s.feedbackScores}>
+                              Specificity {feedbackMap[item.submissionId].specificityScore} · Evidence {feedbackMap[item.submissionId].evidenceScore} · Severity {feedbackMap[item.submissionId].severityScore} · Clarity {feedbackMap[item.submissionId].clarityScore}
+                            </Text>
+                            {feedbackMap[item.submissionId].revisionNotes.map((note, i) => (
+                              <View key={i} style={s.noteRow}>
+                                <View style={s.noteDot} />
+                                <Text style={s.noteText}>{note}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
+
                     <View style={s.expandedActions}>
                       {item.participantId && (
                         <Pressable
@@ -337,4 +405,37 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   actionText: { fontSize: 11, fontWeight: "700", color: "#22d3ee" },
+
+  regenSection: { marginTop: 10 },
+  regenRow: { flexDirection: "row", gap: 6, marginTop: 4, flexWrap: "wrap" },
+  regenBtn: {
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#6d28d9",
+    backgroundColor: "#180b2b",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  regenBtnDisabled: { opacity: 0.5 },
+  regenBtnText: { fontSize: 10, fontWeight: "700", color: "#c4b5fd" },
+  feedbackResult: {
+    marginTop: 8,
+    backgroundColor: "#0b0b12",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#1f2937",
+    padding: 10,
+    gap: 4,
+  },
+  feedbackVerdict: { fontSize: 13, fontWeight: "700", color: "#e2e8f0" },
+  feedbackScores: { fontSize: 11, color: "#94a3b8" },
+  noteRow: { flexDirection: "row", gap: 6, alignItems: "flex-start" },
+  noteDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#6d28d9",
+    marginTop: 6,
+  },
+  noteText: { flex: 1, fontSize: 12, lineHeight: 17, color: "#cbd5e1" },
 });

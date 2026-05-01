@@ -2,7 +2,6 @@
 // Interactive group-chat comic viewer for hackathon phase activities
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Image,
   Linking,
   Modal,
   Pressable,
@@ -11,6 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import * as Haptics from "expo-haptics";
 import * as WebBrowser from "expo-web-browser";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -25,6 +25,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { AppText } from "../AppText";
 import { Space } from "../../lib/theme";
+import { IMG } from "../../lib/imageResize";
 
 // ── Types ─────────────────────────────────────────────────────────
 export interface ChatComicMessage {
@@ -243,10 +244,12 @@ function ChatImage({ content, caption }: { content: string; caption?: string }) 
   return (
     <>
       <Pressable onPress={() => setExpanded(true)} style={styles.chatImageWrap}>
-        <Image
-          source={{ uri: content }}
+        <ExpoImage
+          source={IMG.thumb(content)}
           style={[styles.chatImage, { width: imgWidth, height: imgWidth * 1.2 }]}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          recyclingKey={content}
         />
         {caption ? (
           <View style={styles.captionWrap}>
@@ -297,7 +300,7 @@ function ChatVideo({ content, caption }: { content: string; caption?: string }) 
     <Pressable onPress={handleOpen} style={styles.chatImageWrap}>
       <View style={[styles.videoThumb, { width: imgWidth, height: imgWidth * 0.56 }]}>
         {thumbUrl ? (
-          <Image source={{ uri: thumbUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <ExpoImage source={thumbUrl} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
         ) : null}
         <View style={[styles.playIconWrap, { marginBottom: 0 }]}>
           <AppText style={styles.videoPlayIcon}>▶</AppText>
@@ -385,9 +388,9 @@ function ChatBubble({
       {showAvatarAndName ? (
         <View style={styles.avatar}>
           {message.avatar === "pseed" ? (
-            <Image source={PSEED_LOGO} style={styles.avatarImage} />
+            <ExpoImage source={PSEED_LOGO} style={styles.avatarImage} cachePolicy="memory-disk" />
           ) : isAvatarUrl ? (
-            <Image source={{ uri: message.avatar }} style={styles.avatarImage} />
+            <ExpoImage source={IMG.avatar(message.avatar)} style={styles.avatarImage} cachePolicy="memory-disk" />
           ) : (
             <AppText style={styles.avatarText}>{message.avatar || message.sender.substring(0, 1)}</AppText>
           )}

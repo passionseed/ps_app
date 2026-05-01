@@ -12,6 +12,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Space } from "../../lib/theme";
+import { IMG } from "../../lib/imageResize";
 import {
   collectWebtoonPrefetchUrls,
   getWebtoonChunkHeight,
@@ -191,10 +192,11 @@ export default function HackathonWebtoon({
           {webtoon.chunks.map((chunk, index) => {
             const chunkHeight = chunkHeights[index] ?? 0;
             const imageUrl = resolveWebtoonChunkUrl(chunk, fallbackUrl);
+            const resizedImageUrl = imageUrl ? IMG.panel(imageUrl) : null;
             const shouldRenderImage =
               index >= visibleRange.startIndex && index <= visibleRange.endIndex;
 
-            if (!shouldRenderImage || !imageUrl) {
+            if (!shouldRenderImage || !resizedImageUrl) {
               return (
                 <View
                   key={chunk.id}
@@ -209,7 +211,7 @@ export default function HackathonWebtoon({
                 style={[styles.chunkContainer, { width: viewportWidth, height: chunkHeight }]}
               >
                 <ExpoImage
-                  source={{ uri: imageUrl }}
+                  source={{ uri: resizedImageUrl }}
                   style={styles.chunkImage}
                   contentFit="cover"
                   cachePolicy="memory-disk"

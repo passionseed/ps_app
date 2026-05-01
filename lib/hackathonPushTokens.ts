@@ -1,47 +1,54 @@
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
+import { getExistingPushToken, requestPushPermissions } from './notifications';
 
-let Notifications: typeof import("expo-notifications") | null = null;
-if (Platform.OS !== "web") {
-  try {
-    Notifications = require("expo-notifications");
-  } catch {
-    Notifications = null;
-  }
+/** Check if a participant already has at least one push token saved. */
+export async function hasParticipantPushToken(participantId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('hackathon_participant_push_tokens')
+    .select('*', { count: 'exact', head: true })
+    .eq('participant_id', participantId);
+  if (error) return false;
+  return (count ?? 0) > 0;
 }
 
 export async function registerPushToken(participantId: string): Promise<void> {
-  if (!Notifications) {
-    return;
-  }
-
-  let pushToken: string;
+  let pushToken: string | null;
   try {
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    pushToken = tokenData.data;
+    pushToken = await getExistingPushToken();
   } catch (error) {
     console.warn("[hackathonPushTokens] Push token not available:", error);
     return;
   }
 
-  // Determine platform
-  const platform = Platform.OS as 'ios' | 'android' | 'web';
+  if (!pushToken) {
+    return;
+  }
 
-  // Upsert to database
+  await savePushTokenForParticipant(participantId, pushToken);
+}
+
+/** Request permission, get token, and save it. Returns the token or null. */
+export async function requestAndRegisterPushToken(participantId: string): Promise<string | null> {
+  const pushToken = await requestPushPermissions();
+  if (!pushToken) return null;
+  await savePushTokenForParticipant(participantId, pushToken);
+  return pushToken;
+}
+
+async function savePushTokenForParticipant(participantId: string, pushToken: string): Promise<void> {
+  const platform = Platform.OS as 'ios' | 'android' | 'web';
   const { error } = await supabase
     .from('hackathon_participant_push_tokens')
     .upsert(
       {
         participant_id: participantId,
         push_token: pushToken,
-        platform: platform,
+        platform,
         last_used_at: new Date().toISOString(),
       },
-      {
-        onConflict: 'push_token',
-      }
+      { onConflict: 'push_token' },
     );
-
   if (error) throw error;
 }
 

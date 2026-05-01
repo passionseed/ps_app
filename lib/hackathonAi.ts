@@ -56,3 +56,25 @@ export async function requestPainPointFeedback(
 
   return data as PainPointFeedbackResult;
 }
+
+export type FeedbackStyle = "concise" | "kind" | "actionable" | "all";
+
+export async function regradePainPointFeedback(
+  input: PainPointFeedbackInput,
+  style: FeedbackStyle,
+): Promise<PainPointFeedbackResult> {
+  const { supabase } = require("./supabase") as typeof import("./supabase");
+
+  const { data, error } = await supabase.functions.invoke(
+    "hackathon-pain-point-feedback",
+    {
+      body: { ...input, style },
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as PainPointFeedbackResult;
+}

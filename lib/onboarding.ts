@@ -133,17 +133,24 @@ export async function callOnboardingChat(params: {
     body: params,
   })
   if (error) {
-    // Log full error details for debugging
+    // Extract server error details for better Sentry reporting
+    let serverDetails = ''
     const context = (error as any).context
     if (context) {
       try {
         const body = await context.json()
+        serverDetails = body?.details ?? body?.error ?? JSON.stringify(body)
         console.error('Edge Function error body:', JSON.stringify(body))
       } catch {
+        serverDetails = `status ${context.status}`
         console.error('Edge Function error status:', context.status)
       }
     }
-    throw error
+    const enriched = new Error(
+      `onboarding-chat ${params.mode} failed: ${serverDetails || error.message}`,
+    )
+    ;(enriched as any).cause = error
+    throw enriched
   }
   return data as OnboardingChatResponse
 }

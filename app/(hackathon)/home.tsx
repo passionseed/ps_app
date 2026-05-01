@@ -21,6 +21,9 @@ import {
 } from "../../lib/hackathon-submit";
 import { getInboxPreview } from "../../lib/hackathonInbox";
 import { useHackathonPushNotifications } from "../../lib/hooks/useHackathonPushNotifications";
+import { hasParticipantPushToken, requestAndRegisterPushToken } from "../../lib/hackathonPushTokens";
+import { readHackathonParticipant } from "../../lib/hackathon-mode";
+import { EnableNotificationsModal } from "../../components/Hackathon/EnableNotificationsModal";
 import type { InboxPreview } from "../../types/hackathon-inbox";
 
 type MentorPreview = { id: string; full_name: string; photo_url?: string };
@@ -48,6 +51,7 @@ export default function HackathonHomeScreen() {
   const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdownItem[]>([]);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [inboxPreview, setInboxPreview] = useState<InboxPreview | null>(null);
+  const [notiModalVisible, setNotiModalVisible] = useState(false);
 
   useHackathonPushNotifications();
 
@@ -106,6 +110,15 @@ export default function HackathonHomeScreen() {
           // ignore
         }
       });
+
+      // Show push notification prompt if participant has no token saved
+      readHackathonParticipant().then(async (p) => {
+        if (!p?.id) return;
+        const dismissed = await getItem("push_noti_modal_dismissed");
+        if (dismissed) return;
+        const hasToken = await hasParticipantPushToken(p.id);
+        if (!hasToken) setNotiModalVisible(true);
+      }).catch(() => {});
     }, [])
   );
 
@@ -128,6 +141,17 @@ export default function HackathonHomeScreen() {
     } finally {
       setBreakdownLoading(false);
     }
+  }
+
+  async function handleEnableNotifications() {
+    const p = await readHackathonParticipant();
+    if (p?.id) await requestAndRegisterPushToken(p.id);
+    setNotiModalVisible(false);
+  }
+
+  async function handleDismissNotifications() {
+    await setItem("push_noti_modal_dismissed", "1");
+    setNotiModalVisible(false);
   }
 
   if (loading) {
@@ -292,6 +316,12 @@ export default function HackathonHomeScreen() {
           </View>
         </View>
       </Modal>
+
+      <EnableNotificationsModal
+        visible={notiModalVisible}
+        onEnable={handleEnableNotifications}
+        onDismiss={handleDismissNotifications}
+      />
     </View>
   );
 }
