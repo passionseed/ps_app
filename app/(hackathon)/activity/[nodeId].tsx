@@ -20,6 +20,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import YoutubePlayer from "react-native-youtube-iframe";
+import Markdown from "react-native-markdown-display";
 import { AppText } from "../../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { HackathonJellyfishLoader } from "../../../components/Hackathon/HackathonJellyfishLoader";
@@ -177,7 +178,7 @@ function TextBlock({ item }: { item: HackathonPhaseActivityContent }) {
         <AppText variant="bold" style={styles.contentBlockTitle}>{item.content_title}</AppText>
       ) : null}
       {item.content_body ? (
-        <AppText style={styles.bodyText}>{item.content_body}</AppText>
+        <Markdown style={assessmentMarkdownStyles}>{item.content_body}</Markdown>
       ) : (
         <AppText style={[styles.bodyText, { color: WHITE28 }]}>ไม่มีเนื้อหา</AppText>
       )}
@@ -504,6 +505,22 @@ function FileUploadBlock({
   );
 }
 
+// ── Assessment markdown styles ─────────────────────────────────────
+const assessmentMarkdownStyles = {
+  body: { fontFamily: "BaiJamjuree_400Regular", fontSize: 15, color: WHITE, lineHeight: 22, marginBottom: -12 },
+  strong: { fontFamily: "BaiJamjuree_700Bold", color: WHITE },
+  em: { fontFamily: "BaiJamjuree_400Regular", fontStyle: "italic" as const },
+  bullet_list: { marginVertical: 4 },
+  ordered_list: { marginVertical: 4 },
+  list_item: { marginVertical: 2 },
+  code_inline: { fontFamily: "BaiJamjuree_400Regular", backgroundColor: "rgba(255,255,255,0.08)", color: CYAN, paddingHorizontal: 4, borderRadius: 4 },
+  link: { color: CYAN },
+  heading1: { fontFamily: "BaiJamjuree_700Bold", fontSize: 20, color: WHITE, marginTop: 8, marginBottom: 4 },
+  heading2: { fontFamily: "BaiJamjuree_700Bold", fontSize: 17, color: WHITE, marginTop: 6, marginBottom: 4 },
+  heading3: { fontFamily: "BaiJamjuree_700Bold", fontSize: 15, color: WHITE, marginTop: 4, marginBottom: 4 },
+  blockquote: { borderLeftWidth: 3, borderLeftColor: CYAN, paddingLeft: 12, marginVertical: 8 },
+};
+
 // ── Assessment block ───────────────────────────────────────────────
 function AssessmentBlock({
   assessment,
@@ -541,9 +558,9 @@ function AssessmentBlock({
         {label}{assessment.points_possible ? ` · ${assessment.points_possible} pts` : ""}
       </AppText>
       {prompt ? (
-        <AppText style={{ fontSize: 15, color: WHITE, marginBottom: 8, lineHeight: 22 }}>
+        <Markdown style={assessmentMarkdownStyles}>
           {prompt}
-        </AppText>
+        </Markdown>
       ) : null}
       {assessment.assessment_type === "text_answer" ? (
         <TextInput
@@ -1484,7 +1501,7 @@ export default function HackathonActivityScreen() {
         <View style={styles.header}>
           <AppText variant="bold" style={styles.title}>{activity.title}</AppText>
           {activity.instructions ? (
-            <AppText style={styles.instructions}>{activity.instructions}</AppText>
+            <Markdown style={assessmentMarkdownStyles}>{activity.instructions}</Markdown>
           ) : null}
           <View style={styles.metaRow}>
             {activity.estimated_minutes ? (
