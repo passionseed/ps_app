@@ -44,6 +44,7 @@ import type {
 } from "../../types/onboarding";
 import { Accent, PageBg } from "../../lib/theme";
 import { HackathonHeroCard } from "../../components/discover/HackathonHeroCard";
+import { SeedCreatorPitch } from "../../components/SeedCreatorPitch";
 import { PROFILE_HACKATHON_HERO_ROUTE } from "../../lib/hackathonNavigation";
 
 interface IkigaiPillar {
@@ -760,6 +761,10 @@ export default function ProfileScreen() {
               />
             )}
           </View>
+
+          <SeedCreatorPitch
+            onPress={() => router.push("/seed/create" as any)}
+          />
 
           {isAdmin && (
             <Pressable
