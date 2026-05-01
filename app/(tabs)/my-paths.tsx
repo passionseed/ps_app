@@ -141,7 +141,10 @@ export default function MyPathsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
 
       const userId = user.id;
       let cancelled = false;
