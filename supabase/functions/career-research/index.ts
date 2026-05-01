@@ -49,7 +49,7 @@ serve(async (req) => {
     const { data: jobs, error } = await supabase
       .from("jobs")
       .select(
-        "id, title, industry, viability_score, demand_trend, required_degrees, required_skills, median_salary",
+        "id, title, industry, category, rank, viability_score, demand_trend, automation_risk, median_salary, salary_range_thb, growth_rate, evolution_2035, required_degrees, required_skills, stress_level, work_life_balance",
       )
       .ilike("title", `%${jobTitle}%`)
       .limit(5);

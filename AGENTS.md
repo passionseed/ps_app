@@ -9,6 +9,7 @@ Skills with repo-specific guidance live under `.claude/skills/<name>/SKILL.md`.
 - **`webtoon-cutter`** — Cut long webtoon images into chunks, upload to Supabase storage, generate DB-ready metadata. Path: `.claude/skills/webtoon-cutter/SKILL.md`.
 - **`react-native-skia`** — Canvas, shaders, jank-safe animation with Reanimated. Path: `.claude/skills/react-native-skia/SKILL.md`.
 - **`prebuild-native`** — Fast iOS/Android native pre-build gate before EAS preview or production builds. Path: `.claude/skills/prebuild-native/SKILL.md`.
+- **`jobs-research-updater`** — Research and upsert job market data (salary, growth, AI risk, evolution) into the `jobs` table. Use when refreshing the top 100 jobs list or adding new jobs. Path: `.claude/skills/jobs-research-updater/SKILL.md`.
 
 ## Versioning Rule
 

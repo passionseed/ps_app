@@ -25,6 +25,25 @@ type NewsItem = { title: string; url: string; source: string; snippet: string; a
 
 type Insights = { people: Person[]; companies: Company[]; news: NewsItem[] };
 
+type JobData = {
+  id: string;
+  title: string;
+  rank: number | null;
+  category: string | null;
+  industry: string | null;
+  viability_score: number | null;
+  demand_trend: string | null;
+  automation_risk: number | null;
+  median_salary: number | null;
+  salary_range_thb: any | null;
+  growth_rate: string | null;
+  evolution_2035: string | null;
+  required_degrees: string[] | null;
+  required_skills: string[] | null;
+  stress_level: number | null;
+  work_life_balance: number | null;
+};
+
 // ─── Parsers ──────────────────────────────────────────────────────────────────
 
 function parsePerson(r: RawPerson): Person {
@@ -70,6 +89,37 @@ function parseNews(r: RawNews): NewsItem {
   return { title: r.title, url: r.url, source, snippet: r.snippet, ago };
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function aiRiskColor(risk: number | null): string {
+  if (risk == null) return "#9CA3AF";
+  if (risk <= 0.25) return "#10B981";
+  if (risk <= 0.45) return "#F59E0B";
+  if (risk <= 0.65) return "#F97316";
+  return "#EF4444";
+}
+
+function aiRiskLabel(risk: number | null): string {
+  if (risk == null) return "Unknown";
+  if (risk <= 0.1) return "Very Low";
+  if (risk <= 0.25) return "Low";
+  if (risk <= 0.45) return "Medium";
+  if (risk <= 0.65) return "High";
+  return "Very High";
+}
+
+function demandLabel(trend: string | null): string {
+  if (trend === "growing") return "Growing";
+  if (trend === "declining") return "Declining";
+  return "Stable";
+}
+
+function demandColor(trend: string | null): string {
+  if (trend === "growing") return "#10B981";
+  if (trend === "declining") return "#EF4444";
+  return "#9CA3AF";
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function CareerDetailScreen() {
@@ -78,6 +128,7 @@ export default function CareerDetailScreen() {
   const careerName = rawCareerName.split("(")[0].trim();
 
   const [insights, setInsights] = useState<Insights | null>(null);
+  const [job, setJob] = useState<JobData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,16 +136,33 @@ export default function CareerDetailScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const { data, error: fnError } = await supabase.functions.invoke(
-          "career-insights",
-          { body: { careerName } },
-        );
+        // Fetch job data and insights in parallel
+        const [jobResult, insightsResult] = await Promise.all([
+          supabase
+            .from("jobs")
+            .select(
+              "id, title, rank, category, industry, viability_score, demand_trend, automation_risk, median_salary, salary_range_thb, growth_rate, evolution_2035, required_degrees, required_skills, stress_level, work_life_balance",
+            )
+            .ilike("title", `%${careerName}%`)
+            .limit(1)
+            .single(),
+          supabase.functions.invoke("career-insights", {
+            body: { careerName },
+          }),
+        ]);
+
         if (cancelled) return;
+
+        const { data: jobData, error: jobError } = jobResult;
+        if (jobError && jobError.code !== "PGRST116") throw jobError;
+        setJob(jobData as JobData | null);
+
+        const { data: insightsData, error: fnError } = insightsResult;
         if (fnError) throw fnError;
         setInsights({
-          people: (data.people as RawPerson[]).map(parsePerson),
-          companies: (data.companies as RawCompany[]).map(parseCompany),
-          news: (data.news as RawNews[]).map(parseNews),
+          people: (insightsData.people as RawPerson[]).map(parsePerson),
+          companies: (insightsData.companies as RawCompany[]).map(parseCompany),
+          news: (insightsData.news as RawNews[]).map(parseNews),
         });
       } catch (e: any) {
         if (!cancelled) setError(e?.message ?? "Failed to load insights");
@@ -142,98 +210,277 @@ export default function CareerDetailScreen() {
               <Text style={s.retryBtnText}>Go back</Text>
             </Pressable>
           </View>
-        ) : insights ? (
+        ) : (
           <>
+            {/* ── Jobs Research Data ── */}
+            {job ? (
+              <>
+                {/* At a Glance */}
+                <Section title="At a Glance">
+                  <View style={s.glanceGrid}>
+                    {job.rank ? (
+                      <GlanceCard
+                        label="Rank"
+                        value={`#${job.rank}`}
+                        color="#0040F0"
+                      />
+                    ) : null}
+                    {job.category ? (
+                      <GlanceCard
+                        label="Category"
+                        value={job.category}
+                        color="#7C3AED"
+                      />
+                    ) : null}
+                    <GlanceCard
+                      label="Demand"
+                      value={demandLabel(job.demand_trend)}
+                      color={demandColor(job.demand_trend)}
+                    />
+                    {job.viability_score != null ? (
+                      <GlanceCard
+                        label="Viability"
+                        value={`${job.viability_score}/100`}
+                        color={
+                          job.viability_score >= 75
+                            ? "#10B981"
+                            : job.viability_score >= 60
+                              ? "#F59E0B"
+                              : "#EF4444"
+                        }
+                      />
+                    ) : null}
+                  </View>
+                </Section>
+
+                {/* Salary */}
+                {((job.median_salary != null && job.median_salary > 0) ||
+                  job.salary_range_thb) ? (
+                  <Section title="Salary">
+                    <View style={s.salaryRow}>
+                      {job.median_salary != null && job.median_salary > 0 ? (
+                        <View style={s.salaryCard}>
+                          <Text style={s.salaryValue}>
+                            ${job.median_salary.toLocaleString()}
+                          </Text>
+                          <Text style={s.salaryLabel}>US Median / year</Text>
+                        </View>
+                      ) : null}
+                      {job.salary_range_thb ? (
+                        <View style={s.salaryCard}>
+                          <Text style={s.salaryValue}>
+                            ฿
+                            {job.salary_range_thb.min_monthly?.toLocaleString() ||
+                              "?"}{" "}
+                            – ฿
+                            {job.salary_range_thb.max_monthly?.toLocaleString() ||
+                              "?"}
+                          </Text>
+                          <Text style={s.salaryLabel}>Thai Monthly Range</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </Section>
+                ) : null}
+
+                {/* Growth & AI Risk */}
+                <Section title="Growth & AI Risk">
+                  <View style={s.growthRow}>
+                    {job.growth_rate ? (
+                      <View style={s.growthCard}>
+                        <Text style={s.growthValue}>{job.growth_rate}</Text>
+                        <Text style={s.growthLabel}>Growth Rate</Text>
+                      </View>
+                    ) : null}
+                    <View style={s.riskCard}>
+                      <View
+                        style={[
+                          s.riskMeter,
+                          { backgroundColor: aiRiskColor(job.automation_risk) + "20" },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            s.riskMeterFill,
+                            {
+                              width: `${(job.automation_risk ?? 0) * 100}%`,
+                              backgroundColor: aiRiskColor(job.automation_risk),
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={s.riskValue}>
+                        {aiRiskLabel(job.automation_risk)} ({(job.automation_risk ?? 0) * 100}%)
+                      </Text>
+                      <Text style={s.riskLabel}>AI Automation Risk</Text>
+                    </View>
+                  </View>
+                </Section>
+
+                {/* Future with AI */}
+                {job.evolution_2035 ? (
+                  <Section title="Future with AI">
+                    <View style={s.futureCard}>
+                      <Text style={s.futureText}>{job.evolution_2035}</Text>
+                    </View>
+                  </Section>
+                ) : null}
+
+                {/* Skills */}
+                {job.required_skills && job.required_skills.length > 0 ? (
+                  <Section title="Key Skills">
+                    <View style={s.skillsWrap}>
+                      {job.required_skills.map((sk, i) => (
+                        <View key={i} style={s.skillTag}>
+                          <Text style={s.skillTagText}>{sk}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </Section>
+                ) : null}
+              </>
+            ) : null}
+
+            {/* Divider */}
+            {job && insights ? <View style={s.divider} /> : null}
+
             {/* People */}
-            <Section title="People to Follow">
-              {insights.people.length === 0 ? (
-                <EmptyNote text="No profiles found" />
-              ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={s.hScroll}
-                >
-                  {insights.people.map((p, i) => (
-                    <Pressable key={i} style={s.personCard} onPress={() => open(p.url)}>
-                      <View style={s.avatar}>
-                        <Text style={s.avatarText}>{p.initials}</Text>
-                      </View>
-                      <Text style={s.personName} numberOfLines={2}>{p.name}</Text>
-                      {p.role ? (
-                        <Text style={s.personRole} numberOfLines={3}>{p.role}</Text>
-                      ) : null}
-                      <View style={s.viewLink}>
-                        <Text style={s.viewLinkText}>View →</Text>
-                      </View>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              )}
-            </Section>
-
-            {/* Companies */}
-            <Section title="Top Companies">
-              {insights.companies.length === 0 ? (
-                <EmptyNote text="No companies found" />
-              ) : (
-                <View style={s.companyGrid}>
-                  {insights.companies.map((c, i) => (
-                    <Pressable
-                      key={i}
-                      style={({ pressed }) => [s.companyCard, pressed && s.pressed]}
-                      onPress={() => open(c.url)}
+            {insights ? (
+              <>
+                <Section title="People to Follow">
+                  {insights.people.length === 0 ? (
+                    <EmptyNote text="No profiles found" />
+                  ) : (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={s.hScroll}
                     >
-                      <Text style={s.companyName} numberOfLines={2}>{c.name}</Text>
-                      {c.domain ? (
-                        <Text style={s.companyDomain} numberOfLines={1}>{c.domain}</Text>
-                      ) : null}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </Section>
-
-            {/* News */}
-            <Section title="Industry News">
-              {insights.news.length === 0 ? (
-                <EmptyNote text="No recent news found" />
-              ) : (
-                <View style={s.newsList}>
-                  {insights.news.map((n, i) => (
-                    <Pressable
-                      key={i}
-                      style={({ pressed }) => [s.newsCard, pressed && s.pressed]}
-                      onPress={() => open(n.url)}
-                    >
-                      <View style={s.newsTopRow}>
-                        {n.source ? (
-                          <View style={s.sourceBadge}>
-                            <Text style={s.sourceBadgeText}>{n.source.toUpperCase()}</Text>
+                      {insights.people.map((p, i) => (
+                        <Pressable
+                          key={i}
+                          style={s.personCard}
+                          onPress={() => open(p.url)}
+                        >
+                          <View style={s.avatar}>
+                            <Text style={s.avatarText}>{p.initials}</Text>
                           </View>
-                        ) : null}
-                        {n.ago ? <Text style={s.newsAgo}>{n.ago}</Text> : null}
-                      </View>
-                      <Text style={s.newsTitle} numberOfLines={3}>{n.title}</Text>
-                      {n.snippet ? (
-                        <Text style={s.newsSnippet} numberOfLines={2}>{n.snippet}</Text>
-                      ) : null}
-                      <Text style={s.readLink}>Read →</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </Section>
-          </>
-        ) : null}
+                          <Text style={s.personName} numberOfLines={2}>
+                            {p.name}
+                          </Text>
+                          {p.role ? (
+                            <Text style={s.personRole} numberOfLines={3}>
+                              {p.role}
+                            </Text>
+                          ) : null}
+                          <View style={s.viewLink}>
+                            <Text style={s.viewLinkText}>View →</Text>
+                          </View>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  )}
+                </Section>
 
-        <View style={{ height: 60 }} />
+                {/* Companies */}
+                <Section title="Top Companies">
+                  {insights.companies.length === 0 ? (
+                    <EmptyNote text="No companies found" />
+                  ) : (
+                    <View style={s.companyGrid}>
+                      {insights.companies.map((c, i) => (
+                        <Pressable
+                          key={i}
+                          style={({ pressed }) => [
+                            s.companyCard,
+                            pressed && s.pressed,
+                          ]}
+                          onPress={() => open(c.url)}
+                        >
+                          <Text style={s.companyName} numberOfLines={2}>
+                            {c.name}
+                          </Text>
+                          {c.domain ? (
+                            <Text style={s.companyDomain} numberOfLines={1}>
+                              {c.domain}
+                            </Text>
+                          ) : null}
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </Section>
+
+                {/* News */}
+                <Section title="Industry News">
+                  {insights.news.length === 0 ? (
+                    <EmptyNote text="No recent news found" />
+                  ) : (
+                    <View style={s.newsList}>
+                      {insights.news.map((n, i) => (
+                        <Pressable
+                          key={i}
+                          style={({ pressed }) => [
+                            s.newsCard,
+                            pressed && s.pressed,
+                          ]}
+                          onPress={() => open(n.url)}
+                        >
+                          <View style={s.newsTopRow}>
+                            {n.source ? (
+                              <View style={s.sourceBadge}>
+                                <Text style={s.sourceBadgeText}>
+                                  {n.source.toUpperCase()}
+                                </Text>
+                              </View>
+                            ) : null}
+                            {n.ago ? (
+                              <Text style={s.newsAgo}>{n.ago}</Text>
+                            ) : null}
+                          </View>
+                          <Text style={s.newsTitle} numberOfLines={3}>
+                            {n.title}
+                          </Text>
+                          {n.snippet ? (
+                            <Text style={s.newsSnippet} numberOfLines={2}>
+                              {n.snippet}
+                            </Text>
+                          ) : null}
+                          <Text style={s.readLink}>Read →</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </Section>
+              </>
+            ) : null}
+
+            <View style={{ height: 60 }} />
+          </>
+        )}
       </ScrollView>
     </View>
   );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function GlanceCard({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: string;
+}) {
+  return (
+    <View style={s.glanceCard}>
+      <Text style={[s.glanceValue, { color }]}>{value}</Text>
+      <Text style={s.glanceLabel}>{label}</Text>
+    </View>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -311,6 +558,150 @@ const s = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
     letterSpacing: 1.5,
+  },
+
+  // At a Glance
+  glanceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  glanceCard: {
+    flex: 1,
+    minWidth: "44%",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgb(206, 206, 206)",
+    padding: 14,
+    alignItems: "center",
+    gap: 4,
+  },
+  glanceValue: {
+    fontSize: 16,
+    fontFamily: "LibreFranklin_400Regular",
+    fontWeight: "700",
+  },
+  glanceLabel: {
+    fontSize: 10,
+    fontFamily: "LibreFranklin_400Regular",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  // Salary
+  salaryRow: { gap: 10 },
+  salaryCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgb(206, 206, 206)",
+    padding: 16,
+    alignItems: "center",
+    gap: 4,
+  },
+  salaryValue: {
+    fontSize: 18,
+    fontFamily: "LibreFranklin_400Regular",
+    fontWeight: "700",
+    color: "#111827",
+  },
+  salaryLabel: {
+    fontSize: 10,
+    fontFamily: "LibreFranklin_400Regular",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  // Growth & AI Risk
+  growthRow: { gap: 10 },
+  growthCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgb(206, 206, 206)",
+    padding: 16,
+    alignItems: "center",
+    gap: 4,
+  },
+  growthValue: {
+    fontSize: 15,
+    fontFamily: "LibreFranklin_400Regular",
+    fontWeight: "700",
+    color: "#10B981",
+    textAlign: "center",
+  },
+  growthLabel: {
+    fontSize: 10,
+    fontFamily: "LibreFranklin_400Regular",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  riskCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgb(206, 206, 206)",
+    padding: 16,
+    alignItems: "center",
+    gap: 8,
+  },
+  riskMeter: {
+    width: "100%",
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  riskMeterFill: { height: "100%", borderRadius: 4 },
+  riskValue: {
+    fontSize: 15,
+    fontFamily: "LibreFranklin_400Regular",
+    fontWeight: "700",
+    color: "#111827",
+  },
+  riskLabel: {
+    fontSize: 10,
+    fontFamily: "LibreFranklin_400Regular",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  // Future with AI
+  futureCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgb(206, 206, 206)",
+    padding: 16,
+  },
+  futureText: {
+    fontSize: 14,
+    fontFamily: "LibreFranklin_400Regular",
+    color: "#374151",
+    lineHeight: 22,
+  },
+
+  // Skills
+  skillsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  skillTag: {
+    backgroundColor: "#E8F0FE",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  skillTagText: {
+    fontSize: 12,
+    fontFamily: "LibreFranklin_400Regular",
+    fontWeight: "600",
+    color: "#0040F0",
+  },
+
+  // Divider
+  divider: {
+    height: 1,
+    backgroundColor: "rgb(206, 206, 206)",
+    marginHorizontal: 24,
+    marginBottom: 32,
   },
 
   // People — horizontal scroll
