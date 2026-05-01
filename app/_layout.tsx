@@ -226,6 +226,7 @@ function RootNavigator() {
       <Stack.Screen name="plans/index" options={{ presentation: "card" }} />
       <Stack.Screen name="plans/[planId]" options={{ presentation: "card" }} />
       <Stack.Screen name="plans/create" options={{ presentation: "card" }} />
+      <Stack.Screen name="career-builder" options={{ presentation: "card" }} />
       <Stack.Screen name="google-auth" options={{ headerShown: false }} />
     </Stack>
   );

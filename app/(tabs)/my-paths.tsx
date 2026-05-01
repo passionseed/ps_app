@@ -253,7 +253,7 @@ export default function MyPathsScreen() {
   const hasSimulations = paths.length > 0;
 
   const handleBuildPath = () => {
-    router.push("/(tabs)/discover");
+    router.push("/career-builder");
   };
 
   return (
