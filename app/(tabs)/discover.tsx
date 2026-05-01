@@ -256,10 +256,10 @@ export default function DiscoverScreen() {
             >
               <Text style={styles.quickLinkIcon}>📋</Text>
               <Text style={styles.quickLinkTitle}>
-                {isThai ? "แผนสมัคร" : "My Plans"}
+                {isThai ? "แผน & อาชีพ" : "Plans & Careers"}
               </Text>
               <Text style={styles.quickLinkSubtitle}>
-                {isThai ? "วางแผนการสมัคร" : "Plan your applications"}
+                {isThai ? "วางแผนและสำรวจอาชีพ" : "Plan admissions & explore careers"}
               </Text>
             </Pressable>
           </View>
