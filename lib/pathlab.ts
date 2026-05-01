@@ -136,16 +136,21 @@ function sleep(ms: number) {
 
 function stringifyError(error: unknown): string {
   if (error == null) return "Unknown error";
-  if (error instanceof Error) return error.message || "Error";
   if (typeof error === "string") return error;
   if (typeof error !== "object") return String(error);
+  // Duck-type Error objects (handles cross-realm errors where instanceof fails)
+  try {
+    if ("message" in error && typeof (error as Error).message === "string") {
+      return (error as Error).message || "Error";
+    }
+  } catch {}
   try {
     const str = JSON.stringify(error);
-    if (str !== undefined && str !== "undefined") return str;
+    if (str && str !== "{}" && str !== "undefined") return str;
   } catch {}
   try {
     const str = String(error);
-    if (str !== undefined && str !== "undefined" && str !== "[object Object]") return str;
+    if (str && str !== "[object Object]" && str !== "undefined") return str;
   } catch {}
   return "Unknown error";
 }
@@ -212,6 +217,7 @@ type GetAvailableSeedsOptions = {
 };
 
 const AVAILABLE_SEEDS_CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 4;
 const availableSeedsInFlight = new Map<string, Promise<SeedWithEnrollment[]>>();
 const recommendedSeedsInFlight = new Map<string, Promise<SeedRecommendationsPayload>>();
 const availableSeedsCache = new Map<
@@ -222,6 +228,24 @@ const recommendedSeedsCache = new Map<
   string,
   { data: SeedRecommendationsPayload; cachedAt: number }
 >();
+
+/** Evict oldest entries when a Map exceeds maxSize. */
+function evictOldest<V>(map: Map<string, V>, maxSize: number) {
+  while (map.size > maxSize) {
+    const firstKey = map.keys().next().value;
+    if (firstKey !== undefined) map.delete(firstKey);
+    else break;
+  }
+}
+
+/** Clear all pathlab module-level caches. Call on sign-out. */
+export function clearPathlabCaches() {
+  availableSeedsCache.clear();
+  recommendedSeedsCache.clear();
+  availableSeedsInFlight.clear();
+  recommendedSeedsInFlight.clear();
+  _activityCache = null;
+}
 
 function getDiscoverCacheKey(userId?: string | null): string {
   return userId ?? "__public__";
@@ -249,6 +273,7 @@ function writeAvailableSeedsMemoryCache(
     data,
     cachedAt: Date.now(),
   });
+  evictOldest(availableSeedsCache, MAX_CACHE_ENTRIES);
 }
 
 function readRecommendedSeedsMemoryCache(
@@ -269,6 +294,7 @@ function writeRecommendedSeedsMemoryCache(
     data,
     cachedAt: Date.now(),
   });
+  evictOldest(recommendedSeedsCache, MAX_CACHE_ENTRIES);
 }
 
 export function getCachedAvailableSeeds(

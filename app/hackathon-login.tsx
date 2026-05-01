@@ -114,7 +114,7 @@ export default function HackathonLoginScreen() {
               variant="dark"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.replace("/");
+                router.back();
               }}
             />
           </View>
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     paddingBottom: Space["3xl"],
     gap: Space.xl,
   },
-  backRow: { alignSelf: "center" },
+  backRow: { alignSelf: "flex-start" },
 
   header: { gap: Space.sm },
   eyebrow: {

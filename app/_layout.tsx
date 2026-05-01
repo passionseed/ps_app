@@ -250,6 +250,8 @@ function RootLayout() {
   } = require("@expo-google-fonts/reenie-beanie") as typeof import("@expo-google-fonts/reenie-beanie");
   const SplashScreen = require("expo-splash-screen") as typeof import("expo-splash-screen");
   const { AuthProvider } = require("../lib/auth") as typeof import("../lib/auth");
+  const { QueryClientProvider } = require("@tanstack/react-query") as typeof import("@tanstack/react-query");
+  const { queryClient } = require("../lib/queryClient") as typeof import("../lib/queryClient");
   const {
     getSupabaseConfigErrorMessage,
   } = require("../lib/runtime-config") as typeof import("../lib/runtime-config");
@@ -313,12 +315,14 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <View style={{ flex: 1 }}>
-          <StatusBar style="light" translucent />
-          <RootNavigator />
-        </View>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <View style={{ flex: 1 }}>
+            <StatusBar style="light" translucent />
+            <RootNavigator />
+          </View>
+        </AuthProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }

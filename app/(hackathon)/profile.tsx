@@ -3,6 +3,7 @@ import {
   StyleSheet,
   View,
   Pressable,
+  Platform,
   ScrollView,
   ActivityIndicator,
   Linking,
@@ -34,6 +35,10 @@ import {
   type HackathonProfileSnapshot,
 } from "../../lib/hackathonProfileCache";
 import type { HackathonTeam } from "../../types/hackathon-program";
+import { requestAndRegisterPushToken } from "../../lib/hackathonPushTokens";
+import { getExistingPushToken } from "../../lib/notifications";
+import { getSentryRuntimeContext } from "../../lib/sentry";
+import Constants from "expo-constants";
 
 const BG = "#03050a";
 const CYAN = "#91C4E3";
@@ -70,6 +75,11 @@ export default function HackathonProfileScreen() {
   const [teamAvatarUrl, setTeamAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  // Push notification state
+  const [hasPushToken, setHasPushToken] = useState(false);
+  const [pushChecked, setPushChecked] = useState(false);
+  const [enablingPush, setEnablingPush] = useState(false);
+
   const applySnapshot = useCallback((snapshot: HackathonProfileSnapshot) => {
     setTeam(snapshot.team);
     setQuestionnaire(snapshot.questionnaire);
@@ -91,6 +101,15 @@ export default function HackathonProfileScreen() {
           setLoading(false);
           return;
         }
+
+        // Check if push token exists for this participant
+        supabase
+          .from("hackathon_participant_push_tokens")
+          .select("id")
+          .eq("participant_id", p.id)
+          .limit(1)
+          .then(({ data }) => { setHasPushToken(!!data?.length); setPushChecked(true); })
+          .then(undefined, () => { setPushChecked(true); });
 
         // Read cache synchronously for instant render
         let cachedSnapshot: HackathonProfileSnapshot | null = null;
@@ -229,6 +248,23 @@ export default function HackathonProfileScreen() {
       cancelled = true;
     };
   }, [participant?.email, user?.id]);
+
+  const handleEnablePush = async () => {
+    if (!participant?.id) return;
+    setEnablingPush(true);
+    try {
+      const token = await requestAndRegisterPushToken(participant.id);
+      if (token) {
+        setHasPushToken(true);
+        Alert.alert("Notifications Enabled", token);
+      } else {
+        Alert.alert("Notifications", "Could not enable notifications. Please check your device settings.");
+      }
+    } catch {
+      Alert.alert("Error", "Failed to enable notifications.");
+    }
+    setEnablingPush(false);
+  };
 
   const handleAutoRollEmoji = async () => {
     if (!team?.id || !participant?.id) return;
@@ -511,6 +547,40 @@ export default function HackathonProfileScreen() {
           <InfoRow label="ROLE" value={participant?.role ?? "—"} />
         </View>
 
+        {/* Enable Push Notifications Banner */}
+        {pushChecked && !hasPushToken && !loading && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Enable push notifications"
+            style={({ pressed }) => [
+              styles.pushBanner,
+              pressed && { opacity: 0.7 },
+              enablingPush && { opacity: 0.5 },
+            ]}
+            onPress={handleEnablePush}
+            disabled={enablingPush}
+          >
+            <View style={styles.pushBannerContent}>
+              <AppText style={styles.pushBannerIcon}>🔔</AppText>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bold" style={styles.pushBannerTitle}>
+                  Enable Notifications
+                </AppText>
+                <AppText style={styles.pushBannerText}>
+                  Get updates from your team and mentors
+                </AppText>
+              </View>
+              {enablingPush ? (
+                <ActivityIndicator color={AMBER} size="small" />
+              ) : (
+                <AppText variant="bold" style={styles.pushBannerAction}>
+                  ENABLE
+                </AppText>
+              )}
+            </View>
+          </Pressable>
+        )}
+
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={CYAN} />
@@ -780,6 +850,37 @@ export default function HackathonProfileScreen() {
                 </Pressable>
               </View>
             ) : null}
+
+            {/* Debug Info */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.signOutBtn,
+                pressed && { opacity: 0.75 },
+              ]}
+              onPress={async () => {
+                const token = await getExistingPushToken().catch(() => null);
+                const ctx = getSentryRuntimeContext();
+                Alert.alert(
+                  "Debug Info",
+                  [
+                    `App: ${Constants.expoConfig?.version ?? "?"}+${ctx.dist ?? "?"}`,
+                    `Runtime: ${ctx.runtimeVersion ?? "?"}`,
+                    `Channel: ${ctx.channel ?? "?"}`,
+                    `Update: ${ctx.updateId ?? "none"}`,
+                    `OS: ${Platform.OS} ${Platform.Version}`,
+                    `Env: ${ctx.environment ?? "?"}`,
+                    "",
+                    `User: ${user?.id ?? "null"}`,
+                    `Participant: ${participant?.id ?? "null"}`,
+                    `Team: ${team?.id ?? "null"}`,
+                    `Push: ${token ?? "none"}`,
+                    `Push saved: ${hasPushToken}`,
+                  ].join("\n"),
+                );
+              }}
+            >
+              <AppText style={styles.signOutText}>ℹ️ Debug Info</AppText>
+            </Pressable>
 
             {/* Sign Out */}
             <Pressable
@@ -1177,5 +1278,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: WHITE75,
     fontFamily: "BaiJamjuree_400Regular",
+  },
+  // Push Notification Banner
+  pushBanner: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)",
+    backgroundColor: "rgba(245, 158, 11, 0.08)",
+    padding: Space.md,
+    marginTop: Space.sm,
+  },
+  pushBannerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.md,
+  },
+  pushBannerIcon: { fontSize: 24 },
+  pushBannerTitle: {
+    fontSize: 14,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  pushBannerText: {
+    fontSize: 12,
+    color: WHITE55,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  pushBannerAction: {
+    fontSize: 11,
+    color: AMBER,
+    fontFamily: "BaiJamjuree_700Bold",
+    letterSpacing: 1,
   },
 });

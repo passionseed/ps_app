@@ -83,28 +83,51 @@ Deno.serve(async (req) => {
     const average =
       (specificityScore + evidenceScore + severityScore + clarityScore) / 4;
     const verdict = average >= 70 ? "pass" : "revise";
-    const revisionNotes: string[] = [];
 
-    if (specificityScore < 70) {
-      revisionNotes.push(
-        "Name a narrower healthcare user and the exact workflow moment where the pain happens.",
-      );
+    const style = String(body?.style ?? "").trim();
+
+    const noteBank = {
+      specificity: {
+        default: "Name a narrower healthcare user and the exact workflow moment where the pain happens.",
+        concise: "Narrow the user segment and pinpoint the workflow moment.",
+        kind: "You're on the right track — try zooming in on a specific user and the exact moment the pain hits.",
+        actionable: "Pick one user role (e.g. triage nurse) and one workflow step (e.g. insurance pre-auth). Rewrite the statement around that pair.",
+      },
+      evidence: {
+        default: "Add more concrete interview evidence, observations, or counts that prove this pain is real.",
+        concise: "Add specific interview quotes or observed counts.",
+        kind: "Great start on evidence — a few more concrete observations or numbers would really strengthen this.",
+        actionable: "List 3 interview moments with who, what happened, and a number (time lost, frequency, patients affected).",
+      },
+      severity: {
+        default: "Explain the cost of the problem in time, risk, money, or patient experience.",
+        concise: "Quantify the cost: time, money, or risk.",
+        kind: "The severity is implied but not yet explicit — try putting a number on the impact so reviewers feel the urgency.",
+        actionable: "Add one sentence: 'This costs [who] [amount of time/money/risk] per [time period].'",
+      },
+      clarity: {
+        default: "Rewrite the statement so the customer, pain, and context are obvious in one sentence.",
+        concise: "One sentence: who, what pain, where.",
+        kind: "Almost there — try condensing into a single sentence that a stranger could understand without context.",
+        actionable: "Use this template: '[Customer] struggles with [pain] during [context], causing [consequence].'",
+      },
+    };
+
+    function pickNote(dimension: keyof typeof noteBank) {
+      if (style === "all") {
+        return `${noteBank[dimension].concise} ${noteBank[dimension].kind} ${noteBank[dimension].actionable}`;
+      }
+      if (style === "concise" || style === "kind" || style === "actionable") {
+        return noteBank[dimension][style];
+      }
+      return noteBank[dimension].default;
     }
-    if (evidenceScore < 70) {
-      revisionNotes.push(
-        "Add more concrete interview evidence, observations, or counts that prove this pain is real.",
-      );
-    }
-    if (severityScore < 70) {
-      revisionNotes.push(
-        "Explain the cost of the problem in time, risk, money, or patient experience.",
-      );
-    }
-    if (clarityScore < 70) {
-      revisionNotes.push(
-        "Rewrite the statement so the customer, pain, and context are obvious in one sentence.",
-      );
-    }
+
+    const revisionNotes: string[] = [];
+    if (specificityScore < 70) revisionNotes.push(pickNote("specificity"));
+    if (evidenceScore < 70) revisionNotes.push(pickNote("evidence"));
+    if (severityScore < 70) revisionNotes.push(pickNote("severity"));
+    if (clarityScore < 70) revisionNotes.push(pickNote("clarity"));
 
     return json({
       specificityScore,

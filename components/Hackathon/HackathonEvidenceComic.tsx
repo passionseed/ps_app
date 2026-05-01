@@ -1,22 +1,24 @@
 import { useState } from "react";
 import {
-  Image,
-  type ImageSourcePropType,
   type LayoutChangeEvent,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { Canvas, Circle, Group, LinearGradient, Rect, vec } from "@shopify/react-native-skia";
 import Animated, {
   Extrapolation,
   interpolate,
+  runOnJS,
   type SharedValue,
+  useAnimatedReaction,
   useAnimatedStyle,
 } from "react-native-reanimated";
 import { AppText } from "../AppText";
 import { getHackathonComicPanelPhase } from "../../lib/hackathonComicScene";
 import { Space } from "../../lib/theme";
+import { IMG } from "../../lib/imageResize";
 import type {
   HackathonComicContent,
   HackathonComicPanel,
@@ -57,9 +59,9 @@ function accentColor(accent: string): string {
 function resolvePanelImageSource(
   panel: HackathonComicPanel,
   fallbackUrl: string | null,
-): ImageSourcePropType | null {
+): string | null {
   if (!panel.imageKey) {
-    return fallbackUrl ? { uri: fallbackUrl } : null;
+    return fallbackUrl || null;
   }
 
   if (
@@ -68,10 +70,10 @@ function resolvePanelImageSource(
     panel.imageKey.startsWith("file://") ||
     panel.imageKey.startsWith("/")
   ) {
-    return { uri: panel.imageKey };
+    return panel.imageKey;
   }
 
-  return fallbackUrl ? { uri: fallbackUrl } : null;
+  return fallbackUrl || null;
 }
 
 function PanelAtmosphere({
@@ -108,8 +110,12 @@ function PanelAtmosphere({
   );
 }
 
+/** How many viewports of overscan before unloading a panel */
+const OVERSCAN = 1.5;
+
 function EvidencePanel({
   panel,
+  index,
   fallbackUrl,
   scrollY,
   panelTop,
@@ -118,6 +124,7 @@ function EvidencePanel({
   viewportHeight,
 }: {
   panel: HackathonComicPanel;
+  index: number;
   fallbackUrl: string | null;
   scrollY: SharedValue<number>;
   panelTop: number;
@@ -126,7 +133,23 @@ function EvidencePanel({
   viewportHeight: number;
 }) {
   const accent = accentColor(panel.accent);
-  const imageSource = resolvePanelImageSource(panel, fallbackUrl);
+  const imageSource = IMG.panel(resolvePanelImageSource(panel, fallbackUrl));
+
+  // First panel starts visible to avoid flash of empty content
+  const [visible, setVisible] = useState(index === 0);
+
+  useAnimatedReaction(
+    () => {
+      const top = panelTop - scrollY.value;
+      const bottom = top + height;
+      const buffer = viewportHeight * OVERSCAN;
+      return bottom > -buffer && top < viewportHeight + buffer;
+    },
+    (isVisible, prev) => {
+      if (isVisible !== prev) runOnJS(setVisible)(isVisible);
+    },
+    [panelTop, height, viewportHeight],
+  );
 
   const imageStyle = useAnimatedStyle(() => {
     const phase = getHackathonComicPanelPhase({
@@ -171,40 +194,46 @@ function EvidencePanel({
 
   return (
     <View style={[styles.panel, { width, height }]}>
-      <View style={styles.mediaFrame}>
-        {imageSource ? (
-          <Animated.View style={[styles.panelImageMotion, imageStyle]}>
-            <Image
-              source={imageSource}
-              style={styles.panelImage}
-              resizeMode="cover"
-              accessibilityLabel={panel.headline}
-            />
+      {visible ? (
+        <View style={styles.mediaFrame}>
+          {imageSource ? (
+            <Animated.View style={[styles.panelImageMotion, imageStyle]}>
+              <ExpoImage
+                source={imageSource}
+                style={styles.panelImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={imageSource}
+                accessibilityLabel={panel.headline}
+              />
+            </Animated.View>
+          ) : (
+            <View style={styles.placeholderMedia}>
+              <AppText variant="bold" style={styles.placeholderTitle}>
+                Evidence Snapshot
+              </AppText>
+              <AppText style={styles.placeholderBody}>
+                Art for this panel will plug in here once the comic asset set is generated.
+              </AppText>
+            </View>
+          )}
+
+          <PanelAtmosphere accent={accent} width={width} height={height} />
+
+          <Animated.View style={[styles.captionWrap, captionStyle]}>
+            <View style={styles.copyText}>
+              <AppText variant="bold" style={styles.panelHeadline}>
+                {panel.headline}
+              </AppText>
+              <AppText style={styles.panelBody}>
+                {panel.body}
+              </AppText>
+            </View>
           </Animated.View>
-        ) : (
-          <View style={styles.placeholderMedia}>
-            <AppText variant="bold" style={styles.placeholderTitle}>
-              Evidence Snapshot
-            </AppText>
-            <AppText style={styles.placeholderBody}>
-              Art for this panel will plug in here once the comic asset set is generated.
-            </AppText>
-          </View>
-        )}
-
-        <PanelAtmosphere accent={accent} width={width} height={height} />
-
-        <Animated.View style={[styles.captionWrap, captionStyle]}>
-          <View style={styles.copyText}>
-            <AppText variant="bold" style={styles.panelHeadline}>
-              {panel.headline}
-            </AppText>
-            <AppText style={styles.panelBody}>
-              {panel.body}
-            </AppText>
-          </View>
-        </Animated.View>
-      </View>
+        </View>
+      ) : (
+        <View style={styles.mediaFrame} />
+      )}
     </View>
   );
 }
@@ -234,6 +263,7 @@ export default function HackathonEvidenceComic({
           <EvidencePanel
             key={panel.id}
             panel={panel}
+            index={index}
             fallbackUrl={fallbackUrl}
             scrollY={scrollY}
             panelTop={contentSectionY + componentY + index * (sectionHeight + panelGap)}

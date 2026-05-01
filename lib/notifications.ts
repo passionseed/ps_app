@@ -40,6 +40,14 @@ export function isNotificationsAvailable(): boolean {
   return _notificationsAvailable;
 }
 
+/** @internal Reset module state for testing. */
+export function _resetForTesting(
+  notifModule: typeof import("expo-notifications") | null = null,
+): void {
+  Notifications = notifModule;
+  _notificationsAvailable = !!notifModule;
+}
+
 export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   push_enabled: true,
   reminder_time: "09:00",
@@ -80,6 +88,53 @@ async function updateNotificationProfile(
   }
 }
 
+function isTransientError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message;
+    return /status code: 5\d{2}/.test(msg) || /network/i.test(msg);
+  }
+  return false;
+}
+
+async function getExpoPushTokenWithRetry(
+  maxRetries = 2,
+): Promise<string | null> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const token = await Notifications!.getExpoPushTokenAsync({
+        projectId: getExpoProjectId(),
+      });
+      return token.data;
+    } catch (error) {
+      if (attempt < maxRetries && isTransientError(error)) {
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+        continue;
+      }
+      throw error;
+    }
+  }
+  return null;
+}
+
+/** Get push token only if permission is already granted. Does not prompt. */
+export async function getExistingPushToken(): Promise<string | null> {
+  if (!_notificationsAvailable || !Notifications) {
+    return null;
+  }
+
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") return null;
+    return await getExpoPushTokenWithRetry();
+  } catch (error) {
+    console.warn("[notifications] getExistingPushToken failed:", error);
+    if (!isTransientError(error)) {
+      _notificationsAvailable = false;
+    }
+    return null;
+  }
+}
+
 export async function requestPushPermissions(): Promise<string | null> {
   if (!_notificationsAvailable || !Notifications) {
     return null;
@@ -98,9 +153,8 @@ export async function requestPushPermissions(): Promise<string | null> {
       return null;
     }
 
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId: getExpoProjectId(),
-    });
+    const tokenData = await getExpoPushTokenWithRetry();
+    if (!tokenData) return null;
 
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
@@ -111,10 +165,12 @@ export async function requestPushPermissions(): Promise<string | null> {
       });
     }
 
-    return token.data;
+    return tokenData;
   } catch (error) {
     console.warn("[notifications] Push permissions request failed:", error);
-    _notificationsAvailable = false;
+    if (!isTransientError(error)) {
+      _notificationsAvailable = false;
+    }
     return null;
   }
 }

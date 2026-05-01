@@ -15,7 +15,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { getSupabaseRuntimeConfig } from "./runtime-config";
 import { resolveAppLanguage } from "./app-language";
-import { preloadDiscoverData } from "./pathlab";
+import { preloadDiscoverData, clearPathlabCaches } from "./pathlab";
 import {
   clearHackathonScreenDataCache,
   preloadHackathonHomeBundle,
@@ -229,11 +229,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(session);
         }
         setGuestLanguageState(language);
-        console.log("[Auth] bootstrap hackathonMode:", hackathonMode);
-        if (hackathonMode) {
+        console.log("[Auth] bootstrap hackathonMode:", hackathonMode, "hasSession:", !!session);
+        if (hackathonMode && !session) {
+          // Only enter hackathon mode when there is NO Supabase session.
+          // Hackathon users authenticate via a custom token, never Supabase.
+          // A Supabase session + hackathon_mode=true means the flag is stale.
           setIsHackathon(true);
           void preloadHackathonHomeBundle();
           void preloadHackathonJourneyBundle();
+        } else if (hackathonMode && session) {
+          // Stale flag — clear it so it doesn't recur on next launch
+          console.log("[Auth] Clearing stale hackathon_mode (user has Supabase session)");
+          saveHackathonMode(false);
+          clearHackathonSession();
         }
         void preloadDiscoverData({
           userId: session?.user.id ?? null,
@@ -406,6 +414,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearHackathonSession();
     saveHackathonMode(false);
     clearHackathonScreenDataCache();
+    clearPathlabCaches();
     setIsHackathon(false);
     console.log("[Auth] signOutHackathon done");
   };
@@ -414,6 +423,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("[Auth] signOut start");
     await supabase.auth.signOut();
     clearHackathonScreenDataCache();
+    clearPathlabCaches();
     setProfileLanguageState(null);
     setIsGuest(false);
     console.log("[Auth] signOut done");

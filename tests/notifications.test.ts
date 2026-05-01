@@ -1,37 +1,64 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MobileSettings } from "../types/onboarding";
-import type { PathReflectionDecision } from "../types/pathlab";
 
-const mockGetPermissionsAsync = vi.fn();
-const mockRequestPermissionsAsync = vi.fn();
-const mockGetExpoPushTokenAsync = vi.fn();
-const mockSetNotificationChannelAsync = vi.fn();
-const mockCancelAllScheduledNotificationsAsync = vi.fn();
-const mockScheduleNotificationAsync = vi.fn();
-const mockSetNotificationHandler = vi.fn();
+const {
+  mockGetPermissionsAsync,
+  mockRequestPermissionsAsync,
+  mockGetExpoPushTokenAsync,
+  mockSetNotificationChannelAsync,
+  mockCancelAllScheduledNotificationsAsync,
+  mockScheduleNotificationAsync,
+  mockSetNotificationHandler,
+  mockNotifications,
+  updateEqMock,
+  updateMock,
+  functionsInvokeMock,
+} = vi.hoisted(() => {
+  const mockGetPermissionsAsync = vi.fn();
+  const mockRequestPermissionsAsync = vi.fn();
+  const mockGetExpoPushTokenAsync = vi.fn();
+  const mockSetNotificationChannelAsync = vi.fn();
+  const mockCancelAllScheduledNotificationsAsync = vi.fn();
+  const mockScheduleNotificationAsync = vi.fn();
+  const mockSetNotificationHandler = vi.fn();
 
-const updateEqMock = vi.fn();
-const updateMock = vi.fn(() => ({ eq: updateEqMock }));
-const functionsInvokeMock = vi.fn();
+  const updateEqMock = vi.fn();
+  const updateMock = vi.fn(() => ({ eq: updateEqMock }));
+  const functionsInvokeMock = vi.fn();
 
-vi.mock("expo-notifications", () => ({
-  AndroidImportance: {
-    MAX: "max",
-  },
-  getPermissionsAsync: mockGetPermissionsAsync,
-  requestPermissionsAsync: mockRequestPermissionsAsync,
-  getExpoPushTokenAsync: mockGetExpoPushTokenAsync,
-  setNotificationChannelAsync: mockSetNotificationChannelAsync,
-  cancelAllScheduledNotificationsAsync: mockCancelAllScheduledNotificationsAsync,
-  scheduleNotificationAsync: mockScheduleNotificationAsync,
-  setNotificationHandler: mockSetNotificationHandler,
-  addNotificationReceivedListener: vi.fn(),
-  addNotificationResponseReceivedListener: vi.fn(),
-  removeNotificationSubscription: vi.fn(),
-  dismissNotificationAsync: vi.fn(),
-  getPresentedNotificationsAsync: vi.fn(),
-  setNotificationCategoryAsync: vi.fn(),
-}));
+  const mockNotifications = {
+    AndroidImportance: { MAX: "max" },
+    getPermissionsAsync: mockGetPermissionsAsync,
+    requestPermissionsAsync: mockRequestPermissionsAsync,
+    getExpoPushTokenAsync: mockGetExpoPushTokenAsync,
+    setNotificationChannelAsync: mockSetNotificationChannelAsync,
+    cancelAllScheduledNotificationsAsync: mockCancelAllScheduledNotificationsAsync,
+    scheduleNotificationAsync: mockScheduleNotificationAsync,
+    setNotificationHandler: mockSetNotificationHandler,
+    addNotificationReceivedListener: vi.fn(),
+    addNotificationResponseReceivedListener: vi.fn(),
+    removeNotificationSubscription: vi.fn(),
+    dismissNotificationAsync: vi.fn(),
+    getPresentedNotificationsAsync: vi.fn(),
+    setNotificationCategoryAsync: vi.fn(),
+  };
+
+  return {
+    mockGetPermissionsAsync,
+    mockRequestPermissionsAsync,
+    mockGetExpoPushTokenAsync,
+    mockSetNotificationChannelAsync,
+    mockCancelAllScheduledNotificationsAsync,
+    mockScheduleNotificationAsync,
+    mockSetNotificationHandler,
+    mockNotifications,
+    updateEqMock,
+    updateMock,
+    functionsInvokeMock,
+  };
+});
+
+vi.mock("expo-notifications", () => mockNotifications);
 
 vi.mock("react-native", () => ({
   Platform: { OS: "ios" },
@@ -52,10 +79,7 @@ vi.mock("../lib/supabase", () => ({
   },
 }));
 
-async function loadNotificationsModule() {
-  vi.resetModules();
-  return import("../lib/notifications");
-}
+import * as mod from "../lib/notifications";
 
 describe("notification helpers", () => {
   beforeEach(() => {
@@ -66,10 +90,10 @@ describe("notification helpers", () => {
     mockRequestPermissionsAsync.mockResolvedValue({ status: "granted" });
     mockGetExpoPushTokenAsync.mockResolvedValue({ data: "ExponentPushToken[test]" });
     mockScheduleNotificationAsync.mockResolvedValue("schedule-1");
+    mod._resetForTesting(mockNotifications as any);
   });
 
   it("enables notifications by persisting the token and scheduling the daily reminder", async () => {
-    const mod = await loadNotificationsModule();
     const settings: MobileSettings = {
       push_enabled: true,
       reminder_time: "18:30",
@@ -106,7 +130,6 @@ describe("notification helpers", () => {
   it("falls back to push disabled when permission is denied", async () => {
     mockGetPermissionsAsync.mockResolvedValue({ status: "undetermined" });
     mockRequestPermissionsAsync.mockResolvedValue({ status: "denied" });
-    const mod = await loadNotificationsModule();
 
     const result = await mod.enablePushNotifications("user-1", {
       push_enabled: true,
@@ -135,8 +158,6 @@ describe("notification helpers", () => {
   });
 
   it("disables notifications by clearing the token and canceling reminders", async () => {
-    const mod = await loadNotificationsModule();
-
     const result = await mod.disablePushNotifications("user-1", {
       push_enabled: true,
       reminder_time: "07:00",
@@ -159,9 +180,7 @@ describe("notification helpers", () => {
     expect(mockCancelAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
   });
 
-  it("returns the expected path push events for enrollment and reflection milestones", async () => {
-    const mod = await loadNotificationsModule();
-
+  it("returns the expected path push events for enrollment and reflection milestones", () => {
     expect(mod.getPathNotificationEventsForEnrollment()).toEqual([
       { type: "day_ready", dayNumber: 1 },
     ]);
@@ -192,8 +211,6 @@ describe("notification helpers", () => {
   });
 
   it("invokes the push-notifications edge function for a path event", async () => {
-    const mod = await loadNotificationsModule();
-
     await mod.sendPathNotificationEvent({ type: "day_ready", dayNumber: 5 });
 
     expect(functionsInvokeMock).toHaveBeenCalledWith("push-notifications", {
@@ -201,12 +218,52 @@ describe("notification helpers", () => {
     });
   });
 
-  it("gracefully degrades when getExpoPushTokenAsync throws Firebase init error", async () => {
-    mockGetPermissionsAsync.mockResolvedValue({ status: "granted" });
+  it("retries on transient 503 and succeeds on second attempt", async () => {
+    vi.useFakeTimers();
+    mockGetExpoPushTokenAsync
+      .mockRejectedValueOnce(new Error("HTTP Client Error with status code: 503"))
+      .mockResolvedValueOnce({ data: "ExponentPushToken[retry]" });
+
+    const promise = mod.enablePushNotifications("user-1", {
+      push_enabled: true,
+      reminder_time: "09:00",
+      theme: "light",
+    });
+    await vi.advanceTimersByTimeAsync(5000);
+    const result = await promise;
+
+    expect(result.granted).toBe(true);
+    expect(result.expoPushToken).toBe("ExponentPushToken[retry]");
+    expect(mockGetExpoPushTokenAsync).toHaveBeenCalledTimes(2);
+    expect(mod.isNotificationsAvailable()).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("returns null but keeps notifications available when all retries fail with transient error", async () => {
+    vi.useFakeTimers();
     mockGetExpoPushTokenAsync.mockRejectedValue(
-      new Error("Default FirebaseApp is not initialized in this process com.passionseed.app")
+      new Error("HTTP Client Error with status code: 503"),
     );
-    const mod = await loadNotificationsModule();
+
+    const promise = mod.enablePushNotifications("user-1", {
+      push_enabled: true,
+      reminder_time: "09:00",
+      theme: "light",
+    });
+    await vi.advanceTimersByTimeAsync(10000);
+    const result = await promise;
+
+    expect(result.granted).toBe(false);
+    expect(result.expoPushToken).toBeNull();
+    expect(mockGetExpoPushTokenAsync).toHaveBeenCalledTimes(3); // 1 + 2 retries
+    expect(mod.isNotificationsAvailable()).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("gracefully degrades when getExpoPushTokenAsync throws Firebase init error", async () => {
+    mockGetExpoPushTokenAsync.mockRejectedValue(
+      new Error("Default FirebaseApp is not initialized in this process com.passionseed.app"),
+    );
 
     const result = await mod.enablePushNotifications("user-1", {
       push_enabled: true,
@@ -214,7 +271,6 @@ describe("notification helpers", () => {
       theme: "light",
     });
 
-    // Should degrade gracefully — no crash, push disabled
     expect(result.granted).toBe(false);
     expect(result.expoPushToken).toBeNull();
     expect(result.settings.push_enabled).toBe(false);
@@ -223,18 +279,13 @@ describe("notification helpers", () => {
       expo_push_token: null,
     });
     expect(mockScheduleNotificationAsync).not.toHaveBeenCalled();
+    // Non-transient error should disable notifications
+    expect(mod.isNotificationsAvailable()).toBe(false);
   });
 
   it("returns null from scheduleDailyReminder when notifications are unavailable", async () => {
-    mockGetExpoPushTokenAsync.mockRejectedValue(
-      new Error("Default FirebaseApp is not initialized in this process com.passionseed.app")
-    );
-    const mod = await loadNotificationsModule();
+    mod._resetForTesting(null);
 
-    // First call triggers the Firebase error, marking notifications unavailable
-    await mod.requestPushPermissions();
-
-    // Now scheduleDailyReminder should return null without throwing
     const result = await mod.scheduleDailyReminder(9, 0);
     expect(result).toBeNull();
   });

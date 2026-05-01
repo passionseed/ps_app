@@ -34,6 +34,8 @@ type CacheEntry<T> = {
 };
 
 const CACHE_TTL_MS = 45_000;
+const MAX_PHASE_CACHE = 6;
+const MAX_ACTIVITY_CACHE = 8;
 const cacheKeys = {
   home: "home",
   journey: "journey",
@@ -65,10 +67,18 @@ function readFresh<T>(
 }
 
 function writeCache<T>(store: Map<string, CacheEntry<T>>, key: string, data: T) {
-  store.set(key, {
-    cachedAt: Date.now(),
-    data,
-  });
+  store.set(key, { cachedAt: Date.now(), data });
+  // Cap unbounded caches (phase/activity) to prevent memory growth
+  const limit =
+    store === (phaseBundleCache as unknown as typeof store)
+      ? MAX_PHASE_CACHE
+      : store === (activityBundleCache as unknown as typeof store)
+        ? MAX_ACTIVITY_CACHE
+        : 0;
+  if (limit > 0 && store.size > limit) {
+    const oldest = store.keys().next().value;
+    if (oldest !== undefined) store.delete(oldest);
+  }
   return data;
 }
 
