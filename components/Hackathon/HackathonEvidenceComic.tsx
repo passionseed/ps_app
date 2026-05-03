@@ -18,6 +18,7 @@ import Animated, {
 import { AppText } from "../AppText";
 import { getHackathonComicPanelPhase } from "../../lib/hackathonComicScene";
 import { Space } from "../../lib/theme";
+import { toCdnUrl } from "../../lib/cdn";
 import { IMG } from "../../lib/imageResize";
 import type {
   HackathonComicContent,
@@ -70,10 +71,10 @@ function resolvePanelImageSource(
     panel.imageKey.startsWith("file://") ||
     panel.imageKey.startsWith("/")
   ) {
-    return panel.imageKey;
+    return toCdnUrl(panel.imageKey);
   }
 
-  return fallbackUrl || null;
+  return toCdnUrl(fallbackUrl) || null;
 }
 
 function PanelAtmosphere({

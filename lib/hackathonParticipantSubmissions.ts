@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 import { readHackathonParticipant } from "./hackathon-mode";
 import { supabase } from "./supabase";
+import { toCdnUrl, toCdnUrls } from "./cdn";
 
 export type LatestFeedback = {
   body: string;
@@ -173,8 +174,8 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       textPreview: previewText(r.text_answer),
       fullText: r.text_answer?.trim() || null,
       assessmentType: r.assessment_id ? assessmentTypeMap.get(r.assessment_id) ?? null : null,
-      imageUrl: r.image_url,
-      fileUrls: r.file_urls,
+      imageUrl: toCdnUrl(r.image_url),
+      fileUrls: toCdnUrls(r.file_urls),
       hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
       commentCount: 0,
       latestFeedback: null,
@@ -184,8 +185,8 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
         submissionLabel: r.assessment_id ? assessmentLabelMap.get(r.assessment_id) ?? null : null,
         textPreview: previewText(r.text_answer),
         fullText: r.text_answer?.trim() || null,
-        imageUrl: r.image_url,
-        fileUrls: r.file_urls,
+        imageUrl: toCdnUrl(r.image_url),
+        fileUrls: toCdnUrls(r.file_urls),
         hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
       }],
     }));
@@ -263,8 +264,8 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       submissionLabel: r.assessment_id ? assessmentLabelMap.get(r.assessment_id) ?? null : null,
       textPreview: previewText(r.text_answer),
       fullText: r.text_answer?.trim() || null,
-      imageUrl: r.image_url,
-      fileUrls: r.file_urls,
+      imageUrl: toCdnUrl(r.image_url),
+      fileUrls: toCdnUrls(r.file_urls),
       hasAttachment: Boolean(r.image_url || (r.file_urls && r.file_urls.length > 0)),
     };
 
@@ -292,8 +293,8 @@ export async function fetchParticipantSubmissionsDashboard(): Promise<
       textPreview: previewText(r.text_answer),
       fullText: r.text_answer?.trim() || null,
       assessmentType: r.assessment_id ? assessmentTypeMap.get(r.assessment_id) ?? null : null,
-      imageUrl: r.image_url,
-      fileUrls: r.file_urls,
+      imageUrl: toCdnUrl(r.image_url),
+      fileUrls: toCdnUrls(r.file_urls),
       hasAttachment: answer.hasAttachment,
       commentCount: commentCountMap.get(r.activity_id) ?? 0,
       latestFeedback: feedbackMap.get(r.activity_id) ?? null,
