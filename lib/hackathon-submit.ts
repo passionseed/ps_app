@@ -7,6 +7,7 @@ import {
   formatUploadError,
   isRetryableUploadError,
 } from "./storageUpload";
+import { toCdnUrl } from "./cdn";
 
 export type SubmitResult = {
   submissionId: string;
@@ -510,7 +511,7 @@ export async function submitFile(
     throw formattedError;
   }
 
-  const fileUrl = uploadResult.url;
+  const cdnUrl = toCdnUrl(uploadResult.path);
   const isImage = uploadResult.mimeType.startsWith("image/");
 
   try {
@@ -525,8 +526,8 @@ export async function submitFile(
             activity_id: activityId,
             assessment_id: assessmentId,
             submitted_by: participant.id,
-            image_url: isImage ? fileUrl : null,
-            file_urls: isImage ? null : [fileUrl],
+            image_url: isImage ? cdnUrl : null,
+            file_urls: isImage ? null : [cdnUrl],
             status: "submitted",
             submitted_at: new Date().toISOString(),
           },
@@ -543,7 +544,7 @@ export async function submitFile(
         console.warn("[score] awardScore failed", e)
       );
 
-      return { submissionId: data.id, url: fileUrl };
+      return { submissionId: data.id, url: cdnUrl };
     }
 
     // Individual submission — upsert so the BEFORE UPDATE trigger archives revisions
@@ -554,8 +555,8 @@ export async function submitFile(
           participant_id: participant.id,
           activity_id: activityId,
           assessment_id: assessmentId,
-          image_url: isImage ? fileUrl : null,
-          file_urls: isImage ? null : [fileUrl],
+          image_url: isImage ? storagePath : null,
+          file_urls: isImage ? null : [storagePath],
           status: "submitted",
           submitted_at: new Date().toISOString(),
         },
@@ -572,7 +573,7 @@ export async function submitFile(
       console.warn("[score] awardScore failed", e)
     );
 
-    return { submissionId: data.id, url: fileUrl };
+    return { submissionId: data.id, url: cdnUrl };
   } catch (e: any) {
     Sentry.captureException(e, {
       tags: {

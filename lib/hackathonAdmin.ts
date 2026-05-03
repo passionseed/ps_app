@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { computeTeamRank, type TeamScoreRow } from "./hackathonRanking";
+import { toCdnUrl, toCdnUrls } from "./cdn";
 import type {
   HackathonAdminActivityRow,
   HackathonAdminActivitySubmission,
@@ -194,8 +195,8 @@ function buildSubmissionDirectory(
         submittedAt: submission.submitted_at,
         assessmentId: getValueString(submission.assessment_id),
         textAnswer: submission.text_answer ?? null,
-        imageUrl: submission.image_url ?? null,
-        fileUrls: submission.file_urls ?? null,
+        imageUrl: toCdnUrl(submission.image_url ?? null),
+        fileUrls: toCdnUrls(submission.file_urls ?? null),
         status: submission.status ?? null,
       };
     });
