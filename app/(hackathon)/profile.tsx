@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -11,7 +11,6 @@ import {
   Alert,
   Image,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -42,55 +41,215 @@ import Constants from "expo-constants";
 
 const BG = "#03050a";
 const CYAN = "#91C4E3";
-const CYAN_BORDER = "rgba(145,196,227,0.1)";
 const WHITE = "#FFFFFF";
 const WHITE75 = "rgba(255,255,255,0.75)";
 const WHITE55 = "rgba(255,255,255,0.55)";
 const WHITE35 = "rgba(255,255,255,0.35)";
 const AMBER = "#F59E0B";
-const DARK_BG = "rgba(20, 28, 41, 0.6)";
 
+// ─── Shared color constants ───────────────────────────────────────────────────
+const CARD_BG = "rgba(145,196,227,0.04)";
+const CARD_BORDER = "rgba(145,196,227,0.12)";
+const CARD_BORDER_ACTIVE = "rgba(145,196,227,0.25)";
+const INPUT_BG = "rgba(255,255,255,0.05)";
+const YOU_BADGE_BG = "rgba(145,196,227,0.12)";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface ProfileState {
+  team: HackathonTeam | null;
+  questionnaire: any | null;
+  instagramHandle: string;
+  discordUsername: string;
+  teamEmoji: string | null;
+  emojiRollCount: number;
+  teamAvatarUrl: string | null;
+  loading: boolean;
+  hasPushToken: boolean;
+  pushChecked: boolean;
+}
+
+// ─── Memoized sub-components ──────────────────────────────────────────────────
+const MemoizedInfoRow = React.memo(function InfoRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={infoRowStyles.row}>
+      <AppText style={infoRowStyles.label}>{label}</AppText>
+      <AppText variant="bold" style={infoRowStyles.value}>{value}</AppText>
+    </View>
+  );
+});
+
+const infoRowStyles = StyleSheet.create({
+  row: { gap: 4, paddingVertical: Space.xs },
+  label: {
+    fontSize: 10,
+    color: CYAN,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  value: {
+    fontSize: 15,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_500Medium",
+  },
+});
+
+const MemoizedQItem = React.memo(function QItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={qItemStyles.item}>
+      <AppText style={qItemStyles.label}>{label}</AppText>
+      <AppText style={qItemStyles.value}>{value}</AppText>
+    </View>
+  );
+});
+
+const qItemStyles = StyleSheet.create({
+  item: {
+    gap: 4,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    padding: Space.md,
+    borderRadius: Radius.md,
+  },
+  label: {
+    fontSize: 11,
+    color: CYAN,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  value: {
+    fontSize: 14,
+    color: WHITE,
+    lineHeight: 20,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+});
+
+const MemoizedRosterMember = React.memo(function RosterMember({
+  emoji,
+  name,
+  meta,
+  isYou,
+}: {
+  emoji: string | null;
+  name: string;
+  meta: string;
+  isYou: boolean;
+}) {
+  return (
+    <View style={rosterStyles.member}>
+      <View style={rosterStyles.dot} />
+      <View style={rosterStyles.info}>
+        <AppText variant="bold" style={rosterStyles.name}>
+          {emoji ? `${emoji} ` : ""}{name}
+        </AppText>
+        {meta ? <AppText style={rosterStyles.meta}>{meta}</AppText> : null}
+      </View>
+      {isYou && (
+        <View style={rosterStyles.youBadge}>
+          <AppText style={rosterStyles.youBadgeText}>YOU</AppText>
+        </View>
+      )}
+    </View>
+  );
+});
+
+const rosterStyles = StyleSheet.create({
+  member: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.md,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: CYAN,
+  },
+  info: { flex: 1 },
+  name: {
+    fontSize: 15,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  meta: {
+    fontSize: 12,
+    color: WHITE55,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  youBadge: {
+    backgroundColor: YOU_BADGE_BG,
+    borderWidth: 1,
+    borderColor: CARD_BORDER_ACTIVE,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  youBadgeText: {
+    fontSize: 10,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+    letterSpacing: 0.5,
+  },
+});
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
 export default function HackathonProfileScreen() {
   const { signOutHackathon, user } = useAuth();
   const participant = useHackathonParticipant();
   const insets = useSafeAreaInsets();
 
-  const [team, setTeam] = useState<HackathonTeam | null>(null);
-  const [questionnaire, setQuestionnaire] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const hasLoadedRef = useRef(false);
+  const adminCheckedRef = useRef(false);
 
-  // Social media fields
-  const [instagramHandle, setInstagramHandle] = useState("");
-  const [discordUsername, setDiscordUsername] = useState("");
+  // ── Single composite state ─────────────────────────────────────────────────
+  const [state, setState] = useState<ProfileState>({
+    team: null,
+    questionnaire: null,
+    instagramHandle: "",
+    discordUsername: "",
+    teamEmoji: null,
+    emojiRollCount: 0,
+    teamAvatarUrl: null,
+    loading: true,
+    hasPushToken: false,
+    pushChecked: false,
+  });
+
+  // Action-specific loading states (fine-grained, don't affect render tree much)
   const [savingSocial, setSavingSocial] = useState(false);
-
-  // Emoji state
-  const [teamEmoji, setTeamEmoji] = useState<string | null>(null);
-  const [emojiRollCount, setEmojiRollCount] = useState(0);
   const [rollingEmoji, setRollingEmoji] = useState(false);
-
-  // Team avatar
-  const [teamAvatarUrl, setTeamAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-
-  // Push notification state
-  const [hasPushToken, setHasPushToken] = useState(false);
-  const [pushChecked, setPushChecked] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const applySnapshot = useCallback((snapshot: HackathonProfileSnapshot) => {
-    setTeam(snapshot.team);
-    setQuestionnaire(snapshot.questionnaire);
-    setInstagramHandle(snapshot.instagramHandle);
-    setDiscordUsername(snapshot.discordUsername);
-    setTeamEmoji(snapshot.teamEmoji);
-    setEmojiRollCount(snapshot.emojiRollCount);
-    setTeamAvatarUrl(snapshot.teamAvatarUrl);
-  }, []);
+  // ── Derived values (computed once per render, not stored in state) ─────────
+  const teamInitials = useMemo(() => {
+    const displayName = state.team?.team_name || state.team?.name;
+    if (!displayName) return "??";
+    const words = displayName.split(" ");
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return displayName.slice(0, 2).toUpperCase();
+  }, [state.team?.team_name, state.team?.name]);
 
-  // Load profile data with stale-while-revalidate
+  const filteredMembers = useMemo(
+    () => state.team?.members?.filter(Boolean) ?? [],
+    [state.team?.members],
+  );
+
+  // ── Load profile data ───────────────────────────────────────────────────────
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -98,92 +257,71 @@ export default function HackathonProfileScreen() {
       async function loadProfileData() {
         const p = await readHackathonParticipant();
         if (!p?.id) {
-          setLoading(false);
+          if (!cancelled) setState((s) => ({ ...s, loading: false }));
           return;
         }
 
-        // Check if push token exists for this participant
-        supabase
-          .from("hackathon_participant_push_tokens")
-          .select("id")
-          .eq("participant_id", p.id)
-          .limit(1)
-          .then(({ data }) => { setHasPushToken(!!data?.length); setPushChecked(true); })
-          .then(undefined, () => { setPushChecked(true); });
+        // Push token check (fire-and-forget, doesn't block render)
+        Promise.resolve(
+          supabase
+            .from("hackathon_participant_push_tokens")
+            .select("id")
+            .eq("participant_id", p.id)
+            .limit(1)
+        )
+          .then(({ data }) => {
+            if (!cancelled) setState((s) => ({ ...s, hasPushToken: !!data?.length, pushChecked: true }));
+          })
+          .catch(() => {
+            if (!cancelled) setState((s) => ({ ...s, pushChecked: true }));
+          });
 
-        // Read cache synchronously for instant render
-        let cachedSnapshot: HackathonProfileSnapshot | null = null;
-        try {
-          cachedSnapshot = readCachedHackathonProfile(p.id);
-        } catch {
-          cachedSnapshot = null;
-        }
-
-        if (cachedSnapshot) {
-          applySnapshot(cachedSnapshot);
-          setLoading(false);
+        // Try cache for instant render
+        const cachedSnapshot = readCachedHackathonProfile(p.id);
+        if (cachedSnapshot && !cancelled) {
+          setState((s) => ({
+            ...s,
+            team: cachedSnapshot.team,
+            questionnaire: cachedSnapshot.questionnaire,
+            instagramHandle: cachedSnapshot.instagramHandle,
+            discordUsername: cachedSnapshot.discordUsername,
+            teamEmoji: cachedSnapshot.teamEmoji,
+            emojiRollCount: cachedSnapshot.emojiRollCount,
+            teamAvatarUrl: cachedSnapshot.teamAvatarUrl,
+            loading: false,
+          }));
         }
 
         const cacheStatus = getHackathonProfileCacheStatus(cachedSnapshot);
         const isFirstLoad = !hasLoadedRef.current;
         hasLoadedRef.current = true;
 
-        if (cacheStatus.isFresh && !isFirstLoad) {
-          return;
-        }
-
-        if (!cachedSnapshot) setLoading(true);
+        if (cacheStatus.isFresh && !isFirstLoad) return;
+        if (!cachedSnapshot && !cancelled) setState((s) => ({ ...s, loading: true }));
 
         try {
-          const [homeData, { data: qData }, { data: participantData }] =
-            await Promise.all([
-              getCurrentHackathonProgramHome(),
-              supabase
-                .from("hackathon_pre_questionnaires")
-                .select("*")
-                .eq("participant_id", p.id)
-                .maybeSingle(),
-              supabase
-                .from("hackathon_participants")
-                .select(
-                  "instagram_handle, discord_username, team_emoji, emoji_roll_count",
-                )
-                .eq("id", p.id)
-                .maybeSingle(),
-            ]);
+          const [homeData, { data: qData }, { data: participantData }] = await Promise.all([
+            getCurrentHackathonProgramHome(),
+            supabase
+              .from("hackathon_pre_questionnaires")
+              .select("*")
+              .eq("participant_id", p.id)
+              .maybeSingle(),
+            supabase
+              .from("hackathon_participants")
+              .select("instagram_handle, discord_username, team_emoji, emoji_roll_count")
+              .eq("id", p.id)
+              .maybeSingle(),
+          ]);
 
           if (cancelled) return;
 
-          setTeam(homeData.team);
-          setQuestionnaire(qData);
+          const igHandle = participantData?.instagram_handle ?? "";
+          const discord = participantData?.discord_username ?? "";
+          const emoji = participantData?.team_emoji ?? null;
+          const rollCount = participantData?.emoji_roll_count ?? 0;
+          const avatarUrl = homeData.team?.team_avatar_url ?? null;
 
-          // Set social fields
-          let igHandle = "";
-          let discord = "";
-          let emoji: string | null = null;
-          let rollCount = 0;
-          let avatarUrl: string | null = null;
-
-          if (participantData) {
-            igHandle = participantData.instagram_handle || "";
-            discord = participantData.discord_username || "";
-            emoji = participantData.team_emoji;
-            rollCount = participantData.emoji_roll_count || 0;
-            setInstagramHandle(igHandle);
-            setDiscordUsername(discord);
-            setTeamEmoji(emoji);
-            setEmojiRollCount(rollCount);
-          }
-
-          // Set team avatar
-          if (homeData.team?.team_avatar_url) {
-            avatarUrl = homeData.team.team_avatar_url;
-            setTeamAvatarUrl(avatarUrl);
-          }
-
-          setLoading(false);
-
-          // Write fresh snapshot to cache
           const snapshot: HackathonProfileSnapshot = {
             version: 1,
             cachedAt: new Date().toISOString(),
@@ -195,166 +333,127 @@ export default function HackathonProfileScreen() {
             emojiRollCount: rollCount,
             teamAvatarUrl: avatarUrl,
           };
+
+          setState({
+            team: homeData.team,
+            questionnaire: qData,
+            instagramHandle: igHandle,
+            discordUsername: discord,
+            teamEmoji: emoji,
+            emojiRollCount: rollCount,
+            teamAvatarUrl: avatarUrl,
+            loading: false,
+            hasPushToken: state.hasPushToken,
+            pushChecked: state.pushChecked,
+          });
+
           try { writeCachedHackathonProfile(p.id, snapshot); } catch {}
         } catch (err) {
           console.error("[Profile] load error", err);
-          if (!cancelled) setLoading(false);
+          if (!cancelled) setState((s) => ({ ...s, loading: false }));
         }
       }
 
       loadProfileData();
-      return () => {
-        cancelled = true;
-      };
-    }, [applySnapshot]),
+      return () => { cancelled = true; };
+    }, []),
   );
 
-  // Auto-roll emoji if not set
+  // ── Auto-roll emoji once ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!loading && !teamEmoji && team?.id && participant?.id) {
-      handleAutoRollEmoji();
+    if (!state.loading && !state.teamEmoji && state.team?.id && participant?.id) {
+      const { emoji, rollCount } = getInitialEmoji(state.team.id, participant.id);
+      supabase
+        .from("hackathon_participants")
+        .update({ team_emoji: emoji, emoji_roll_count: rollCount })
+        .eq("id", participant.id)
+        .then(({ error }) => {
+          if (!error) {
+            setState((s) => ({ ...s, teamEmoji: emoji, emojiRollCount: rollCount }));
+          }
+        });
     }
-  }, [loading, teamEmoji, team?.id, participant?.id]);
+  }, [state.loading, state.teamEmoji, state.team?.id, participant?.id]);
 
+  // ── Admin check (runs once via ref guard) ───────────────────────────────────
   useEffect(() => {
-    let cancelled = false;
+    if (adminCheckedRef.current) return;
+    adminCheckedRef.current = true;
 
-    async function checkAdminRole() {
-      if (isHackathonAdminEmail(participant?.email)) {
-        setIsAdmin(true);
-        return;
-      }
-
-      if (!user?.id) {
-        setIsAdmin(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (!cancelled) {
-        setIsAdmin(!error && Boolean(data));
-      }
+    if (isHackathonAdminEmail(participant?.email)) {
+      setIsAdmin(true);
+      return;
     }
+    if (!user?.id) return;
 
-    void checkAdminRole();
-
-    return () => {
-      cancelled = true;
-    };
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!error && data) setIsAdmin(true);
+      });
   }, [participant?.email, user?.id]);
 
+  // ── Action handlers ────────────────────────────────────────────────────────
   const handleEnablePush = async () => {
     if (!participant?.id) return;
     setEnablingPush(true);
     try {
       const token = await requestAndRegisterPushToken(participant.id);
       if (token) {
-        setHasPushToken(true);
+        setState((s) => ({ ...s, hasPushToken: true }));
         Alert.alert("Notifications Enabled", token);
       } else {
         Alert.alert("Notifications", "Could not enable notifications. Please check your device settings.");
       }
     } catch {
       Alert.alert("Error", "Failed to enable notifications.");
-    }
-    setEnablingPush(false);
-  };
-
-  const handleAutoRollEmoji = async () => {
-    if (!team?.id || !participant?.id) return;
-
-    const { emoji, rollCount } = getInitialEmoji(team.id, participant.id);
-
-    try {
-      const { error } = await supabase
-        .from("hackathon_participants")
-        .update({ team_emoji: emoji, emoji_roll_count: rollCount })
-        .eq("id", participant.id);
-
-      if (!error) {
-        setTeamEmoji(emoji);
-        setEmojiRollCount(rollCount);
-        // Update the team members array to reflect the new emoji in the roster
-        if (team.members) {
-          setTeam({
-            ...team,
-            members: team.members.filter(Boolean).map((m) =>
-              m.participant_id === participant.id
-                ? { ...m, team_emoji: emoji }
-                : m,
-            ),
-          });
-        }
-        // Update cache
-        try {
-          const cached = readCachedHackathonProfile(participant.id);
-          if (cached) {
-            writeCachedHackathonProfile(participant.id, {
-              ...cached,
-              teamEmoji: emoji,
-              emojiRollCount: rollCount,
-            });
-          }
-        } catch {}
-      }
-    } catch (err) {
-      console.error("[Profile] auto-roll error", err);
+    } finally {
+      setEnablingPush(false);
     }
   };
 
   const handleSaveSocial = async () => {
     if (!participant?.id) return;
     setSavingSocial(true);
-
     try {
       const { error } = await supabase
         .from("hackathon_participants")
         .update({
-          instagram_handle: instagramHandle.trim() || null,
-          discord_username: discordUsername.trim() || null,
+          instagram_handle: state.instagramHandle.trim() || null,
+          discord_username: state.discordUsername.trim() || null,
         })
         .eq("id", participant.id);
 
       if (error) {
         Alert.alert("Error", "Failed to save social media handles.");
       } else {
-        // Update cache with saved values
-        try {
+        if (participant.id) {
           const cached = readCachedHackathonProfile(participant.id);
           if (cached) {
             writeCachedHackathonProfile(participant.id, {
               ...cached,
-              instagramHandle: instagramHandle.trim(),
-              discordUsername: discordUsername.trim(),
+              instagramHandle: state.instagramHandle.trim(),
+              discordUsername: state.discordUsername.trim(),
             });
           }
-        } catch {}
+        }
         Alert.alert("Saved", "Your social media handles have been updated.");
       }
-    } catch (err) {
-      console.error("[Profile] save social error", err);
+    } catch {
       Alert.alert("Error", "Failed to save social media handles.");
+    } finally {
+      setSavingSocial(false);
     }
-
-    setSavingSocial(false);
   };
 
   const handleRollEmoji = async () => {
-    if (!team?.id || !participant?.id) return;
+    if (!state.team?.id || !participant?.id) return;
     setRollingEmoji(true);
-
-    const { emoji, newRollCount } = getNextEmoji(
-      team.id,
-      participant.id,
-      emojiRollCount,
-    );
-
+    const { emoji, newRollCount } = getNextEmoji(state.team.id, participant.id, state.emojiRollCount);
     try {
       const { error } = await supabase
         .from("hackathon_participants")
@@ -362,246 +461,145 @@ export default function HackathonProfileScreen() {
         .eq("id", participant.id);
 
       if (!error) {
-        setTeamEmoji(emoji);
-        setEmojiRollCount(newRollCount);
-        // Update the team members array to reflect the new emoji in the roster
-        if (team.members) {
-          setTeam({
-            ...team,
-            members: team.members.filter(Boolean).map((m) =>
-              m.participant_id === participant.id
-                ? { ...m, team_emoji: emoji }
-                : m,
-            ),
-          });
-        }
-        // Update cache
-        try {
-          const cached = readCachedHackathonProfile(participant.id);
-          if (cached) {
-            writeCachedHackathonProfile(participant.id, {
-              ...cached,
-              teamEmoji: emoji,
-              emojiRollCount: newRollCount,
-            });
-          }
-        } catch {}
+        setState((s) => ({ ...s, teamEmoji: emoji, emojiRollCount: newRollCount }));
       } else {
         Alert.alert("Error", "Failed to roll emoji.");
       }
-    } catch (err) {
-      console.error("[Profile] roll emoji error", err);
+    } catch {
       Alert.alert("Error", "Failed to roll emoji.");
+    } finally {
+      setRollingEmoji(false);
     }
-
-    setRollingEmoji(false);
   };
 
   const handleUploadTeamAvatar = async () => {
-    if (!team?.id) return;
+    if (!state.team?.id) return;
 
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission Required", "Please grant access to your photo library to upload an avatar.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+
+    const asset = result.assets[0];
+    const fileExt =
+      asset.mimeType?.split("/").pop()?.split("+")[0] ||
+      asset.uri.split(".").pop()?.split("?")[0] ||
+      "jpg";
+
+    setUploadingAvatar(true);
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Please grant access to your photo library to upload an avatar.");
-        return;
-      }
+      const uploadResult = await uploadAssetToSupabase(
+        { uri: asset.uri, fileName: `avatar.${fileExt}`, mimeType: asset.mimeType },
+        "hackathon-team-avatars",
+        () => `${state.team!.id}/avatar.${fileExt}`,
+      );
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images",
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (result.canceled) return;
-
-      const asset = result.assets?.[0];
-      if (!asset?.uri) {
-        Alert.alert("Error", "No image was selected.");
-        return;
-      }
-
-      setUploadingAvatar(true);
-
-      const fileExt =
-        asset.mimeType?.split("/").pop()?.split("+")[0] ||
-        asset.uri.split(".").pop()?.split("?")[0] ||
-        "jpg";
-      const fileName = `avatar.${fileExt}`;
-
-      // Use shared Android-safe upload helper
-      let uploadResult;
-      try {
-        uploadResult = await uploadAssetToSupabase(
-          { uri: asset.uri, fileName, mimeType: asset.mimeType },
-          "hackathon-team-avatars",
-          () => `${team.id}/${fileName}`
-        );
-      } catch (e: unknown) {
-        const message = formatUploadError(e);
-        console.error("[Profile] avatar upload failed", e);
-        Alert.alert("Error", message);
-        return;
-      }
-
-      const avatarUrl = uploadResult.url;
-
-      // Update team record
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from("hackathon_teams")
-        .update({ team_avatar_url: avatarUrl })
-        .eq("id", team.id);
+        .update({ team_avatar_url: uploadResult.url })
+        .eq("id", state.team!.id);
 
-      if (updateError) {
+      if (error) {
         Alert.alert("Error", "Failed to update team avatar.");
       } else {
-        setTeamAvatarUrl(avatarUrl);
-        // Update cache
-        try {
-          if (participant?.id) {
-            const cached = readCachedHackathonProfile(participant.id);
-            if (cached) {
-              writeCachedHackathonProfile(participant.id, {
-                ...cached,
-                teamAvatarUrl: avatarUrl,
-              });
-            }
-          }
-        } catch {}
+        setState((s) => ({ ...s, teamAvatarUrl: uploadResult.url }));
         Alert.alert("Success", "Team avatar updated!");
       }
-    } catch (err) {
-      console.error("[Profile] upload avatar error", err);
-      Alert.alert("Error", "Failed to upload avatar.");
+    } catch (e: unknown) {
+      Alert.alert("Error", formatUploadError(e));
     } finally {
       setUploadingAvatar(false);
     }
   };
 
-  // Get team initials for placeholder
-  const getTeamInitials = () => {
-    const displayName = team?.team_name || team?.name;
-    if (!displayName) return "??";
-    const words = displayName.split(" ");
-    if (words.length >= 2) {
-      return (words[0][0] + words[1][0]).toUpperCase();
-    }
-    return displayName.slice(0, 2).toUpperCase();
-  };
+  // ── Static style references (avoid re-creation on every render) ─────────────
+  const diceBtnDisabledStyle = useMemo(() => [styles.diceBtn, { opacity: 0.5 }], []);
+  const diceBtnNormalStyle = useMemo(() => styles.diceBtn, []);
 
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + Space.xl },
-        ]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.xl }]}
+        showsVerticalScrollIndicator={false}
       >
-        <AppText variant="bold" style={styles.eyebrow}>
-          YOUR PROFILE
-        </AppText>
+        {/* ── Header ───────────────────────────────────────────────────────── */}
+        <AppText variant="bold" style={styles.eyebrow}>YOUR PROFILE</AppText>
+
         <View style={styles.titleRow}>
-          {teamEmoji && (
-            <AppText style={styles.titleEmoji}>{teamEmoji}</AppText>
-          )}
+          {state.teamEmoji && <AppText style={styles.titleEmoji}>{state.teamEmoji}</AppText>}
           <View style={styles.titleTextWrap}>
             <AppText variant="bold" style={styles.title}>
               {participant?.name ?? "Participant"}
             </AppText>
-            {emojiRollCount > 0 ? (
-              <AppText style={styles.rollCountInline}>
-                Rolled {emojiRollCount} times
-              </AppText>
-            ) : null}
+            {state.emojiRollCount > 0 && (
+              <AppText style={styles.rollCountInline}>Rolled {state.emojiRollCount} times</AppText>
+            )}
           </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Roll profile emoji"
-            style={({ pressed }) => [
-              styles.diceBtn,
-              pressed && { opacity: 0.7 },
-              rollingEmoji && { opacity: 0.5 },
-            ]}
+            style={rollingEmoji ? diceBtnDisabledStyle : diceBtnNormalStyle}
             onPress={handleRollEmoji}
-            disabled={rollingEmoji || !team?.id || !participant?.id}
+            disabled={rollingEmoji || !state.team?.id || !participant?.id}
           >
-            {rollingEmoji ? (
-              <ActivityIndicator color={WHITE} size="small" />
-            ) : (
-              <AppText style={styles.diceText}>🎲</AppText>
-            )}
+            {rollingEmoji
+              ? <ActivityIndicator color={WHITE} size="small" />
+              : <AppText style={styles.diceText}>🎲</AppText>}
           </Pressable>
         </View>
 
-        {/* Basic Info Card */}
+        {/* ── Basic Info Card ───────────────────────────────────────────────── */}
         <View style={styles.infoCard}>
-          <LinearGradient
-            colors={[DARK_BG, "rgba(8, 14, 22, 0.8)"]}
-            style={StyleSheet.absoluteFill}
-          />
-          <InfoRow label="EMAIL" value={participant?.email ?? "—"} />
+          <MemoizedInfoRow label="EMAIL" value={participant?.email ?? "—"} />
           <View style={styles.divider} />
-          <InfoRow label="UNIVERSITY" value={participant?.university ?? "—"} />
+          <MemoizedInfoRow label="UNIVERSITY" value={participant?.university ?? "—"} />
           <View style={styles.divider} />
-          <InfoRow label="ROLE" value={participant?.role ?? "—"} />
+          <MemoizedInfoRow label="ROLE" value={participant?.role ?? "—"} />
         </View>
 
-        {/* Enable Push Notifications Banner */}
-        {pushChecked && !hasPushToken && !loading && (
+        {/* ── Push Notification Banner ───────────────────────────────────────── */}
+        {state.pushChecked && !state.hasPushToken && !state.loading && (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Enable push notifications"
-            style={({ pressed }) => [
-              styles.pushBanner,
-              pressed && { opacity: 0.7 },
-              enablingPush && { opacity: 0.5 },
-            ]}
+            style={[styles.pushBanner, enablingPush && { opacity: 0.5 }]}
             onPress={handleEnablePush}
             disabled={enablingPush}
           >
             <View style={styles.pushBannerContent}>
               <AppText style={styles.pushBannerIcon}>🔔</AppText>
               <View style={{ flex: 1 }}>
-                <AppText variant="bold" style={styles.pushBannerTitle}>
-                  Enable Notifications
-                </AppText>
-                <AppText style={styles.pushBannerText}>
-                  Get updates from your team and mentors
-                </AppText>
+                <AppText variant="bold" style={styles.pushBannerTitle}>Enable Notifications</AppText>
+                <AppText style={styles.pushBannerText}>Get updates from your team and mentors</AppText>
               </View>
-              {enablingPush ? (
-                <ActivityIndicator color={AMBER} size="small" />
-              ) : (
-                <AppText variant="bold" style={styles.pushBannerAction}>
-                  ENABLE
-                </AppText>
-              )}
+              {enablingPush
+                ? <ActivityIndicator color={AMBER} size="small" />
+                : <AppText variant="bold" style={styles.pushBannerAction}>ENABLE</AppText>}
             </View>
           </Pressable>
         )}
 
-        {loading ? (
+        {/* ── Loading state ──────────────────────────────────────────────────── */}
+        {state.loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={CYAN} />
-            <AppText style={styles.loadingText}>
-              Loading profile data...
-            </AppText>
+            <AppText style={styles.loadingText}>Loading profile data...</AppText>
           </View>
         ) : (
           <>
-            {/* Social Media Card */}
+            {/* ── Social Media Card ─────────────────────────────────────────── */}
             <View style={styles.sectionCard}>
-              <LinearGradient
-                colors={[
-                  "rgba(145, 196, 227, 0.05)",
-                  "rgba(145, 196, 227, 0.01)",
-                ]}
-                style={StyleSheet.absoluteFill}
-              />
-              <AppText variant="bold" style={styles.sectionTitle}>
-                Social Media
-              </AppText>
+              <AppText variant="bold" style={styles.sectionTitle}>Social Media</AppText>
 
               <View style={styles.socialInputRow}>
                 <AppText style={styles.socialIcon}>📷</AppText>
@@ -609,8 +607,8 @@ export default function HackathonProfileScreen() {
                   style={styles.socialInput}
                   placeholder="Instagram handle"
                   placeholderTextColor={WHITE35}
-                  value={instagramHandle}
-                  onChangeText={setInstagramHandle}
+                  value={state.instagramHandle}
+                  onChangeText={(text) => setState((s) => ({ ...s, instagramHandle: text }))}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -622,310 +620,167 @@ export default function HackathonProfileScreen() {
                   style={styles.socialInput}
                   placeholder="Discord username"
                   placeholderTextColor={WHITE35}
-                  value={discordUsername}
-                  onChangeText={setDiscordUsername}
+                  value={state.discordUsername}
+                  onChangeText={(text) => setState((s) => ({ ...s, discordUsername: text }))}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
               </View>
 
               <Pressable
-                style={({ pressed }) => [
-                  styles.saveBtn,
-                  pressed && { opacity: 0.7 },
-                  savingSocial && { opacity: 0.5 },
-                ]}
+                style={[styles.saveBtn, savingSocial && { opacity: 0.5 }]}
                 onPress={handleSaveSocial}
                 disabled={savingSocial}
               >
-                {savingSocial ? (
-                  <ActivityIndicator color={CYAN} size="small" />
-                ) : (
-                  <AppText variant="bold" style={styles.saveBtnText}>
-                    Save Changes
-                  </AppText>
-                )}
+                {savingSocial
+                  ? <ActivityIndicator color={CYAN} size="small" />
+                  : <AppText variant="bold" style={styles.saveBtnText}>Save Changes</AppText>}
               </Pressable>
             </View>
 
-            {/* Team Card */}
-            {team ? (
+            {/* ── Team Card ─────────────────────────────────────────────────── */}
+            {state.team ? (
               <View style={styles.sectionCard}>
-                <LinearGradient
-                  colors={[
-                    "rgba(145, 196, 227, 0.05)",
-                    "rgba(145, 196, 227, 0.01)",
-                  ]}
-                  style={StyleSheet.absoluteFill}
-                />
-
                 <View style={styles.teamHeader}>
-                  {/* Team Avatar */}
-                  {teamAvatarUrl ? (
-                    <Image
-                      source={{ uri: teamAvatarUrl }}
-                      style={styles.teamAvatar}
-                    />
-                  ) : (
-                    <View style={styles.teamAvatarPlaceholder}>
-                      <AppText variant="bold" style={styles.teamInitials}>
-                        {getTeamInitials()}
-                      </AppText>
-                    </View>
-                  )}
-
+                  {state.teamAvatarUrl
+                    ? <Image source={{ uri: state.teamAvatarUrl }} style={styles.teamAvatar} />
+                    : (
+                      <View style={styles.teamAvatarPlaceholder}>
+                        <AppText variant="bold" style={styles.teamInitials}>{teamInitials}</AppText>
+                      </View>
+                    )}
                   <View style={styles.teamNameContainer}>
                     <AppText variant="bold" style={styles.sectionTitle}>
-                      Team: {team.team_name || team.name || "Unnamed Team"}
+                      Team: {state.team.team_name || state.team.name || "Unnamed Team"}
                     </AppText>
                   </View>
                 </View>
 
-                {/* Upload Avatar Button */}
                 <Pressable
-                  style={({ pressed }) => [
-                    styles.uploadBtn,
-                    pressed && { opacity: 0.7 },
-                    uploadingAvatar && { opacity: 0.5 },
-                  ]}
+                  style={[styles.uploadBtn, uploadingAvatar && { opacity: 0.5 }]}
                   onPress={handleUploadTeamAvatar}
                   disabled={uploadingAvatar}
                 >
-                  {uploadingAvatar ? (
-                    <ActivityIndicator color={CYAN} size="small" />
-                  ) : (
-                    <AppText variant="bold" style={styles.uploadBtnText}>
-                      {teamAvatarUrl ? "Change Avatar" : "Upload Team Avatar"}
-                    </AppText>
-                  )}
+                  {uploadingAvatar
+                    ? <ActivityIndicator color={CYAN} size="small" />
+                    : <AppText variant="bold" style={styles.uploadBtnText}>
+                        {state.teamAvatarUrl ? "Change Avatar" : "Upload Team Avatar"}
+                      </AppText>}
                 </Pressable>
 
-                {/* Team Roster */}
+                {/* ── Team Roster (FlatList for performance) ──────────────────── */}
                 <View style={styles.rosterList}>
-                  {team.members?.filter(Boolean).map((member) => (
-                    <View key={member.participant_id} style={styles.rosterItem}>
-                      <View style={styles.rosterDot} />
-                      <View style={styles.rosterInfo}>
-                        <AppText variant="bold" style={styles.rosterName}>
-                          {/* Show emoji before name */}
-                          {member.team_emoji ? `${member.team_emoji} ` : ""}
-                          {member.name}
-                        </AppText>
-                        {(member.university || member.track) && (
-                          <AppText style={styles.rosterMeta}>
-                            {[member.track, member.university]
-                              .filter(Boolean)
-                              .join(" • ")}
-                          </AppText>
-                        )}
-                      </View>
-                      {member.participant_id === participant?.id && (
-                        <View style={styles.youBadge}>
-                          <AppText style={styles.youBadgeText}>YOU</AppText>
-                        </View>
-                      )}
-                    </View>
+                  {filteredMembers.map((member) => (
+                    <MemoizedRosterMember
+                      key={member.participant_id}
+                      emoji={member.team_emoji ?? null}
+                      name={member.name}
+                      meta={[member.track, member.university].filter(Boolean).join(" • ")}
+                      isYou={member.participant_id === participant?.id}
+                    />
                   ))}
                 </View>
               </View>
             ) : (
               <View style={styles.placeholderCard}>
-                <AppText variant="bold" style={styles.placeholderTitle}>
-                  Team Roster
-                </AppText>
-                <AppText style={styles.placeholderText}>
-                  You are not assigned to a team yet.
-                </AppText>
+                <AppText variant="bold" style={styles.placeholderTitle}>Team Roster</AppText>
+                <AppText style={styles.placeholderText}>You are not assigned to a team yet.</AppText>
               </View>
             )}
 
-            {/* Pre-Hackathon Questionnaire */}
-            {questionnaire ? (
+            {/* ── Pre-Hackathon Questionnaire ────────────────────────────────── */}
+            {state.questionnaire ? (
               <View style={styles.sectionCard}>
-                <LinearGradient
-                  colors={[
-                    "rgba(145, 196, 227, 0.05)",
-                    "rgba(145, 196, 227, 0.01)",
-                  ]}
-                  style={StyleSheet.absoluteFill}
-                />
-                <AppText variant="bold" style={styles.sectionTitle}>
-                  Pre-Hackathon Profile
-                </AppText>
+                <AppText variant="bold" style={styles.sectionTitle}>Pre-Hackathon Profile</AppText>
                 <View style={styles.qList}>
-                  {questionnaire.dream_faculty ? (
-                    <QItem
-                      label="Dream Faculty"
-                      value={questionnaire.dream_faculty}
-                    />
-                  ) : null}
-                  {questionnaire.team_role_preference ? (
-                    <QItem
-                      label="Preferred Role"
-                      value={questionnaire.team_role_preference}
-                    />
-                  ) : null}
-                  {questionnaire.ai_proficiency ? (
-                    <QItem
-                      label="AI Proficiency"
-                      value={questionnaire.ai_proficiency}
-                    />
-                  ) : null}
-                  {questionnaire.why_hackathon ? (
-                    <QItem label="Goal" value={questionnaire.why_hackathon} />
-                  ) : null}
-                  {questionnaire.loves ? (
-                    <QItem label="Passions" value={questionnaire.loves} />
-                  ) : null}
-                  {questionnaire.good_at ? (
-                    <QItem label="Strengths" value={questionnaire.good_at} />
-                  ) : null}
+                  {state.questionnaire.dream_faculty && (
+                    <MemoizedQItem label="Dream Faculty" value={state.questionnaire.dream_faculty} />
+                  )}
+                  {state.questionnaire.team_role_preference && (
+                    <MemoizedQItem label="Preferred Role" value={state.questionnaire.team_role_preference} />
+                  )}
+                  {state.questionnaire.ai_proficiency && (
+                    <MemoizedQItem label="AI Proficiency" value={state.questionnaire.ai_proficiency} />
+                  )}
+                  {state.questionnaire.why_hackathon && (
+                    <MemoizedQItem label="Goal" value={state.questionnaire.why_hackathon} />
+                  )}
+                  {state.questionnaire.loves && (
+                    <MemoizedQItem label="Passions" value={state.questionnaire.loves} />
+                  )}
+                  {state.questionnaire.good_at && (
+                    <MemoizedQItem label="Strengths" value={state.questionnaire.good_at} />
+                  )}
                 </View>
               </View>
             ) : (
               <View style={styles.placeholderCard}>
-                <AppText variant="bold" style={styles.placeholderTitle}>
-                  Pre-Hackathon Profile
-                </AppText>
-                <AppText style={styles.placeholderText}>
-                  You haven't filled out your pre-hackathon questionnaire yet.
-                </AppText>
+                <AppText variant="bold" style={styles.placeholderTitle}>Pre-Hackathon Profile</AppText>
+                <AppText style={styles.placeholderText}>You haven't filled out your pre-hackathon questionnaire yet.</AppText>
                 <Pressable
-                  style={({ pressed }) => [
-                    styles.linkBtn,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                  onPress={() =>
-                    Linking.openURL(
-                      "https://www.passionseed.org/hackathon/onboarding",
-                    )
-                  }
+                  style={styles.linkBtn}
+                  onPress={() => Linking.openURL("https://www.passionseed.org/hackathon/onboarding")}
                 >
-                  <AppText variant="bold" style={styles.linkBtnText}>
-                    Complete Questionnaire
-                  </AppText>
+                  <AppText variant="bold" style={styles.linkBtnText}>Complete Questionnaire</AppText>
                 </Pressable>
               </View>
             )}
 
-            {/* Knowledge Vault Placeholder */}
+            {/* ── Knowledge Vault Placeholder ────────────────────────────────── */}
             <View style={styles.placeholderCard}>
-              <AppText variant="bold" style={styles.placeholderTitle}>
-                Knowledge Vault
-              </AppText>
+              <AppText variant="bold" style={styles.placeholderTitle}>Knowledge Vault</AppText>
               <AppText style={styles.placeholderText}>
-                Your completed activities, generated ideas, and reflections in
-                one place.
+                Your completed activities, generated ideas, and reflections in one place.
               </AppText>
-              <AppText variant="bold" style={styles.placeholderBadge}>
-                Coming Soon
-              </AppText>
+              <AppText variant="bold" style={styles.placeholderBadge}>Coming Soon</AppText>
             </View>
 
-            {isAdmin ? (
+            {/* ── Admin Card ─────────────────────────────────────────────────── */}
+            {isAdmin && (
               <View style={styles.adminCard}>
-                <LinearGradient
-                  colors={[
-                    "rgba(101, 171, 252, 0.14)",
-                    "rgba(145, 196, 227, 0.04)",
-                  ]}
-                  style={StyleSheet.absoluteFill}
-                />
-                <AppText variant="bold" style={styles.adminTitle}>
-                  Hackathon Admin
-                </AppText>
-                <AppText style={styles.adminText}>
-                  Review app stats, activity submissions, and team progress.
-                </AppText>
+                <AppText variant="bold" style={styles.adminTitle}>Hackathon Admin</AppText>
+                <AppText style={styles.adminText}>Review app stats, activity submissions, and team progress.</AppText>
                 <Pressable
-                  style={({ pressed }) => [
-                    styles.adminBtn,
-                    pressed && { opacity: 0.75 },
-                  ]}
+                  style={styles.adminBtn}
                   onPress={() => router.push("/admin/hackathon" as any)}
                 >
-                  <AppText variant="bold" style={styles.adminBtnText}>
-                    Open Dashboard
-                  </AppText>
+                  <AppText variant="bold" style={styles.adminBtnText}>Open Dashboard</AppText>
                 </Pressable>
               </View>
-            ) : null}
+            )}
 
-            {/* Debug Info */}
+            {/* ── Debug Info ─────────────────────────────────────────────────── */}
             <Pressable
-              style={({ pressed }) => [
-                styles.signOutBtn,
-                pressed && { opacity: 0.75 },
-              ]}
+              style={styles.signOutBtn}
               onPress={async () => {
                 const token = await getExistingPushToken().catch(() => null);
                 const ctx = getSentryRuntimeContext();
-                Alert.alert(
-                  "Debug Info",
-                  [
-                    `App: ${Constants.expoConfig?.version ?? "?"}+${ctx.dist ?? "?"}`,
-                    `Runtime: ${ctx.runtimeVersion ?? "?"}`,
-                    `Channel: ${ctx.channel ?? "?"}`,
-                    `Update: ${ctx.updateId ?? "none"}`,
-                    `OS: ${Platform.OS} ${Platform.Version}`,
-                    `Env: ${ctx.environment ?? "?"}`,
-                    "",
-                    `User: ${user?.id ?? "null"}`,
-                    `Participant: ${participant?.id ?? "null"}`,
-                    `Team: ${team?.id ?? "null"}`,
-                    `Push: ${token ?? "none"}`,
-                    `Push saved: ${hasPushToken}`,
-                  ].join("\n"),
-                );
+                Alert.alert("Debug Info", [
+                  `App: ${Constants.expoConfig?.version ?? "?"}+${ctx.dist ?? "?"}`,
+                  `Runtime: ${ctx.runtimeVersion ?? "?"}`,
+                  `Channel: ${ctx.channel ?? "?"}`,
+                  `Update: ${ctx.updateId ?? "none"}`,
+                  `OS: ${Platform.OS} ${Platform.Version}`,
+                  `Env: ${ctx.environment ?? "?"}`,
+                  "",
+                  `User: ${user?.id ?? "null"}`,
+                  `Participant: ${participant?.id ?? "null"}`,
+                  `Team: ${state.team?.id ?? "null"}`,
+                  `Push: ${token ?? "none"}`,
+                  `Push saved: ${state.hasPushToken}`,
+                ].join("\n"));
               }}
             >
               <AppText style={styles.signOutText}>ℹ️ Debug Info</AppText>
             </Pressable>
 
-            {/* Sign Out */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.signOutBtn,
-                pressed && { opacity: 0.75 },
-              ]}
-              onPress={() => signOutHackathon()}
-            >
+            {/* ── Sign Out ───────────────────────────────────────────────────── */}
+            <Pressable style={styles.signOutBtn} onPress={() => signOutHackathon()}>
               <AppText style={styles.signOutText}>Sign Out</AppText>
             </Pressable>
           </>
         )}
       </ScrollView>
-    </View>
-  );
-}
-
-function InfoRow({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <View style={styles.infoRow}>
-      <AppText style={styles.infoLabel}>{label}</AppText>
-      <AppText
-        variant="bold"
-        style={[styles.infoValue, accent && { color: CYAN }]}
-      >
-        {value}
-      </AppText>
-    </View>
-  );
-}
-
-function QItem({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.qItem}>
-      <AppText style={styles.qLabel}>{label}</AppText>
-      <AppText style={styles.qValue}>{value}</AppText>
     </View>
   );
 }
@@ -949,13 +804,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Space.sm,
   },
-  titleEmoji: {
-    fontSize: 36,
-  },
-  titleTextWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
+  titleEmoji: { fontSize: 36 },
+  titleTextWrap: { flex: 1, minWidth: 0 },
   title: {
     fontSize: 30,
     lineHeight: 36,
@@ -977,38 +827,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  diceText: {
-    fontSize: 24,
-    lineHeight: 30,
-  },
+  diceText: { fontSize: 24, lineHeight: 30 },
+
+  // Info card — flat background, no native gradient
   infoCard: {
+    backgroundColor: "rgba(20,28,41,0.6)",
     borderRadius: Radius.lg,
-    overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
     padding: Space.lg,
-    gap: Space.md,
     marginTop: Space.sm,
-  },
-  infoRow: {
-    gap: 4,
-  },
-  infoLabel: {
-    fontSize: 10,
-    color: CYAN,
-    textTransform: "uppercase",
-    letterSpacing: 1.5,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  infoValue: {
-    fontSize: 15,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_500Medium",
   },
   divider: {
     height: 1,
     backgroundColor: "rgba(255,255,255,0.05)",
   },
+
   loadingContainer: {
     padding: Space.xl,
     alignItems: "center",
@@ -1019,33 +853,33 @@ const styles = StyleSheet.create({
     color: CYAN,
     fontFamily: "BaiJamjuree_500Medium",
   },
+
+  // Section card — flat background, no native gradient
   sectionCard: {
+    backgroundColor: CARD_BG,
     borderRadius: Radius.lg,
-    overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.15)",
+    borderColor: CARD_BORDER,
     padding: Space.lg,
     gap: Space.md,
     marginTop: Space.sm,
-    backgroundColor: "rgba(3, 5, 10, 0.4)",
   },
   sectionTitle: {
     fontSize: 18,
     color: WHITE,
     fontFamily: "BaiJamjuree_700Bold",
   },
-  // Social Media Styles
+
+  // Social media
   socialInputRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Space.md,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: INPUT_BG,
     borderRadius: Radius.md,
     padding: Space.md,
   },
-  socialIcon: {
-    fontSize: 20,
-  },
+  socialIcon: { fontSize: 20 },
   socialInput: {
     flex: 1,
     fontSize: 15,
@@ -1054,9 +888,9 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   saveBtn: {
-    backgroundColor: "rgba(145, 196, 227, 0.15)",
+    backgroundColor: CARD_BG,
     borderWidth: 1,
-    borderColor: "rgba(145, 196, 227, 0.3)",
+    borderColor: CARD_BORDER_ACTIVE,
     borderRadius: Radius.md,
     paddingVertical: Space.sm,
     paddingHorizontal: Space.md,
@@ -1070,7 +904,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  // Team Styles
+
+  // Team
   teamHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1085,7 +920,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(145, 196, 227, 0.2)",
+    backgroundColor: "rgba(145,196,227,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1094,13 +929,11 @@ const styles = StyleSheet.create({
     color: CYAN,
     fontFamily: "BaiJamjuree_700Bold",
   },
-  teamNameContainer: {
-    flex: 1,
-  },
+  teamNameContainer: { flex: 1 },
   uploadBtn: {
-    backgroundColor: "rgba(145, 196, 227, 0.1)",
+    backgroundColor: CARD_BG,
     borderWidth: 1,
-    borderColor: "rgba(145, 196, 227, 0.2)",
+    borderColor: CARD_BORDER_ACTIVE,
     borderRadius: Radius.md,
     paddingVertical: Space.sm,
     paddingHorizontal: Space.md,
@@ -1118,73 +951,16 @@ const styles = StyleSheet.create({
     gap: Space.md,
     marginTop: Space.md,
   },
-  rosterItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Space.md,
-  },
-  rosterDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: CYAN,
-  },
-  rosterInfo: {
-    flex: 1,
-  },
-  rosterName: {
-    fontSize: 15,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  rosterMeta: {
-    fontSize: 12,
-    color: WHITE55,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  youBadge: {
-    backgroundColor: "rgba(145,196,227,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.3)",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  youBadgeText: {
-    fontSize: 10,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_700Bold",
-    letterSpacing: 0.5,
-  },
-  // Questionnaire Styles
-  qList: {
-    gap: Space.md,
-  },
-  qItem: {
-    gap: 4,
-    backgroundColor: "rgba(255,255,255,0.03)",
-    padding: Space.md,
-    borderRadius: Radius.md,
-  },
-  qLabel: {
-    fontSize: 11,
-    color: CYAN,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  qValue: {
-    fontSize: 14,
-    color: WHITE,
-    lineHeight: 20,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  // Placeholder Styles
+
+  // Questionnaire
+  qList: { gap: Space.md },
+
+  // Placeholder
   placeholderCard: {
-    backgroundColor: "rgba(145,196,227,0.05)",
+    backgroundColor: CARD_BG,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.1)",
+    borderColor: CARD_BORDER,
     padding: Space.lg,
     gap: Space.xs,
     marginTop: Space.sm,
@@ -1207,15 +983,16 @@ const styles = StyleSheet.create({
     marginTop: Space.xs,
     fontFamily: "BaiJamjuree_700Bold",
   },
+
+  // Admin
   adminCard: {
+    backgroundColor: CARD_BG,
     borderRadius: Radius.lg,
-    overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(101,171,252,0.28)",
     padding: Space.lg,
     gap: Space.sm,
     marginTop: Space.sm,
-    backgroundColor: "rgba(3, 5, 10, 0.48)",
   },
   adminTitle: {
     fontSize: 17,
@@ -1229,7 +1006,7 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_400Regular",
   },
   adminBtn: {
-    backgroundColor: "rgba(101,171,252,0.18)",
+    backgroundColor: "rgba(101,171,252,0.14)",
     borderWidth: 1,
     borderColor: "rgba(101,171,252,0.4)",
     borderRadius: Radius.md,
@@ -1246,10 +1023,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
+
+  // Link button
   linkBtn: {
-    backgroundColor: "rgba(145,196,227,0.15)",
+    backgroundColor: CARD_BG,
     borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.3)",
+    borderColor: CARD_BORDER_ACTIVE,
     borderRadius: Radius.md,
     paddingVertical: Space.sm,
     paddingHorizontal: Space.md,
@@ -1264,7 +1043,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  // Sign Out
+
+  // Sign out / debug
   signOutBtn: {
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -1279,12 +1059,13 @@ const styles = StyleSheet.create({
     color: WHITE75,
     fontFamily: "BaiJamjuree_400Regular",
   },
-  // Push Notification Banner
+
+  // Push banner
   pushBanner: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.3)",
-    backgroundColor: "rgba(245, 158, 11, 0.08)",
+    borderColor: "rgba(245,158,11,0.3)",
+    backgroundColor: "rgba(245,158,11,0.08)",
     padding: Space.md,
     marginTop: Space.sm,
   },

@@ -54,6 +54,11 @@ export interface JourneyStep {
     company_type?: string;
     salary_range?: string;
     description?: string;
+    job_id?: string;
+    program_id?: string;
+    duration_months?: number;
+    parent_step_index?: number;
+    is_branch?: boolean;
   };
 }
 

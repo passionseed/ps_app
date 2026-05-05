@@ -9,6 +9,8 @@ import {
 import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { supabase } from "../../lib/supabase";
+import { aiRiskColor, trendIcon, trendColor } from "../../lib/jobUtils";
+import type { JobRow } from "../../types/jobs";
 
 const CATEGORIES = [
   "Technology & Engineering",
@@ -22,38 +24,6 @@ const CATEGORIES = [
   "Sales & Marketing",
   "Emerging & New Roles",
 ];
-
-type JobRow = {
-  id: string;
-  rank: number | null;
-  title: string;
-  category: string | null;
-  demand_trend: string | null;
-  automation_risk: number | null;
-  growth_rate: string | null;
-  viability_score: number | null;
-  salary_range_thb: any | null;
-};
-
-function aiRiskColor(risk: number | null): string {
-  if (risk == null) return "#9CA3AF";
-  if (risk <= 0.25) return "#10B981";
-  if (risk <= 0.45) return "#F59E0B";
-  if (risk <= 0.65) return "#F97316";
-  return "#EF4444";
-}
-
-function trendIcon(trend: string | null): string {
-  if (trend === "growing") return "▲";
-  if (trend === "declining") return "▼";
-  return "─";
-}
-
-function trendColor(trend: string | null): string {
-  if (trend === "growing") return "#10B981";
-  if (trend === "declining") return "#EF4444";
-  return "#9CA3AF";
-}
 
 export default function JobsIndex() {
   const [jobs, setJobs] = useState<JobRow[]>([]);

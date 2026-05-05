@@ -168,8 +168,17 @@ function isRetryableSupabaseError(error: unknown) {
   );
 }
 
+function isPermissionDeniedError(error: unknown) {
+  const message = stringifyError(error).toLowerCase();
+  return message.includes("permission denied") || message.includes("42501");
+}
+
 function toUserFacingPathlabError(error: unknown, fallback: string) {
   const message = stringifyError(error);
+
+  if (isPermissionDeniedError(error)) {
+    return `${fallback} (Access restricted). Please sign in to view all content.`;
+  }
 
   if (isRetryableSupabaseError(error)) {
     return `${fallback}. The connection to our server failed temporarily. Please try again.`;
@@ -496,25 +505,33 @@ export async function getExpertForSeed(seedId: string): Promise<ExpertInfo | nul
     return null;
   }
 
-  return withSupabaseRetry(async () => {
-    const { data: pathlabData, error: pathlabError } = await supabase
-      .from("expert_pathlabs")
-      .select("expert_profile_id")
-      .eq("seed_id", seedId)
-      .maybeSingle();
+  try {
+    return await withSupabaseRetry(async () => {
+      const { data: pathlabData, error: pathlabError } = await supabase
+        .from("expert_pathlabs")
+        .select("expert_profile_id")
+        .eq("seed_id", seedId)
+        .maybeSingle();
 
-    if (pathlabError || !pathlabData) return null;
+      if (pathlabError || !pathlabData) return null;
 
-    const { data: expertData, error: expertError } = await supabase
-      .from("expert_profiles")
-      .select("name, title, company")
-      .eq("id", pathlabData.expert_profile_id)
-      .maybeSingle();
+      const { data: expertData, error: expertError } = await supabase
+        .from("expert_profiles")
+        .select("name, title, company")
+        .eq("id", pathlabData.expert_profile_id)
+        .maybeSingle();
 
-    if (expertError || !expertData) return null;
+      if (expertError || !expertData) return null;
 
-    return expertData;
-  }, "Unable to load expert details");
+      return expertData;
+    }, "Unable to load expert details");
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      console.warn("[getExpertForSeed] Permission denied, skipping expert details:", error);
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function getSeedNpcAvatar(seedId: string): Promise<SeedNpcAvatar | null> {
@@ -715,16 +732,24 @@ export async function getEnrollmentDayBundle(
 }
 
 export async function getPathDays(pathId: string): Promise<Pick<PathDay, "id" | "day_number" | "title">[]> {
-  return withSupabaseRetry(async () => {
-    const { data, error } = await supabase
-      .from("path_days")
-      .select("id, day_number, title")
-      .eq("path_id", pathId)
-      .order("day_number", { ascending: true });
+  try {
+    return await withSupabaseRetry(async () => {
+      const { data, error } = await supabase
+        .from("path_days")
+        .select("id, day_number, title")
+        .eq("path_id", pathId)
+        .order("day_number", { ascending: true });
 
-    if (error) throw error;
-    return (data || []) as Pick<PathDay, "id" | "day_number" | "title">[];
-  }, "Unable to load the path outline");
+      if (error) throw error;
+      return (data || []) as Pick<PathDay, "id" | "day_number" | "title">[];
+    }, "Unable to load the path outline");
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      console.warn("[getPathDays] Permission denied, skipping path outline:", error);
+      return [];
+    }
+    throw error;
+  }
 }
 
 // NEW: Get activities for a specific day
@@ -732,112 +757,120 @@ export async function getPathDayActivities(
   pathDayId: string,
   enrollmentId?: string
 ): Promise<PathActivityWithContent[]> {
-  return withSupabaseRetry(async () => {
-    const { data: activities, error: activitiesError } = await supabase
-      .from("path_activities")
-      .select("*")
-      .eq("path_day_id", pathDayId)
-      .eq("is_draft", false)
-      .order("display_order", { ascending: true });
-
-    if (activitiesError) throw activitiesError;
-    if (!activities || activities.length === 0) return [];
-
-    const activityIds = activities.map(a => a.id);
-
-    const [
-      { data: content, error: contentError },
-      { data: assessments, error: assessmentsError },
-      { data: progressData, error: progressError },
-    ] = await Promise.all([
-      supabase
-        .from("path_content")
+  try {
+    return await withSupabaseRetry(async () => {
+      const { data: activities, error: activitiesError } = await supabase
+        .from("path_activities")
         .select("*")
-        .in("activity_id", activityIds)
-        .order("display_order", { ascending: true }),
-      supabase
-        .from("path_assessments")
-        .select("*")
-        .in("activity_id", activityIds),
-      enrollmentId
-        ? supabase
-            .from("path_activity_progress")
-            .select("*")
-            .eq("enrollment_id", enrollmentId)
-            .in("activity_id", activityIds)
-        : Promise.resolve({ data: [] as PathActivityProgress[], error: null }),
-    ]);
+        .eq("path_day_id", pathDayId)
+        .eq("is_draft", false)
+        .order("display_order", { ascending: true });
 
-    if (contentError) throw contentError;
-    if (assessmentsError) throw assessmentsError;
-    if (progressError) throw progressError;
+      if (activitiesError) throw activitiesError;
+      if (!activities || activities.length === 0) return [];
 
-    let progress: PathActivityProgress[] = progressData || [];
-    console.log("[getPathDayActivities] Raw progress from DB:", progress.map(p => ({ id: p.id, activity_id: p.activity_id, status: p.status })));
+      const activityIds = activities.map(a => a.id);
 
-    // If a reset happened recently, discard any progress rows that predate the reset
-    if (enrollmentId) {
-      const resetAt = getResetTimestamp(enrollmentId);
-      if (resetAt) {
-        const before = progress.length;
-        progress = progress.filter(p => new Date(p.updated_at).getTime() > resetAt);
-        console.log(`[getPathDayActivities] Reset filter: ${before} -> ${progress.length} rows`);
-        // Keep the timestamp for 30s to handle repeated fetches from PostgREST cache
-        if (Date.now() - resetAt > 30_000) clearResetTimestamp(enrollmentId);
+      const [
+        { data: content, error: contentError },
+        { data: assessments, error: assessmentsError },
+        { data: progressData, error: progressError },
+      ] = await Promise.all([
+        supabase
+          .from("path_content")
+          .select("*")
+          .in("activity_id", activityIds)
+          .order("display_order", { ascending: true }),
+        supabase
+          .from("path_assessments")
+          .select("*")
+          .in("activity_id", activityIds),
+        enrollmentId
+          ? supabase
+              .from("path_activity_progress")
+              .select("*")
+              .eq("enrollment_id", enrollmentId)
+              .in("activity_id", activityIds)
+          : Promise.resolve({ data: [] as PathActivityProgress[], error: null }),
+      ]);
+
+      if (contentError) throw contentError;
+      if (assessmentsError) throw assessmentsError;
+      if (progressError) throw progressError;
+
+      let progress: PathActivityProgress[] = progressData || [];
+      console.log("[getPathDayActivities] Raw progress from DB:", progress.map(p => ({ id: p.id, activity_id: p.activity_id, status: p.status })));
+
+      // If a reset happened recently, discard any progress rows that predate the reset
+      if (enrollmentId) {
+        const resetAt = getResetTimestamp(enrollmentId);
+        if (resetAt) {
+          const before = progress.length;
+          progress = progress.filter(p => new Date(p.updated_at).getTime() > resetAt);
+          console.log(`[getPathDayActivities] Reset filter: ${before} -> ${progress.length} rows`);
+          // Keep the timestamp for 30s to handle repeated fetches from PostgREST cache
+          if (Date.now() - resetAt > 30_000) clearResetTimestamp(enrollmentId);
+        }
       }
-    }
 
-    // Fetch assessment submissions for completed activities
-    let submissions: PathAssessmentSubmission[] = [];
-    const completedProgressIds = progress.filter(p => p.status === "completed").map(p => p.id);
-    if (completedProgressIds.length > 0) {
-      const { data: submissionData } = await supabase
-        .from("path_assessment_submissions")
-        .select("*")
-        .in("progress_id", completedProgressIds);
-      submissions = submissionData || [];
-    }
+      // Fetch assessment submissions for completed activities
+      let submissions: PathAssessmentSubmission[] = [];
+      const completedProgressIds = progress.filter(p => p.status === "completed").map(p => p.id);
+      if (completedProgressIds.length > 0) {
+        const { data: submissionData } = await supabase
+          .from("path_assessment_submissions")
+          .select("*")
+          .in("progress_id", completedProgressIds);
+        submissions = submissionData || [];
+      }
 
-    // Only fetch quiz questions for quiz-type assessments
-    let quizQuestions: PathQuizQuestion[] = [];
-    const quizAssessments = (assessments || []).filter(a => a.assessment_type === 'quiz');
-    if (quizAssessments.length > 0) {
-      const assessmentIds = quizAssessments.map(a => a.id);
-      const { data: questions, error: questionsError } = await supabase
-        .from("path_quiz_questions")
-        .select("*")
-        .in("assessment_id", assessmentIds);
+      // Only fetch quiz questions for quiz-type assessments
+      let quizQuestions: PathQuizQuestion[] = [];
+      const quizAssessments = (assessments || []).filter(a => a.assessment_type === 'quiz');
+      if (quizAssessments.length > 0) {
+        const assessmentIds = quizAssessments.map(a => a.id);
+        const { data: questions, error: questionsError } = await supabase
+          .from("path_quiz_questions")
+          .select("*")
+          .in("assessment_id", assessmentIds);
 
-      if (questionsError) throw questionsError;
-      quizQuestions = questions || [];
-    }
+        if (questionsError) throw questionsError;
+        quizQuestions = questions || [];
+      }
 
-    return activities.map(activity => {
-      const activityContent = (content || []).filter(c => c.activity_id === activity.id);
-      const activityAssessments = (assessments || []).filter(a => a.activity_id === activity.id);
+      return activities.map(activity => {
+        const activityContent = (content || []).filter(c => c.activity_id === activity.id);
+        const activityAssessments = (assessments || []).filter(a => a.activity_id === activity.id);
 
-      let pathAssessment = null;
-      if (activityAssessments.length > 0) {
-        pathAssessment = {
-          ...activityAssessments[0],
-          quiz_questions: quizQuestions.filter(q => q.assessment_id === activityAssessments[0].id),
+        let pathAssessment = null;
+        if (activityAssessments.length > 0) {
+          pathAssessment = {
+            ...activityAssessments[0],
+            quiz_questions: quizQuestions.filter(q => q.assessment_id === activityAssessments[0].id),
+          };
+        }
+
+        const activityProgress = progress.find(p => p.activity_id === activity.id);
+        const activitySubmission = activityProgress
+          ? submissions.find(s => s.progress_id === activityProgress.id) ?? null
+          : null;
+
+        return {
+          ...activity,
+          path_content: activityContent,
+          path_assessment: pathAssessment,
+          progress: activityProgress,
+          submission: activitySubmission,
         };
-      }
-
-      const activityProgress = progress.find(p => p.activity_id === activity.id);
-      const activitySubmission = activityProgress
-        ? submissions.find(s => s.progress_id === activityProgress.id) ?? null
-        : null;
-
-      return {
-        ...activity,
-        path_content: activityContent,
-        path_assessment: pathAssessment,
-        progress: activityProgress,
-        submission: activitySubmission,
-      };
-    });
-  }, "Unable to load day activities");
+      });
+    }, "Unable to load day activities");
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      console.warn("[getPathDayActivities] Permission denied, skipping activities:", error);
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function ensureActivityProgress(

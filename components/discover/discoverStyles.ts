@@ -442,6 +442,13 @@ export const styles = StyleSheet.create({
     gap: Space.xs,
     justifyContent: "flex-end",
   },
+  compactOverlayGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   progressRow: {
     flexDirection: "row",
     alignItems: "center",
