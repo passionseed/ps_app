@@ -143,13 +143,7 @@ export default function SettingsScreen() {
   };
 
   const handleContactSupport = () => {
-    const email = "support@passionseed.org";
-    const subject = isThai ? "คำขอสนับสนุนจากแอป Passion Seed" : "Support Request from Passion Seed App";
-    const body = isThai
-      ? `\n\n---\nรายละเอียดอุปกรณ์:\nอุปกรณ์: ${Platform.OS}\nเวอร์ชันแอป: ${Constants.expoConfig?.version || "Unknown"}`
-      : `\n\n---\nDevice Info:\nPlatform: ${Platform.OS}\nApp Version: ${Constants.expoConfig?.version || "Unknown"}`;
-
-    Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    router.push("/contact-support");
   };
 
   const RadioButton = ({ selected }: { selected: boolean }) => {

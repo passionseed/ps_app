@@ -86,13 +86,13 @@ export function SplashSkiaAtmosphere() {
     () => height * 0.4 + Math.cos(flowA.value * Math.PI * 2) * height * 0.1,
   );
 
-  const r0 = useDerivedValue(() => 46 + ring0.value * 118);
+  const r0 = useDerivedValue(() => 36 + ring0.value * 118);
   const o0 = useDerivedValue(() => 0.32 * (1 - ring0.value));
 
-  const r1 = useDerivedValue(() => 46 + ring1.value * 118);
+  const r1 = useDerivedValue(() => 36 + ring1.value * 118);
   const o1 = useDerivedValue(() => 0.26 * (1 - ring1.value));
 
-  const r2 = useDerivedValue(() => 46 + ring2.value * 118);
+  const r2 = useDerivedValue(() => 36 + ring2.value * 118);
   const o2 = useDerivedValue(() => 0.2 * (1 - ring2.value));
 
   const motes = useMemo(

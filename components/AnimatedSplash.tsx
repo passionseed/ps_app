@@ -74,9 +74,9 @@ const styles = StyleSheet.create({
   },
   logoGlow: {
     position: "absolute",
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     backgroundColor: "rgba(255, 255, 255, 0.78)",
     shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 0 },

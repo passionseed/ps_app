@@ -218,6 +218,7 @@ function RootNavigator() {
       />
       <Stack.Screen name="fit/index" options={{ presentation: "card" }} />
       <Stack.Screen name="career/[name]" options={{ presentation: "card" }} />
+      <Stack.Screen name="jobs/index" options={{ presentation: "card" }} />
       {/* Super Planner screens */}
       <Stack.Screen name="programs/index" options={{ presentation: "card" }} />
       <Stack.Screen name="programs/[programId]" options={{ presentation: "card" }} />

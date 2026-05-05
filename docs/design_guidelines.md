@@ -9,6 +9,7 @@ The design uses a clean, bright aesthetic with high contrast, white cards on sof
 ### Backgrounds
 - **Primary Page Background**: `#F8F9FA` or `#F3F4F6` (Very Light Cool Grey / Off-white)
   - *Rationale*: Provides a subtle contrast to make the pure white content cards pop without being heavy.
+- **Gradient Page Background**: `LinearGradient` with `["#FFFFFF", "#F9F5FF", "#F3EAFF"]` — soft purple-tinted gradient used in Settings and other screens for a premium feel. Use instead of flat backgrounds when the design calls for more warmth.
 - **Surface**: `#FFFFFF` (Pure White) for cards and main content containers.
 - **Hackathon / Immersive**: `#03050a` (Deep Space) for root backgrounds, with `rgba(13,18,25,0.95)` for cards.
 
@@ -52,12 +53,13 @@ The UI relies heavily on clean, distinct cards rather than heavy glassmorphism.
 
 ### Card Styling
 - **Background**: Solid `#FFFFFF`.
-- **Border**: Very subtle or non-existent.
+- **Border**: Default is no border. However, many cards use a subtle purple tint border: `borderColor: "rgba(139, 92, 246, 0.12)"` with `borderWidth: 1`. This gives a premium, cohesive feel that pairs well with the gradient page background.
 - **Corner Radius**:
   - Main Layout Cards: `24px` to `32px` (Large rounded corners).
   - Inner Elements / Badges: Fully rounded (pill shape) or `8px` to `12px`.
 - **Shadow Systems**:
   - Cards use a very soft, diffused drop shadow to separate from the light grey background (e.g., `shadowOpacity: 0.05`, `shadowRadius: 10`, `elevation: 2`).
+  - Modals use a deeper shadow for elevation: `shadowOpacity: 0.15`, `shadowRadius: 16`, `elevation: 8`.
 
 ### Timelines
 - Vertical connecting lines are thin (1-2px) and use a light grey or the color of the active node.
@@ -78,6 +80,43 @@ The UI relies heavily on clean, distinct cards rather than heavy glassmorphism.
 ### Tags / Badges
 - Used inside cards (e.g., "PLAN B", "EDUCATION", "EXPERIENCE").
 - Styling: Soft tinted background of the semantic color (e.g., 10-15% opacity Purple) with fully saturated text of the same hue. Fully rounded corners (pill shape).
+
+### Selection Controls (Radio Buttons, Chips, Switches)
+
+#### Radio Buttons
+- Outer circle: 22px diameter, 2px border
+- Unselected: `borderColor: "rgba(0, 0, 0, 0.15)"`
+- Selected: `borderColor: "#00E676"` with inner filled circle (10px, `#00E676`)
+- Animate inner dot scale on selection with `Animated.spring` (tension: 100, friction: 12)
+
+#### Chip Pills (e.g., Reminder Time Options)
+- Default: `borderRadius: 999`, `borderColor: "rgba(139, 92, 246, 0.16)"`, `backgroundColor: "rgba(139, 92, 246, 0.05)"`
+- Active/Selected: `borderColor: "#00E676"`, `backgroundColor: "rgba(0, 230, 118, 0.14)"`
+- Text: 14px, `fontWeight: "600"`
+- Disabled: `opacity: 0.45`
+
+#### Switches
+- Track off: `ThemeText.muted`
+- Track on: `rgba(0, 230, 118, 0.4)` (green with opacity)
+- Thumb off: `#FFFFFF`
+- Thumb on: `#00E676`
+
+#### Selected Row Background
+- `backgroundColor: "rgba(0, 230, 118, 0.08)"` — subtle green tint for active selection
+
+### Dividers
+- `height: 1`, `backgroundColor: "rgba(0, 0, 0, 0.05)"`
+- Horizontal margin matches card inner padding (`Space.xl`)
+
+### Modal Overlays
+- Backdrop: `backgroundColor: "rgba(0, 0, 0, 0.5)"`
+- Content card: white, `Radius.xl`, deep shadow (`shadowOpacity: 0.15`, `shadowRadius: 16`, `elevation: 8`)
+- Max width: 340px, centered with `padding: Space.xl`
+
+### Destructive Actions
+- Logout text: `#EF4444`, 600 weight
+- Delete text: `#DC2626`, 500 weight
+- Disabled delete button: `#FCA5A5`
 
 ## 5. Layout & Spacing
 

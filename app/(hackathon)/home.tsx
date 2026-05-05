@@ -346,8 +346,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   logo: {
-    width: 200,
-    height: 180,
+    width: 140,
+    height: 126,
   },
   subtitle: {
     fontFamily: "ReenieBeanie_400Regular", 

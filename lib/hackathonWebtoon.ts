@@ -3,6 +3,7 @@ import type {
   HackathonWebtoonChunk,
   HackathonWebtoonChunkMetadata,
 } from "../types/hackathon-phase-activity";
+import { toCdnUrl } from "./cdn";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -62,14 +63,14 @@ export function resolveWebtoonChunkUrl(
   fallbackUrl: string | null,
 ): string | null {
   if (chunk.imageUrl) {
-    return chunk.imageUrl;
+    return toCdnUrl(chunk.imageUrl);
   }
 
   if (isAbsoluteImageUrl(chunk.imageKey)) {
-    return chunk.imageKey;
+    return toCdnUrl(chunk.imageKey);
   }
 
-  return fallbackUrl;
+  return toCdnUrl(fallbackUrl);
 }
 
 export function getWebtoonChunkHeight({
