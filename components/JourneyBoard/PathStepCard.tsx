@@ -51,6 +51,7 @@ const STEP_LABELS: Record<StepType, string> = {
 interface PathStepCardProps {
   step: PathStep;
   isLast: boolean;
+  hasChildren?: boolean;
   index: number;
   pathCareerGoal?: string;
   passionScore?: number | null;
@@ -61,6 +62,7 @@ interface PathStepCardProps {
 export function PathStepCard({
   step,
   isLast,
+  hasChildren = false,
   index,
   pathCareerGoal,
   passionScore,
@@ -160,6 +162,15 @@ export function PathStepCard({
             style={[styles.line, { backgroundColor: "#E5E7EB" }]}
           />
         )}
+        {hasChildren && (
+          <>
+            <View
+              style={[styles.line, { backgroundColor: theme.accent, height: 8 }]}
+            />
+            <View style={[styles.branchBar, { backgroundColor: theme.accent }]} />
+          </>
+        )}
+        {isLast && !hasChildren && <View style={styles.lineSpacer} />}
       </View>
 
       {/* Card content — Pressable for university steps, View otherwise */}
@@ -208,6 +219,17 @@ const styles = StyleSheet.create({
     minHeight: 16,
     borderRadius: 1,
     marginVertical: 4,
+  },
+  branchBar: {
+    width: 16,
+    height: 2,
+    borderRadius: 1,
+    marginTop: -4,
+    marginBottom: 4,
+  },
+  lineSpacer: {
+    flex: 1,
+    minHeight: 16,
   },
   cardOuter: {
     flex: 1,

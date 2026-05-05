@@ -1,14 +1,12 @@
 // app/hackathon-login.tsx
 import { useState, useEffect } from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
-  Dimensions,
   Keyboard,
   Animated,
   ScrollView,
@@ -95,17 +93,16 @@ export default function HackathonLoginScreen() {
       {/* Ambient glow orbs and Skia creature SVGs */}
       <HackathonBackground topGlowOffsetY={Platform.OS === "android" ? 72 : 0} />
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={0}
-      >
-        <ScrollView
+      <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingTop: insets.top + Space.lg, paddingBottom: Math.max(Space["3xl"], keyboardHeight - insets.bottom + Space.lg) },
+            {
+              paddingTop: insets.top + Space.lg,
+              paddingBottom: Math.max(Space["3xl"], keyboardHeight - insets.bottom + Space.lg),
+            },
           ]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
           showsVerticalScrollIndicator={false}
         >
           {/* Back */}
@@ -196,29 +193,13 @@ export default function HackathonLoginScreen() {
             <Text style={styles.footerNoteAccent}>Contact your coordinator.</Text>
           </AppText>
         </ScrollView>
-      </KeyboardAvoidingView>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
-
-  // Stars
-  star: {
-    position: "absolute",
-    borderRadius: 999,
-    backgroundColor: WHITE,
-  },
-
-  // Floating creatures
-  creature: {
-    position: "absolute",
-  },
-
-  keyboardView: { flex: 1 },
   scrollContent: {
-    flexGrow: 1,
     paddingHorizontal: Space["2xl"],
     gap: Space.xl,
   },

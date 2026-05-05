@@ -42,7 +42,16 @@ import type {
   InterestCategory,
   Profile,
 } from "../../types/onboarding";
-import { Accent, PageBg } from "../../lib/theme";
+import {
+  Accent,
+  Border,
+  Divider,
+  PageBg,
+  Radius,
+  Shadow,
+  Space,
+  Text as ThemeText,
+} from "../../lib/theme";
 import { HackathonHeroCard } from "../../components/discover/HackathonHeroCard";
 import { SeedCreatorPitch } from "../../components/SeedCreatorPitch";
 import { PROFILE_HACKATHON_HERO_ROUTE } from "../../lib/hackathonNavigation";
@@ -528,7 +537,7 @@ export default function ProfileScreen() {
 
   if (!authLoading && (isGuest || !user)) {
     return (
-      <View style={styles.container}>
+      <LinearGradient colors={PageBg.gradient} style={styles.container}>
         <StatusBar style="dark" />
         <View style={styles.guestContainer}>
           <View style={styles.guestContent}>
@@ -566,12 +575,12 @@ export default function ProfileScreen() {
             <Text style={styles.versionText}>Version {appVersion}</Text>
           </View>
         </View>
-      </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={PageBg.gradient} style={styles.container}>
       <StatusBar style="dark" />
 
       <ScrollView
@@ -581,7 +590,7 @@ export default function ProfileScreen() {
       >
         <View style={styles.mainContent}>
           <LinearGradient
-            colors={["#FFFFFF", "#F8F5FF", "#EEF4FF"]}
+            colors={PageBg.gradient}
             style={styles.heroCard}
           >
             <Pressable
@@ -771,7 +780,7 @@ export default function ProfileScreen() {
               style={({ pressed }) => [
                 styles.actionRow,
                 pressed && styles.actionRowPressed,
-                { borderTopWidth: 1, borderTopColor: "#eef0f5", marginTop: 8 },
+                { borderTopWidth: 1, borderTopColor: Divider, marginTop: 8 },
               ]}
               onPress={() => router.push("/admin/seeds" as any)}
             >
@@ -791,7 +800,7 @@ export default function ProfileScreen() {
               style={({ pressed }) => [
                 styles.actionRow,
                 pressed && styles.actionRowPressed,
-                { borderTopWidth: 1, borderTopColor: "#eef0f5" },
+                { borderTopWidth: 1, borderTopColor: Divider },
               ]}
               onPress={() => router.push("/admin/hackathon" as any)}
             >
@@ -839,7 +848,7 @@ export default function ProfileScreen() {
           </Text>
         </Pressable>
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -906,10 +915,10 @@ function ScoreTimeline({ timeline, isThai }: { timeline: ScoreTimelineItem[]; is
         })}
       </View>
       <View style={styles.timelineLegend}>
-        <LegendDot color="#EF4444" label={labels.passion} />
-        <LegendDot color="#3B82F6" label={labels.mission} />
-        <LegendDot color="#10B981" label={labels.profession} />
-        <LegendDot color="#F59E0B" label={labels.vocation} />
+        <LegendDot color={Accent.red} label={labels.passion} />
+        <LegendDot color={Accent.blue} label={labels.mission} />
+        <LegendDot color={Accent.green} label={labels.profession} />
+        <LegendDot color={Accent.amber} label={labels.vocation} />
       </View>
     </View>
   );
@@ -1060,7 +1069,7 @@ function ActivityCard({ item, isThai = false }: { item: ProfileActivityItem; isT
 
 function IkigaiCell({ pillar }: { pillar: IkigaiPillar }) {
   const pct = pillar.score;
-  const fillColor = pct >= 75 ? "#10B981" : pct >= 50 ? "#8B5CF6" : "#F59E0B";
+  const fillColor = pct >= 75 ? Accent.green : pct >= 50 ? Accent.purple : Accent.amber;
 
   return (
     <View style={styles.ikigaiCell}>
@@ -1117,16 +1126,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: "#CECECE",
+    borderColor: Border.cardPurple,
   },
   guestIcon: {
     fontSize: 48,
   },
   guestTitle: {
     fontSize: 28,
-    
-    
-    color: "#111827",
+    fontWeight: "700",
+    color: ThemeText.primary,
     marginBottom: 32,
     textAlign: "center",
   },
@@ -1138,18 +1146,14 @@ const styles = StyleSheet.create({
   guestBenefitItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
+    gap: Space.md,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: Space.lg,
     paddingVertical: 14,
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: "rgb(206, 206, 206)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: Border.cardPurple,
+    ...Shadow.neutral,
   },
   guestBenefitEmoji: {
     fontSize: 24,
@@ -1157,8 +1161,7 @@ const styles = StyleSheet.create({
   guestBenefitText: {
     flex: 1,
     fontSize: 14,
-    
-    color: "#374151",
+    color: ThemeText.secondary,
     lineHeight: 20,
   },
   guestCtaBtn: {
@@ -1182,8 +1185,7 @@ const styles = StyleSheet.create({
   },
   guestSecondaryText: {
     fontSize: 14,
-    
-    color: "#6B7280",
+    color: ThemeText.secondary,
     textAlign: "center",
   },
   guestVersionContainer: {
@@ -1201,34 +1203,31 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   heroCard: {
-    marginHorizontal: 16,
+    marginHorizontal: Space.lg,
     marginTop: 56,
-    marginBottom: 16,
-    paddingHorizontal: 20,
+    marginBottom: Space.lg,
+    paddingHorizontal: Space.xl,
     paddingTop: 24,
-    paddingBottom: 20,
-    borderRadius: 32,
+    paddingBottom: Space.xl,
+    borderRadius: Radius["2xl"],
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 3,
-    gap: 16,
+    borderColor: Border.cardPurple,
+    ...Shadow.neutral,
+    gap: Space.lg,
   },
   settingsBtn: {
     position: "absolute",
-    right: 20,
-    top: 20,
+    right: Space.xl,
+    top: Space.xl,
     width: 40,
     height: 40,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 20,
+    borderRadius: Space.xl,
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#EEE",
+    borderColor: Border.cardPurple,
+    ...Shadow.neutral,
     zIndex: 10,
   },
   settingsBtnPressed: {
@@ -1251,13 +1250,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 4,
+    ...Shadow.glow("#8B5CF6"),
     borderWidth: 2,
-    borderColor: "rgba(139,92,246,0.15)",
+    borderColor: Border.cardPurple,
   },
   avatar: {
     width: 52,
@@ -1286,17 +1281,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   metaPill: {
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "rgba(255,255,255,0.78)",
+    borderRadius: Radius.full,
+    paddingHorizontal: Space.md,
+    paddingVertical: Space.xs + 2,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.18)",
+    borderColor: Border.cardPurple,
   },
   metaPillText: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#475569",
+    color: ThemeText.secondary,
   },
   focusStack: {
     gap: 6,
@@ -1312,22 +1307,18 @@ const styles = StyleSheet.create({
   },
   focusCard: {
     width: 160,
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     padding: 14,
     borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    ...Shadow.neutral,
   },
   careerCard: {
     backgroundColor: "#FFFFFF",
-    borderColor: "rgba(16, 185, 129, 0.2)",
+    borderColor: Border.cardPurple,
   },
   interestCard: {
-    backgroundColor: "#FAFAFA",
-    borderColor: "rgba(139, 92, 246, 0.15)",
+    backgroundColor: "#FFFFFF",
+    borderColor: Border.cardPurple,
   },
   focusCardTitle: {
     fontSize: 11,
@@ -1453,20 +1444,21 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   sectionContainer: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+    marginHorizontal: Space.lg,
+    marginBottom: Space.lg,
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 20,
+    borderColor: Border.cardPurple,
+    ...Shadow.neutral,
+    padding: Space.xl,
+    overflow: "hidden",
   },
   sectionTitle: {
     fontSize: 12,
-    
-    
-    color: "#9CA3AF",
-    marginBottom: 16,
+    fontWeight: "700",
+    color: ThemeText.tertiary,
+    marginBottom: Space.lg,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
@@ -1477,10 +1469,11 @@ const styles = StyleSheet.create({
   },
   ikigaiCell: {
     width: "47.5%",
-    borderRadius: 16,
-    backgroundColor: "#F9FAFB",
+    borderRadius: Radius.lg,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: Border.cardPurple,
+    ...Shadow.neutral,
     padding: 14,
     gap: 4,
   },
@@ -1557,11 +1550,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   timelineWrapper: {
-    backgroundColor: "#F9FAFB",
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.lg,
+    padding: Space.lg,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: Border.cardPurple,
+    ...Shadow.neutral,
   },
   timelineChart: {
     flexDirection: "row",
@@ -1586,16 +1580,16 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   timelineBarPassion: {
-    backgroundColor: "#EF4444",
+    backgroundColor: Accent.red,
   },
   timelineBarMission: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: Accent.blue,
   },
   timelineBarProfession: {
-    backgroundColor: "#10B981",
+    backgroundColor: Accent.green,
   },
   timelineBarVocation: {
-    backgroundColor: "#F59E0B",
+    backgroundColor: Accent.amber,
   },
   timelineDate: {
     fontSize: 9,
@@ -1625,12 +1619,12 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
   insightCard: {
-    marginTop: 12,
+    marginTop: Space.md,
     backgroundColor: "rgba(139, 92, 246, 0.06)",
-    borderRadius: 14,
+    borderRadius: Radius.lg,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.12)",
+    borderColor: Border.cardPurple,
   },
   insightText: {
     fontSize: 13,
@@ -1665,8 +1659,8 @@ const styles = StyleSheet.create({
   exploreSeedsBtn: {
     backgroundColor: Accent.yellow,
     paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: Space.md,
+    borderRadius: Radius.md,
   },
   exploreSeedsBtnPressed: {
     opacity: 0.9,
@@ -1681,14 +1675,15 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 14,
-    marginBottom: 10,
+    gap: Space.md,
+    paddingVertical: Space.lg,
+    paddingHorizontal: Space.lg,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.lg,
+    marginBottom: Space.sm,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: Border.cardPurple,
+    ...Shadow.neutral,
   },
   actionRowPressed: {
     opacity: 0.85,
@@ -1724,13 +1719,14 @@ const styles = StyleSheet.create({
   activityCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 14,
+    gap: Space.md,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: Border.cardPurple,
+    ...Shadow.neutral,
   },
   activityIcon: {
     fontSize: 22,
@@ -1774,25 +1770,26 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   signOutBtn: {
-    marginHorizontal: 16,
-    marginTop: 8,
+    marginHorizontal: Space.lg,
+    marginTop: Space.sm,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderColor: Border.cardPurple,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: Space.lg,
     alignItems: "center",
+    ...Shadow.neutral,
   },
   signOutBtnPressed: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "rgba(0, 0, 0, 0.03)",
   },
   signOutText: {
-    fontSize: 14,
-    
-    fontWeight: "500",
-    color: "#9CA3AF",
+    fontSize: 15,
+    fontWeight: "600",
+    color: Accent.red,
   },
   signOutTextPressed: {
-    color: "#6B7280",
+    color: Accent.redDark,
   },
   versionContainer: {
     marginTop: "auto",
@@ -1802,8 +1799,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    
-    color: "#D1D5DB",
+    color: ThemeText.muted,
     letterSpacing: 0.2,
   },
 });
