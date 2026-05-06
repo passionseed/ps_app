@@ -24,6 +24,8 @@ import { useHackathonPushNotifications } from "../../lib/hooks/useHackathonPushN
 import { hasParticipantPushToken, requestAndRegisterPushToken } from "../../lib/hackathonPushTokens";
 import { readHackathonParticipant } from "../../lib/hackathon-mode";
 import { EnableNotificationsModal } from "../../components/Hackathon/EnableNotificationsModal";
+import { WrappedCTA } from "../../components/Wrapped/WrappedCTA";
+import { WrappedModal } from "../../components/Wrapped/WrappedModal";
 import type { InboxPreview } from "../../types/hackathon-inbox";
 
 type MentorPreview = { id: string; full_name: string; photo_url?: string };
@@ -52,6 +54,8 @@ export default function HackathonHomeScreen() {
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [inboxPreview, setInboxPreview] = useState<InboxPreview | null>(null);
   const [notiModalVisible, setNotiModalVisible] = useState(false);
+  const [wrappedModalVisible, setWrappedModalVisible] = useState(false);
+  const [completedPhaseCount, setCompletedPhaseCount] = useState(0);
 
   useHackathonPushNotifications();
 
@@ -60,6 +64,7 @@ export default function HackathonHomeScreen() {
       const cached = getCachedHackathonHomeBundle();
       if (cached) {
         setImpact(cached.impact);
+        setCompletedPhaseCount(cached.completedPhaseCount ?? 0);
         setLoading(false);
       } else {
         setLoading(true);
@@ -71,6 +76,7 @@ export default function HackathonHomeScreen() {
       ])
         .then(([bundle, preview]) => {
           setImpact(bundle.impact);
+          setCompletedPhaseCount(bundle.completedPhaseCount ?? 0);
           setInboxPreview(preview);
         })
         .finally(() => {
@@ -228,6 +234,11 @@ export default function HackathonHomeScreen() {
           </View>
         </View>
 
+        {/* Wrapped CTA — shown when Phase 1+ completed */}
+        {completedPhaseCount >= 1 && (
+          <WrappedCTA onPress={() => setWrappedModalVisible(true)} />
+        )}
+
         {/* Mentor Guides */}
         <Pressable style={styles.placeholderCard} onPress={() => router.push("/(hackathon)/mentor-guides")}>
           <View style={styles.mentorGuideHeader}>
@@ -321,6 +332,11 @@ export default function HackathonHomeScreen() {
         visible={notiModalVisible}
         onEnable={handleEnableNotifications}
         onDismiss={handleDismissNotifications}
+      />
+
+      <WrappedModal
+        visible={wrappedModalVisible}
+        onClose={() => setWrappedModalVisible(false)}
       />
     </View>
   );

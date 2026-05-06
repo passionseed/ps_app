@@ -110,6 +110,7 @@ async function loadCached<T>(
 export type HackathonHomeBundle = {
   currentPhase: HackathonProgramPhase | null;
   impact: TeamImpact | null;
+  completedPhaseCount: number;
 };
 
 export type HackathonJourneyPhaseCard = {
@@ -214,10 +215,51 @@ function buildJourneyPhaseCards(
 async function createHomeBundle(): Promise<HackathonHomeBundle> {
   const home = await getCurrentHackathonProgramHome();
   const teamId = home.team?.id;
+  const impact = teamId ? await fetchTeamImpact(teamId).catch(() => null) : null;
+
+  // Compute completed phase count for Wrapped CTA eligibility
+  let completedPhaseCount = 0;
+  if (home.program && home.phases.length > 0) {
+    try {
+      const phaseSummaries = await getProgramPhaseActivitySummaries(home.program.id);
+      const allActivityIds = phaseSummaries.flatMap((phase) =>
+        (phase.activities ?? []).filter(Boolean).map((activity) => activity.id),
+      );
+      const [submissionStatuses, teamStatuses] = await Promise.all([
+        fetchActivitySubmissionStatuses(allActivityIds),
+        fetchTeamActivitySubmissionStatuses(allActivityIds),
+      ]);
+      const mergedStatuses = { ...submissionStatuses };
+      for (const [actId, status] of Object.entries(teamStatuses)) {
+        if (!mergedStatuses[actId] || mergedStatuses[actId] === "not_started") {
+          mergedStatuses[actId] = status;
+        }
+      }
+
+      completedPhaseCount = home.phases.filter((phase) => {
+        const phaseData = phaseSummaries.find((summary) => summary.id === phase.id);
+        const activities = phaseData?.activities ?? [];
+        if (activities.length === 0) return false;
+        const completed = activities.filter((activity) => {
+          const status = mergedStatuses[activity.id];
+          return (
+            status === "submitted" ||
+            status === "graded" ||
+            status === "completed" ||
+            status === "passed"
+          );
+        }).length;
+        return completed >= activities.length;
+      }).length;
+    } catch {
+      // Fallback: if we can't compute, leave at 0
+    }
+  }
 
   return {
     currentPhase: getCurrentReleasedPhase(home.phases),
-    impact: teamId ? await fetchTeamImpact(teamId).catch(() => null) : null,
+    impact,
+    completedPhaseCount,
   };
 }
 
