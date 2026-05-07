@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   StyleSheet,
@@ -21,6 +21,21 @@ import Animated, {
 } from "react-native-reanimated";
 import { AppText } from "../AppText";
 import { Space } from "../../lib/theme";
+import { prompts } from "../../lib/wrapped/prompts";
+import {
+  classifyArchetype,
+  computeEBAxis,
+  computeSBAxis,
+  computeSQAxis,
+  computePRAxis,
+} from "../../lib/wrapped/archetypes";
+import type { AxisScores, ArchetypeResult } from "../../lib/wrapped/archetypes";
+import { WrappedSliderCard } from "./WrappedSliderCard";
+import { WrappedMultiSelectCard } from "./WrappedMultiSelectCard";
+import { WrappedDragRankCard } from "./WrappedDragRankCard";
+import { WrappedTextCard } from "./WrappedTextCard";
+import { ArchetypeReveal } from "./ArchetypeReveal";
+import { SummaryCard } from "./SummaryCard";
 
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
@@ -37,33 +52,91 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const progress = useSharedValue(0);
 
-  const totalSteps = 7; // intro + 5 prompts + reveal + summary
+  // Responses state
+  const [p1Value, setP1Value] = useState(2);
+  const [p2Value, setP2Value] = useState(2);
+  const [p3Selected, setP3Selected] = useState<number[]>([]);
+  const [p4Ranked, setP4Ranked] = useState<number[]>([]);
+  const [p5Text, setP5Text] = useState("");
+
+  // Reveal state
+  const [revealedArchetype, setRevealedArchetype] = useState<ArchetypeResult | null>(null);
+  const [axisScores, setAxisScores] = useState<AxisScores | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
+
+  const totalSteps = 8; // intro + 5 prompts + reveal + summary
 
   const handleClose = useCallback(() => {
     setCurrentStep(0);
     progress.value = 0;
+    setP1Value(2);
+    setP2Value(2);
+    setP3Selected([]);
+    setP4Ranked([]);
+    setP5Text("");
+    setRevealedArchetype(null);
+    setAxisScores(null);
+    setShowSummary(false);
     onClose();
   }, [onClose, progress]);
 
+  const computeAndReveal = useCallback(() => {
+    const scores: AxisScores = {
+      eb: computeEBAxis(p1Value, p3Selected),
+      sb: computeSBAxis(p2Value),
+      sq: computeSQAxis(p3Selected),
+      pr: computePRAxis(p4Ranked),
+    };
+    const archetype = classifyArchetype(scores);
+    setAxisScores(scores);
+    setRevealedArchetype(archetype);
+  }, [p1Value, p2Value, p3Selected, p4Ranked]);
+
   const handleNext = useCallback(() => {
     if (currentStep < totalSteps - 1) {
-      setCurrentStep((prev) => prev + 1);
-      progress.value = withTiming(currentStep + 1, { duration: 300 });
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      progress.value = withTiming(nextStep, { duration: 300 });
+
+      // Trigger reveal computation when moving from prompt 5 to reveal
+      if (currentStep === 5) {
+        computeAndReveal();
+      }
     }
-  }, [currentStep, totalSteps, progress]);
+  }, [currentStep, totalSteps, progress, computeAndReveal]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
-      progress.value = withTiming(currentStep - 1, { duration: 300 });
+      const prevStep = currentStep - 1;
+      setCurrentStep(prevStep);
+      progress.value = withTiming(prevStep, { duration: 300 });
     } else {
       handleClose();
     }
   }, [currentStep, progress, handleClose]);
 
+  const handleRevealComplete = useCallback(() => {
+    setShowSummary(true);
+    setCurrentStep(7);
+    progress.value = withTiming(7, { duration: 300 });
+  }, [progress]);
+
   const progressWidth = useAnimatedStyle(() => ({
     width: `${((progress.value + 1) / totalSteps) * 100}%`,
   }));
+
+  // Memoize prompt lookups
+  const p1Prompt = useMemo(() => prompts.find((p) => p.id === "p1")!, []);
+  const p2Prompt = useMemo(() => prompts.find((p) => p.id === "p2")!, []);
+  const p3Prompt = useMemo(() => prompts.find((p) => p.id === "p3")!, []);
+  const p4Prompt = useMemo(() => prompts.find((p) => p.id === "p4")!, []);
+  const p5Prompt = useMemo(() => prompts.find((p) => p.id === "p5")!, []);
+
+  const handleP3Toggle = useCallback((index: number) => {
+    setP3Selected((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    );
+  }, []);
 
   return (
     <Modal
@@ -94,13 +167,66 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
             style={styles.cardContainer}
           >
             {currentStep === 0 && <IntroCard onNext={handleNext} />}
-            {currentStep >= 1 && currentStep <= 5 && (
-              <PlaceholderPromptCard
-                step={currentStep}
+
+            {currentStep === 1 && (
+              <WrappedSliderCard
+                prompt={p1Prompt}
+                value={p1Value}
+                onChange={setP1Value}
                 onNext={handleNext}
               />
             )}
-            {currentStep === 6 && <RevealCard onDone={handleClose} />}
+
+            {currentStep === 2 && (
+              <WrappedSliderCard
+                prompt={p2Prompt}
+                value={p2Value}
+                onChange={setP2Value}
+                onNext={handleNext}
+              />
+            )}
+
+            {currentStep === 3 && (
+              <WrappedMultiSelectCard
+                prompt={p3Prompt}
+                selectedIndices={p3Selected}
+                onToggle={handleP3Toggle}
+                onNext={handleNext}
+              />
+            )}
+
+            {currentStep === 4 && (
+              <WrappedDragRankCard
+                prompt={p4Prompt}
+                rankedIndices={p4Ranked}
+                onReorder={setP4Ranked}
+                onNext={handleNext}
+              />
+            )}
+
+            {currentStep === 5 && (
+              <WrappedTextCard
+                prompt={p5Prompt}
+                value={p5Text}
+                onChange={setP5Text}
+                onNext={handleNext}
+              />
+            )}
+
+            {currentStep === 6 && revealedArchetype && (
+              <ArchetypeReveal
+                archetype={revealedArchetype}
+                onComplete={handleRevealComplete}
+              />
+            )}
+
+            {currentStep === 7 && revealedArchetype && axisScores && (
+              <SummaryCard
+                archetype={revealedArchetype}
+                scores={axisScores}
+                onDone={handleClose}
+              />
+            )}
           </Animated.View>
         </KeyboardAvoidingView>
       </View>
@@ -132,54 +258,6 @@ function IntroCard({ onNext }: { onNext: () => void }) {
           </AppText>
         </Pressable>
       </Animated.View>
-    </View>
-  );
-}
-
-function PlaceholderPromptCard({
-  step,
-  onNext,
-}: {
-  step: number;
-  onNext: () => void;
-}) {
-  return (
-    <View style={styles.card}>
-      <AppText style={styles.stepIndicator}>
-        Question {step} of 5
-      </AppText>
-      <AppText variant="bold" style={styles.promptTitle}>
-        Prompt {step}
-      </AppText>
-      <AppText style={styles.promptText}>
-        This is a placeholder for the actual prompt content. The full prompt
-        cards will be implemented in the next feature.
-      </AppText>
-      <Pressable style={styles.ctaButton} onPress={onNext}>
-        <AppText variant="bold" style={styles.ctaText}>
-          Next →
-        </AppText>
-      </Pressable>
-    </View>
-  );
-}
-
-function RevealCard({ onDone }: { onDone: () => void }) {
-  return (
-    <View style={styles.card}>
-      <AppText style={styles.revealEmoji}>🎉</AppText>
-      <AppText variant="bold" style={styles.revealTitle}>
-        Your Archetype
-      </AppText>
-      <AppText style={styles.revealText}>
-        The archetype reveal will be implemented in the next feature with
-        dramatic animations and celebration effects.
-      </AppText>
-      <Pressable style={styles.ctaButton} onPress={onDone}>
-        <AppText variant="bold" style={styles.ctaText}>
-          Done
-        </AppText>
-      </Pressable>
     </View>
   );
 }
