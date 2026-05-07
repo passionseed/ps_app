@@ -81,6 +81,8 @@ const styles = StyleSheet.create({
     gap: Space.lg,
     alignItems: "center",
     width: "100%",
+    flex: 1,
+    justifyContent: "center",
   },
   stepIndicator: {
     fontSize: 12,

@@ -236,20 +236,68 @@ async function createHomeBundle(): Promise<HackathonHomeBundle> {
         }
       }
 
+      // Fetch module progress for phases that use modules instead of direct activities
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      let moduleProgressByPhase: Record<string, boolean> = {};
+      if (userId) {
+        try {
+          const { data: playlists } = await supabase
+            .from("hackathon_phase_playlists")
+            .select("id, phase_id")
+            .in("phase_id", home.phases.map((p) => p.id));
+          const playlistIds = (playlists ?? []).filter(Boolean).map((p: any) => p.id);
+          if (playlistIds.length > 0) {
+            const { data: modules } = await supabase
+              .from("hackathon_phase_modules")
+              .select("id, playlist_id, path_id")
+              .in("playlist_id", playlistIds);
+            const moduleIds = (modules ?? []).filter(Boolean).map((m: any) => m.id);
+            if (moduleIds.length > 0) {
+              const { data: progressData } = await supabase
+                .from("student_node_progress")
+                .select("node_id")
+                .eq("user_id", userId)
+                .in("node_id", moduleIds)
+                .or("status.eq.passed,status.eq.submitted");
+              const progressModuleIds = new Set(
+                (progressData ?? []).filter(Boolean).map((p: any) => p.node_id)
+              );
+              const playlistIdToPhaseId = new Map<string, string>();
+              (playlists ?? []).filter(Boolean).forEach((p: any) => {
+                playlistIdToPhaseId.set(p.id, p.phase_id);
+              });
+              (modules ?? []).filter(Boolean).forEach((m: any) => {
+                const phaseId = playlistIdToPhaseId.get(m.playlist_id);
+                if (phaseId && progressModuleIds.has(m.id)) {
+                  moduleProgressByPhase[phaseId] = true;
+                }
+              });
+            }
+          }
+        } catch {
+          // Ignore module progress errors
+        }
+      }
+
       completedPhaseCount = home.phases.filter((phase) => {
         const phaseData = phaseSummaries.find((summary) => summary.id === phase.id);
         const activities = phaseData?.activities ?? [];
-        if (activities.length === 0) return false;
-        const completed = activities.filter((activity) => {
-          const status = mergedStatuses[activity.id];
-          return (
-            status === "submitted" ||
-            status === "graded" ||
-            status === "completed" ||
-            status === "passed"
-          );
-        }).length;
-        return completed >= activities.length;
+        // If phase has direct activities, check completion of those
+        if (activities.length > 0) {
+          const completed = activities.filter((activity) => {
+            const status = mergedStatuses[activity.id];
+            return (
+              status === "submitted" ||
+              status === "graded" ||
+              status === "completed" ||
+              status === "passed"
+            );
+          }).length;
+          return completed >= activities.length;
+        }
+        // Fallback: phase has zero direct activities — check module progress
+        return moduleProgressByPhase[phase.id] ?? false;
       }).length;
     } catch {
       // Fallback: if we can't compute, leave at 0

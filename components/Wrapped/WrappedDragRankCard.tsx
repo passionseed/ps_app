@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   StyleSheet,
   Pressable,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import Animated, {
   FadeInUp,
@@ -16,7 +17,6 @@ import Animated, {
 import {
   Gesture,
   GestureDetector,
-  GestureHandlerRootView,
 } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../AppText";
@@ -26,6 +26,9 @@ import type { WrappedPrompt } from "../../lib/wrapped/prompts";
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
 const PURPLE = "#9D81AC";
+const { height: SCREEN_H } = Dimensions.get("window");
+const ITEM_HEIGHT = 72;
+const ITEM_GAP = 8;
 
 interface WrappedDragRankCardProps {
   prompt: WrappedPrompt;
@@ -108,10 +111,14 @@ export function WrappedDragRankCard({
           contentContainerStyle={styles.listScroll}
         >
           {localOrder.map((itemIndex, position) => (
-            <RankItem
+            <DraggableRankItem
               key={itemIndex}
               position={position}
               item={items[itemIndex]}
+              itemIndex={itemIndex}
+              totalItems={localOrder.length}
+              order={localOrder}
+              onReorder={handleReorder}
               onMoveUp={() => moveUp(position)}
               onMoveDown={() => moveDown(position)}
               canMoveUp={position > 0}
@@ -132,9 +139,13 @@ export function WrappedDragRankCard({
   );
 }
 
-function RankItem({
+function DraggableRankItem({
   position,
   item,
+  itemIndex,
+  totalItems,
+  order,
+  onReorder,
   onMoveUp,
   onMoveDown,
   canMoveUp,
@@ -142,6 +153,10 @@ function RankItem({
 }: {
   position: number;
   item: { en: string; th: string };
+  itemIndex: number;
+  totalItems: number;
+  order: number[];
+  onReorder: (newOrder: number[]) => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   canMoveUp: boolean;
@@ -150,42 +165,104 @@ function RankItem({
   const rankColors = [CYAN, "rgba(145,196,227,0.6)", "rgba(145,196,227,0.3)"];
   const rankColor = rankColors[position] ?? "rgba(145,196,227,0.2)";
 
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const zIndex = useSharedValue(1);
+  const isDragging = useSharedValue(false);
+
+  const reorderWithDrag = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (fromIndex === toIndex) return;
+      const newOrder = [...order];
+      const [removed] = newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, removed);
+      onReorder(newOrder);
+    },
+    [order, onReorder]
+  );
+
+  const panGesture = Gesture.Pan()
+    .activateAfterLongPress(200)
+    .onBegin(() => {
+      "worklet";
+      isDragging.value = true;
+      scale.value = withSpring(1.05, { damping: 20, stiffness: 300 });
+      zIndex.value = 100;
+    })
+    .onUpdate((e) => {
+      "worklet";
+      translateY.value = e.translationY;
+      // Calculate target position based on drag distance
+      const dragOffset = e.translationY;
+      const itemTotalHeight = ITEM_HEIGHT + ITEM_GAP;
+      const rawTarget = position + dragOffset / itemTotalHeight;
+      const targetIndex = Math.max(0, Math.min(totalItems - 1, Math.round(rawTarget)));
+      // We don't reorder during drag to avoid jitter; we reorder onEnd
+    })
+    .onEnd((e) => {
+      "worklet";
+      const dragOffset = e.translationY;
+      const itemTotalHeight = ITEM_HEIGHT + ITEM_GAP;
+      const rawTarget = position + dragOffset / itemTotalHeight;
+      const targetIndex = Math.max(0, Math.min(totalItems - 1, Math.round(rawTarget)));
+
+      if (targetIndex !== position) {
+        runOnJS(reorderWithDrag)(position, targetIndex);
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      translateY.value = withSpring(0, { damping: 25, stiffness: 300 });
+      scale.value = withSpring(1, { damping: 25, stiffness: 300 });
+      zIndex.value = 1;
+      isDragging.value = false;
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+    zIndex: zIndex.value,
+  }));
+
   return (
-    <Animated.View entering={FadeInUp.duration(400).delay(position * 100)}>
-      <View style={styles.rankItem}>
-        <View style={[styles.rankBadge, { backgroundColor: rankColor }]}>
-          <AppText variant="bold" style={styles.rankNumber}>
-            {position + 1}
-          </AppText>
-        </View>
+    <GestureDetector gesture={panGesture}>
+      <Animated.View entering={FadeInUp.duration(400).delay(position * 100)} style={animatedStyle}>
+        <View style={styles.rankItem}>
+          <View style={[styles.rankBadge, { backgroundColor: rankColor }]}>
+            <AppText variant="bold" style={styles.rankNumber}>
+              {position + 1}
+            </AppText>
+          </View>
 
-        <View style={styles.rankTextContainer}>
-          <AppText variant="bold" style={styles.rankText}>
-            {item.en}
-          </AppText>
-          <AppText style={styles.rankTextTh}>{item.th}</AppText>
-        </View>
+          <View style={styles.rankTextContainer}>
+            <AppText variant="bold" style={styles.rankText}>
+              {item.en}
+            </AppText>
+            <AppText style={styles.rankTextTh}>{item.th}</AppText>
+          </View>
 
-        <View style={styles.rankControls}>
-          <Pressable
-            onPress={onMoveUp}
-            disabled={!canMoveUp}
-            style={[styles.rankButton, !canMoveUp && styles.rankButtonDisabled]}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <AppText style={styles.rankButtonText}>▲</AppText>
-          </Pressable>
-          <Pressable
-            onPress={onMoveDown}
-            disabled={!canMoveDown}
-            style={[styles.rankButton, !canMoveDown && styles.rankButtonDisabled]}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <AppText style={styles.rankButtonText}>▼</AppText>
-          </Pressable>
+          <View style={styles.rankControls}>
+            <Pressable
+              onPress={onMoveUp}
+              disabled={!canMoveUp}
+              style={[styles.rankButton, !canMoveUp && styles.rankButtonDisabled]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <AppText style={styles.rankButtonText}>▲</AppText>
+            </Pressable>
+            <Pressable
+              onPress={onMoveDown}
+              disabled={!canMoveDown}
+              style={[styles.rankButton, !canMoveDown && styles.rankButtonDisabled]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <AppText style={styles.rankButtonText}>▼</AppText>
+            </Pressable>
+          </View>
         </View>
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -195,6 +272,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "100%",
     flex: 1,
+    justifyContent: "center",
   },
   stepIndicator: {
     fontSize: 12,

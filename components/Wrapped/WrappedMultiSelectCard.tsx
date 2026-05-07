@@ -98,7 +98,7 @@ function Chip({
 
   const chipStyle = useAnimatedStyle(() => ({
     backgroundColor: selected
-      ? withTiming("rgba(157,129,172,0.25)", { duration: 200 })
+      ? withTiming(PURPLE, { duration: 200 })
       : withTiming("rgba(26,37,48,0.8)", { duration: 200 }),
     borderColor: selected
       ? withTiming(PURPLE, { duration: 200 })
@@ -107,9 +107,9 @@ function Chip({
   }));
 
   const handlePress = () => {
-    scale.value = withSpring(0.95, { damping: 15 });
+    scale.value = withSpring(0.95, { damping: 25, stiffness: 200 });
     setTimeout(() => {
-      scale.value = withSpring(1, { damping: 15 });
+      scale.value = withSpring(1, { damping: 25, stiffness: 200 });
     }, 80);
     onToggle();
   };
@@ -130,7 +130,7 @@ function Chip({
           <AppText
             style={[
               styles.chipTextTh,
-              selected && styles.chipTextSelected,
+              selected && styles.chipTextSelectedTh,
             ]}
           >
             {option.th}
@@ -147,6 +147,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "100%",
     flex: 1,
+    justifyContent: "center",
   },
   stepIndicator: {
     fontSize: 12,
@@ -206,6 +207,9 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: WHITE,
+  },
+  chipTextSelectedTh: {
+    color: "rgba(255,255,255,0.85)",
   },
   ctaButton: {
     backgroundColor: PURPLE,
