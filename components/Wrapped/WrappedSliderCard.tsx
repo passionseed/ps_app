@@ -50,7 +50,7 @@ export function WrappedSliderCard({
 
   const panGesture = Gesture.Pan()
     .onBegin(() => {
-      thumbScale.value = withSpring(1.3, { damping: 15 });
+      thumbScale.value = withSpring(1.3, { damping: 25, stiffness: 200 });
     })
     .onUpdate((e) => {
       const newProgress = Math.max(
@@ -60,7 +60,7 @@ export function WrappedSliderCard({
       progress.value = newProgress;
     })
     .onEnd(() => {
-      thumbScale.value = withSpring(1, { damping: 15 });
+      thumbScale.value = withSpring(1, { damping: 25, stiffness: 200 });
       const newValue = Math.round(progress.value * range + min);
       runOnJS(onChange)(newValue);
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
@@ -71,7 +71,7 @@ export function WrappedSliderCard({
       0,
       Math.min(1, (e.absoluteX - (SCREEN_WIDTH - SLIDER_WIDTH) / 2) / SLIDER_WIDTH)
     );
-    progress.value = withSpring(newProgress, { damping: 20 });
+    progress.value = withSpring(newProgress, { damping: 25, stiffness: 200 });
     const newValue = Math.round(newProgress * range + min);
     runOnJS(onChange)(newValue);
     runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
@@ -159,6 +159,8 @@ const styles = StyleSheet.create({
     gap: Space.lg,
     alignItems: "center",
     width: "100%",
+    flex: 1,
+    justifyContent: "center",
   },
   stepIndicator: {
     fontSize: 12,
