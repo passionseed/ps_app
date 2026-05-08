@@ -12,29 +12,37 @@ describe("phase2Hints data integrity", () => {
     }
   });
 
-  it("each archetype has exactly 5 hint keys", () => {
-    const expectedKeys = ["interview", "build", "pitch", "decide", "synthesize"];
+  it("each archetype has superpower and growthEdge keys", () => {
     for (const id of Object.keys(phase2Hints)) {
       const hint = phase2Hints[id];
-      const keys = Object.keys(hint);
-      expect(keys).toHaveLength(5);
-      for (const k of expectedKeys) {
-        expect(keys).toContain(k);
-      }
+      expect(hint.superpower).toBeDefined();
+      expect(hint.growthEdge).toBeDefined();
     }
   });
 
-  it("all hint values are non-empty Thai strings", () => {
+  it("all hint values have non-empty EN and TH strings", () => {
     for (const id of Object.keys(phase2Hints)) {
       const hint = phase2Hints[id];
-      for (const key of Object.keys(hint) as Array<keyof typeof hint>) {
-        const value = hint[key];
-        expect(value).toBeTruthy();
-        expect(typeof value).toBe("string");
-        expect(value.length).toBeGreaterThan(0);
-        // Contains Thai characters (Unicode range for Thai)
-        expect(/[\u0E00-\u0E7F]/.test(value)).toBe(true);
-      }
+      expect(hint.superpower.en).toBeTruthy();
+      expect(hint.superpower.th).toBeTruthy();
+      expect(hint.growthEdge.en).toBeTruthy();
+      expect(hint.growthEdge.th).toBeTruthy();
+      expect(typeof hint.superpower.en).toBe("string");
+      expect(typeof hint.superpower.th).toBe("string");
+      expect(typeof hint.growthEdge.en).toBe("string");
+      expect(typeof hint.growthEdge.th).toBe("string");
+      expect(hint.superpower.en.length).toBeGreaterThan(0);
+      expect(hint.superpower.th.length).toBeGreaterThan(0);
+      expect(hint.growthEdge.en.length).toBeGreaterThan(0);
+      expect(hint.growthEdge.th.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("all TH hint values contain Thai characters", () => {
+    for (const id of Object.keys(phase2Hints)) {
+      const hint = phase2Hints[id];
+      expect(/[\u0E00-\u0E7F]/.test(hint.superpower.th)).toBe(true);
+      expect(/[\u0E00-\u0E7F]/.test(hint.growthEdge.th)).toBe(true);
     }
   });
 });

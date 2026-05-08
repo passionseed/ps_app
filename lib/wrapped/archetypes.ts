@@ -1,7 +1,7 @@
 import { p3Options } from "./prompts";
 
 export interface AxisScores {
-  eb: number;
+  mm: number;
   sb: number;
   pr: number;
   sq: number;
@@ -12,17 +12,33 @@ export interface ArchetypeResult {
   display: { en: string; th: string };
   caption: { en: string; th: string };
   bgmPrompt: string;
-  signs?: { eb: number; sb: number; pr: number; sq: number };
+  persona?: { en: string; th: string };
+  sqDynamic?: {
+    solo: { en: string; th: string };
+    squad: { en: string; th: string };
+  };
+  signs?: { mm: number; sb: number; pr: number; sq: number };
 }
 
 export interface WrappedArchetype extends ArchetypeResult {}
 
+export type ArchetypeId =
+  | "the-empath"
+  | "the-advocate"
+  | "the-interrogator"
+  | "the-mythbuster"
+  | "the-architect"
+  | "the-synthesizer"
+  | "the-auditor"
+  | "the-pivot-forcer"
+  | "wanderer";
+
 export const NEUTRAL_THRESHOLD = 0.25;
 
 export const axes = {
-  EB: {
-    negative: { en: "Explorer", th: "นักสำรวจ" },
-    positive: { en: "Builder", th: "ผู้สร้าง" },
+  MM: {
+    negative: { en: "Micro", th: "มิโคร" },
+    positive: { en: "Macro", th: "แมโคร" },
   },
   SB: {
     negative: { en: "Skeptic", th: "ผู้สงสัย" },
@@ -40,116 +56,228 @@ export const axes = {
 
 export const archetypes: WrappedArchetype[] = [
   {
-    id: "field-researcher",
+    id: "the-empath",
     display: {
-      en: "The Field Researcher",
-      th: "นักสำรวจภาคสนาม",
+      en: "The Empath",
+      th: "ผู้เข้าอกเข้าใจ",
     },
     caption: {
-      en: "Phase 1 was you with a notebook, real humans, and the patience to actually listen.",
-      th: "Phase 1 คือตอนที่คุณพกสมุดไปนั่งกับคนจริงๆ แล้วสำนึกว่า — การฟังนั้นยากกว่าการพูดเยอะ",
+      en: "You let the silences breathe until the real truth came out.",
+      th: "คุณให้เวลากับความเงียบจนความจริงปรากฏ",
+    },
+    persona: {
+      en: "You let the silences breathe until the real truth came out. Your belief comes directly from the people who experience it.",
+      th: "คุณให้เวลากับความเงียบจนความจริงปรากฏ ความเชื่อของคุณมาจากคนที่เผชิญมันโดยตรง",
+    },
+    sqDynamic: {
+      solo: {
+        en: "You work best in 1:1 intimacy—trust your instinct to go deep with a single user.",
+        th: "คุณทำงานได้ดีที่สุดในโหมด 1:1 — เชื่อสัญชาตญาณที่จะลงลึกกับผู้ใช้คนเดียว",
+      },
+      squad: {
+        en: "Your superpower works best when you share what you're sensing with the team, not just carry it alone.",
+        th: "พลังวิเศษของคุณจะแรงที่สุดตอนที่คุณแบ่งปันสิ่งที่รู้สึกกับทีม ไม่ใช่แบกมันไว้คนเดียว",
+      },
     },
     bgmPrompt:
       "mmx music generate: Ethereal ambient electronic with soft evolving pads, gentle arpeggios, subtle field recording textures, glass marimba, warm analog bass. Curious exploratory mood. 100 BPM. Bioluminescent theme.",
-    signs: { eb: -1, sb: 0, pr: 0, sq: 0 },
+    signs: { mm: -1, sb: 1, pr: -1, sq: 0 },
   },
   {
-    id: "connector",
+    id: "the-advocate",
     display: {
-      en: "The Connector",
-      th: "นักวิ่งเชื่อมจุด",
+      en: "The Advocate",
+      th: "ผู้พิทักษ์",
     },
     caption: {
-      en: "You chased the conversations, jumped between angles, and trusted the next person to spark the next idea.",
-      th: "คุณไล่คุยทุกมุม กระโดดไปทุกมุมมอง แล้วปล่อยให้คนถัดไปจุดประกายไอเดียต่อไป",
+      en: "Once you found a user pain point, you were restless to move forward.",
+      th: "พบปัญหาผู้ใช้ปุ๊บ คุณก็พร้อมลุยต่อทันที",
+    },
+    persona: {
+      en: "Once you found a user pain point, you were restless to move forward. You championed the users and drove the 'Proceed' decision.",
+      th: "พบปัญหาผู้ใช้ปุ๊บ คุณก็พร้อมลุยต่อทันที คุณเป็นผู้พิทักษ์ผู้ใช้และผลักดันการตัดสินใจ 'ลุยต่อ'",
+    },
+    sqDynamic: {
+      solo: {
+        en: "You trust your judgment—run with it, but check in with your squad before accelerating.",
+        th: "คุณเชื่อในความคิดของตัวเอง — ลุยเลย แต่เช็คอินกับทีมก่อนเร่งเครื่อง",
+      },
+      squad: {
+        en: "Your energy keeps the squad moving, but practice naming your uncertainties before charging forward.",
+        th: "พลังของคุณดันให้ทีมเคลื่อนไหว แต่ฝึกพูดความไม่แน่ใจออกมาก่อนจะบุก",
+      },
     },
     bgmPrompt:
       "mmx music generate: Warm synth pop with layered lush synths, punchy soft drums, harmonic pads, shimmering leads, warm rounded bass. Heartwarming and energizing. 120 BPM. Bioluminescent theme.",
-    signs: { eb: -1, sb: 0, pr: 0, sq: 1 },
+    signs: { mm: -1, sb: 1, pr: 1, sq: 0 },
   },
   {
-    id: "detective",
+    id: "the-interrogator",
     display: {
-      en: "The Detective",
-      th: "นักสืบ",
+      en: "The Interrogator",
+      th: "นักซักไซ้",
     },
     caption: {
-      en: "You sat with the problem and pulled threads until something finally cracked.",
-      th: "คุณนั่งก้มหน้ากับปัญหา ดึงเส้นด้ายทีละเส้น จนวันหนึ่งมันเริ่มเปิดเผยตัว",
+      en: "People tell you what you want to hear. You knew that, and patiently kept asking.",
+      th: "คนพูดสิ่งที่คุณอยากฟัง คุณรู้ และอดทนถามต่อไป",
+    },
+    persona: {
+      en: "People tell you what you want to hear. You knew that, and patiently kept asking 'but why?' until the messy behavior emerged.",
+      th: "คนพูดสิ่งที่คุณอยากฟัง คุณรู้ และอดทนถาม 'แล้วทำไม?' จนพฤติกรรมที่ยุ่งเหยิงปรากฏ",
+    },
+    sqDynamic: {
+      solo: {
+        en: "You do your best thinking in private—protect that, but don't disappear for the whole sprint.",
+        th: "คุณคิดได้ดีที่สุดในพื้นที่ส่วนตัว — ปกป้องมัน แต่อย่าหายไปตลอดสปรินต์",
+      },
+      squad: {
+        en: "You protect the team from groupthink; channel that into proposing alternatives, not just problems.",
+        th: "คุณปกป้องทีมจาก groupthink; เปลี่ยนมันเป็นข้อเสนอทางเลือก ไม่ใช่แค่ปัญหา",
+      },
     },
     bgmPrompt:
       "mmx music generate: Noir synthwave with dark bass synths, jazzy muted keys, sparse percussion, moody filter sweeps, tension-building risers, cool vibraphone. Mysterious detective mood. 90 BPM. Bioluminescent theme.",
-    signs: { eb: 0, sb: -1, pr: -1, sq: 0 },
+    signs: { mm: -1, sb: -1, pr: -1, sq: 0 },
   },
   {
-    id: "pivoter",
+    id: "the-mythbuster",
     display: {
-      en: "The Pivoter",
-      th: "นักพลิกสถานการณ์",
+      en: "The Mythbuster",
+      th: "ผู้ทำลายมายาคติ",
     },
     caption: {
-      en: "You tested everything, broke your own ideas on purpose, and chased the version that survived.",
-      th: "ทดสอบทุกอย่าง ทำลายไอเดียตัวเองเพื่อให้แน่ใจว่ามันอยู่รอด แล้วไล่ตามเวอร์ชันที่ดีที่สุด",
+      en: "You hate wasting time on fake problems.",
+      th: "คุณเกลียดการเสียเวลากับปัญหาปลอม",
+    },
+    persona: {
+      en: "You hate wasting time on fake problems. You moved quickly through evidence, actively looking to Pivot or Kill bad ideas.",
+      th: "คุณเกลียดการเสียเวลากับปัญหาปลอม คุณเคลื่อนผ่านหลักฐานอย่างรวดเร็ว มองหาโอกาส Pivot หรือ Kill ไอเดียแย่ๆ",
+    },
+    sqDynamic: {
+      solo: {
+        en: "You're at your best when stress-testing an idea on your own.",
+        th: "คุณอยู่ในจุดที่ดีที่สุดตอน stress-test ไอเดียด้วยตัวเอง",
+      },
+      squad: {
+        en: "Your skepticism is a gift; practice offering 'what could work instead' alongside 'this won't work.'",
+        th: "ความสงสัยของคุณคือของขวัญ; ฝักใฝ่เสนอ 'แล้วอะไรจะเวิร์กแทน' ควบคู่กับ 'อันนี้ไม่เวิร์ก'",
+      },
     },
     bgmPrompt:
       "mmx music generate: Dynamic breakbeat fusion with punchy break drums, dramatic chord stabs, evolving pads, gritty bass, building risers, textural glitches. Adaptive transformative mood. 125 BPM. Bioluminescent theme.",
-    signs: { eb: 0, sb: 0, pr: 1, sq: 0 },
+    signs: { mm: -1, sb: -1, pr: 1, sq: 0 },
   },
   {
-    id: "quiet-anchor",
+    id: "the-architect",
     display: {
-      en: "The Quiet Anchor",
-      th: "เสาหลักของทีม",
+      en: "The Architect",
+      th: "สถาปนิกโครงสร้าง",
     },
     caption: {
-      en: "Head down, making the thing real while the rest of us argued.",
-      th: "ทำหัวลง ขุดจนเกิดของจริง ในขณะที่คนอื่นยังเถียงกันอยู่เป็นใหญ่",
+      en: "While others were lost in individual quotes, you were zooming out.",
+      th: "ตอนที่คนอื่นหลงในใบเสนอราคาแต่ละใบ คุณกำลังถอยออกมามองภาพรวม",
+    },
+    persona: {
+      en: "While others were lost in individual quotes, you were zooming out. You patiently built a system map the team could believe in.",
+      th: "ตอนที่คนอื่นหลงในใบเสนอราคาแต่ละใบ คุณกำลังถอยออกมามองภาพรวม คุณสร้างแผนผังระบบอย่างอดทนจนทีมเชื่อมั่น",
+    },
+    sqDynamic: {
+      solo: {
+        en: "You need space to think big—take it, but bring the team into the vision early.",
+        th: "คุณต้องการพื้นที่คิดใหญ่ — เอาเลย แต่ดึงทีมเข้ามาในวิสัยทัศน์ตั้งแต่เนิ่นๆ",
+      },
+      squad: {
+        en: "Your conviction can outpace the team's evidence; ground your architecture in what everyone learned.",
+        th: "ความเชื่อมั่นของคุณอาจวิ่งเร็วกว่าหลักฐานของทีม; ยึดสถาปัตยกรรมของคุณไว้กับสิ่งที่ทุกคนเรียนรู้",
+      },
     },
     bgmPrompt:
       "mmx music generate: Minimal neo-classical ambient with soft piano motifs, gentle sustained strings, minimal synths, organic textures, warm wooden bass. Grounding and serene mood. 75 BPM. Bioluminescent theme.",
-    signs: { eb: 1, sb: 0, pr: -1, sq: -1 },
+    signs: { mm: 1, sb: 1, pr: -1, sq: 0 },
   },
   {
-    id: "iterator",
+    id: "the-synthesizer",
     display: {
-      en: "The Iterator",
-      th: "ผู้ปั่นไปข้างหน้า",
+      en: "The Synthesizer",
+      th: "นักประมวลผล",
     },
     caption: {
-      en: "You shipped v1, then v2, then v5 — each one better than the last.",
-      th: "วางของออกไปเรื่อยๆ — v1 แล้ว v2 แล้ว v5 — แต่ละชิ้นดีขึ้นกว่าตัวเอง",
+      en: "You connect dots at high speed, turning a pile of messy evidence into a clear map.",
+      th: "คุณเชื่อมจุดได้ด้วยความเร็วสูง เปลี่ยนกองหลักฐานยุ่งเหยิงเป็นแผนที่ชัดเจน",
+    },
+    persona: {
+      en: "You connect dots at high speed, turning a pile of messy evidence into a clear map and a confident 'Proceed.'",
+      th: "คุณเชื่อมจุดได้ด้วยความเร็วสูง เปลี่ยนกองหลักฐานยุ่งเหยิงเป็นแผนที่ชัดเจนและการตัดสินใจ 'ลุยต่อ' อย่างมั่นใจ",
+    },
+    sqDynamic: {
+      solo: {
+        en: "You connect things best when you observe quietly first.",
+        th: "คุณเชื่อมโยงสิ่งต่างๆ ได้ดีที่สุดตอนที่สังเกตเงียบๆ ก่อน",
+      },
+      squad: {
+        en: "You see how ideas fit better than anyone; your job is to propose when you synthesize, not just observe.",
+        th: "คุณเห็นว่าไอเดียประกอบกันอย่างไรดีกว่าใคร; งานของคุณคือเสนอตอนที่สังเคราะห์ ไม่ใช่แค่สังเกต",
+      },
     },
     bgmPrompt:
       "mmx music generate: Glitch hop with tight glitchy percussion, precise sequenced synths, evolving pads, wobble bass, click textures, crystalline chimes. Methodical and refined mood. 110 BPM. Bioluminescent theme.",
-    signs: { eb: 1, sb: 0, pr: 1, sq: 0 },
+    signs: { mm: 1, sb: 1, pr: 1, sq: 0 },
   },
   {
-    id: "skeptical-maker",
+    id: "the-auditor",
     display: {
-      en: "The Skeptical Maker",
-      th: "ผู้สร้าง",
+      en: "The Systems Auditor",
+      th: "ผู้ตรวจสอบระบบ",
     },
     caption: {
-      en: "You built carefully, tested everything, and trusted nothing that hadn't been broken yet.",
-      th: "สร้างอย่างระมัดระวัง ทดสอบทุกอย่าง และไม่ไว้ใจสิ่งที่ยังไม่เคยถูกทำลาย",
+      en: "You don't trust a neat map.",
+      th: "คุณไม่ไว้ใจแผนที่ที่เรียบร้อย",
+    },
+    persona: {
+      en: "You don't trust a neat map. You heavily scrutinized where the system was actually broken before agreeing to any decision.",
+      th: "คุณไม่ไว้ใจแผนที่ที่เรียบร้อย คุณตรวจสอบอย่างหนักว่าระบบพังตรงไหนจริงๆ ก่อนตกลงตัดสินใจอะไร",
+    },
+    sqDynamic: {
+      solo: {
+        en: "You need time with complexity—take it, but surface your insights in short, decisive bursts.",
+        th: "คุณต้องการเวลากับความซับซ้อน — เอาเลย แต่เอาข้อมูลเชิงลึกขึ้นมาเป็นช่วงสั้นๆ ที่เด็ดขาด",
+      },
+      squad: {
+        en: "Your depth can slow decisions; practice turning systemic warnings into specific recommendations.",
+        th: "ความลึกของคุณอาจชะลอการตัดสินใจ; ฝึกเปลี่ยนคำเตือนเชิงระบบเป็นข้อเสนอเฉพาะเจาะจง",
+      },
     },
     bgmPrompt:
       "mmx music generate: Industrial ambient with distorted synth textures, mechanical rhythmic elements, glitchy percussives, glassy crystalline chimes, deep sub bass. Questioning yet luminous mood. 95 BPM. Bioluminescent theme.",
-    signs: { eb: 1, sb: -1, pr: 0, sq: 0 },
+    signs: { mm: 1, sb: -1, pr: -1, sq: 0 },
   },
   {
-    id: "gut-caller",
+    id: "the-pivot-forcer",
     display: {
-      en: "The Gut-Caller",
-      th: "นักสัญชาตญาณ",
+      en: "The Pivot-Forcer",
+      th: "ผู้ชี้จุดเปลี่ยน",
     },
     caption: {
-      en: "Phase 1 was you making fast, sharp calls when everyone else was still talking.",
-      th: "Phase 1 คือตอนที่คุณตัดสินใจเร็วและแม่นยำ ในขณะที่คนอื่นยังคุยกันอยู่",
+      en: "Once the map showed a weak problem space, you decisively cut the cord.",
+      th: "พอแผนที่แสดงพื้นที่ปัญหาอ่อน คุณก็ตัดสายอย่างเด็ดขาด",
+    },
+    persona: {
+      en: "Once the map showed a weak problem space, you decisively cut the cord to Pivot or Kill, saving the team's time.",
+      th: "พอแผนที่แสดงพื้นที่ปัญหาอ่อน คุณก็ตัดสายอย่างเด็ดขาดเพื่อ Pivot หรือ Kill ประหยัดเวลาทีม",
+    },
+    sqDynamic: {
+      solo: {
+        en: "You trust your read on the game—follow it, but build a 24-hour rule before you shift completely.",
+        th: "คุณเชื่อในการอ่านเกมของตัวเอง — ตามมัน แต่สร้างกฎ 24 ชั่วโมงก่อนจะเปลี่ยนเต็มตัว",
+      },
+      squad: {
+        en: "You pull the team forward with urgency; protect their buy-in by making your pivots explicit and voted on.",
+        th: "คุณดึงทีมไปข้างหน้าด้วยความเร่งด่วน; ปกป้องการมีส่วนร่วมของพวกเขาด้วยการทำให้การ pivot ชัดเจนและมีการโหวต",
+      },
     },
     bgmPrompt:
       "mmx music generate: Cinematic bass electronic with heavy sub drops, soaring synth leads, punchy impact drums, epic cinematic risers, powerful stabs. Bold instinctive heroic mood. 130 BPM. Bioluminescent theme.",
-    signs: { eb: 0, sb: 1, pr: 1, sq: 1 },
+    signs: { mm: 1, sb: -1, pr: 1, sq: 0 },
   },
   {
     id: "wanderer",
@@ -163,7 +291,7 @@ export const archetypes: WrappedArchetype[] = [
     },
     bgmPrompt:
       "mmx music generate: Dream pop ambient with ethereal wash pads, reverb-drenched guitar, floating textures, soft distant bass, ambient chimes. Free drifting wandering mood. 85 BPM. Bioluminescent theme.",
-    signs: { eb: 0, sb: 0, pr: 0, sq: 0 },
+    signs: { mm: 0, sb: 0, pr: 0, sq: 0 },
   },
 ];
 
@@ -171,13 +299,138 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+// Activity-data signal types
+export interface ActivitySignals {
+  mm: number;
+  sb: number;
+  pr: number;
+  sq: number;
+}
+
+export interface HackathonParticipantSubmission {
+  id: string;
+  participant_id: string;
+  activity_id: string;
+  submission_type: string;
+  created_at: string;
+  metadata?: Record<string, unknown>;
+}
+
 /**
- * Compute EB (Explorer/Builder) axis score.
- * Formula: clamp((sliderValue - 2) / 2 + sum(P3 EB weights for selected options), -1, 1)
+ * Compute activity-data signals from hackathon participant submissions.
+ * Each signal contributes axis weights based on submission patterns.
+ *
+ * Signals:
+ * - 5+ distinct evidence uploads -> MM -0.30 (Micro)
+ * - Highly connected System Map -> MM +0.30 (Macro)
+ * - Marked "Proceed" at Decision Gate -> SB +0.30 (Believer)
+ * - Marked "Pivot" or "Kill" at Decision Gate -> SB -0.30 (Skeptic)
+ * - Late submission / close to deadline -> PR +0.20 (Restless)
+ * - Evenly distributed uploads -> PR -0.20 (Patient)
+ * - Completed team reflection alone -> SQ -0.20 (Solo)
+ *
+ * @param submissions - Array of participant submissions
+ * @returns Activity signal contributions per axis
+ */
+export function computeActivitySignals(
+  submissions: HackathonParticipantSubmission[]
+): ActivitySignals {
+  const signals: ActivitySignals = { mm: 0, sb: 0, pr: 0, sq: 0 };
+
+  if (!submissions || submissions.length === 0) {
+    return signals;
+  }
+
+  // Count distinct evidence uploads (submission_type === "evidence" or similar)
+  const evidenceSubmissions = submissions.filter(
+    (s) =>
+      s.submission_type === "evidence" ||
+      s.submission_type === "file_upload" ||
+      s.submission_type === "upload"
+  );
+
+  if (evidenceSubmissions.length >= 5) {
+    signals.mm -= 0.30;
+  }
+
+  // Check for system map submission (highly connected)
+  const hasSystemMap = submissions.some(
+    (s) =>
+      s.submission_type === "system_map" ||
+      s.submission_type === "map" ||
+      (s.metadata && (s.metadata as Record<string, unknown>).connected === true)
+  );
+  if (hasSystemMap) {
+    signals.mm += 0.30;
+  }
+
+  // Decision gate signals
+  const decisionSubmissions = submissions.filter(
+    (s) => s.submission_type === "decision" || s.submission_type === "decision_gate"
+  );
+  for (const ds of decisionSubmissions) {
+    const decision =
+      (ds.metadata?.decision as string) ||
+      (ds.metadata?.status as string) ||
+      "";
+    if (decision === "proceed") {
+      signals.sb += 0.30;
+    } else if (decision === "pivot" || decision === "kill") {
+      signals.sb -= 0.30;
+    }
+  }
+
+  // Timing signals for PR axis
+  if (submissions.length > 0) {
+    const timestamps = submissions
+      .map((s) => new Date(s.created_at).getTime())
+      .filter((t) => !isNaN(t));
+    if (timestamps.length > 1) {
+      const minTime = Math.min(...timestamps);
+      const maxTime = Math.max(...timestamps);
+      const range = maxTime - minTime;
+      // If all submissions clustered in last 20% of time range -> restless
+      // If spread across >50% of range -> patient
+      if (range > 0) {
+        const firstUpload = minTime;
+        const lastUpload = maxTime;
+        const phaseDuration = range;
+        const uploadSpread = lastUpload - firstUpload;
+        // Clustered late = restless
+        if (uploadSpread < phaseDuration * 0.2) {
+          signals.pr += 0.20;
+        } else if (uploadSpread > phaseDuration * 0.5) {
+          signals.pr -= 0.20;
+        }
+      }
+    }
+  }
+
+  // Solo reflection signal
+  const hasSoloReflection = submissions.some(
+    (s) =>
+      s.submission_type === "reflection" &&
+      (s.metadata?.solo === true || (s.metadata as Record<string, unknown>).logged_solo === true)
+  );
+  if (hasSoloReflection) {
+    signals.sq -= 0.20;
+  }
+
+  return {
+    mm: clamp(signals.mm, -1, 1),
+    sb: clamp(signals.sb, -1, 1),
+    pr: clamp(signals.pr, -1, 1),
+    sq: clamp(signals.sq, -1, 1),
+  };
+}
+
+/**
+ * Compute MM (Micro/Macro) axis score.
+ * Formula: clamp((sliderValue - 2) / 2 + sum(P3 MM weights for selected options), -1, 1)
  * @param sliderValue - Prompt 1 slider value (0-4)
  * @param p3SelectedIndices - Indices of selected Prompt 3 options
  */
-export function computeEBAxis(
+export function computeMMAxis(
   sliderValue: number,
   p3SelectedIndices: number[]
 ): number {
@@ -185,7 +438,7 @@ export function computeEBAxis(
   const uniqueIndices = Array.from(new Set(p3SelectedIndices)).filter(
     (i) => i >= 0 && i < p3Options.length
   );
-  const p3Sum = uniqueIndices.reduce((sum, idx) => sum + p3Options[idx].eb, 0);
+  const p3Sum = uniqueIndices.reduce((sum, idx) => sum + p3Options[idx].mm, 0);
   return clamp(baseScore + p3Sum, -1, 1);
 }
 
@@ -211,446 +464,7 @@ export function computeSQAxis(p3SelectedIndices: number[]): number {
   return clamp(p3Sum, -1, 1);
 }
 
-/**
- * Compute PR (Patient/Restless) axis score from drag-rank indices.
- * Formula: clamp(sum((rankCount - rankPosition) * weight) / normalization, -1, 1)
- * where rankPosition is 0-indexed (0 = first), weight = 1.0 for first, 0.5 for second, 0.0 for third.
- * With 3 items ranked: score = (2*1.0 + 1*0.5 + 0*0.0) / 2.5 for all-positive = 1.0
- * Actually simpler: for each ranked item at position i (0=first), contribution = (pickCount - 1 - i) / (pickCount - 1)
- * Then average over the number of ranked items.
- * With pickCount=3: first=1.0, second=0.5, third=0.0. Average = sum / 3. Then scaled to [-1,1]... wait.
- *
- * Let's use a cleaner approach:
- * - For each position i (0-indexed), weight = (pickCount - 1 - i) / (pickCount - 1)
- * - Score = average of weights * 2 - 1, so it maps [0,1] to [-1,1]
- * - With 3 items: first=1.0, second=0.5, third=0.0. Average=0.5. Score = 0.5*2-1 = 0
- * Hmm, that centers at 0 for full ranking.
- *
- * Alternative: sum of (pickCount - 1 - i) gives max = 3+2+1 = 6 for 4 items, but we only pick 3.
- * With 3 items picked: max sum = 2+1+0 = 3. Score = sum / 1.5 - 1, so max=3 gives 1, min=0 gives -1.
- * Wait, that gives: [2,1,0] -> 3/1.5 - 1 = 1. [0,1,2] -> 3/1.5 - 1 = 1? No.
- *
- * Let's think about what we want:
- * - First rank should contribute most positively (restless)
- * - Third rank should contribute most negatively (patient)
- * - If user ranks [restless_item, middle, patient_item] as first, second, third,
- *   the score should be positive (restless)
- *
- * Actually the items themselves have intrinsic PR values. But the spec says Prompt 4 items
- * drive PR axis. The test says "first rank contributes most positively and third rank most negatively".
- *
- * So the formula should be:
- * - For each ranked position i (0=first), contribution = (pickCount - 1 - i) / (pickCount - 1)
- *   which gives: first=1, second=0.5, third=0 for pickCount=3
- * - But we want the score to range [-1, 1]
- * - If all 3 ranked: average contribution = (1 + 0.5 + 0) / 3 = 0.5
- *   To map [0, 1] to [-1, 1]: score = avg * 2 - 1 = 0
- *   Hmm that gives 0 for a full ranking.
- *
- * Let's reconsider. The test says:
- * - computePRAxis([0]) > 0 (single item ranked positively)
- * - computePRAxis([0, 1, 2]) in [-1, 1]
- * - First weight != third weight
- *
- * Maybe simpler: each position has a fixed weight:
- * - Position 0 (first): +0.5
- * - Position 1 (second): 0
- * - Position 2 (third): -0.5
- * - Score = sum of weights for ranked positions, clamped
- * - [0] -> +0.5, [0,1] -> +0.5, [0,1,2] -> 0, [2,1,0] -> 0
- * Hmm, [2,1,0] means item at index 2 is first, item at index 0 is third.
- * The weights apply to POSITIONS, not item indices.
- *
- * So:
- * - Position 0 weight = +0.5
- * - Position 1 weight = 0
- * - Position 2 weight = -0.5
- * - Score = sum of position weights for all ranked items
- * - [0] -> position 0 has item 0 -> +0.5
- * - [0, 1, 2] -> positions 0,1,2 have items 0,1,2 -> +0.5 + 0 + (-0.5) = 0
- * - [2, 1, 0] -> positions 0,1,2 have items 2,1,0 -> +0.5 + 0 + (-0.5) = 0
- *
- * Wait, but the test says "first rank contributes most positively and third rank most negatively".
- * And "First weight != third weight" which is true (+0.5 != -0.5).
- *
- * But the golden test expects:
- * - pivoter with p4=[0,1,2] -> PR should be positive (pivoter has pr:+1)
- * - quiet-anchor with p4=[2,1,0] -> PR should be negative (quiet-anchor has pr:-1)
- *
- * With position weights: [0,1,2] -> 0, [2,1,0] -> 0. Both give 0!
- * That won't classify correctly.
- *
- * Hmm, maybe the items themselves have PR weights? Let me re-read the spec...
- * The spec says "Prompt 4 — Drag-rank top 3 (drives PR)" but doesn't assign weights to items.
- *
- * Let me think differently. Maybe the formula is:
- * - The user drags items into order of "most meaningful"
- * - First = most meaningful = most restless (wants to act on it)
- * - Third = least meaningful = most patient (can wait)
- * - But the items don't have inherent weights; it's purely about the order
- *
- * Actually, let me look at what the test expects more carefully.
- * The test "full pipeline consistency" has:
- * - pivoter: p4=[0,1,2] -> expected PR positive
- * - quiet-anchor: p4=[2,1,0] -> expected PR negative
- *
- * If [0,1,2] means item 0 first, item 1 second, item 2 third,
- * and [2,1,0] means item 2 first, item 1 second, item 0 third,
- * then maybe the ITEM indices themselves carry PR weights?
- *
- * But the spec doesn't give item weights. Let me assign some:
- * Items:
- * 0: "The first time the team agreed on something" -> collaborative, patient?
- * 1: "When you finally made the thing work" -> builder, restless?
- * 2: "A conversation that changed your mind" -> explorer, patient?
- * 3: "The moment you realized the idea was wrong" -> skeptic, restless?
- * 4: "When someone helped you unstuck" -> squad, patient?
- * 5: "The late-night push before deadline" -> restless
- *
- * Hmm, this is getting complicated. Let me look at the test expectations again.
- *
- * For the golden tests to pass, I need:
- * - pivoter (pr:+1): p4=[0,1,2] must give PR > 0.25
- * - quiet-anchor (pr:-1): p4=[2,1,0] must give PR < -0.25
- * - detective (pr:-1): p4=[2,1,0] must give PR < -0.25
- * - iterator (pr:+1): p4=[0,1,2] must give PR > 0.25
- * - skeptical-maker (pr:0): p4=[1,2,0] -> PR close to 0
- * - gut-caller (pr:+1): p4=[0,1,2] -> PR > 0.25
- * - field-researcher (pr:0): p4=[1,2,0] -> PR close to 0
- * - connector (pr:0): p4=[1,2,0] -> PR close to 0
- *
- * Wait, let me re-read the test cases:
- * field-researcher: p4=[1,2,0], pr=0
- * connector: p4=[1,2,0], pr=0
- * detective: p4=[2,1,0], pr=-1
- * pivoter: p4=[0,1,2], pr=+1
- * quiet-anchor: p4=[2,1,0], pr=-1
- * iterator: p4=[0,1,2], pr=+1
- * skeptical-maker: p4=[1,2,0], pr=0
- * gut-caller: p4=[0,1,2], pr=+1
- * wanderer: p4=[], pr=0
- *
- * So [0,1,2] gives positive PR, [2,1,0] gives negative PR, [1,2,0] gives near-zero PR.
- *
- * This suggests the items have inherent PR weights:
- * - item 0: positive PR weight
- * - item 1: near-zero PR weight
- * - item 2: negative PR weight
- *
- * And the ranking position gives a multiplier:
- * - first position: weight * 1.0
- * - second position: weight * 0.5
- * - third position: weight * 0.0 (or small)
- *
- * Let me assign item PR weights:
- * - item 0 (team agreed): collaborative moment, maybe patient? But test says positive...
- * - item 1 (made thing work): achievement, restless
- * - item 2 (conversation changed mind): reflective, patient
- * - item 3 (realized idea wrong): critical, restless
- * - item 4 (someone helped): collaborative, patient
- * - item 5 (late-night push): restless
- *
- * Hmm, [0,1,2] being positive means item 0 has positive PR when first.
- * [2,1,0] being negative means item 2 has negative PR when first.
- * [1,2,0] being near-zero means item 1 has near-zero PR when first.
- *
- * So:
- * item 0 PR weight = +0.5
- * item 1 PR weight = 0
- * item 2 PR weight = -0.5
- * item 3 PR weight = +0.5 (guess)
- * item 4 PR weight = -0.5 (guess)
- * item 5 PR weight = +0.5 (guess)
- *
- * And position multiplier:
- * position 0: 1.0
- * position 1: 0.5
- * position 2: 0.0
- *
- * Score = sum(item_weight * position_multiplier) for each ranked item
- *
- * [0,1,2]: 0.5*1.0 + 0*0.5 + (-0.5)*0.0 = 0.5 -> positive, good
- * [2,1,0]: (-0.5)*1.0 + 0*0.5 + 0.5*0.0 = -0.5 -> negative, good
- * [1,2,0]: 0*1.0 + (-0.5)*0.5 + 0.5*0.0 = -0.25 -> borderline, might classify as 0 or -1
- *
- * Hmm, -0.25 is exactly at the threshold. For skeptical-maker (pr:0), we need |pr| < 0.25.
- * -0.25 is NOT < 0.25, it equals. The test for wanderer says "below" threshold.
- * For classification, we need to decide if -0.25 maps to -1 or 0.
- *
- * Let me adjust: position 2 multiplier = 0.25 instead of 0.0
- * [1,2,0]: 0*1.0 + (-0.5)*0.5 + 0.5*0.25 = -0.25 + 0.125 = -0.125 -> |pr| < 0.25, good!
- * [0,1,2]: 0.5*1.0 + 0*0.5 + (-0.5)*0.25 = 0.5 - 0.125 = 0.375 -> > 0.25, good!
- * [2,1,0]: (-0.5)*1.0 + 0*0.5 + 0.5*0.25 = -0.5 + 0.125 = -0.375 -> < -0.25, good!
- *
- * That works! Let me verify all cases:
- * Position multipliers: [1.0, 0.5, 0.25] for [first, second, third]
- * Item weights: [0.5, 0, -0.5, 0.5, -0.5, 0.5]
- *
- * field-researcher [1,2,0]: 0*1.0 + (-0.5)*0.5 + 0.5*0.25 = -0.25 + 0.125 = -0.125
- *   |pr| = 0.125 < 0.25 -> pr sign = 0. Good (field-researcher has pr:0).
- *
- * connector [1,2,0]: same = -0.125
- *   |pr| = 0.125 < 0.25 -> pr sign = 0. Good (connector has pr:0).
- *
- * detective [2,1,0]: (-0.5)*1.0 + 0*0.5 + 0.5*0.25 = -0.5 + 0.125 = -0.375
- *   pr < -0.25 -> pr sign = -1. Good (detective has pr:-1).
- *
- * pivoter [0,1,2]: 0.5*1.0 + 0*0.5 + (-0.5)*0.25 = 0.5 - 0.125 = 0.375
- *   pr > 0.25 -> pr sign = +1. Good (pivoter has pr:+1).
- *
- * quiet-anchor [2,1,0]: same as detective = -0.375
- *   pr < -0.25 -> pr sign = -1. Good (quiet-anchor has pr:-1).
- *
- * iterator [0,1,2]: same as pivoter = 0.375
- *   pr > 0.25 -> pr sign = +1. Good (iterator has pr:+1).
- *
- * skeptical-maker [1,2,0]: same = -0.125
- *   |pr| < 0.25 -> pr sign = 0. Good (skeptical-maker has pr:0).
- *
- * gut-caller [0,1,2]: same = 0.375
- *   pr > 0.25 -> pr sign = +1. Good (gut-caller has pr:+1).
- *
- * wanderer []: 0 -> pr sign = 0. Good.
- *
- * This all works! But wait, I need to make sure the item weights are reasonable.
- * Let me think about what each item represents:
- * 0: "The first time the team agreed on something" -> team alignment, positive PR (restless to move forward)
- * 1: "When you finally made the thing work" -> achievement, neutral PR
- * 2: "A conversation that changed your mind" -> reflection, negative PR (patient)
- * 3: "The moment you realized the idea was wrong" -> critical insight, positive PR (restless to pivot)
- * 4: "When someone helped you unstuck" -> support, negative PR (patient to receive help)
- * 5: "The late-night push before deadline" -> urgency, positive PR (restless)
- *
- * These seem reasonable. Let me also verify edge cases:
- * - Empty array: score = 0. Good.
- * - Single item [0]: 0.5*1.0 = 0.5 -> positive. Good.
- * - Single item [2]: (-0.5)*1.0 = -0.5 -> negative. Good.
- * - Two items [0, 2]: 0.5*1.0 + (-0.5)*0.5 = 0.5 - 0.25 = 0.25
- *   |0.25| is NOT < 0.25, it equals. For classification, 0.25 would map to +1 sign.
- *   Hmm, let me check: the test says "below NEUTRAL_THRESHOLD" for wanderer.
- *   The classification uses |score| < NEUTRAL_THRESHOLD for neutral (0).
- *   So 0.25 is NOT < 0.25, it would be treated as +1.
- *
- * That seems fine. The threshold is 0.25, and values at exactly 0.25 are treated as non-neutral.
- *
- * Actually wait, I should verify: the test says "When all four axis scores have |score| < NEUTRAL_THRESHOLD, wanderer is returned."
- * So |score| >= NEUTRAL_THRESHOLD means the axis has a definite sign.
- * 0.25 >= 0.25, so it would be treated as +1. That's fine.
- *
- * Let me also check the PR axis clamping:
- * Max possible: [0, 3, 5] all first = but we can only have one first position.
- * Best case for positive: [0, 3, 5] -> 0.5*1.0 + 0.5*0.5 + 0.5*0.25 = 0.5 + 0.25 + 0.125 = 0.875
- * Best case for negative: [2, 4, ...] -> (-0.5)*1.0 + (-0.5)*0.5 = -0.5 - 0.25 = -0.75
- * Both within [-1, 1]. Good.
- *
- * But the test says "Extreme inputs (slider max + all matching P3 weights) do not exceed [-1, 1]"
- * for EB. And "all 4 axis functions clamp return values to [-1, 1]".
- * So I should still clamp PR even though it shouldn't exceed.
- *
- * Let me also think about what happens with more than 3 ranked items.
- * The test says "computePRAxis(rankedIndices: number[])" and "Handles fewer than 3 indices (returns 0 or proportional) and empty input (returns 0)."
- * It doesn't say what happens with more than 3. I'll just use the first 3 or all provided.
- * Since pickCount is 3, there should only be 3 items. I'll use all provided items up to pickCount.
- *
- * Actually, let me just use all provided indices and their positions.
- * Position multiplier = max(0, (pickCount - 1 - i) / (pickCount - 1)) for i < pickCount, else 0.
- * With pickCount=3: position 0=1.0, position 1=0.5, position 2=0.0.
- * Wait, I was using 0.25 for position 2. Let me recalculate with 0.0:
- * [0,1,2]: 0.5*1.0 + 0*0.5 + (-0.5)*0.0 = 0.5 -> positive, good
- * [2,1,0]: (-0.5)*1.0 + 0*0.5 + 0.5*0.0 = -0.5 -> negative, good
- * [1,2,0]: 0*1.0 + (-0.5)*0.5 + 0.5*0.0 = -0.25 -> |pr| = 0.25, NOT < 0.25, so sign = -1
- *   But skeptical-maker needs pr:0. This would give pr sign = -1, which is wrong!
- *
- * So I need position 2 to have some weight to balance things.
- * Let me use: position 0=1.0, position 1=0.5, position 2=0.25
- * [1,2,0]: 0*1.0 + (-0.5)*0.5 + 0.5*0.25 = -0.25 + 0.125 = -0.125 -> |pr| < 0.25, sign=0. Good!
- *
- * OK so position multipliers: [1.0, 0.5, 0.25]
- *
- * But what about 4+ items? The formula should generalize.
- * General formula: multiplier for position i = max(0, (pickCount - 1 - i) / (pickCount - 1))
- * With pickCount=3: [1.0, 0.5, 0.0]
- * Hmm, that gives 0.0 for position 2, which breaks the skeptical-maker case.
- *
- * Alternative: use a different general formula.
- * multiplier = 1 / (i + 1)
- * Position 0: 1.0, position 1: 0.5, position 2: 0.333...
- * [1,2,0]: 0*1.0 + (-0.5)*0.5 + 0.5*0.333 = -0.25 + 0.167 = -0.083 -> |pr| < 0.25. Good!
- * [0,1,2]: 0.5*1.0 + 0*0.5 + (-0.5)*0.333 = 0.5 - 0.167 = 0.333 -> > 0.25. Good!
- * [2,1,0]: (-0.5)*1.0 + 0*0.5 + 0.5*0.333 = -0.5 + 0.167 = -0.333 -> < -0.25. Good!
- *
- * This works! And it generalizes nicely.
- * multiplier(i) = 1 / (i + 1)
- *
- * But wait, the test says "first rank contributes most positively and third rank most negatively".
- * With multiplier = 1/(i+1), first=1.0, second=0.5, third=0.333.
- * The third still contributes positively if the item weight is positive.
- * "most negatively" would mean the third has the smallest positive multiplier, so a negative-weight item at third would have the least negative contribution. Hmm.
- *
- * Actually "first rank contributes most positively and third rank most negatively" probably means:
- * - If you put a positive-PR item first, it contributes strongly positively
- * - If you put a negative-PR item third, it contributes negatively (or least positively)
- * - The contrast between first and third is what matters
- *
- * With 1/(i+1): first=1.0, third=0.333. The ratio is 3:1.
- * With my original [1.0, 0.5, 0.25]: first=1.0, third=0.25. Ratio is 4:1.
- *
- * Both satisfy "first weight != third weight".
- *
- * Let me also check: what if ALL items have positive PR weight?
- * [0, 3, 5] with weights [0.5, 0.5, 0.5]:
- * Using 1/(i+1): 0.5*1.0 + 0.5*0.5 + 0.5*0.333 = 0.5 + 0.25 + 0.167 = 0.917 -> clamped to 0.917. Good.
- * Using [1.0, 0.5, 0.25]: 0.5*1.0 + 0.5*0.5 + 0.5*0.25 = 0.5 + 0.25 + 0.125 = 0.875. Good.
- *
- * What if ALL items have negative PR weight?
- * [2, 4, ...] with weights [-0.5, -0.5]:
- * Using 1/(i+1): -0.5*1.0 + (-0.5)*0.5 = -0.5 - 0.25 = -0.75. Good.
- *
- * Both formulas work. I'll use 1/(i+1) since it generalizes better.
- *
- * Wait, but the spec says "rank-weighted scoring where first rank contributes most positively and third rank most negatively".
- * With 1/(i+1), third contributes 0.333 * item_weight. If item_weight is negative, third contributes most negatively (because it's the smallest multiplier, so the negative contribution is least negative... wait, that's backwards).
- *
- * "Most negatively" should mean the largest negative contribution.
- * If item_weight is negative, multiplier * weight is more negative when multiplier is LARGER.
- * So first position with negative weight = most negative, third = least negative.
- * That's the opposite of what the test says.
- *
- * Hmm, maybe I'm overthinking. The test says "first rank contributes most positively and third rank most negatively".
- * This could mean: first rank has the highest positive multiplier, third has the lowest (most negative relative to first).
- * The multiplier itself goes from positive to smaller positive, not to negative.
- * So "most negatively" means "least positively" or "smallest contribution".
- *
- * In that case, both [1.0, 0.5, 0.25] and [1.0, 0.5, 0.333] work.
- * I'll use [1.0, 0.5, 0.25] since it was my original and it makes the math cleaner.
- *
- * Actually, let me reconsider. The spec says "first rank contributes most positively and third rank most negatively".
- * I think the intent is:
- * - First position gets a positive weight
- * - Third position gets a negative weight
- * - The weights themselves are [+0.5, 0, -0.5] for the three positions
- *
- * Let me try this:
- * position_weights = [0.5, 0, -0.5]
- * Score = sum(item_weight * position_weight) for each position
- *
- * [0,1,2] (item0 first, item1 second, item2 third):
- *   = 0.5*0.5 + 0*0 + (-0.5)*(-0.5) = 0.25 + 0 + 0.25 = 0.5 -> positive. Good.
- * [2,1,0] (item2 first, item1 second, item0 third):
- *   = (-0.5)*0.5 + 0*0 + 0.5*(-0.5) = -0.25 + 0 - 0.25 = -0.5 -> negative. Good.
- * [1,2,0] (item1 first, item2 second, item0 third):
- *   = 0*0.5 + (-0.5)*0 + 0.5*(-0.5) = 0 + 0 - 0.25 = -0.25 -> |pr| = 0.25, NOT < 0.25
- *   sign = -1. But skeptical-maker needs pr:0!
- *
- * Hmm, that doesn't work for skeptical-maker.
- *
- * What if position_weights = [0.5, 0, -0.25]?
- * [1,2,0]: 0*0.5 + (-0.5)*0 + 0.5*(-0.25) = -0.125 -> |pr| < 0.25. Good!
- * [0,1,2]: 0.5*0.5 + 0*0 + (-0.5)*(-0.25) = 0.25 + 0.125 = 0.375 -> > 0.25. Good!
- * [2,1,0]: (-0.5)*0.5 + 0*0 + 0.5*(-0.25) = -0.25 - 0.125 = -0.375 -> < -0.25. Good!
- *
- * This works! But does it generalize?
- * For n positions, we want position i to have weight that decreases linearly from +0.5 to some negative value.
- * With 3 positions: [0.5, 0, -0.25]
- * The step is -0.25 per position.
- * With 4 positions: [0.5, 0.25, 0, -0.25]
- *
- * General formula: weight(i) = 0.5 - i * (0.5 / (pickCount - 1)) * some_factor
- * Hmm, this is getting complex.
- *
- * Let me just hardcode for pickCount=3 since that's what the spec says.
- * position_weights = [0.5, 0, -0.25]
- *
- * But wait, the test says "The scoring formula is documented (JSDoc or comment)".
- * I need to document whatever I choose.
- *
- * Actually, let me step back. The simplest formula that works is:
- * - Each item has an intrinsic PR weight
- * - Score = sum(item_weight * position_multiplier)
- * - position_multiplier = 1 / (position + 1)
- * - Then normalize so full positive ranking gives +1 and full negative gives -1
- *
- * With item weights in [-0.5, 0.5] and multipliers [1.0, 0.5, 0.333]:
- * Max score = 0.5*1.0 + 0.5*0.5 + 0.5*0.333 = 0.917
- * Min score = -0.5*1.0 + (-0.5)*0.5 + (-0.5)*0.333 = -0.917
- * To map to [-1, 1]: score / 0.917
- *
- * [0,1,2] with weights [0.5, 0, -0.5]:
- *   raw = 0.5*1.0 + 0*0.5 + (-0.5)*0.333 = 0.5 - 0.167 = 0.333
- *   normalized = 0.333 / 0.917 = 0.363 -> > 0.25. Good.
- * [2,1,0] with weights [-0.5, 0, 0.5]:
- *   raw = (-0.5)*1.0 + 0*0.5 + 0.5*0.333 = -0.5 + 0.167 = -0.333
- *   normalized = -0.333 / 0.917 = -0.363 -> < -0.25. Good.
- * [1,2,0] with weights [0, -0.5, 0.5]:
- *   raw = 0*1.0 + (-0.5)*0.5 + 0.5*0.333 = -0.25 + 0.167 = -0.083
- *   normalized = -0.083 / 0.917 = -0.091 -> |pr| < 0.25. Good!
- *
- * This works perfectly! Let me verify:
- * Max possible raw with any 3 items:
- *   Best: [0.5, 0.5, 0.5] at positions [0,1,2] = 0.5*1.0 + 0.5*0.5 + 0.5*0.333 = 0.917
- *   Worst: [-0.5, -0.5, -0.5] at positions [0,1,2] = -0.917
- * Normalization factor = 0.917
- *
- * But what if only 2 items are ranked?
- * [0, 1]: raw = 0.5*1.0 + 0*0.5 = 0.5
- * normalized = 0.5 / 0.917 = 0.545 -> > 0.25. Good.
- * [0]: raw = 0.5*1.0 = 0.5
- * normalized = 0.5 / 0.917 = 0.545 -> > 0.25. Good.
- * []: raw = 0
- * normalized = 0. Good.
- *
- * What about [2]: raw = -0.5*1.0 = -0.5
- * normalized = -0.5 / 0.917 = -0.545 -> < -0.25. Good.
- *
- * This all works. But I need to define the item PR weights.
- *
- * Let me assign:
- * Item PR weights (restless = positive, patient = negative):
- * 0: "The first time the team agreed on something" -> +0.3 (team momentum, restless)
- * 1: "When you finally made the thing work" -> 0 (neutral achievement)
- * 2: "A conversation that changed your mind" -> -0.3 (reflection, patient)
- * 3: "The moment you realized the idea was wrong" -> +0.3 (critical pivot, restless)
- * 4: "When someone helped you unstuck" -> -0.3 (support, patient)
- * 5: "The late-night push before deadline" -> +0.3 (urgency, restless)
- *
- * Wait, with these weights:
- * [0,1,2]: 0.3*1.0 + 0*0.5 + (-0.3)*0.333 = 0.3 - 0.1 = 0.2
- * normalized = 0.2 / max_sum
- * Max sum with these weights: best 3 positive items = 0.3*1.0 + 0.3*0.5 + 0.3*0.333 = 0.55
- * normalized = 0.2 / 0.55 = 0.364 -> > 0.25. Good.
- * [2,1,0]: (-0.3)*1.0 + 0*0.5 + 0.3*0.333 = -0.3 + 0.1 = -0.2
- * normalized = -0.2 / 0.55 = -0.364 -> < -0.25. Good.
- * [1,2,0]: 0*1.0 + (-0.3)*0.5 + 0.3*0.333 = -0.15 + 0.1 = -0.05
- * normalized = -0.05 / 0.55 = -0.091 -> |pr| < 0.25. Good.
- *
- * This works! But the max_sum depends on which items exist. I should compute it dynamically.
- *
- * Actually, a simpler approach: don't normalize. Just use raw sum and clamp.
- * The classification threshold is 0.25, so as long as the raw sums cross that threshold for the expected cases, we're fine.
- *
- * Raw sums (no normalization):
- * [0,1,2]: 0.3 - 0.1 = 0.2 -> Hmm, 0.2 < 0.25. This would NOT classify as +1!
- * That's a problem.
- *
- * Let me increase the weights:
- * 0: +0.5, 1: 0, 2: -0.5, 3: +0.5, 4: -0.5, 5: +0.5
- * [0,1,2]: 0.5 - 0.167 = 0.333 -> > 0.25. Good.
- * [2,1,0]: -0.5 + 0.167 = -0.333 -> < -0.25. Good.
- * [1,2,0]: -0.25 + 0.167 = -0.083 -> |pr| < 0.25. Good.
- *
- * Max raw sum: 0.5*1.0 + 0.5*0.5 + 0.5*0.333 = 0.917
- * Min raw sum: -0.917
- * All within [-1, 1], so clamping won't change anything.
- *
- * This works! Let me use this approach.
- *
- * PR item weights:
- * [0.5, 0, -0.5, 0.5, -0.5, 0.5]
- *
- * Formula: sum(item_weight[i] / (position + 1)) for each ranked item at position
- * Then clamp to [-1, 1].
- */
-
+// Prompt 4 item weights for PR axis (restless = positive, patient = negative)
 const prItemWeights = [0.5, 0, -0.5, 0.5, -0.5, 0.5];
 
 /**
@@ -687,6 +501,26 @@ function signWithThreshold(value: number): number {
 }
 
 /**
+ * Blend prompt-based scores with activity-data signals.
+ * Weight: 65% prompt / 35% activity.
+ *
+ * @param promptScores - Axis scores from prompt responses
+ * @param activitySignals - Axis contributions from activity data
+ * @returns Blended axis scores
+ */
+export function blendScores(
+  promptScores: AxisScores,
+  activitySignals: ActivitySignals
+): AxisScores {
+  return {
+    mm: clamp(promptScores.mm * 0.65 + activitySignals.mm * 0.35, -1, 1),
+    sb: clamp(promptScores.sb * 0.65 + activitySignals.sb * 0.35, -1, 1),
+    pr: clamp(promptScores.pr * 0.65 + activitySignals.pr * 0.35, -1, 1),
+    sq: clamp(promptScores.sq * 0.65 + activitySignals.sq * 0.35, -1, 1),
+  };
+}
+
+/**
  * Classify axis scores into an archetype.
  *
  * Algorithm:
@@ -698,16 +532,17 @@ function signWithThreshold(value: number): number {
  *    - Otherwise, return wanderer
  * 4. If all axes are below threshold, return wanderer
  *
- * @param scores - Axis scores {eb, sb, pr, sq}
+ * @param scores - Axis scores {mm, sb, pr, sq}
+ * @returns Primary archetype result
  */
 export function classifyArchetype(scores: AxisScores): ArchetypeResult {
-  const ebSign = signWithThreshold(scores.eb);
+  const mmSign = signWithThreshold(scores.mm);
   const sbSign = signWithThreshold(scores.sb);
   const prSign = signWithThreshold(scores.pr);
   const sqSign = signWithThreshold(scores.sq);
 
   // If all axes are neutral, return wanderer
-  if (ebSign === 0 && sbSign === 0 && prSign === 0 && sqSign === 0) {
+  if (mmSign === 0 && sbSign === 0 && prSign === 0 && sqSign === 0) {
     const wanderer = archetypes.find((a) => a.id === "wanderer")!;
     return {
       id: wanderer.id,
@@ -718,13 +553,13 @@ export function classifyArchetype(scores: AxisScores): ArchetypeResult {
     };
   }
 
-  const inputSigns = { eb: ebSign, sb: sbSign, pr: prSign, sq: sqSign };
+  const inputSigns = { mm: mmSign, sb: sbSign, pr: prSign, sq: sqSign };
   const named = archetypes.filter((a) => a.id !== "wanderer");
 
   // Try exact match first
   for (const a of named) {
     if (
-      a.signs!.eb === inputSigns.eb &&
+      a.signs!.mm === inputSigns.mm &&
       a.signs!.sb === inputSigns.sb &&
       a.signs!.pr === inputSigns.pr &&
       a.signs!.sq === inputSigns.sq
@@ -734,14 +569,16 @@ export function classifyArchetype(scores: AxisScores): ArchetypeResult {
         display: a.display,
         caption: a.caption,
         bgmPrompt: a.bgmPrompt,
+        persona: a.persona,
+        sqDynamic: a.sqDynamic,
         signs: a.signs,
       };
     }
   }
 
   // For extreme all-positive or all-negative, find closest by Hamming distance
-  const allPositive = ebSign === 1 && sbSign === 1 && prSign === 1 && sqSign === 1;
-  const allNegative = ebSign === -1 && sbSign === -1 && prSign === -1 && sqSign === -1;
+  const allPositive = mmSign === 1 && sbSign === 1 && prSign === 1 && sqSign === 1;
+  const allNegative = mmSign === -1 && sbSign === -1 && prSign === -1 && sqSign === -1;
 
   if (allPositive || allNegative) {
     let minDistance = Infinity;
@@ -750,7 +587,7 @@ export function classifyArchetype(scores: AxisScores): ArchetypeResult {
 
     for (const a of named) {
       const d =
-        Math.abs(a.signs!.eb - inputSigns.eb) +
+        Math.abs(a.signs!.mm - inputSigns.mm) +
         Math.abs(a.signs!.sb - inputSigns.sb) +
         Math.abs(a.signs!.pr - inputSigns.pr) +
         Math.abs(a.signs!.sq - inputSigns.sq);
@@ -770,6 +607,8 @@ export function classifyArchetype(scores: AxisScores): ArchetypeResult {
         display: closest.display,
         caption: closest.caption,
         bgmPrompt: closest.bgmPrompt,
+        persona: closest.persona,
+        sqDynamic: closest.sqDynamic,
         signs: closest.signs,
       };
     }
@@ -785,10 +624,64 @@ export function classifyArchetype(scores: AxisScores): ArchetypeResult {
   };
 }
 
+/**
+ * Get the secondary (runner-up) archetype for a given scores input.
+ * Returns the archetype with the second-smallest Hamming distance to the sign pattern.
+ * Used when user taps "Not me" during calibration.
+ *
+ * @param scores - Axis scores {mm, sb, pr, sq}
+ * @returns Secondary archetype result
+ */
+export function getSecondaryArchetype(scores: AxisScores): ArchetypeResult {
+  const mmSign = signWithThreshold(scores.mm);
+  const sbSign = signWithThreshold(scores.sb);
+  const prSign = signWithThreshold(scores.pr);
+  const sqSign = signWithThreshold(scores.sq);
+
+  const inputSigns = { mm: mmSign, sb: sbSign, pr: prSign, sq: sqSign };
+  const named = archetypes.filter((a) => a.id !== "wanderer");
+
+  const distances = named.map((a) => ({
+    archetype: a,
+    distance:
+      Math.abs(a.signs!.mm - inputSigns.mm) +
+      Math.abs(a.signs!.sb - inputSigns.sb) +
+      Math.abs(a.signs!.pr - inputSigns.pr) +
+      Math.abs(a.signs!.sq - inputSigns.sq),
+  }));
+
+  distances.sort((a, b) => a.distance - b.distance);
+
+  const secondary = distances[1]?.archetype || distances[0]?.archetype || named[0];
+  return {
+    id: secondary.id,
+    display: secondary.display,
+    caption: secondary.caption,
+    bgmPrompt: secondary.bgmPrompt,
+    persona: secondary.persona,
+    sqDynamic: secondary.sqDynamic,
+    signs: secondary.signs,
+  };
+}
+
 export interface WrappedResponses {
   p1: number;
   p2: number;
   p3: number[];
   p4: number[];
   p5?: string;
+  p6?: string;
+}
+
+export type ArchetypeFit = "nailed" | "sort_of" | "not_me";
+
+export interface WrappedReflection {
+  enrollment_id: string;
+  archetype: ArchetypeId;
+  archetype_secondary: ArchetypeId;
+  axes: { MM: number; SB: number; PR: number; SQ: number };
+  surprise_evidence: string;
+  phase1_title: string;
+  archetype_fit: ArchetypeFit;
+  created_at: string;
 }

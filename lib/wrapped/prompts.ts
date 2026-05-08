@@ -14,62 +14,51 @@ export interface WrappedPrompt {
     en: string;
     th: string;
     sq: number;
-    eb: number;
+    mm: number;
   }>;
   pickCount?: number;
-  items?: Array<{ en: string; th: string }>;
+  items?: Array<{ en: string; th: string; pr: number; mm?: number; sb?: number }>;
   optional?: boolean;
   bgmPrompt?: string | null;
+  maxLength?: number;
 }
 
-export const p3Options: Array<{ en: string; th: string; sq: number; eb: number }> = [
+export const p3Options: Array<{ en: string; th: string; sq: number; mm: number }> = [
   {
-    en: "I drove the team's plan for the day",
-    th: "ผลักดันแผนของทีมให้ไปข้างหน้า",
-    sq: 0.4,
-    eb: 0,
+    en: "I connected the dots on the system map",
+    th: "ฉันเป็นคนเชื่อมโยงจุดต่างๆ บนแผนผังระบบ",
+    sq: 0,
+    mm: 0.40,
   },
   {
-    en: "I worked best alone in the zone",
-    th: "ทำงานคนเดียวโฟลวสุดๆ",
-    sq: -0.5,
-    eb: 0.1,
+    en: "I locked in and processed the evidence alone",
+    th: "ฉันขอเวลาปลีกตัวไปจัดการกับข้อมูลเงียบๆ คนเดียว",
+    sq: -0.50,
+    mm: 0,
   },
   {
-    en: "I asked the questions no one else was asking",
-    th: "ถามคำถามที่ไม่มีใครกล้าถาม",
-    sq: 0.1,
-    eb: -0.2,
+    en: "I asked the hard questions during interviews",
+    th: "ฉันเป็นคนยิงคำถามยากๆ ตอนสัมภาษณ์",
+    sq: 0.10,
+    mm: -0.40,
   },
   {
-    en: "I made the thing while we figured out the rest",
-    th: "ลงมือทำจริงจนเกิดของ",
-    sq: -0.2,
-    eb: 0.3,
+    en: "I kept everyone aligned on our Decision",
+    th: "ฉันคอยดึงให้ทุกคนเห็นตรงกันตอนต้องตัดสินใจ",
+    sq: 0.50,
+    mm: 0,
   },
   {
-    en: "I kept the team on the same page",
-    th: "เป็นสะพานเชื่อมให้ทีมไม่แตกกระจาย",
-    sq: 0.5,
-    eb: 0,
+    en: "I disappeared into the raw notes and came back with insights",
+    th: "ฉันจมไปกับกองข้อมูลดิบ แล้วกลับมาพร้อมบทสรุป",
+    sq: -0.40,
+    mm: -0.20,
   },
   {
-    en: "I disappeared and came back with stuff",
-    th: "หายไปแล้วกลับมาพร้อมของในมือ",
-    sq: -0.4,
-    eb: 0.2,
-  },
-  {
-    en: "I followed someone else's lead",
-    th: "ตามใครสักคนที่เชื่อว่าเขาจะพาไปถูกทาง",
-    sq: 0.2,
-    eb: 0,
-  },
-  {
-    en: "I sat with the problem more than I made anything",
-    th: "นั่งกับปัญหาจนกว่าจะเจอคำตอบ",
-    sq: -0.1,
-    eb: -0.3,
+    en: "I zoomed us out when we got stuck in the weeds",
+    th: "ฉันดึงทีมให้ถอยมามองภาพกว้างตอนที่เราหลงทาง",
+    sq: 0.20,
+    mm: 0.30,
   },
 ];
 
@@ -78,20 +67,20 @@ export const prompts: WrappedPrompt[] = [
     id: "p1",
     type: "slider",
     question: {
-      en: "In Phase 1, where did your hours actually go?",
-      th: "ในPhase 1 คุณใช้เวลาไปกับอะไร?",
+      en: "In Phase 1, where did your brain naturally focus?",
+      th: "ใน Phase 1 สมองของคุณมักจะโฟกัสไปที่จุดไหน?",
     },
-    axis: "EB",
+    axis: "MM",
     min: 0,
     max: 4,
     labels: {
       en: {
-        left: "Mostly talking to people",
-        right: "Mostly making things",
+        left: "Individual human stories and quotes",
+        right: "The big picture and system loops",
       },
       th: {
-        left: "คุยกับใครสักคน",
-        right: "ส่วนใหญ่ลงมือทำ",
+        left: "เรื่องราวและคำพูดของคนแต่ละคน",
+        right: "ภาพรวมและวงจรของระบบ",
       },
     },
     bgmPrompt:
@@ -101,20 +90,20 @@ export const prompts: WrappedPrompt[] = [
     id: "p2",
     type: "slider",
     question: {
-      en: "How did you feel about your team's idea by the end of Phase 1?",
-      th: "พอจบ Phase 1 แล้ว คุณมองไอเดียของทีมยังไง?",
+      en: "At the final Decision Gate, how did you feel about the problem?",
+      th: "ที่จุดตัดสินใจสุดท้าย คุณรู้สึกยังไงกับปัญหาที่เลือกมา?",
     },
     axis: "SB",
     min: 0,
     max: 4,
     labels: {
       en: {
-        left: "I kept poking holes in it",
-        right: "Believed in it from day 1",
+        left: "Looking for reasons to Pivot or Kill",
+        right: "Convinced we needed to Proceed",
       },
       th: {
-        left: "ยังคงหาจุดบอดของมันอยู่เรื่อยๆ",
-        right: "เชื่อมั่นมาตั้งแต่วันแรก",
+        left: "มองหาเหตุผลที่จะเปลี่ยนทิศหรือล้มเลิก",
+        right: "เชื่อมั่นเต็มที่ว่าต้องลุยต่อ",
       },
     },
     bgmPrompt:
@@ -124,11 +113,11 @@ export const prompts: WrappedPrompt[] = [
     id: "p3",
     type: "multi-select",
     question: {
-      en: "What did you lean into most? (pick any that ring true)",
-      th: "คุณเล่นบทอะไรใน Phase 1?",
+      en: "What role did you naturally play on the team? (pick any that ring true)",
+      th: "คุณมักจะเล่นบทบาทไหนในทีม?",
     },
     axis: "SQ",
-    secondaryAxis: "EB",
+    secondaryAxis: "MM",
     options: p3Options,
     bgmPrompt:
       "mmx music generate: Contrast electronic with dual-layered beats mixing organic and electronic drums, bright synth leads contrasted against ambient introspective undertones, pulsing bass. Solo vs squad duality. 100-128 BPM variable. Bioluminescent theme.",
@@ -138,17 +127,17 @@ export const prompts: WrappedPrompt[] = [
     type: "drag-rank",
     question: {
       en: "Pick the three Phase 1 moments that meant the most to you. Drag them in order.",
-      th: "เลือก 3 ช่วงเวลาจาก Phase 1 ที่คุณจะเก็บไว้ในใจ ลากเรียงลำดับความสำคัญให้หน่อย",
+      th: "เลือก 3 ช่วงเวลาจาก Phase 1 ที่มีความหมายกับคุณที่สุด ลากเรียงลำดับเลย",
     },
     axis: "PR",
     pickCount: 3,
     items: [
-      { en: "The first time the team agreed on something", th: "ครั้งแรกที่ทีมเห็นด้วยกันเรื่องบางอย่าง" },
-      { en: "When you finally made the thing work", th: "ตอนที่คุณทำให้มันเวิร์กสักที" },
-      { en: "A conversation that changed your mind", th: "บทสนทนาที่เปลี่ยนความคิดคุณ" },
-      { en: "The moment you realized the idea was wrong", th: "ตอนที่รู้ว่าไอเดียมันผิด" },
-      { en: "When someone helped you unstuck", th: "ตอนที่มีคนช่วยให้คุณผ่านติดขัด" },
-      { en: "The late-night push before deadline", th: "การเร่งงานกลางดึกก่อนเดดไลน์" },
+      { en: "The interview that completely flipped our assumptions", th: "บทสัมภาษณ์ที่พลิกความคิดเราไปเลย", pr: -0.20, mm: -0.30 },
+      { en: "The moment the system map finally clicked", th: "วินาทีที่แผนผังระบบทุกอย่างลงล็อค", pr: -0.10, mm: 0.40 },
+      { en: "Debating the Proceed/Pivot/Kill decision", th: "ตอนถกเถียงกันว่าจะ ลุยต่อ พลิกทิศ หรือ ล้มเลิก", pr: 0.30, sb: -0.10 },
+      { en: "Realizing our first problem statement was wrong", th: "ตอนที่รู้ตัวว่าปัญหาแรกที่เราตั้งไว้มันผิด", pr: 0.40, sb: -0.20 },
+      { en: "Sitting in the mess of data before it made sense", th: "ช่วงที่จมอยู่กับกองข้อมูลที่ดูไม่ปะติดปะต่อ", pr: -0.40 },
+      { en: "Catching a recurring pattern in the evidence", th: "ตอนที่เริ่มเห็นรูปแบบซ้ำๆ จากหลักฐาน", pr: -0.20 },
     ],
     bgmPrompt:
       "mmx music generate: Nostalgic dream pop with warm pads, wistful chord progressions, soft strings, reverbed guitars, building percussion, emotional risers. Reflective and building. 95 BPM. Bioluminescent theme.",
@@ -157,10 +146,21 @@ export const prompts: WrappedPrompt[] = [
     id: "p5",
     type: "text",
     question: {
-      en: "What's one thing about Phase 1 that surprised you?",
-      th: "อะไรใน Phase 1 ที่ทำให้คุณเซอไพรซ์?",
+      en: "What's one piece of evidence that surprised you?",
+      th: "มีหลักฐานหรือข้อมูลไหนที่ทำให้คุณประหลาดใจที่สุด?",
     },
     optional: true,
+    bgmPrompt: null,
+  },
+  {
+    id: "p6",
+    type: "text",
+    question: {
+      en: "If your Phase 1 had a one-line title, what would it be?",
+      th: "ถ้า Phase 1 ของคุณเป็นชื่อหนังสือหนึ่งบรรทัด มันจะชื่อว่าอะไร?",
+    },
+    optional: true,
+    maxLength: 80,
     bgmPrompt: null,
   },
 ];
