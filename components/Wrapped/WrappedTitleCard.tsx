@@ -27,7 +27,9 @@ export function WrappedTitleCard({
   onChange,
   onNext,
 }: WrappedTitleCardProps) {
-  const maxLength = prompt.maxLength ?? 80;
+  const maxLength = prompt?.maxLength ?? 80;
+  const questionEn = prompt?.question?.en ?? "";
+  const questionTh = prompt?.question?.th ?? "";
 
   return (
     <View style={styles.card}>
@@ -37,12 +39,12 @@ export function WrappedTitleCard({
 
       <Animated.View entering={FadeInUp.duration(500).delay(200)}>
         <AppText variant="bold" style={styles.question}>
-          {prompt.question.en}
+          {questionEn}
         </AppText>
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(300)}>
-        <AppText style={styles.questionTh}>{prompt.question.th}</AppText>
+        <AppText style={styles.questionTh}>{questionTh}</AppText>
       </Animated.View>
 
       <Animated.View

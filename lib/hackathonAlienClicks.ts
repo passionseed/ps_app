@@ -10,7 +10,7 @@ type TrackHackathonAlienButtonClickParams = {
 export async function trackHackathonAlienButtonClick(
   params: TrackHackathonAlienButtonClickParams,
 ): Promise<void> {
-  const participant = readHackathonParticipant();
+  const participant = await readHackathonParticipant();
   if (!participant?.id) return;
 
   const { error } = await supabase.from("hackathon_journey_alien_clicks").insert({

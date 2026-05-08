@@ -6,6 +6,7 @@ import {
   Share,
   ScrollView,
 } from "react-native";
+import { Image } from "expo-image";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { AppText } from "../AppText";
 import { Space } from "../../lib/theme";
@@ -18,6 +19,18 @@ import { archetypes } from "../../lib/wrapped/archetypes";
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
 const PURPLE = "#9D81AC";
+
+const archetypeImages: Record<string, number> = {
+  "the-advocate": require("../../assets/wrapped/archetypes/the-advocate.jpg"),
+  "the-architect": require("../../assets/wrapped/archetypes/the-architect.jpg"),
+  "the-auditor": require("../../assets/wrapped/archetypes/the-auditor.jpg"),
+  "the-empath": require("../../assets/wrapped/archetypes/the-empath.jpg"),
+  "the-interrogator": require("../../assets/wrapped/archetypes/the-interrogator.jpg"),
+  "the-mythbuster": require("../../assets/wrapped/archetypes/the-mythbuster.jpg"),
+  "the-pivot-forcer": require("../../assets/wrapped/archetypes/the-pivot-forcer.jpg"),
+  "the-synthesizer": require("../../assets/wrapped/archetypes/the-synthesizer.jpg"),
+  wanderer: require("../../assets/wrapped/archetypes/wanderer.jpg"),
+};
 
 interface SummaryCardProps {
   archetype: ArchetypeResult;
@@ -40,6 +53,8 @@ export function SummaryCard({
 
   const bestAlly = getBestAlly(archetype.id as any);
   const allyArchetype = archetypes.find((a) => a.id === bestAlly.allyArchetypeId);
+  const archetypeImage = archetypeImages[archetype.id];
+  const allyImage = archetypeImages[bestAlly.allyArchetypeId];
 
   const handleShare = async () => {
     try {
@@ -77,27 +92,32 @@ export function SummaryCard({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <Animated.View entering={FadeInUp.duration(500).delay(100)}>
+        {/* Hero: Archetype Image + Name */}
+        <Animated.View entering={FadeInUp.duration(500).delay(100)} style={styles.heroSection}>
+          {archetypeImage && (
+            <View style={styles.portraitFrame}>
+              <Image
+                source={archetypeImage}
+                style={styles.portrait}
+                contentFit="cover"
+                transition={250}
+              />
+            </View>
+          )}
           <AppText style={styles.summaryLabel}>Your Archetype</AppText>
-        </Animated.View>
-
-        <Animated.View entering={FadeInUp.duration(500).delay(200)}>
           <AppText variant="bold" style={styles.archetypeName}>
             {archetype.display.en}
           </AppText>
           <AppText style={styles.archetypeNameTh}>
             {archetype.display.th}
           </AppText>
-        </Animated.View>
-
-        <Animated.View entering={FadeInUp.duration(500).delay(300)}>
           <AppText style={styles.caption}>{archetype.caption.en}</AppText>
           <AppText style={styles.captionTh}>{archetype.caption.th}</AppText>
         </Animated.View>
 
         {/* Phase 1 Title */}
         {phase1Title && (
-          <Animated.View entering={FadeInUp.duration(500).delay(350)} style={styles.titleSection}>
+          <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.titleSection}>
             <AppText style={styles.titleLabel}>Your Phase 1 Title</AppText>
             <AppText variant="bold" style={styles.titleText}>"{phase1Title}"</AppText>
           </Animated.View>
@@ -105,7 +125,7 @@ export function SummaryCard({
 
         {/* Persona */}
         {archetype.persona && (
-          <Animated.View entering={FadeInUp.duration(500).delay(375)} style={styles.personaSection}>
+          <Animated.View entering={FadeInUp.duration(500).delay(250)} style={styles.personaSection}>
             <AppText variant="bold" style={styles.personaTitle}>Persona</AppText>
             <AppText style={styles.personaText}>{archetype.persona.en}</AppText>
             <AppText style={styles.personaTextTh}>{archetype.persona.th}</AppText>
@@ -114,7 +134,7 @@ export function SummaryCard({
 
         {/* SQ Dynamic */}
         {sqDynamic && (
-          <Animated.View entering={FadeInUp.duration(500).delay(390)} style={styles.sqDynamicSection}>
+          <Animated.View entering={FadeInUp.duration(500).delay(300)} style={styles.sqDynamicSection}>
             <AppText variant="bold" style={styles.sqDynamicTitle}>
               {scores.sq >= 0 ? "Squad Mode" : "Solo Mode"}
             </AppText>
@@ -124,10 +144,23 @@ export function SummaryCard({
         )}
 
         {/* Best Ally */}
-        <Animated.View entering={FadeInUp.duration(500).delay(395)} style={styles.allySection}>
+        <Animated.View entering={FadeInUp.duration(500).delay(350)} style={styles.allySection}>
           <AppText style={styles.allyLabel}>Best Ally</AppText>
+          {allyImage && (
+            <View style={styles.allyPortraitFrame}>
+              <Image
+                source={allyImage}
+                style={styles.allyPortrait}
+                contentFit="cover"
+                transition={250}
+              />
+            </View>
+          )}
           <AppText variant="bold" style={styles.allyName}>
             {allyArchetype?.display.en ?? bestAlly.allyArchetypeId}
+          </AppText>
+          <AppText style={styles.allyNameTh}>
+            {allyArchetype?.display.th ?? ""}
           </AppText>
           <AppText style={styles.allyLine}>{bestAlly.line.en}</AppText>
           <AppText style={styles.allyLineTh}>{bestAlly.line.th}</AppText>
@@ -157,8 +190,9 @@ export function SummaryCard({
           </Animated.View>
         )}
 
+        {/* Trait Breakdown */}
         <Animated.View
-          entering={FadeInUp.duration(500).delay(420)}
+          entering={FadeInUp.duration(500).delay(450)}
           style={styles.axisSection}
         >
           <AppText variant="bold" style={styles.axisTitle}>
@@ -169,21 +203,31 @@ export function SummaryCard({
           ))}
         </Animated.View>
 
+        {/* Phase 2 Hints */}
         {hints && (
           <Animated.View
-            entering={FadeInUp.duration(500).delay(440)}
+            entering={FadeInUp.duration(500).delay(500)}
             style={styles.hintsSection}
           >
             <AppText variant="bold" style={styles.hintsTitle}>
               Phase 2 Hints
             </AppText>
-            <HintRow label="Superpower" text={hints.superpower.en} />
-            <HintRow label="Growth Edge" text={hints.growthEdge.en} />
-            <HintRow label="Superpower (TH)" text={hints.superpower.th} />
-            <HintRow label="Growth Edge (TH)" text={hints.growthEdge.th} />
+            <View style={styles.hintCards}>
+              <View style={styles.hintCard}>
+                <AppText variant="bold" style={styles.hintCardLabel}>Superpower</AppText>
+                <AppText style={styles.hintCardText}>{hints.superpower.en}</AppText>
+                <AppText style={styles.hintCardTextTh}>{hints.superpower.th}</AppText>
+              </View>
+              <View style={styles.hintCard}>
+                <AppText variant="bold" style={styles.hintCardLabel}>Growth Edge</AppText>
+                <AppText style={styles.hintCardText}>{hints.growthEdge.en}</AppText>
+                <AppText style={styles.hintCardTextTh}>{hints.growthEdge.th}</AppText>
+              </View>
+            </View>
           </Animated.View>
         )}
 
+        {/* Actions */}
         <Animated.View
           entering={FadeInUp.duration(500).delay(600)}
           style={styles.actions}
@@ -245,16 +289,7 @@ function AxisBar({
   );
 }
 
-function HintRow({ label, text }: { label: string; text: string }) {
-  return (
-    <View style={styles.hintRow}>
-      <AppText variant="bold" style={styles.hintLabel}>
-        {label}
-      </AppText>
-      <AppText style={styles.hintText}>{text}</AppText>
-    </View>
-  );
-}
+
 
 const styles = StyleSheet.create({
   card: {
@@ -266,6 +301,29 @@ const styles = StyleSheet.create({
     paddingBottom: Space["3xl"],
     alignItems: "center",
   },
+  heroSection: {
+    alignItems: "center",
+    gap: Space.md,
+    width: "100%",
+  },
+  portraitFrame: {
+    width: "72%",
+    aspectRatio: 1,
+    maxWidth: 260,
+    borderRadius: 32,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.3)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    shadowColor: CYAN,
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  portrait: {
+    width: "100%",
+    height: "100%",
+  },
   summaryLabel: {
     fontSize: 12,
     color: CYAN,
@@ -273,35 +331,36 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     fontFamily: "BaiJamjuree_700Bold",
     textAlign: "center",
+    marginTop: Space.sm,
   },
   archetypeName: {
-    fontSize: 32,
+    fontSize: 34,
     color: WHITE,
     textAlign: "center",
     fontFamily: "BaiJamjuree_700Bold",
-    lineHeight: 40,
+    lineHeight: 42,
     textShadowColor: CYAN,
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 16,
+    textShadowRadius: 20,
   },
   archetypeNameTh: {
-    fontSize: 18,
-    color: "rgba(255,255,255,0.7)",
+    fontSize: 20,
+    color: "rgba(255,255,255,0.75)",
     textAlign: "center",
     fontFamily: "BaiJamjuree_700Bold",
-    marginTop: Space.xs,
   },
   caption: {
     fontSize: 15,
-    color: "rgba(255,255,255,0.6)",
+    color: "rgba(255,255,255,0.65)",
     textAlign: "center",
     lineHeight: 22,
     fontFamily: "BaiJamjuree_400Regular",
     paddingHorizontal: Space.lg,
+    marginTop: Space.xs,
   },
   captionTh: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.45)",
+    color: "rgba(255,255,255,0.5)",
     textAlign: "center",
     lineHeight: 22,
     fontFamily: "BaiJamjuree_400Regular",
@@ -334,7 +393,7 @@ const styles = StyleSheet.create({
   },
   axisName: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(255,255,255,0.55)",
     fontFamily: "BaiJamjuree_400Regular",
     flex: 1,
   },
@@ -369,24 +428,33 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_700Bold",
     marginBottom: Space.xs,
   },
-  hintRow: {
+  hintCards: {
+    gap: Space.sm,
+  },
+  hintCard: {
     backgroundColor: "rgba(26,37,48,0.8)",
-    borderRadius: 12,
-    padding: Space.md,
-    gap: 4,
+    borderRadius: 16,
+    padding: Space.lg,
+    gap: Space.xs,
     borderWidth: 1,
     borderColor: "rgba(90,122,148,0.15)",
   },
-  hintLabel: {
+  hintCardLabel: {
     fontSize: 11,
     color: CYAN,
     textTransform: "uppercase",
     letterSpacing: 1,
     fontFamily: "BaiJamjuree_700Bold",
   },
-  hintText: {
+  hintCardText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.75)",
+    fontFamily: "BaiJamjuree_400Regular",
+    lineHeight: 20,
+  },
+  hintCardTextTh: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(255,255,255,0.55)",
     fontFamily: "BaiJamjuree_400Regular",
     lineHeight: 20,
   },
@@ -394,9 +462,8 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     gap: Space.xs,
-    marginTop: Space.sm,
     backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 16,
+    borderRadius: 20,
     padding: Space.lg,
     borderWidth: 1,
     borderColor: "rgba(90,122,148,0.2)",
@@ -409,18 +476,18 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_700Bold",
   },
   titleText: {
-    fontSize: 18,
+    fontSize: 20,
     color: WHITE,
     textAlign: "center",
     fontFamily: "BaiJamjuree_700Bold",
     fontStyle: "italic",
+    lineHeight: 28,
   },
   personaSection: {
     width: "100%",
     gap: Space.sm,
-    marginTop: Space.sm,
     backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 16,
+    borderRadius: 20,
     padding: Space.lg,
     borderWidth: 1,
     borderColor: "rgba(90,122,148,0.15)",
@@ -432,25 +499,24 @@ const styles = StyleSheet.create({
   },
   personaText: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(255,255,255,0.75)",
     fontFamily: "BaiJamjuree_400Regular",
-    lineHeight: 20,
+    lineHeight: 22,
   },
   personaTextTh: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(255,255,255,0.55)",
     fontFamily: "BaiJamjuree_400Regular",
-    lineHeight: 20,
+    lineHeight: 22,
   },
   sqDynamicSection: {
     width: "100%",
     gap: Space.sm,
-    marginTop: Space.sm,
-    backgroundColor: "rgba(145,196,227,0.05)",
-    borderRadius: 16,
+    backgroundColor: "rgba(145,196,227,0.06)",
+    borderRadius: 20,
     padding: Space.lg,
     borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.2)",
+    borderColor: "rgba(145,196,227,0.25)",
   },
   sqDynamicTitle: {
     fontSize: 14,
@@ -459,23 +525,22 @@ const styles = StyleSheet.create({
   },
   sqDynamicText: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(255,255,255,0.75)",
     fontFamily: "BaiJamjuree_400Regular",
-    lineHeight: 20,
+    lineHeight: 22,
   },
   sqDynamicTextTh: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(255,255,255,0.55)",
     fontFamily: "BaiJamjuree_400Regular",
-    lineHeight: 20,
+    lineHeight: 22,
   },
   fitSection: {
     width: "100%",
     alignItems: "center",
     gap: Space.xs,
-    marginTop: Space.sm,
     backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 16,
+    borderRadius: 20,
     padding: Space.lg,
     borderWidth: 1,
     borderColor: "rgba(90,122,148,0.15)",
@@ -488,29 +553,28 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_700Bold",
   },
   fitValue: {
-    fontSize: 18,
+    fontSize: 20,
     color: WHITE,
     fontFamily: "BaiJamjuree_700Bold",
   },
   fitSubtext: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.6)",
+    color: "rgba(255,255,255,0.65)",
     fontFamily: "BaiJamjuree_400Regular",
   },
   fitSubtextTh: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.45)",
+    color: "rgba(255,255,255,0.5)",
     fontFamily: "BaiJamjuree_400Regular",
   },
   allySection: {
     width: "100%",
     gap: Space.sm,
-    marginTop: Space.sm,
-    backgroundColor: "rgba(157,129,172,0.05)",
-    borderRadius: 16,
+    backgroundColor: "rgba(157,129,172,0.06)",
+    borderRadius: 20,
     padding: Space.lg,
     borderWidth: 1,
-    borderColor: "rgba(157,129,172,0.2)",
+    borderColor: "rgba(157,129,172,0.25)",
     alignItems: "center",
   },
   allyLabel: {
@@ -520,27 +584,45 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     fontFamily: "BaiJamjuree_700Bold",
   },
+  allyPortraitFrame: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "rgba(157,129,172,0.4)",
+    marginVertical: Space.sm,
+  },
+  allyPortrait: {
+    width: "100%",
+    height: "100%",
+  },
   allyName: {
-    fontSize: 16,
+    fontSize: 18,
     color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+    textAlign: "center",
+  },
+  allyNameTh: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.6)",
     fontFamily: "BaiJamjuree_700Bold",
     textAlign: "center",
   },
   allyLine: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(255,255,255,0.75)",
     fontFamily: "BaiJamjuree_400Regular",
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 22,
     marginTop: Space.xs,
   },
   allyLineTh: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(255,255,255,0.55)",
     fontFamily: "BaiJamjuree_400Regular",
     textAlign: "center",
-    lineHeight: 20,
-    marginTop: 2,
+    lineHeight: 22,
   },
   actions: {
     flexDirection: "row",
@@ -550,7 +632,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   shareButton: {
-    backgroundColor: "rgba(145,196,227,0.15)",
+    backgroundColor: "rgba(145,196,227,0.12)",
     borderRadius: 40,
     paddingVertical: 14,
     paddingHorizontal: 28,

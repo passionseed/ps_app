@@ -97,24 +97,26 @@ export function WrappedSliderCard({
     ),
   }));
 
-  const labels = prompt.labels;
+  const labels = prompt?.labels;
+  const questionEn = prompt?.question?.en ?? "";
+  const questionTh = prompt?.question?.th ?? "";
 
   return (
     <View style={styles.card}>
       <Animated.View entering={FadeInUp.duration(500).delay(100)}>
         <AppText style={styles.stepIndicator}>
-          {prompt.id === "p1" ? "Question 1 of 6" : "Question 2 of 6"}
+          {prompt?.id === "p1" ? "Question 1 of 6" : "Question 2 of 6"}
         </AppText>
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(200)}>
         <AppText variant="bold" style={styles.question}>
-          {prompt.question.en}
+          {questionEn}
         </AppText>
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(300)}>
-        <AppText style={styles.questionTh}>{prompt.question.th}</AppText>
+        <AppText style={styles.questionTh}>{questionTh}</AppText>
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(400)} style={styles.sliderContainer}>
@@ -128,14 +130,14 @@ export function WrappedSliderCard({
           </View>
         </GestureDetector>
 
-        {labels && (
+        {labels?.en?.left && labels?.en?.right && (
           <View style={styles.labelsRow}>
             <AppText style={styles.labelLeft}>{labels.en.left}</AppText>
             <AppText style={styles.labelRight}>{labels.en.right}</AppText>
           </View>
         )}
 
-        {labels && (
+        {labels?.th?.left && labels?.th?.right && (
           <View style={styles.labelsRow}>
             <AppText style={styles.labelThLeft}>{labels.th.left}</AppText>
             <AppText style={styles.labelThRight}>{labels.th.right}</AppText>

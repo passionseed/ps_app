@@ -36,6 +36,7 @@ import {
   getCurrentHackathonTeamMembership,
   getCurrentHackathonProgramHome,
 } from "../../lib/hackathonProgram";
+import { saveWrappedReflection } from "../../lib/wrapped/saveReflection";
 import type { TeammateWrappedReflection } from "../../lib/hackathonProgram";
 import { readHackathonParticipant } from "../../lib/hackathon-mode";
 import { WrappedSliderCard } from "./WrappedSliderCard";
@@ -86,7 +87,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
   const [totalSquadSize, setTotalSquadSize] = useState(1);
   const [teamDataLoading, setTeamDataLoading] = useState(false);
 
-  const totalSteps = 11; // intro + 6 prompts + reveal + calibration + bestAlly + constellation + summary
+  const totalSteps = 12; // intro + 6 prompts + reveal + calibration + bestAlly + constellation + summary
 
   const handleClose = useCallback(() => {
     setCurrentStep(0);
@@ -150,7 +151,9 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
 
   const handleRevealComplete = useCallback(() => {
     setShowCalibration(true);
-  }, []);
+    setCurrentStep(8);
+    progress.value = withTiming(8, { duration: 300 });
+  }, [progress]);
 
   const handleCalibrationSelect = useCallback((fit: ArchetypeFit) => {
     setArchetypeFit(fit);
@@ -205,25 +208,57 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
     })();
   }, [currentStep, progress]);
 
-  const handleConstellationNext = useCallback(() => {
+  const handleConstellationNext = useCallback(async () => {
     setShowConstellation(false);
     setShowSummary(true);
     const nextStep = currentStep + 1;
     setCurrentStep(nextStep);
     progress.value = withTiming(nextStep, { duration: 300 });
-  }, [currentStep, progress]);
+
+    // Save reflection to Supabase when reaching SummaryCard
+    if (revealedArchetype && secondaryArchetype && axisScores) {
+      try {
+        const [participant, home] = await Promise.all([
+          readHackathonParticipant(),
+          getCurrentHackathonProgramHome(),
+        ]);
+        const enrollmentId = home.enrollment?.id;
+        const participantId = participant?.id;
+
+        if (enrollmentId && participantId) {
+          await saveWrappedReflection({
+            enrollment_id: enrollmentId,
+            participant_id: participantId,
+            archetype: revealedArchetype.id as any,
+            archetype_secondary: secondaryArchetype.id as any,
+            axes: {
+              MM: axisScores.mm,
+              SB: axisScores.sb,
+              PR: axisScores.pr,
+              SQ: axisScores.sq,
+            },
+            surprise_evidence: p5Text,
+            phase1_title: p6Title,
+            archetype_fit: archetypeFit ?? "nailed",
+          });
+        }
+      } catch (e) {
+        console.error("[WrappedModal] Failed to save wrapped reflection:", e);
+      }
+    }
+  }, [currentStep, progress, revealedArchetype, secondaryArchetype, axisScores, p5Text, p6Title, archetypeFit]);
 
   const progressWidth = useAnimatedStyle(() => ({
     width: `${((progress.value + 1) / totalSteps) * 100}%`,
   }));
 
-  // Memoize prompt lookups
-  const p1Prompt = useMemo(() => prompts.find((p) => p.id === "p1")!, []);
-  const p2Prompt = useMemo(() => prompts.find((p) => p.id === "p2")!, []);
-  const p3Prompt = useMemo(() => prompts.find((p) => p.id === "p3")!, []);
-  const p4Prompt = useMemo(() => prompts.find((p) => p.id === "p4")!, []);
-  const p5Prompt = useMemo(() => prompts.find((p) => p.id === "p5")!, []);
-  const p6Prompt = useMemo(() => prompts.find((p) => p.id === "p6")!, []);
+  // Memoize prompt lookups with safe fallbacks
+  const p1Prompt = useMemo(() => prompts.find((p) => p.id === "p1"), []);
+  const p2Prompt = useMemo(() => prompts.find((p) => p.id === "p2"), []);
+  const p3Prompt = useMemo(() => prompts.find((p) => p.id === "p3"), []);
+  const p4Prompt = useMemo(() => prompts.find((p) => p.id === "p4"), []);
+  const p5Prompt = useMemo(() => prompts.find((p) => p.id === "p5"), []);
+  const p6Prompt = useMemo(() => prompts.find((p) => p.id === "p6"), []);
 
   const handleP3Toggle = useCallback((index: number) => {
     setP3Selected((prev) =>
@@ -241,6 +276,13 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Progress bar */}
         <View style={styles.progressContainer}>
+          <Pressable
+            onPress={handleBack}
+            disabled={currentStep === 0}
+            style={[styles.backButton, currentStep === 0 && styles.backButtonDisabled]}
+          >
+            <AppText style={styles.backText}>{"< Back"}</AppText>
+          </Pressable>
           <View style={styles.progressTrack}>
             <Animated.View style={[styles.progressFill, progressWidth]} />
           </View>
@@ -261,7 +303,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
           >
             {currentStep === 0 && <IntroCard onNext={handleNext} />}
 
-            {currentStep === 1 && (
+            {currentStep === 1 && p1Prompt && (
               <WrappedSliderCard
                 prompt={p1Prompt}
                 value={p1Value}
@@ -270,7 +312,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 2 && (
+            {currentStep === 2 && p2Prompt && (
               <WrappedSliderCard
                 prompt={p2Prompt}
                 value={p2Value}
@@ -279,7 +321,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 3 && (
+            {currentStep === 3 && p3Prompt && (
               <WrappedMultiSelectCard
                 prompt={p3Prompt}
                 selectedIndices={p3Selected}
@@ -288,7 +330,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 4 && (
+            {currentStep === 4 && p4Prompt && (
               <WrappedDragRankCard
                 prompt={p4Prompt}
                 rankedIndices={p4Ranked}
@@ -297,7 +339,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 5 && (
+            {currentStep === 5 && p5Prompt && (
               <WrappedTextCard
                 prompt={p5Prompt}
                 value={p5Text}
@@ -306,7 +348,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 6 && (
+            {currentStep === 6 && p6Prompt && (
               <WrappedTitleCard
                 prompt={p6Prompt}
                 value={p6Title}
@@ -318,11 +360,12 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
             {currentStep === 7 && revealedArchetype && (
               <ArchetypeReveal
                 archetype={revealedArchetype}
+                scores={axisScores}
                 onComplete={handleRevealComplete}
               />
             )}
 
-            {currentStep === 8 && showCalibration && revealedArchetype && secondaryArchetype && (
+            {currentStep === 8 && revealedArchetype && secondaryArchetype && (
               <CalibrationCard
                 archetype={revealedArchetype}
                 secondaryArchetype={secondaryArchetype}
@@ -330,14 +373,14 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 9 && showBestAlly && revealedArchetype && (
+            {currentStep === 9 && revealedArchetype && (
               <BestAllyLine
                 archetype={revealedArchetype}
                 onNext={handleBestAllyNext}
               />
             )}
 
-            {currentStep === 10 && showConstellation && revealedArchetype && axisScores && (
+            {currentStep === 10 && revealedArchetype && axisScores && (
               <SquadConstellation
                 userArchetype={revealedArchetype}
                 userPhase1Title={p6Title || revealedArchetype.display.en}
@@ -348,7 +391,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 11 && showSummary && revealedArchetype && axisScores && (
+            {currentStep === 11 && revealedArchetype && axisScores && (
               <SummaryCard
                 archetype={revealedArchetype}
                 secondaryArchetype={archetypeFit === "not_me" ? secondaryArchetype : undefined}
@@ -526,6 +569,19 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: CYAN,
     borderRadius: 2,
+  },
+  backButton: {
+    paddingVertical: Space.sm,
+    paddingRight: Space.sm,
+    minWidth: 64,
+  },
+  backButtonDisabled: {
+    opacity: 0,
+  },
+  backText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.62)",
+    fontFamily: "BaiJamjuree_700Bold",
   },
   closeButton: {
     padding: Space.sm,
