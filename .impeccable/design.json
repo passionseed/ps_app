@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-07T00:00:00Z",
+  "title": "Design System: Passion Seed",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Passion Neon", "canonical": "#BFFF00", "tonalRamp": ["#F3FFE6", "#E6FFCC", "#D9FFB3", "#CCFF99", "#BFFF00", "#A6E600", "#8CCC00", "#73B300"] },
+      "secondary": { "role": "secondary", "displayName": "Amethyst Glimpse", "canonical": "#8B5CF6", "tonalRamp": ["#F4F0FF", "#E9DFFF", "#D4C0FF", "#BFA0FF", "#8B5CF6", "#7048D9", "#5634BC", "#3E22A0"] },
+      "text-primary": { "role": "neutral", "displayName": "Obsidian Slate", "canonical": "#111827", "tonalRamp": ["#F3F4F6", "#E5E7EB", "#D1D5DB", "#9CA3AF", "#4B5563", "#374151", "#1F2937", "#111827"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Premium editorial headers." }
+    },
+    "shadows": [
+      { "name": "subtle-lift", "value": "0 4px 10px rgba(0,0,0,0.05)", "purpose": "Very subtle separation for main cards." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High visibility CTA for moving forward.",
+      "html": "<button class=\"ds-btn-primary\">BEGIN</button>",
+      "css": ".ds-btn-primary { background: #BFFF00; color: #111827; padding: 16px 24px; border-radius: 999px; font-family: sans-serif; font-weight: bold; border: none; cursor: pointer; transition: transform 0.2s, background 0.2s; width: 100%; font-size: 16pt; } .ds-btn-primary:hover { transform: scale(1.02); background: #9FE800; }"
+    },
+    {
+      "name": "Action Pill",
+      "kind": "chip",
+      "refersTo": "button-secondary",
+      "description": "Secondary top-level actions like Save.",
+      "html": "<button class=\"ds-action-pill\">SAVE</button>",
+      "css": ".ds-action-pill { background: #111827; color: #FFFFFF; padding: 8px 16px; border-radius: 999px; font-family: sans-serif; font-weight: bold; border: none; cursor: pointer; font-size: 12pt; }"
+    },
+    {
+      "name": "Content Card",
+      "kind": "card",
+      "refersTo": "card-standard",
+      "description": "Main container for simulations and data.",
+      "html": "<div class=\"ds-card\"><h3>Card Title</h3><p>Content goes here.</p></div>",
+      "css": ".ds-card { background: #FFFFFF; border-radius: 24px; padding: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); font-family: sans-serif; color: #4B5563; } .ds-card h3 { color: #111827; margin-top: 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Clear Path Accelerator",
+    "overview": "The system balances a clean, innovative, and data-grounded aesthetic with subtle tactile interactions. It provides a bright, high-contrast default environment designed to make career simulations feel accessible and actionable. For specialized contexts, like the Hackathon, the platform shifts to a deeply immersive, bioluminescent dual-theme. The system explicitly rejects rigid enterprise UI patterns.",
+    "keyCharacteristics": [
+      "High-contrast, clean surfaces prioritizing legibility.",
+      "Semantic, vibrant accents that guide the user.",
+      "Tonal layering over heavy shadows.",
+      "Distinct immersive sub-themes for special experiences."
+    ],
+    "rules": [
+      {
+        "name": "The Dual-Thematic Rule",
+        "body": "The primary app remains bright and clean. Deep, dark backgrounds (#03050a) and glowing borders are reserved exclusively for immersive experiences like the Hackathon.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tonal Layering Rule",
+        "body": "Avoid heavy or layered shadows. Distinct cards should be recognizable through color contrast and generous internal padding.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use large, generous touch targets and padding.",
+      "Do leverage pure white cards on off-white backgrounds to create structure.",
+      "Do use Passion Neon (#BFFF00) for primary, forward-moving actions."
+    ],
+    "donts": [
+      "Don't use Microsoft-style corporate, dry, or rigid enterprise UI patterns.",
+      "Don't use heavy drop shadows or glassmorphism as a default outside of immersive hackathon contexts.",
+      "Don't use side-stripe borders (border-left or border-right greater than 1px) as colored accents.",
+      "Don't use modal dialogs as the first thought; rely on inline or progressive alternatives."
+    ]
+  }
+}

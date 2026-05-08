@@ -1,73 +1,97 @@
 export interface Phase2Hint {
-  interview: string;
-  build: string;
-  pitch: string;
-  decide: string;
-  synthesize: string;
+  superpower: { en: string; th: string };
+  growthEdge: { en: string; th: string };
 }
 
 export const phase2Hints: Record<string, Phase2Hint> = {
-  "field-researcher": {
-    interview: "นี่คือพื้นที่ของคุณ กลับไปเอาประโยคเด็ดๆ มาให้ทีมสิ พวกเขารออยู่",
-    build: "สร้างจากสิ่งที่ขุดได้ ฐานต้องมาจากความจริง ไม่ใช่ความเดา",
-    pitch: "เล่าสิ่งที่เห็นข้างนอกนั่น พื้นที่ไม่โกหกหรอก",
-    decide: "ตัดสินจากพื้นดินขึ้นไป ข้อค้นพบของคุณคือคะแนนเสียง",
-    synthesize: "ถักประสบการณ์ภาคสนามเข้าด้วยกัน เธอมองเห็นแบบแผนที่คนอื่นพลาด",
+  "the-empath": {
+    superpower: {
+      en: "Your superpower is feeling what a user needs.",
+      th: "พลังวิเศษของคุณคือการเข้าใจสิ่งที่ผู้ใช้ต้องการ",
+    },
+    growthEdge: {
+      en: "Your growth edge is translating that into *one* concrete feature they can react to.",
+      th: "จุดเติบโตของคุณคือการเปลี่ยนมันเป็นหนึ่งฟีเจอร์ที่จับต้องได้",
+    },
   },
-  connector: {
-    interview: "คุณคือสะพาน ไปดึงทั้งสองฝั่งมาคุยกัน",
-    build: "สร้างสะพาน ไม่ใช่กำแพง ห่วงโซ่เพิ่มอีกเส้น ทุกอย่างเปลี่ยน",
-    pitch: "เล่าการเชื่อมต่อที่คุณสร้าง นั่นคือสิ่งที่คุณเป็นเจ้าของ",
-    decide: "ตัดสินใจว่าใครอยู่ในห้อง คุณรู้ดีว่าใครควรอยู่",
-    synthesize: "ถักเครือข่ายเป็นเรื่องเดียว จุดต่อจุด กลายเป็นดาวกระจาย",
+  "the-advocate": {
+    superpower: {
+      en: "Your superpower is acting fast on user pain.",
+      th: "พลังวิเศษของคุณคือการลุยทันทีเมื่อเห็นปัญหา",
+    },
+    growthEdge: {
+      en: "Your growth edge is slowing down to be precise about *who* you are building for.",
+      th: "จุดเติบโตของคุณคือการชะลอตัวลงเพื่อเจาะจงให้ชัดว่าคุณกำลังสร้างเพื่อใคร",
+    },
   },
-  detective: {
-    interview: "มีเรื่องเล่าซ่อนอยู่หลังเรื่องเล่า ตามมันมา",
-    build: "สร้างจากสิ่งที่คนอื่นพลาด ช่องว่างคือผืนผ้าของคุณ",
-    pitch: "เปิดเผยความจริงที่ยังไม่มีใครเจอ เธอคือการเปิดเผย",
-    decide: "ตัดสินว่าอะไรจริง อะไรเป็นแค่เสียงรบกวน เธอมองทะลุหน้ากาก",
-    synthesize: "ประกอบชิ้นส่วนให้เป็นตรรกะที่ซ่อนไว้ หลักฐานพูดผ่านเธอ",
+  "the-interrogator": {
+    superpower: {
+      en: "Your superpower is seeing the gaps.",
+      th: "พลังวิเศษของคุณคือการเห็นช่องโหว่",
+    },
+    growthEdge: {
+      en: "Your growth edge is forcing yourself to build *before* you bust, so reality can interrupt your theorizing.",
+      th: "จุดเติบโตของคุณคือการบังคับตัวเองให้สร้างมันขึ้นมาก่อนวิจารณ์ เพื่อให้ความจริงมาหยุดทฤษฎีในหัว",
+    },
   },
-  pivoter: {
-    interview: "คำตอบแรกไม่เคยถูก ไปต่อ ลึกกว่านั้น",
-    build: "พลิกได้ตรงไหนก็สร้างตรงนั้น การพลิกคือจุดเด่น ไม่ใช่ตำหนิ",
-    pitch: "เล่าการพลิก ไม่ใช่แผน บอกว่าทำไมต้องหันหลัง",
-    decide: "ตัดสินใจว่าจะพลิกเมื่อไหร่ ทางแยกเป็นของเธอ",
-    synthesize: "ถักก่อนและหลังเข้าด้วยกัน การพลิกคือบทสรุป",
+  "the-mythbuster": {
+    superpower: {
+      en: "Your superpower is seeing through bad ideas.",
+      th: "พลังวิเศษของคุณคือการมองทะลุไอเดียแย่ๆ",
+    },
+    growthEdge: {
+      en: "Your growth edge is holding your conviction for one sprint to see what *could* work before tearing it down.",
+      th: "จุดเติบโตของคุณคือการให้โอกาสไอเดียสักหนึ่งสปรินต์ ดูว่ามันไปได้ไหมก่อนจะคว่ำมันทิ้ง",
+    },
   },
-  "quiet-anchor": {
-    interview: "เป็นสติในความวุ่น ฟังให้ลึก ฟังให้จริง",
-    build: "สร้างให้มั่นคง สมอคอยรั้งเมื่อลมพัด",
-    pitch: "เล่าด้วยความมั่นใจที่เงียบ ห้องจะเอนเข้ามาเอง",
-    decide: "ตัดสินจากความสงบ ความจริงบางอย่างไม่ต้องดัง",
-    synthesize: "ถักความสงบเข้าไปในความโกลาหล ที่ตั้งคือรากฐาน",
+  "the-architect": {
+    superpower: {
+      en: "Your superpower is seeing the whole system.",
+      th: "พลังวิเศษของคุณคือการเห็นระบบทั้งหมด",
+    },
+    growthEdge: {
+      en: "Your growth edge is recognizing that elegant design needs real-world proof. Build one small piece.",
+      th: "จุดเติบโตของคุณคือการเข้าใจว่าการออกแบบที่สวยงามต้องมีโลกจริงมารองรับ ลองสร้างส่วนเล็กๆ ขึ้นมาพิสูจน์สิ",
+    },
   },
-  iterator: {
-    interview: "คำถามถัดไปเผยจุดบกพร่อง ถามอีก",
-    build: "สร้าง แตก แล้วสร้างใหม่ การทำซ้ำคือทาง ไม่ใช่ความล้มเหลว",
-    pitch: "เล่าความก้าวหน้า ไม่ใช่ความสมบูรณ์ ให้เห็นการเติบโต",
-    decide: "ตัดสินว่าจะวนต่อหรือไปต่อ ลูปรู้ว่าเมื่อไหร่ควรจบ",
-    synthesize: "ถักทุกเวอร์ชันเป็นเรื่องเดียว เส้นเล็กคือการเติบโต",
+  "the-synthesizer": {
+    superpower: {
+      en: "Your superpower is connecting patterns.",
+      th: "พลังวิเศษของคุณคือการเชื่อมโยงภาพรวม",
+    },
+    growthEdge: {
+      en: "Your growth edge is turning those patterns into a specific proposal—synthesis without construction is just narration.",
+      th: "จุดเติบโตของคุณคือการนำมันมาสร้างข้อเสนอที่เป็นรูปธรรม การวิเคราะห์โดยไม่ลงมือทำก็เหมือนแค่นั่งเล่าเรื่อง",
+    },
   },
-  "skeptical-maker": {
-    interview: "ตั้งคำถามกับคำตอบ ไม่ใช่กับคน โจมตีเพื่อให้ชัด",
-    build: "สร้างสิ่งที่ผ่านความสงสัยได้ ความสงสัยคือสนามทดสอบ",
-    pitch: "เล่าให้คนที่ไม่เชื่อฟัง ชนะพวกเขาทีหลังและยากที่สุด",
-    decide: "ตัดสินเมื่อความสงสัยกลายเป็นความเชื่อ มันจะมาถึง",
-    synthesize: "ถักความสงสัยเข้าไปในการออกแบบ ไอเดียที่แข็งแกร่งที่สุดต้องถูกท้าทาย",
+  "the-auditor": {
+    superpower: {
+      en: "Your superpower is seeing interconnected reality.",
+      th: "พลังวิเศษของคุณคือการเห็นความจริงที่ซับซ้อน",
+    },
+    growthEdge: {
+      en: "Your growth edge is understanding that mapping a system is not changing it. Build an artifact to gain leverage.",
+      th: "จุดเติบโตของคุณคือการเข้าใจว่าแค่เขียนแผนผังระบบไม่ได้ช่วยเปลี่ยนมัน คุณต้องสร้างบางอย่างเพื่อใช้เป็นคานงัด",
+    },
   },
-  "gut-caller": {
-    interview: "เชื่อความเงียบ บางทีความเงียบคือคำตอบ",
-    build: "สร้างสิ่งที่รู้สึกถูกก่อนจะเข้าใจ สัญชาตญาณคือแบบแปลน",
-    pitch: "เล่าจากสัญชาตญาณ ให้มันนำทาง",
-    decide: "ตัดสินใจเมื่อข้อมูลเจอสัญชาตญาณ ท้องรู้ก่อนสมอง",
-    synthesize: "ถักสัญชาตญาณเข้ากับเหตุผล ความรู้สึกคือโครงสร้าง",
+  "the-pivot-forcer": {
+    superpower: {
+      en: "Your superpower is pivoting fast.",
+      th: "พลังวิเศษของคุณคือการพลิกเกมอย่างรวดเร็ว",
+    },
+    growthEdge: {
+      en: "Your growth edge is holding your conviction for one sprint so data, not just instinct, drives the pivot.",
+      th: "จุดเติบโตของคุณคือการให้เวลาพิสูจน์มันสักหนึ่งสปรินต์ เพื่อให้ข้อมูลจริงเป็นตัวนำทาง ไม่ใช่แค่สัญชาตญาณ",
+    },
   },
   wanderer: {
-    interview: "ไปถามตรงที่ไม่มีใครมอง เส้นอ้อมนำไปสู่การค้นพบ",
-    build: "สร้างจากการเดินทาง ไม่ใช่แผนที่ ความไม่คาดคิดคือจุดเด่น",
-    pitch: "เล่าการค้นพบ ไม่ใช่จุดหมาย ให้เห็นทางที่ไม่มีใครเดิน",
-    decide: "ตัดสินใจเดินก่อนจะตัดสินใจอะไร การสำรวจต้องมาก่อน",
-    synthesize: "ถักการระเหเร่ร่อนเป็นปัญญา การเดินทางคือสาระสำคัญ",
+    superpower: {
+      en: "Your superpower is staying open to every possibility.",
+      th: "พลังวิเศษของคุณคือการเปิดรับทุกความเป็นไปได้",
+    },
+    growthEdge: {
+      en: "Your growth edge is picking one direction and testing it—any direction beats standing still.",
+      th: "จุดเติบโตของคุณคือการเลือกทิศทางหนึ่งแล้วลองทดสอบมัน — ทิศไหนก็ดีกว่ายืนนิ่ง",
+    },
   },
 };
