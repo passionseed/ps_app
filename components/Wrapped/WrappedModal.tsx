@@ -24,16 +24,18 @@ import { Space } from "../../lib/theme";
 import { prompts } from "../../lib/wrapped/prompts";
 import {
   classifyArchetype,
-  computeEBAxis,
+  getSecondaryArchetype,
+  computeMMAxis,
   computeSBAxis,
   computeSQAxis,
   computePRAxis,
 } from "../../lib/wrapped/archetypes";
-import type { AxisScores, ArchetypeResult } from "../../lib/wrapped/archetypes";
+import type { AxisScores, ArchetypeResult, ArchetypeFit } from "../../lib/wrapped/archetypes";
 import { WrappedSliderCard } from "./WrappedSliderCard";
 import { WrappedMultiSelectCard } from "./WrappedMultiSelectCard";
 import { WrappedDragRankCard } from "./WrappedDragRankCard";
 import { WrappedTextCard } from "./WrappedTextCard";
+import { WrappedTitleCard } from "./WrappedTitleCard";
 import { ArchetypeReveal } from "./ArchetypeReveal";
 import { SummaryCard } from "./SummaryCard";
 
@@ -58,13 +60,17 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
   const [p3Selected, setP3Selected] = useState<number[]>([]);
   const [p4Ranked, setP4Ranked] = useState<number[]>([]);
   const [p5Text, setP5Text] = useState("");
+  const [p6Title, setP6Title] = useState("");
 
   // Reveal state
   const [revealedArchetype, setRevealedArchetype] = useState<ArchetypeResult | null>(null);
+  const [secondaryArchetype, setSecondaryArchetype] = useState<ArchetypeResult | null>(null);
   const [axisScores, setAxisScores] = useState<AxisScores | null>(null);
+  const [archetypeFit, setArchetypeFit] = useState<ArchetypeFit | null>(null);
+  const [showCalibration, setShowCalibration] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
-  const totalSteps = 8; // intro + 5 prompts + reveal + summary
+  const totalSteps = 9; // intro + 6 prompts + reveal + summary
 
   const handleClose = useCallback(() => {
     setCurrentStep(0);
@@ -74,22 +80,28 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
     setP3Selected([]);
     setP4Ranked([]);
     setP5Text("");
+    setP6Title("");
     setRevealedArchetype(null);
+    setSecondaryArchetype(null);
     setAxisScores(null);
+    setArchetypeFit(null);
+    setShowCalibration(false);
     setShowSummary(false);
     onClose();
   }, [onClose, progress]);
 
   const computeAndReveal = useCallback(() => {
     const scores: AxisScores = {
-      eb: computeEBAxis(p1Value, p3Selected),
+      mm: computeMMAxis(p1Value, p3Selected),
       sb: computeSBAxis(p2Value),
       sq: computeSQAxis(p3Selected),
       pr: computePRAxis(p4Ranked),
     };
     const archetype = classifyArchetype(scores);
+    const secondary = getSecondaryArchetype(scores);
     setAxisScores(scores);
     setRevealedArchetype(archetype);
+    setSecondaryArchetype(secondary);
   }, [p1Value, p2Value, p3Selected, p4Ranked]);
 
   const handleNext = useCallback(() => {
@@ -98,8 +110,8 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
       setCurrentStep(nextStep);
       progress.value = withTiming(nextStep, { duration: 300 });
 
-      // Trigger reveal computation when moving from prompt 5 to reveal
-      if (currentStep === 5) {
+      // Trigger reveal computation when moving from prompt 6 to reveal
+      if (currentStep === 6) {
         computeAndReveal();
       }
     }
@@ -116,9 +128,15 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
   }, [currentStep, progress, handleClose]);
 
   const handleRevealComplete = useCallback(() => {
+    setShowCalibration(true);
+  }, []);
+
+  const handleCalibrationSelect = useCallback((fit: ArchetypeFit) => {
+    setArchetypeFit(fit);
+    setShowCalibration(false);
     setShowSummary(true);
-    setCurrentStep(7);
-    progress.value = withTiming(7, { duration: 300 });
+    setCurrentStep(8);
+    progress.value = withTiming(8, { duration: 300 });
   }, [progress]);
 
   const progressWidth = useAnimatedStyle(() => ({
@@ -131,6 +149,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
   const p3Prompt = useMemo(() => prompts.find((p) => p.id === "p3")!, []);
   const p4Prompt = useMemo(() => prompts.find((p) => p.id === "p4")!, []);
   const p5Prompt = useMemo(() => prompts.find((p) => p.id === "p5")!, []);
+  const p6Prompt = useMemo(() => prompts.find((p) => p.id === "p6")!, []);
 
   const handleP3Toggle = useCallback((index: number) => {
     setP3Selected((prev) =>
@@ -213,17 +232,37 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 6 && revealedArchetype && (
+            {currentStep === 6 && (
+              <WrappedTitleCard
+                prompt={p6Prompt}
+                value={p6Title}
+                onChange={setP6Title}
+                onNext={handleNext}
+              />
+            )}
+
+            {currentStep === 7 && revealedArchetype && (
               <ArchetypeReveal
                 archetype={revealedArchetype}
                 onComplete={handleRevealComplete}
               />
             )}
 
-            {currentStep === 7 && revealedArchetype && axisScores && (
+            {currentStep === 8 && showCalibration && revealedArchetype && secondaryArchetype && (
+              <CalibrationCard
+                archetype={revealedArchetype}
+                secondaryArchetype={secondaryArchetype}
+                onSelect={handleCalibrationSelect}
+              />
+            )}
+
+            {currentStep === 8 && showSummary && revealedArchetype && axisScores && (
               <SummaryCard
                 archetype={revealedArchetype}
+                secondaryArchetype={archetypeFit === "not_me" ? secondaryArchetype : undefined}
                 scores={axisScores}
+                phase1Title={p6Title}
+                archetypeFit={archetypeFit}
                 onDone={handleClose}
               />
             )}
@@ -231,6 +270,116 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
         </KeyboardAvoidingView>
       </View>
     </Modal>
+  );
+}
+
+function CalibrationCard({
+  archetype,
+  secondaryArchetype,
+  onSelect,
+}: {
+  archetype: ArchetypeResult;
+  secondaryArchetype: ArchetypeResult;
+  onSelect: (fit: ArchetypeFit) => void;
+}) {
+  const [showSecondary, setShowSecondary] = React.useState(false);
+
+  const handleNotMe = () => {
+    setShowSecondary(true);
+  };
+
+  const handleSecondarySelect = (fit: ArchetypeFit) => {
+    onSelect(fit);
+  };
+
+  if (showSecondary) {
+    return (
+      <View style={styles.card}>
+        <Animated.View entering={FadeIn.delay(100).duration(600)}>
+          <AppText style={styles.introEmoji}>🤔</AppText>
+        </Animated.View>
+        <Animated.View entering={FadeIn.delay(300).duration(600)}>
+          <AppText variant="bold" style={styles.introTitle}>
+            Alternative Archetype
+          </AppText>
+        </Animated.View>
+        <Animated.View entering={FadeIn.delay(500).duration(600)}>
+          <AppText style={styles.introText}>
+            You might also be...
+          </AppText>
+        </Animated.View>
+        <Animated.View entering={FadeIn.delay(600).duration(600)}>
+          <AppText variant="bold" style={styles.revealName}>
+            {secondaryArchetype.display.en}
+          </AppText>
+          <AppText style={styles.revealNameTh}>
+            {secondaryArchetype.display.th}
+          </AppText>
+        </Animated.View>
+        <Animated.View entering={FadeIn.delay(700).duration(600)}>
+          <AppText style={styles.introText}>
+            {secondaryArchetype.caption.en}
+          </AppText>
+        </Animated.View>
+        <Animated.View entering={FadeIn.delay(900).duration(600)}>
+          <Pressable
+            style={styles.ctaButton}
+            onPress={() => handleSecondarySelect("not_me")}
+          >
+            <AppText variant="bold" style={styles.ctaText}>
+              This is me →
+            </AppText>
+          </Pressable>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.card}>
+      <Animated.View entering={FadeIn.delay(100).duration(600)}>
+        <AppText style={styles.introEmoji}>🎯</AppText>
+      </Animated.View>
+      <Animated.View entering={FadeIn.delay(300).duration(600)}>
+        <AppText variant="bold" style={styles.introTitle}>
+          Did we get you right?
+        </AppText>
+      </Animated.View>
+      <Animated.View entering={FadeIn.delay(500).duration(600)}>
+        <AppText style={styles.introText}>
+          You were identified as{" "}
+          <AppText variant="bold" style={{ color: CYAN }}>
+            {archetype.display.en}
+          </AppText>
+        </AppText>
+      </Animated.View>
+      <Animated.View entering={FadeIn.delay(700).duration(600)} style={styles.calibrationButtons}>
+        <Pressable
+          style={[styles.calibrationButton, { backgroundColor: "#4ADE80" }]}
+          onPress={() => onSelect("nailed")}
+        >
+          <AppText variant="bold" style={styles.calibrationButtonText}>
+            🎯 Nailed it
+          </AppText>
+        </Pressable>
+        <Pressable
+          style={[styles.calibrationButton, { backgroundColor: "#FB923C" }]}
+          onPress={() => onSelect("sort_of")}
+        >
+          <AppText variant="bold" style={styles.calibrationButtonText}>
+            🤔 Sort of
+          </AppText>
+        </Pressable>
+        <Pressable
+          style={[styles.calibrationButton, { backgroundColor: PURPLE }]}
+          onPress={handleNotMe}
+        >
+          <AppText variant="bold" style={styles.calibrationButtonText}>
+            ❌ Not me
+          </AppText>
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -247,7 +396,7 @@ function IntroCard({ onNext }: { onNext: () => void }) {
       </Animated.View>
       <Animated.View entering={FadeIn.delay(500).duration(600)}>
         <AppText style={styles.introText}>
-          Answer 5 quick questions to discover your archetype and unlock Phase 2
+          Answer 6 quick questions to discover your archetype and unlock Phase 2
           hints tailored to your style.
         </AppText>
       </Animated.View>
@@ -374,5 +523,42 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
     fontFamily: "BaiJamjuree_400Regular",
+  },
+  revealName: {
+    fontSize: 32,
+    color: WHITE,
+    textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
+    lineHeight: 40,
+    textShadowColor: CYAN,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 16,
+  },
+  revealNameTh: {
+    fontSize: 18,
+    color: "rgba(255,255,255,0.7)",
+    textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
+    marginTop: Space.xs,
+  },
+  calibrationButtons: {
+    gap: Space.md,
+    width: "100%",
+    paddingHorizontal: Space.lg,
+    marginTop: Space.lg,
+  },
+  calibrationButton: {
+    borderRadius: 40,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  calibrationButtonText: {
+    fontSize: 16,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
   },
 });

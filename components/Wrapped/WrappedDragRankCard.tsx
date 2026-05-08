@@ -89,7 +89,7 @@ export function WrappedDragRankCard({
   return (
     <View style={styles.card}>
       <Animated.View entering={FadeInUp.duration(500).delay(100)}>
-        <AppText style={styles.stepIndicator}>Question 4 of 5</AppText>
+        <AppText style={styles.stepIndicator}>Question 4 of 6</AppText>
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(200)}>

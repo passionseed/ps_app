@@ -9,7 +9,7 @@ import {
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { AppText } from "../AppText";
 import { Space } from "../../lib/theme";
-import type { ArchetypeResult, AxisScores } from "../../lib/wrapped/archetypes";
+import type { ArchetypeResult, AxisScores, ArchetypeFit } from "../../lib/wrapped/archetypes";
 import { axes } from "../../lib/wrapped/archetypes";
 import { phase2Hints } from "../../lib/wrapped/phase2Hints";
 
@@ -19,11 +19,21 @@ const PURPLE = "#9D81AC";
 
 interface SummaryCardProps {
   archetype: ArchetypeResult;
+  secondaryArchetype?: ArchetypeResult | null;
   scores: AxisScores;
+  phase1Title?: string;
+  archetypeFit?: ArchetypeFit | null;
   onDone: () => void;
 }
 
-export function SummaryCard({ archetype, scores, onDone }: SummaryCardProps) {
+export function SummaryCard({
+  archetype,
+  secondaryArchetype,
+  scores,
+  phase1Title,
+  archetypeFit,
+  onDone,
+}: SummaryCardProps) {
   const hints = phase2Hints[archetype.id];
 
   const handleShare = async () => {
@@ -37,11 +47,18 @@ export function SummaryCard({ archetype, scores, onDone }: SummaryCardProps) {
   };
 
   const axisEntries = [
-    { key: "eb", label: "EB", name: "Explorer / Builder", score: scores.eb },
+    { key: "mm", label: "MM", name: "Micro / Macro", score: scores.mm },
     { key: "sb", label: "SB", name: "Skeptic / Believer", score: scores.sb },
     { key: "pr", label: "PR", name: "Patient / Restless", score: scores.pr },
     { key: "sq", label: "SQ", name: "Solo / Squad", score: scores.sq },
   ];
+
+  // Determine SQ Dynamic based on SQ axis sign
+  const sqDynamic = React.useMemo(() => {
+    if (!archetype.sqDynamic) return null;
+    const sqSign = scores.sq >= 0 ? "squad" : "solo";
+    return archetype.sqDynamic[sqSign];
+  }, [archetype.sqDynamic, scores.sq]);
 
   return (
     <View style={styles.card}>
@@ -67,8 +84,60 @@ export function SummaryCard({ archetype, scores, onDone }: SummaryCardProps) {
           <AppText style={styles.captionTh}>{archetype.caption.th}</AppText>
         </Animated.View>
 
+        {/* Phase 1 Title */}
+        {phase1Title && (
+          <Animated.View entering={FadeInUp.duration(500).delay(350)} style={styles.titleSection}>
+            <AppText style={styles.titleLabel}>Your Phase 1 Title</AppText>
+            <AppText variant="bold" style={styles.titleText}>"{phase1Title}"</AppText>
+          </Animated.View>
+        )}
+
+        {/* Persona */}
+        {archetype.persona && (
+          <Animated.View entering={FadeInUp.duration(500).delay(375)} style={styles.personaSection}>
+            <AppText variant="bold" style={styles.personaTitle}>Persona</AppText>
+            <AppText style={styles.personaText}>{archetype.persona.en}</AppText>
+            <AppText style={styles.personaTextTh}>{archetype.persona.th}</AppText>
+          </Animated.View>
+        )}
+
+        {/* SQ Dynamic */}
+        {sqDynamic && (
+          <Animated.View entering={FadeInUp.duration(500).delay(390)} style={styles.sqDynamicSection}>
+            <AppText variant="bold" style={styles.sqDynamicTitle}>
+              {scores.sq >= 0 ? "Squad Mode" : "Solo Mode"}
+            </AppText>
+            <AppText style={styles.sqDynamicText}>{sqDynamic.en}</AppText>
+            <AppText style={styles.sqDynamicTextTh}>{sqDynamic.th}</AppText>
+          </Animated.View>
+        )}
+
+        {/* Calibration Fit */}
+        {archetypeFit && (
+          <Animated.View entering={FadeInUp.duration(500).delay(400)} style={styles.fitSection}>
+            <AppText style={styles.fitLabel}>Archetype Fit</AppText>
+            <AppText variant="bold" style={styles.fitValue}>
+              {archetypeFit === "nailed"
+                ? "🎯 Nailed it"
+                : archetypeFit === "sort_of"
+                ? "🤔 Sort of"
+                : "❌ Not me"}
+            </AppText>
+            {archetypeFit === "not_me" && secondaryArchetype && (
+              <>
+                <AppText style={styles.fitSubtext}>
+                  Alternative: {secondaryArchetype.display.en}
+                </AppText>
+                <AppText style={styles.fitSubtextTh}>
+                  {secondaryArchetype.display.th}
+                </AppText>
+              </>
+            )}
+          </Animated.View>
+        )}
+
         <Animated.View
-          entering={FadeInUp.duration(500).delay(400)}
+          entering={FadeInUp.duration(500).delay(420)}
           style={styles.axisSection}
         >
           <AppText variant="bold" style={styles.axisTitle}>
@@ -81,17 +150,16 @@ export function SummaryCard({ archetype, scores, onDone }: SummaryCardProps) {
 
         {hints && (
           <Animated.View
-            entering={FadeInUp.duration(500).delay(500)}
+            entering={FadeInUp.duration(500).delay(440)}
             style={styles.hintsSection}
           >
             <AppText variant="bold" style={styles.hintsTitle}>
               Phase 2 Hints
             </AppText>
-            <HintRow label="Interview" text={hints.interview} />
-            <HintRow label="Build" text={hints.build} />
-            <HintRow label="Pitch" text={hints.pitch} />
-            <HintRow label="Decide" text={hints.decide} />
-            <HintRow label="Synthesize" text={hints.synthesize} />
+            <HintRow label="Superpower" text={hints.superpower.en} />
+            <HintRow label="Growth Edge" text={hints.growthEdge.en} />
+            <HintRow label="Superpower (TH)" text={hints.superpower.th} />
+            <HintRow label="Growth Edge (TH)" text={hints.growthEdge.th} />
           </Animated.View>
         )}
 
@@ -300,6 +368,118 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.7)",
     fontFamily: "BaiJamjuree_400Regular",
     lineHeight: 20,
+  },
+  titleSection: {
+    width: "100%",
+    alignItems: "center",
+    gap: Space.xs,
+    marginTop: Space.sm,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 16,
+    padding: Space.lg,
+    borderWidth: 1,
+    borderColor: "rgba(90,122,148,0.2)",
+  },
+  titleLabel: {
+    fontSize: 11,
+    color: CYAN,
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  titleText: {
+    fontSize: 18,
+    color: WHITE,
+    textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
+    fontStyle: "italic",
+  },
+  personaSection: {
+    width: "100%",
+    gap: Space.sm,
+    marginTop: Space.sm,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 16,
+    padding: Space.lg,
+    borderWidth: 1,
+    borderColor: "rgba(90,122,148,0.15)",
+  },
+  personaTitle: {
+    fontSize: 14,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  personaText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
+    fontFamily: "BaiJamjuree_400Regular",
+    lineHeight: 20,
+  },
+  personaTextTh: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.5)",
+    fontFamily: "BaiJamjuree_400Regular",
+    lineHeight: 20,
+  },
+  sqDynamicSection: {
+    width: "100%",
+    gap: Space.sm,
+    marginTop: Space.sm,
+    backgroundColor: "rgba(145,196,227,0.05)",
+    borderRadius: 16,
+    padding: Space.lg,
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.2)",
+  },
+  sqDynamicTitle: {
+    fontSize: 14,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  sqDynamicText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
+    fontFamily: "BaiJamjuree_400Regular",
+    lineHeight: 20,
+  },
+  sqDynamicTextTh: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.5)",
+    fontFamily: "BaiJamjuree_400Regular",
+    lineHeight: 20,
+  },
+  fitSection: {
+    width: "100%",
+    alignItems: "center",
+    gap: Space.xs,
+    marginTop: Space.sm,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 16,
+    padding: Space.lg,
+    borderWidth: 1,
+    borderColor: "rgba(90,122,148,0.15)",
+  },
+  fitLabel: {
+    fontSize: 11,
+    color: CYAN,
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  fitValue: {
+    fontSize: 18,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  fitSubtext: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.6)",
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  fitSubtextTh: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.45)",
+    fontFamily: "BaiJamjuree_400Regular",
   },
   actions: {
     flexDirection: "row",
