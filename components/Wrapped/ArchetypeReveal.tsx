@@ -23,7 +23,7 @@ import {
 } from "@shopify/react-native-skia";
 import { AppText } from "../AppText";
 import { Space } from "../../lib/theme";
-import type { ArchetypeResult } from "../../lib/wrapped/archetypes";
+import type { ArchetypeResult, AxisScores } from "../../lib/wrapped/archetypes";
 
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
@@ -44,10 +44,11 @@ interface Particle {
 
 interface ArchetypeRevealProps {
   archetype: ArchetypeResult;
+  scores?: AxisScores | null;
   onComplete: () => void;
 }
 
-export function ArchetypeReveal({ archetype, onComplete }: ArchetypeRevealProps) {
+export function ArchetypeReveal({ archetype, scores, onComplete }: ArchetypeRevealProps) {
   const phase = useSharedValue(0); // 0 = processing, 1 = name reveal, 2 = caption, 3 = done
   const screenDarkness = useSharedValue(0);
   const nameScale = useSharedValue(0.3);
@@ -62,17 +63,25 @@ export function ArchetypeReveal({ archetype, onComplete }: ArchetypeRevealProps)
   // Archetype accent color
   const accentColor = useMemo(() => {
     switch (archetype.id) {
-      case "field-researcher": return "#4ADE80";
-      case "connector": return "#F472B6";
-      case "detective": return "#60A5FA";
-      case "pivoter": return "#FB923C";
-      case "quiet-anchor": return "#A78BFA";
-      case "iterator": return "#2DD4BF";
-      case "skeptical-maker": return "#94A3B8";
-      case "gut-caller": return "#F87171";
+      case "the-empath": return "#F472B6";
+      case "the-advocate": return "#4ADE80";
+      case "the-interrogator": return "#60A5FA";
+      case "the-mythbuster": return "#FB923C";
+      case "the-architect": return "#A78BFA";
+      case "the-synthesizer": return "#2DD4BF";
+      case "the-auditor": return "#94A3B8";
+      case "the-pivot-forcer": return "#F87171";
       default: return PURPLE;
     }
   }, [archetype.id]);
+
+  // Determine SQ Dynamic based on SQ axis sign
+  const sqDynamic = useMemo(() => {
+    if (!archetype.sqDynamic) return null;
+    if (!scores) return null;
+    const sqSign = scores.sq >= 0 ? "squad" : "solo";
+    return archetype.sqDynamic[sqSign];
+  }, [archetype.sqDynamic, scores]);
 
   // Generate particles
   const particles = useMemo(() => {
@@ -253,11 +262,24 @@ export function ArchetypeReveal({ archetype, onComplete }: ArchetypeRevealProps)
         <AppText style={styles.revealNameTh}>{archetype.display.th}</AppText>
       </Animated.View>
 
-      {/* Caption */}
-      <Animated.View style={[styles.captionContainer, captionStyle]}>
-        <AppText style={styles.revealCaption}>{archetype.caption.en}</AppText>
-        <AppText style={styles.revealCaptionTh}>{archetype.caption.th}</AppText>
-      </Animated.View>
+      {/* Persona */}
+      {archetype.persona && (
+        <Animated.View style={[styles.personaContainer, captionStyle]}>
+          <AppText style={styles.revealCaption}>{archetype.persona.en}</AppText>
+          <AppText style={styles.revealCaptionTh}>{archetype.persona.th}</AppText>
+        </Animated.View>
+      )}
+
+      {/* SQ Dynamic */}
+      {sqDynamic && (
+        <Animated.View style={[styles.sqDynamicContainer, captionStyle]}>
+          <AppText style={styles.sqDynamicLabel}>
+            {scores!.sq >= 0 ? "Squad Mode" : "Solo Mode"}
+          </AppText>
+          <AppText style={styles.revealCaption}>{sqDynamic.en}</AppText>
+          <AppText style={styles.revealCaptionTh}>{sqDynamic.th}</AppText>
+        </Animated.View>
+      )}
     </Animated.View>
   );
 }
@@ -350,6 +372,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 2,
     paddingHorizontal: Space.lg,
+  },
+  personaContainer: {
+    alignItems: "center",
+    zIndex: 2,
+    paddingHorizontal: Space.lg,
+    marginTop: Space.md,
+  },
+  sqDynamicContainer: {
+    alignItems: "center",
+    zIndex: 2,
+    paddingHorizontal: Space.lg,
+    marginTop: Space.md,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 16,
+    padding: Space.lg,
+    borderWidth: 1,
+    borderColor: "rgba(90,122,148,0.2)",
+  },
+  sqDynamicLabel: {
+    fontSize: 11,
+    color: CYAN,
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    fontFamily: "BaiJamjuree_700Bold",
+    marginBottom: Space.sm,
   },
   revealCaption: {
     fontSize: 15,

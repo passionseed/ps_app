@@ -103,7 +103,7 @@ export function WrappedSliderCard({
     <View style={styles.card}>
       <Animated.View entering={FadeInUp.duration(500).delay(100)}>
         <AppText style={styles.stepIndicator}>
-          {prompt.id === "p1" ? "Question 1 of 5" : "Question 2 of 5"}
+          {prompt.id === "p1" ? "Question 1 of 6" : "Question 2 of 6"}
         </AppText>
       </Animated.View>
 

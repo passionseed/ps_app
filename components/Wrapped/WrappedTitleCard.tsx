@@ -4,8 +4,6 @@ import {
   StyleSheet,
   Pressable,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { AppText } from "../AppText";
@@ -16,23 +14,25 @@ const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
 const PURPLE = "#9D81AC";
 
-interface WrappedTextCardProps {
+interface WrappedTitleCardProps {
   prompt: WrappedPrompt;
   value: string;
   onChange: (value: string) => void;
   onNext: () => void;
 }
 
-export function WrappedTextCard({
+export function WrappedTitleCard({
   prompt,
   value,
   onChange,
   onNext,
-}: WrappedTextCardProps) {
+}: WrappedTitleCardProps) {
+  const maxLength = prompt.maxLength ?? 80;
+
   return (
     <View style={styles.card}>
       <Animated.View entering={FadeInUp.duration(500).delay(100)}>
-        <AppText style={styles.stepIndicator}>Question 5 of 6</AppText>
+        <AppText style={styles.stepIndicator}>Question 6 of 6</AppText>
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(200)}>
@@ -52,17 +52,20 @@ export function WrappedTextCard({
         <TextInput
           style={styles.textInput}
           value={value}
-          onChangeText={onChange}
-          placeholder="Type your answer here..."
+          onChangeText={(text) => {
+            if (text.length <= maxLength) {
+              onChange(text);
+            }
+          }}
+          placeholder="Your one-line title..."
           placeholderTextColor="rgba(255,255,255,0.25)"
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          maxLength={500}
+          maxLength={maxLength}
           autoCapitalize="sentences"
           autoCorrect
         />
-        <AppText style={styles.charCount}>{value.length}/500</AppText>
+        <AppText style={styles.charCount}>
+          {value.length}/{maxLength}
+        </AppText>
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(500)}>
@@ -113,7 +116,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     width: "100%",
-    minHeight: 120,
+    height: 56,
     backgroundColor: "rgba(26,37,48,0.8)",
     borderRadius: 16,
     borderWidth: 1,
@@ -122,7 +125,6 @@ const styles = StyleSheet.create({
     color: WHITE,
     fontSize: 15,
     fontFamily: "BaiJamjuree_400Regular",
-    lineHeight: 22,
   },
   charCount: {
     fontSize: 11,
