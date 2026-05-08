@@ -83,6 +83,7 @@ export default function HackathonLoginScreen() {
     setError(null);
     try {
       await signInWithEmailPassword(email.trim(), password);
+      router.replace("/(hackathon)/home");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed. Please try again.");
     } finally {

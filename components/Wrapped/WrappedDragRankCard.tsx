@@ -1,23 +1,10 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 import {
   View,
   StyleSheet,
   Pressable,
   ScrollView,
-  Dimensions,
 } from "react-native";
-import Animated, {
-  FadeInUp,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  runOnJS,
-} from "react-native-reanimated";
-import {
-  Gesture,
-  GestureDetector,
-} from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../AppText";
 import { Space } from "../../lib/theme";
@@ -26,9 +13,7 @@ import type { WrappedPrompt } from "../../lib/wrapped/prompts";
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
 const PURPLE = "#9D81AC";
-const { height: SCREEN_H } = Dimensions.get("window");
-const ITEM_HEIGHT = 72;
-const ITEM_GAP = 8;
+const RED = "#FF8A8A";
 
 interface WrappedDragRankCardProps {
   prompt: WrappedPrompt;
@@ -43,232 +28,252 @@ export function WrappedDragRankCard({
   onReorder,
   onNext,
 }: WrappedDragRankCardProps) {
-  const items = prompt.items ?? [];
-  const pickCount = prompt.pickCount ?? 3;
-
-  // Initialize with first pickCount items if empty
-  const [localOrder, setLocalOrder] = useState<number[]>(
-    rankedIndices.length > 0
-      ? rankedIndices
-      : items.slice(0, pickCount).map((_, i) => i)
-  );
-
-  React.useEffect(() => {
-    if (rankedIndices.length > 0) {
-      setLocalOrder(rankedIndices);
-    }
-  }, [rankedIndices]);
+  const items = prompt?.items ?? [];
+  const pickCount = prompt?.pickCount ?? 3;
+  const questionEn = prompt?.question?.en ?? "";
+  const questionTh = prompt?.question?.th ?? "";
+  const canContinue = rankedIndices.length === pickCount;
 
   const handleReorder = (newOrder: number[]) => {
-    setLocalOrder(newOrder);
     onReorder(newOrder);
   };
 
-  const moveUp = (index: number) => {
-    if (index <= 0) return;
-    const newOrder = [...localOrder];
-    [newOrder[index - 1], newOrder[index]] = [
-      newOrder[index],
-      newOrder[index - 1],
-    ];
-    handleReorder(newOrder);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleSelect = (itemIndex: number) => {
+    if (rankedIndices.includes(itemIndex) || rankedIndices.length >= pickCount) {
+      return;
+    }
+    handleReorder([...rankedIndices, itemIndex]);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const moveDown = (index: number) => {
-    if (index >= localOrder.length - 1) return;
-    const newOrder = [...localOrder];
-    [newOrder[index], newOrder[index + 1]] = [
-      newOrder[index + 1],
-      newOrder[index],
+  const handleRemove = (itemIndex: number) => {
+    handleReorder(rankedIndices.filter((index) => index !== itemIndex));
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleMove = (position: number, direction: -1 | 1) => {
+    const nextPosition = position + direction;
+    if (nextPosition < 0 || nextPosition >= rankedIndices.length) return;
+    const newOrder = [...rankedIndices];
+    [newOrder[position], newOrder[nextPosition]] = [
+      newOrder[nextPosition],
+      newOrder[position],
     ];
     handleReorder(newOrder);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
+
+  const handleNextPress = () => {
+    if (!canContinue) return;
+    onNext();
+  };
+
+  const selectedLabels = rankedIndices.map((itemIndex) => items[itemIndex]).filter(Boolean);
 
   return (
     <View style={styles.card}>
-      <Animated.View entering={FadeInUp.duration(500).delay(100)}>
+      <View>
         <AppText style={styles.stepIndicator}>Question 4 of 6</AppText>
-      </Animated.View>
+      </View>
 
-      <Animated.View entering={FadeInUp.duration(500).delay(200)}>
+      <View>
         <AppText variant="bold" style={styles.question}>
-          {prompt.question.en}
+          {questionEn}
         </AppText>
-      </Animated.View>
+      </View>
 
-      <Animated.View entering={FadeInUp.duration(500).delay(300)}>
-        <AppText style={styles.questionTh}>{prompt.question.th}</AppText>
-      </Animated.View>
+      <View>
+        <AppText style={styles.questionTh}>{questionTh}</AppText>
+      </View>
 
-      <Animated.View
-        entering={FadeInUp.duration(500).delay(400)}
-        style={styles.listContainer}
+      <AppText style={styles.helperText}>
+        Tap a moment to add it. Your order is controlled in the top 3 box.
+      </AppText>
+
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listScroll}
-        >
-          {localOrder.map((itemIndex, position) => (
-            <DraggableRankItem
-              key={itemIndex}
-              position={position}
-              item={items[itemIndex]}
-              itemIndex={itemIndex}
-              totalItems={localOrder.length}
-              order={localOrder}
-              onReorder={handleReorder}
-              onMoveUp={() => moveUp(position)}
-              onMoveDown={() => moveDown(position)}
-              canMoveUp={position > 0}
-              canMoveDown={position < localOrder.length - 1}
-            />
-          ))}
-        </ScrollView>
-      </Animated.View>
+        <View style={styles.topBox}>
+          <View style={styles.topBoxHeader}>
+            <AppText variant="bold" style={styles.sectionLabel}>
+              Top {pickCount}
+            </AppText>
+            <AppText style={styles.topBoxCount}>
+              {rankedIndices.length}/{pickCount}
+            </AppText>
+          </View>
 
-      <Animated.View entering={FadeInUp.duration(500).delay(600)}>
-        <Pressable style={styles.ctaButton} onPress={onNext}>
+          <View style={styles.topSlots}>
+            {Array.from({ length: pickCount }).map((_, position) => {
+              const itemIndex = rankedIndices[position];
+              const item = itemIndex === undefined ? undefined : items[itemIndex];
+
+              return (
+                <TopSlot
+                  key={position}
+                  item={item}
+                  position={position}
+                  canMoveUp={position > 0}
+                  canMoveDown={position < selectedLabels.length - 1}
+                  onMoveUp={() => handleMove(position, -1)}
+                  onMoveDown={() => handleMove(position, 1)}
+                  onRemove={() => itemIndex !== undefined && handleRemove(itemIndex)}
+                />
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <AppText variant="bold" style={styles.sectionLabel}>
+            Pick from the same list
+          </AppText>
+
+          {items.map((item, itemIndex) => {
+            const selectedPosition = rankedIndices.indexOf(itemIndex);
+            const selected = selectedPosition >= 0;
+            const disabled = !selected && rankedIndices.length >= pickCount;
+
+            return (
+              <Pressable
+                key={itemIndex}
+                style={[
+                  styles.choiceItem,
+                  selected && styles.choiceItemSelected,
+                  disabled && styles.choiceItemDisabled,
+                ]}
+                onPress={() =>
+                  selected ? handleRemove(itemIndex) : handleSelect(itemIndex)
+                }
+                disabled={disabled}
+              >
+                <View style={[styles.choiceBadge, selected && styles.choiceBadgeSelected]}>
+                  <AppText
+                    variant="bold"
+                    style={[
+                      styles.choiceBadgeText,
+                      selected && styles.choiceBadgeTextSelected,
+                    ]}
+                  >
+                    {selected ? selectedPosition + 1 : "+"}
+                  </AppText>
+                </View>
+
+                <View style={styles.rankTextContainer}>
+                  <AppText variant="bold" style={styles.rankText}>
+                    {item.en}
+                  </AppText>
+                  <AppText style={styles.rankTextTh}>{item.th}</AppText>
+                </View>
+
+                <AppText style={styles.choiceAction}>
+                  {selected ? "Tap to remove" : disabled ? "Full" : "Add"}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <AppText style={styles.selectionCount}>
+          {rankedIndices.length}/{pickCount} selected
+        </AppText>
+        <Pressable
+          style={[styles.ctaButton, !canContinue && styles.ctaButtonDisabled]}
+          onPress={handleNextPress}
+          disabled={!canContinue}
+        >
           <AppText variant="bold" style={styles.ctaText}>
             Next →
           </AppText>
         </Pressable>
-      </Animated.View>
+      </View>
     </View>
   );
 }
 
-function DraggableRankItem({
+function TopSlot({
   position,
   item,
-  itemIndex,
-  totalItems,
-  order,
-  onReorder,
-  onMoveUp,
-  onMoveDown,
   canMoveUp,
   canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
 }: {
   position: number;
-  item: { en: string; th: string };
-  itemIndex: number;
-  totalItems: number;
-  order: number[];
-  onReorder: (newOrder: number[]) => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
+  item?: { en: string; th: string };
   canMoveUp: boolean;
   canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRemove: () => void;
 }) {
   const rankColors = [CYAN, "rgba(145,196,227,0.6)", "rgba(145,196,227,0.3)"];
   const rankColor = rankColors[position] ?? "rgba(145,196,227,0.2)";
 
-  const translateY = useSharedValue(0);
-  const scale = useSharedValue(1);
-  const zIndex = useSharedValue(1);
-  const isDragging = useSharedValue(false);
-
-  const reorderWithDrag = useCallback(
-    (fromIndex: number, toIndex: number) => {
-      if (fromIndex === toIndex) return;
-      const newOrder = [...order];
-      const [removed] = newOrder.splice(fromIndex, 1);
-      newOrder.splice(toIndex, 0, removed);
-      onReorder(newOrder);
-    },
-    [order, onReorder]
-  );
-
-  const panGesture = Gesture.Pan()
-    .activateAfterLongPress(200)
-    .onBegin(() => {
-      "worklet";
-      isDragging.value = true;
-      scale.value = withSpring(1.05, { damping: 20, stiffness: 300 });
-      zIndex.value = 100;
-    })
-    .onUpdate((e) => {
-      "worklet";
-      translateY.value = e.translationY;
-      // Calculate target position based on drag distance
-      const dragOffset = e.translationY;
-      const itemTotalHeight = ITEM_HEIGHT + ITEM_GAP;
-      const rawTarget = position + dragOffset / itemTotalHeight;
-      const targetIndex = Math.max(0, Math.min(totalItems - 1, Math.round(rawTarget)));
-      // We don't reorder during drag to avoid jitter; we reorder onEnd
-    })
-    .onEnd((e) => {
-      "worklet";
-      const dragOffset = e.translationY;
-      const itemTotalHeight = ITEM_HEIGHT + ITEM_GAP;
-      const rawTarget = position + dragOffset / itemTotalHeight;
-      const targetIndex = Math.max(0, Math.min(totalItems - 1, Math.round(rawTarget)));
-
-      if (targetIndex !== position) {
-        runOnJS(reorderWithDrag)(position, targetIndex);
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-      }
-
-      translateY.value = withSpring(0, { damping: 25, stiffness: 300 });
-      scale.value = withSpring(1, { damping: 25, stiffness: 300 });
-      zIndex.value = 1;
-      isDragging.value = false;
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
-    zIndex: zIndex.value,
-  }));
+  if (!item) {
+    return (
+      <View style={styles.topSlotEmpty}>
+        <View style={styles.topSlotBadgeEmpty}>
+          <AppText variant="bold" style={styles.emptyRankNumber}>
+            {position + 1}
+          </AppText>
+        </View>
+        <AppText style={styles.emptyRankText}>Pick moment #{position + 1}</AppText>
+      </View>
+    );
+  }
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View entering={FadeInUp.duration(400).delay(position * 100)} style={animatedStyle}>
-        <View style={styles.rankItem}>
-          <View style={[styles.rankBadge, { backgroundColor: rankColor }]}>
-            <AppText variant="bold" style={styles.rankNumber}>
-              {position + 1}
-            </AppText>
-          </View>
+    <View style={styles.topSlot}>
+      <View style={[styles.rankBadge, { backgroundColor: rankColor }]}>
+        <AppText variant="bold" style={styles.rankNumber}>
+          {position + 1}
+        </AppText>
+      </View>
 
-          <View style={styles.rankTextContainer}>
-            <AppText variant="bold" style={styles.rankText}>
-              {item.en}
-            </AppText>
-            <AppText style={styles.rankTextTh}>{item.th}</AppText>
-          </View>
+      <View style={styles.rankTextContainer}>
+        <AppText variant="bold" style={styles.rankText}>
+          {item.en}
+        </AppText>
+        <AppText style={styles.rankTextTh}>{item.th}</AppText>
+      </View>
 
-          <View style={styles.rankControls}>
-            <Pressable
-              onPress={onMoveUp}
-              disabled={!canMoveUp}
-              style={[styles.rankButton, !canMoveUp && styles.rankButtonDisabled]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <AppText style={styles.rankButtonText}>▲</AppText>
-            </Pressable>
-            <Pressable
-              onPress={onMoveDown}
-              disabled={!canMoveDown}
-              style={[styles.rankButton, !canMoveDown && styles.rankButtonDisabled]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <AppText style={styles.rankButtonText}>▼</AppText>
-            </Pressable>
-          </View>
-        </View>
-      </Animated.View>
-    </GestureDetector>
+      <View style={styles.rankActions}>
+        <Pressable
+          style={[styles.iconButton, !canMoveUp && styles.iconButtonDisabled]}
+          onPress={onMoveUp}
+          disabled={!canMoveUp}
+        >
+          <AppText variant="bold" style={styles.iconButtonText}>↑</AppText>
+        </Pressable>
+        <Pressable
+          style={[styles.iconButton, !canMoveDown && styles.iconButtonDisabled]}
+          onPress={onMoveDown}
+          disabled={!canMoveDown}
+        >
+          <AppText variant="bold" style={styles.iconButtonText}>↓</AppText>
+        </Pressable>
+        <Pressable style={[styles.iconButton, styles.removeButton]} onPress={onRemove}>
+          <AppText
+            variant="bold"
+            style={[styles.iconButtonText, styles.removeButtonText]}
+          >
+            ×
+          </AppText>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: Space.lg,
+    gap: Space.md,
     alignItems: "center",
     width: "100%",
     flex: 1,
@@ -296,16 +301,57 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_400Regular",
     lineHeight: 24,
   },
-  listContainer: {
+  helperText: {
+    color: "rgba(255,255,255,0.55)",
+    fontFamily: "BaiJamjuree_400Regular",
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+    paddingHorizontal: Space.md,
+  },
+  scrollArea: {
     width: "100%",
     flex: 1,
     marginTop: Space.md,
   },
-  listScroll: {
-    gap: Space.sm,
-    paddingVertical: Space.sm,
+  scrollContent: {
+    gap: Space.md,
+    paddingBottom: Space.sm,
   },
-  rankItem: {
+  section: {
+    gap: Space.sm,
+    width: "100%",
+  },
+  sectionLabel: {
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  topBox: {
+    width: "100%",
+    borderRadius: 22,
+    backgroundColor: "rgba(145,196,227,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.28)",
+    padding: Space.md,
+    gap: Space.sm,
+  },
+  topBoxHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  topBoxCount: {
+    color: "rgba(255,255,255,0.55)",
+    fontFamily: "BaiJamjuree_700Bold",
+    fontSize: 12,
+  },
+  topSlots: {
+    gap: Space.sm,
+  },
+  topSlot: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(26,37,48,0.8)",
@@ -314,6 +360,18 @@ const styles = StyleSheet.create({
     gap: Space.md,
     borderWidth: 1,
     borderColor: "rgba(90,122,148,0.2)",
+    minHeight: 78,
+  },
+  topSlotEmpty: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 58,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(145,196,227,0.22)",
+    padding: Space.md,
+    gap: Space.md,
   },
   rankBadge: {
     width: 32,
@@ -327,6 +385,24 @@ const styles = StyleSheet.create({
     color: "#03050a",
     fontFamily: "BaiJamjuree_700Bold",
   },
+  topSlotBadgeEmpty: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(145,196,227,0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyRankNumber: {
+    color: "rgba(255,255,255,0.45)",
+    fontFamily: "BaiJamjuree_700Bold",
+    fontSize: 14,
+  },
+  emptyRankText: {
+    color: "rgba(255,255,255,0.55)",
+    fontFamily: "BaiJamjuree_400Regular",
+    fontSize: 13,
+  },
   rankTextContainer: {
     flex: 1,
     gap: 2,
@@ -339,29 +415,89 @@ const styles = StyleSheet.create({
   },
   rankTextTh: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.45)",
+    color: "rgba(255,255,255,0.65)",
     fontFamily: "BaiJamjuree_400Regular",
   },
-  rankControls: {
-    flexDirection: "column",
-    gap: 4,
-  },
-  rankButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(145,196,227,0.15)",
-    justifyContent: "center",
+  rankActions: {
     alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
   },
-  rankButtonDisabled: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    opacity: 0.3,
+  iconButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 14,
+    height: 28,
+    justifyContent: "center",
+    width: 28,
   },
-  rankButtonText: {
-    fontSize: 12,
+  iconButtonDisabled: {
+    opacity: 0.28,
+  },
+  iconButtonText: {
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+    fontSize: 14,
+  },
+  removeButton: {
+    backgroundColor: "rgba(255,138,138,0.12)",
+  },
+  removeButtonText: {
+    color: RED,
+  },
+  choiceItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(10,16,24,0.72)",
+    borderRadius: 16,
+    padding: Space.md,
+    gap: Space.md,
+    borderWidth: 1,
+    borderColor: "rgba(90,122,148,0.2)",
+    minHeight: 76,
+  },
+  choiceItemSelected: {
+    backgroundColor: "rgba(145,196,227,0.12)",
+    borderColor: "rgba(145,196,227,0.5)",
+  },
+  choiceItemDisabled: {
+    opacity: 0.42,
+  },
+  choiceBadge: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  choiceBadgeSelected: {
+    backgroundColor: CYAN,
+  },
+  choiceBadgeText: {
     color: CYAN,
     fontFamily: "BaiJamjuree_700Bold",
+    fontSize: 16,
+  },
+  choiceBadgeTextSelected: {
+    color: "#03050a",
+  },
+  choiceAction: {
+    color: "rgba(255,255,255,0.55)",
+    fontFamily: "BaiJamjuree_700Bold",
+    fontSize: 11,
+    textAlign: "right",
+    width: 70,
+  },
+  footer: {
+    alignItems: "center",
+    gap: Space.sm,
+    width: "100%",
+  },
+  selectionCount: {
+    color: "rgba(255,255,255,0.52)",
+    fontFamily: "BaiJamjuree_400Regular",
+    fontSize: 12,
   },
   ctaButton: {
     backgroundColor: PURPLE,
@@ -375,6 +511,9 @@ const styles = StyleSheet.create({
     elevation: 8,
     minWidth: 160,
     alignItems: "center",
+  },
+  ctaButtonDisabled: {
+    opacity: 0.4,
   },
   ctaText: {
     fontSize: 16,

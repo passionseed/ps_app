@@ -29,7 +29,9 @@ export function WrappedMultiSelectCard({
   onToggle,
   onNext,
 }: WrappedMultiSelectCardProps) {
-  const options = prompt.options ?? [];
+  const options = prompt?.options ?? [];
+  const questionEn = prompt?.question?.en ?? "";
+  const questionTh = prompt?.question?.th ?? "";
 
   const handleToggle = (index: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -44,12 +46,12 @@ export function WrappedMultiSelectCard({
 
       <Animated.View entering={FadeInUp.duration(500).delay(200)}>
         <AppText variant="bold" style={styles.question}>
-          {prompt.question.en}
+          {questionEn}
         </AppText>
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(300)}>
-        <AppText style={styles.questionTh}>{prompt.question.th}</AppText>
+        <AppText style={styles.questionTh}>{questionTh}</AppText>
       </Animated.View>
 
       <Animated.View
@@ -97,12 +99,8 @@ function Chip({
   const scale = useSharedValue(1);
 
   const chipStyle = useAnimatedStyle(() => ({
-    backgroundColor: selected
-      ? withTiming(PURPLE, { duration: 200 })
-      : withTiming("rgba(26,37,48,0.8)", { duration: 200 }),
-    borderColor: selected
-      ? withTiming(PURPLE, { duration: 200 })
-      : withTiming("rgba(90,122,148,0.4)", { duration: 200 }),
+    backgroundColor: selected ? PURPLE : "rgba(26,37,48,0.8)",
+    borderColor: selected ? PURPLE : "rgba(90,122,148,0.4)",
     transform: [{ scale: scale.value }],
   }));
 
@@ -115,9 +113,12 @@ function Chip({
   };
 
   return (
-    <Animated.View entering={FadeInUp.duration(400).delay(delay)}>
-      <Pressable onPress={handlePress}>
-        <Animated.View style={[styles.chip, chipStyle]}>
+    <Animated.View
+      entering={FadeInUp.duration(400).delay(delay)}
+      style={styles.chipWrapper}
+    >
+      <Pressable onPress={handlePress} style={styles.chipPressable}>
+        <Animated.View style={[styles.chipInner, chipStyle]}>
           <AppText
             variant="bold"
             style={[
@@ -182,16 +183,22 @@ const styles = StyleSheet.create({
     gap: Space.sm,
     paddingVertical: Space.sm,
     justifyContent: "center",
+    width: "100%",
   },
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+  chipWrapper: {
+    width: "100%",
+  },
+  chipPressable: {
+    width: "100%",
+  },
+  chipInner: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 20,
     borderWidth: 1,
     alignItems: "center",
     gap: 2,
-    minWidth: 120,
-    maxWidth: "48%",
+    width: "100%",
   },
   chipText: {
     fontSize: 13,

@@ -50,7 +50,7 @@ export interface SquadConstellationProps {
   userScores: { mm: number; sb: number };
   /** Teammates who have completed Wrapped */
   teammates: ConstellationTeammate[];
-  /** Total number of teammates on the squad (including those not yet finished) */
+  /** Total squad size, including the current user and members not yet finished. */
   totalSquadSize: number;
   onNext: () => void;
 }
@@ -60,12 +60,21 @@ export interface SquadConstellationProps {
  * Only uses finished teammates (including user) for computation.
  */
 function computeHeadline(
-  allNodes: Array<{ mm: number; sb: number }>
+  allNodes: Array<{ mm: number; sb: number }>,
+  totalSquadSize: number
 ): { en: string; th: string } {
   if (allNodes.length === 0) {
     return {
       en: "Your squad is forming...",
       th: "ทีมของคุณกำลังรวมตัว...",
+    };
+  }
+
+  // Solo explorer: only 1 person in the squad
+  if (totalSquadSize <= 1) {
+    return {
+      en: "Solo Explorer — your constellation is a single bright star.",
+      th: "นักสำรวจเดี่ยว — กลุ่มดาวของคุณคือดวงดาวสว่างเพียงดวงเดียว",
     };
   }
 
@@ -132,7 +141,21 @@ export function SquadConstellation({
   onNext,
 }: SquadConstellationProps) {
   const finishedCount = teammates.length + 1; // +1 for user
-  const completionPct = totalSquadSize > 0 ? finishedCount / totalSquadSize : 1;
+  const squadSize = Math.max(totalSquadSize, finishedCount, 1);
+  const remainingCount = Math.max(squadSize - finishedCount, 0);
+  const completionPct = finishedCount / squadSize;
+  const arrivedCopy =
+    squadSize <= 1
+      ? "Solo Explorer"
+      : finishedCount === 1
+      ? "You're the first one here"
+      : `${finishedCount} of ${squadSize} squad members are here`;
+  const waitingCopy =
+    squadSize <= 1
+      ? "You're flying solo this hackathon. Your constellation is a single bright star."
+      : remainingCount > 0
+      ? `This count includes you. ${remainingCount} teammate${remainingCount > 1 ? "s" : ""} still ${remainingCount > 1 ? "need" : "needs"} to finish Wrapped.`
+      : "This count includes you. Your squad constellation is ready.";
 
   // Build full node list including user
   const allNodes = useMemo(() => {
@@ -148,7 +171,7 @@ export function SquadConstellation({
     return [userNode, ...teammates];
   }, [userArchetype, userPhase1Title, userScores, teammates]);
 
-  const headline = useMemo(() => computeHeadline(allNodes), [allNodes]);
+  const headline = useMemo(() => computeHeadline(allNodes, totalSquadSize), [allNodes, totalSquadSize]);
 
   // Position nodes on a 2D plane: MM → x, SB → y
   // Map [-1, 1] to padding...width-padding and padding...height-padding
@@ -178,10 +201,10 @@ export function SquadConstellation({
 
           <Animated.View entering={FadeInUp.duration(500).delay(200)}>
             <AppText style={styles.placeholderTitle}>
-              {finishedCount} of {totalSquadSize} teammates have arrived
+              {arrivedCopy}
             </AppText>
             <AppText style={styles.placeholderSub}>
-              We'll fill this in as they finish their Wrapped.
+              {waitingCopy}
             </AppText>
           </Animated.View>
 
@@ -190,18 +213,20 @@ export function SquadConstellation({
             entering={FadeInUp.duration(500).delay(300)}
             style={styles.placeholderGrid}
           >
-            {Array.from({ length: totalSquadSize }).map((_, i) => {
+            {Array.from({ length: squadSize }).map((_, i) => {
               const isFilled = i < finishedCount;
+              const isUser = i === 0;
               return (
                 <View
                   key={i}
                   style={[
                     styles.placeholderSlot,
                     isFilled && styles.placeholderSlotFilled,
+                    isUser && styles.placeholderSlotUser,
                   ]}
                 >
                   <AppText style={styles.placeholderSlotText}>
-                    {isFilled ? "✨" : "?"}
+                    {isUser ? "You" : isFilled ? "✨" : "?"}
                   </AppText>
                 </View>
               );
@@ -221,7 +246,6 @@ export function SquadConstellation({
   }
 
   // Provisional or complete constellation
-  const remainingCount = totalSquadSize - finishedCount;
 
   return (
     <ScrollView
@@ -304,8 +328,9 @@ export function SquadConstellation({
         {remainingCount > 0 && (
           <Animated.View entering={FadeInUp.duration(500).delay(350)}>
             <AppText style={styles.remainingNote}>
-              {remainingCount} teammate{remainingCount > 1 ? "s" : ""} still en
-              route
+              {finishedCount} of {squadSize} squad members mapped, including you.
+              {" "}
+              {remainingCount} teammate{remainingCount > 1 ? "s" : ""} still finishing Wrapped.
             </AppText>
           </Animated.View>
         )}
@@ -476,8 +501,14 @@ const styles = StyleSheet.create({
     borderStyle: "solid",
     backgroundColor: "rgba(145,196,227,0.08)",
   },
+  placeholderSlotUser: {
+    borderColor: "rgba(255,255,255,0.85)",
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
   placeholderSlotText: {
-    fontSize: 20,
+    fontSize: 13,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
   },
   ctaButton: {
     backgroundColor: PURPLE,

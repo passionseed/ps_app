@@ -29,6 +29,9 @@ export function WrappedTextCard({
   onChange,
   onNext,
 }: WrappedTextCardProps) {
+  const questionEn = prompt?.question?.en ?? "";
+  const questionTh = prompt?.question?.th ?? "";
+
   return (
     <View style={styles.card}>
       <Animated.View entering={FadeInUp.duration(500).delay(100)}>
@@ -37,12 +40,12 @@ export function WrappedTextCard({
 
       <Animated.View entering={FadeInUp.duration(500).delay(200)}>
         <AppText variant="bold" style={styles.question}>
-          {prompt.question.en}
+          {questionEn}
         </AppText>
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(300)}>
-        <AppText style={styles.questionTh}>{prompt.question.th}</AppText>
+        <AppText style={styles.questionTh}>{questionTh}</AppText>
       </Animated.View>
 
       <Animated.View
