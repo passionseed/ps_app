@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -31,6 +31,13 @@ import {
   computePRAxis,
 } from "../../lib/wrapped/archetypes";
 import type { AxisScores, ArchetypeResult, ArchetypeFit } from "../../lib/wrapped/archetypes";
+import {
+  getTeammateWrappedReflections,
+  getCurrentHackathonTeamMembership,
+  getCurrentHackathonProgramHome,
+} from "../../lib/hackathonProgram";
+import type { TeammateWrappedReflection } from "../../lib/hackathonProgram";
+import { readHackathonParticipant } from "../../lib/hackathon-mode";
 import { WrappedSliderCard } from "./WrappedSliderCard";
 import { WrappedMultiSelectCard } from "./WrappedMultiSelectCard";
 import { WrappedDragRankCard } from "./WrappedDragRankCard";
@@ -38,7 +45,7 @@ import { WrappedTextCard } from "./WrappedTextCard";
 import { WrappedTitleCard } from "./WrappedTitleCard";
 import { ArchetypeReveal } from "./ArchetypeReveal";
 import { BestAllyLine } from "./BestAllyLine";
-import { SquadConstellation } from "./SquadConstellation";
+import { SquadConstellation, type ConstellationTeammate } from "./SquadConstellation";
 import { SummaryCard } from "./SummaryCard";
 
 const WHITE = "#FFFFFF";
@@ -74,6 +81,11 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
   const [showConstellation, setShowConstellation] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
+  // Team data for constellation
+  const [teammates, setTeammates] = useState<ConstellationTeammate[]>([]);
+  const [totalSquadSize, setTotalSquadSize] = useState(1);
+  const [teamDataLoading, setTeamDataLoading] = useState(false);
+
   const totalSteps = 11; // intro + 6 prompts + reveal + calibration + bestAlly + constellation + summary
 
   const handleClose = useCallback(() => {
@@ -93,6 +105,9 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
     setShowBestAlly(false);
     setShowConstellation(false);
     setShowSummary(false);
+    setTeammates([]);
+    setTotalSquadSize(1);
+    setTeamDataLoading(false);
     onClose();
   }, [onClose, progress]);
 
@@ -152,6 +167,42 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
     const nextStep = currentStep + 1;
     setCurrentStep(nextStep);
     progress.value = withTiming(nextStep, { duration: 300 });
+
+    // Fetch teammate data when entering constellation
+    setTeamDataLoading(true);
+    (async () => {
+      try {
+        const [participant, home] = await Promise.all([
+          readHackathonParticipant(),
+          getCurrentHackathonProgramHome(),
+        ]);
+        const enrollmentId = home.enrollment?.id;
+        const participantId = participant?.id;
+        const teamMembers = home.team?.members ?? [];
+        setTotalSquadSize(Math.max(teamMembers.length, 1));
+
+        if (enrollmentId && participantId) {
+          const reflections = await getTeammateWrappedReflections(
+            enrollmentId,
+            participantId,
+          );
+          const mapped: ConstellationTeammate[] = reflections.map((r) => ({
+            participantId: r.participantId,
+            name: r.name,
+            archetypeId: r.archetypeId,
+            archetypeDisplay: undefined, // Will fallback to archetypeId in component
+            phase1Title: r.phase1Title || r.name,
+            mm: r.mm,
+            sb: r.sb,
+          }));
+          setTeammates(mapped);
+        }
+      } catch (e) {
+        console.error("[WrappedModal] Failed to load teammate reflections:", e);
+      } finally {
+        setTeamDataLoading(false);
+      }
+    })();
   }, [currentStep, progress]);
 
   const handleConstellationNext = useCallback(() => {
@@ -291,8 +342,8 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
                 userArchetype={revealedArchetype}
                 userPhase1Title={p6Title || revealedArchetype.display.en}
                 userScores={{ mm: axisScores.mm, sb: axisScores.sb }}
-                teammates={[]} // TODO: wire real team data from hackathon program enrollment
-                totalSquadSize={1}
+                teammates={teammates}
+                totalSquadSize={totalSquadSize}
                 onNext={handleConstellationNext}
               />
             )}
