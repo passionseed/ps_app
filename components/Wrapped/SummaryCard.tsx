@@ -12,6 +12,8 @@ import { Space } from "../../lib/theme";
 import type { ArchetypeResult, AxisScores, ArchetypeFit } from "../../lib/wrapped/archetypes";
 import { axes } from "../../lib/wrapped/archetypes";
 import { phase2Hints } from "../../lib/wrapped/phase2Hints";
+import { getBestAlly } from "../../lib/wrapped/bestAlly";
+import { archetypes } from "../../lib/wrapped/archetypes";
 
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
@@ -36,10 +38,19 @@ export function SummaryCard({
 }: SummaryCardProps) {
   const hints = phase2Hints[archetype.id];
 
+  const bestAlly = getBestAlly(archetype.id as any);
+  const allyArchetype = archetypes.find((a) => a.id === bestAlly.allyArchetypeId);
+
   const handleShare = async () => {
     try {
+      const shareMessage = [
+        `My PassionSeed Hackathon archetype is ${archetype.display.en} (${archetype.display.th})!`,
+        phase1Title ? `\n"${phase1Title}"` : "",
+        `\nBest ally: ${allyArchetype?.display.en ?? bestAlly.allyArchetypeId}`,
+        `\n${bestAlly.line.en}`,
+      ].join("");
       await Share.share({
-        message: `My PassionSeed Hackathon archetype is ${archetype.display.en} (${archetype.display.th})! ${archetype.caption.en}`,
+        message: shareMessage,
       });
     } catch {
       // ignore
@@ -111,6 +122,16 @@ export function SummaryCard({
             <AppText style={styles.sqDynamicTextTh}>{sqDynamic.th}</AppText>
           </Animated.View>
         )}
+
+        {/* Best Ally */}
+        <Animated.View entering={FadeInUp.duration(500).delay(395)} style={styles.allySection}>
+          <AppText style={styles.allyLabel}>Best Ally</AppText>
+          <AppText variant="bold" style={styles.allyName}>
+            {allyArchetype?.display.en ?? bestAlly.allyArchetypeId}
+          </AppText>
+          <AppText style={styles.allyLine}>{bestAlly.line.en}</AppText>
+          <AppText style={styles.allyLineTh}>{bestAlly.line.th}</AppText>
+        </Animated.View>
 
         {/* Calibration Fit */}
         {archetypeFit && (
@@ -480,6 +501,46 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.45)",
     fontFamily: "BaiJamjuree_400Regular",
+  },
+  allySection: {
+    width: "100%",
+    gap: Space.sm,
+    marginTop: Space.sm,
+    backgroundColor: "rgba(157,129,172,0.05)",
+    borderRadius: 16,
+    padding: Space.lg,
+    borderWidth: 1,
+    borderColor: "rgba(157,129,172,0.2)",
+    alignItems: "center",
+  },
+  allyLabel: {
+    fontSize: 11,
+    color: PURPLE,
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  allyName: {
+    fontSize: 16,
+    color: WHITE,
+    fontFamily: "BaiJamjuree_700Bold",
+    textAlign: "center",
+  },
+  allyLine: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
+    fontFamily: "BaiJamjuree_400Regular",
+    textAlign: "center",
+    lineHeight: 20,
+    marginTop: Space.xs,
+  },
+  allyLineTh: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.5)",
+    fontFamily: "BaiJamjuree_400Regular",
+    textAlign: "center",
+    lineHeight: 20,
+    marginTop: 2,
   },
   actions: {
     flexDirection: "row",
