@@ -37,6 +37,8 @@ import { WrappedDragRankCard } from "./WrappedDragRankCard";
 import { WrappedTextCard } from "./WrappedTextCard";
 import { WrappedTitleCard } from "./WrappedTitleCard";
 import { ArchetypeReveal } from "./ArchetypeReveal";
+import { BestAllyLine } from "./BestAllyLine";
+import { SquadConstellation } from "./SquadConstellation";
 import { SummaryCard } from "./SummaryCard";
 
 const WHITE = "#FFFFFF";
@@ -68,9 +70,11 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
   const [axisScores, setAxisScores] = useState<AxisScores | null>(null);
   const [archetypeFit, setArchetypeFit] = useState<ArchetypeFit | null>(null);
   const [showCalibration, setShowCalibration] = useState(false);
+  const [showBestAlly, setShowBestAlly] = useState(false);
+  const [showConstellation, setShowConstellation] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
-  const totalSteps = 9; // intro + 6 prompts + reveal + summary
+  const totalSteps = 11; // intro + 6 prompts + reveal + calibration + bestAlly + constellation + summary
 
   const handleClose = useCallback(() => {
     setCurrentStep(0);
@@ -86,6 +90,8 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
     setAxisScores(null);
     setArchetypeFit(null);
     setShowCalibration(false);
+    setShowBestAlly(false);
+    setShowConstellation(false);
     setShowSummary(false);
     onClose();
   }, [onClose, progress]);
@@ -134,10 +140,27 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
   const handleCalibrationSelect = useCallback((fit: ArchetypeFit) => {
     setArchetypeFit(fit);
     setShowCalibration(false);
+    setShowBestAlly(true);
+    const nextStep = currentStep + 1;
+    setCurrentStep(nextStep);
+    progress.value = withTiming(nextStep, { duration: 300 });
+  }, [currentStep, progress]);
+
+  const handleBestAllyNext = useCallback(() => {
+    setShowBestAlly(false);
+    setShowConstellation(true);
+    const nextStep = currentStep + 1;
+    setCurrentStep(nextStep);
+    progress.value = withTiming(nextStep, { duration: 300 });
+  }, [currentStep, progress]);
+
+  const handleConstellationNext = useCallback(() => {
+    setShowConstellation(false);
     setShowSummary(true);
-    setCurrentStep(8);
-    progress.value = withTiming(8, { duration: 300 });
-  }, [progress]);
+    const nextStep = currentStep + 1;
+    setCurrentStep(nextStep);
+    progress.value = withTiming(nextStep, { duration: 300 });
+  }, [currentStep, progress]);
 
   const progressWidth = useAnimatedStyle(() => ({
     width: `${((progress.value + 1) / totalSteps) * 100}%`,
@@ -256,7 +279,25 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 8 && showSummary && revealedArchetype && axisScores && (
+            {currentStep === 9 && showBestAlly && revealedArchetype && (
+              <BestAllyLine
+                archetype={revealedArchetype}
+                onNext={handleBestAllyNext}
+              />
+            )}
+
+            {currentStep === 10 && showConstellation && revealedArchetype && axisScores && (
+              <SquadConstellation
+                userArchetype={revealedArchetype}
+                userPhase1Title={p6Title || revealedArchetype.display.en}
+                userScores={{ mm: axisScores.mm, sb: axisScores.sb }}
+                teammates={[]} // TODO: wire real team data from hackathon program enrollment
+                totalSquadSize={1}
+                onNext={handleConstellationNext}
+              />
+            )}
+
+            {currentStep === 11 && showSummary && revealedArchetype && axisScores && (
               <SummaryCard
                 archetype={revealedArchetype}
                 secondaryArchetype={archetypeFit === "not_me" ? secondaryArchetype : undefined}
