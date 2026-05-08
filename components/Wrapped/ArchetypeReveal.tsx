@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, Dimensions } from "react-native";
 import Animated, {
   FadeIn,
@@ -10,7 +10,6 @@ import Animated, {
   withDelay,
   withSequence,
   withRepeat,
-  runOnJS,
   Easing,
 } from "react-native-reanimated";
 import {
@@ -49,7 +48,7 @@ interface ArchetypeRevealProps {
 }
 
 export function ArchetypeReveal({ archetype, scores, onComplete }: ArchetypeRevealProps) {
-  const phase = useSharedValue(0); // 0 = processing, 1 = name reveal, 2 = caption, 3 = done
+  const [phase, setPhase] = useState(0); // 0 = processing, 1 = name reveal, 2 = caption, 3 = done
   const screenDarkness = useSharedValue(0);
   const nameScale = useSharedValue(0.3);
   const nameOpacity = useSharedValue(0);
@@ -117,7 +116,7 @@ export function ArchetypeReveal({ archetype, scores, onComplete }: ArchetypeReve
     }, 0);
 
     const timer1 = setTimeout(() => {
-      phase.value = 1;
+      setPhase(1);
       // Name slams in with overshoot spring
       nameScale.value = withSpring(1, { damping: 8, stiffness: 120, overshootClamping: false });
       nameOpacity.value = withTiming(1, { duration: 600 });
@@ -143,7 +142,7 @@ export function ArchetypeReveal({ archetype, scores, onComplete }: ArchetypeReve
     }, 1800);
 
     const timer3 = setTimeout(() => {
-      phase.value = 2;
+      setPhase(2);
       captionOpacity.value = withTiming(1, { duration: 800 });
       // Particles start drifting upward
       particleDrift.value = withRepeat(
@@ -154,7 +153,7 @@ export function ArchetypeReveal({ archetype, scores, onComplete }: ArchetypeReve
     }, 2500);
 
     const timer4 = setTimeout(() => {
-      phase.value = 3;
+      setPhase(3);
       onComplete();
     }, 5000);
 
@@ -165,7 +164,7 @@ export function ArchetypeReveal({ archetype, scores, onComplete }: ArchetypeReve
       clearTimeout(timer3);
       clearTimeout(timer4);
     };
-  }, [archetype, phase, screenDarkness, nameScale, nameOpacity, glowOpacity, glowRadius, captionOpacity, bgWarmth, particleBurst, particleDrift, onComplete]);
+  }, [archetype, screenDarkness, nameScale, nameOpacity, glowOpacity, glowRadius, captionOpacity, bgWarmth, particleBurst, particleDrift, onComplete]);
 
   const containerStyle = useAnimatedStyle(() => ({
     backgroundColor: `rgba(${Math.round(parseInt(accentColor.slice(1, 3), 16) * bgWarmth.value * 0.15)}, ${Math.round(parseInt(accentColor.slice(3, 5), 16) * bgWarmth.value * 0.15)}, ${Math.round(parseInt(accentColor.slice(5, 7), 16) * bgWarmth.value * 0.15)}, ${0.02 + bgWarmth.value * 0.03})`,
@@ -229,7 +228,7 @@ export function ArchetypeReveal({ archetype, scores, onComplete }: ArchetypeReve
       </View>
 
       {/* Processing state */}
-      {phase.value === 0 && (
+      {phase === 0 && (
         <Animated.View entering={FadeIn.duration(400)} style={styles.processingContainer}>
           <AppText style={styles.processingEmoji}>✨</AppText>
           <AppText style={styles.processingText}>Analyzing your responses...</AppText>
