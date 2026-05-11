@@ -3,7 +3,9 @@ export interface Phase2Hint {
   growthEdge: { en: string; th: string };
 }
 
-export const phase2Hints: Record<string, Phase2Hint> = {
+import type { ArchetypeId } from "./archetypes";
+
+export const phase2Hints: Record<ArchetypeId, Phase2Hint> = {
   "the-empath": {
     superpower: {
       en: "Your superpower is feeling what a user needs.",

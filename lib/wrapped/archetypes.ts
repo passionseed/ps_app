@@ -677,6 +677,7 @@ export type ArchetypeFit = "nailed" | "sort_of" | "not_me";
 
 export interface WrappedReflection {
   enrollment_id: string;
+  participant_id: string;
   archetype: ArchetypeId;
   archetype_secondary: ArchetypeId;
   axes: { MM: number; SB: number; PR: number; SQ: number };

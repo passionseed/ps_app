@@ -21,6 +21,7 @@ export async function saveWrappedReflection(
 ): Promise<void> {
   const reflection: WrappedReflection = {
     enrollment_id: input.enrollment_id,
+    participant_id: input.participant_id,
     archetype: input.archetype,
     archetype_secondary: input.archetype_secondary,
     axes: input.axes,

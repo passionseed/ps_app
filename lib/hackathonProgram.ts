@@ -639,10 +639,14 @@ export async function getTeammateWrappedReflections(
 
     // Fetch participant names
     const participantIds = rows.map((r) => r.participant_id).filter(Boolean);
-    const { data: participantsData } = await supabase
+    if (participantIds.length === 0) return [];
+
+    const { data: participantsData, error: participantsError } = await supabase
       .from("hackathon_participants")
       .select("id, name")
       .in("id", participantIds);
+
+    if (participantsError) throw participantsError;
 
     const nameMap = new Map<string, string>();
     (participantsData ?? []).forEach((p: any) => {
