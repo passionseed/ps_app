@@ -50,11 +50,12 @@ build-*
 /PassionSeedDevelopment.app
 
 .env.local
-
-.env.local
 .gstack/
 
 # Firebase
 google-services.json
 .git-hooks/
 .env.production
+
+# Secret generators
+generate-apple-secret.js

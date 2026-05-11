@@ -1,0 +1,9 @@
+{
+  "setup": [
+    "pnpm i\npnpm prebuild\ncp $SUPERSET_ROOT_PATH\"/.env\\\" .env\ncp $SUPERSET_ROOT_PATH\"/.env.local\\\" .env.local"
+  ],
+  "teardown": [],
+  "run": [
+    "pnpm start"
+  ]
+}
