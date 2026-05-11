@@ -197,6 +197,9 @@ export default function ReflectionScreen() {
             seedTitle: enrollment.path?.seed?.title,
           },
         });
+
+        // Update digital twin with new signals (fire-and-forget)
+        supabase.functions.invoke("twin-updater").catch(() => {});
       } catch {
         setScoreError("Scores couldn't be updated, but your reflection was saved.");
       } finally {
