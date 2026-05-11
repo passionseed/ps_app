@@ -56,6 +56,10 @@ export async function getJourneyById(
   return data as StudentJourney;
 }
 
+function triggerTwinUpdate() {
+  supabase.functions.invoke("twin-updater").catch(() => {});
+}
+
 /**
  * Create a new journey.
  */
@@ -79,6 +83,10 @@ export async function createJourney(
     .single();
 
   if (error) throw error;
+
+  // Update digital twin with new plan signals
+  triggerTwinUpdate();
+
   return data as StudentJourney;
 }
 
@@ -97,6 +105,10 @@ export async function updateJourney(
     .single();
 
   if (error) throw error;
+
+  // Update digital twin with plan changes
+  triggerTwinUpdate();
+
   return data as StudentJourney;
 }
 
