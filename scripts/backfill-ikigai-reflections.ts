@@ -2,8 +2,7 @@ import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import { backfillMissingIkigaiReflections } from "../lib/ikigaiBackfill";
 
-const supabaseUrl =
-  process.env.EXPO_PUBLIC_SUPABASE_URL || "[REDACTED_SUPABASE_URL]";
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {

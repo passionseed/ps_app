@@ -32,10 +32,6 @@
       "environment": "preview",
       "env": {
         "APP_NAME_SUFFIX": " (Preview)",
-        "EXPO_PUBLIC_SUPABASE_URL": "[REDACTED_SUPABASE_URL]",
-        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "[REDACTED_PUBLISHABLE_KEY]",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "[REDACTED_ANON_KEY]",
-        "EXPO_PUBLIC_PROJECT_ID": "baca732a-c7d8-4bd2-9742-48cc2a5e939f",
         "GOOGLE_SERVICES_JSON": "./google-services.json"
       }
     },
@@ -46,10 +42,6 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "[REDACTED_SUPABASE_URL]",
-        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "[REDACTED_PUBLISHABLE_KEY]",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "[REDACTED_ANON_KEY]",
-        "EXPO_PUBLIC_PROJECT_ID": "baca732a-c7d8-4bd2-9742-48cc2a5e939f",
         "GOOGLE_SERVICES_JSON": "./google-services.json"
       }
     }

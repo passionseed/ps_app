@@ -21,11 +21,7 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env') });
 dotenv.config({ path: join(__dirname, '..', '.env.local') });
 
-// Production Supabase URL
-const PRODUCTION_SUPABASE_URL = '[REDACTED_SUPABASE_URL]';
-
-// Initialize Supabase client - use production URL
-const supabaseUrl = PRODUCTION_SUPABASE_URL;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {

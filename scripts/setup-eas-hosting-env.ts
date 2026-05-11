@@ -3,8 +3,8 @@ import { spawnSync } from 'node:child_process';
 type TargetEnvironment = 'production' | 'preview' | 'both';
 type EASEnvironment = Exclude<TargetEnvironment, 'both'>;
 
-const SUPABASE_URL = '[REDACTED_SUPABASE_URL]/';
-const SUPABASE_PUBLISHABLE_KEY = '[REDACTED_PUBLISHABLE_KEY]';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 
 function printUsage(): void {
   console.log([
@@ -62,6 +62,11 @@ function createVars(environment: EASEnvironment): void {
 
   console.log(`Created vars for ${environment}.`);
   runEasCommand(['env:list', '--environment', environment]);
+}
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  console.error('Error: EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY must be set in environment');
+  process.exit(1);
 }
 
 const rawTargetEnvironment = process.argv[2] ?? 'production';

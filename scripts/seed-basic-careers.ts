@@ -20,8 +20,7 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, "..", ".env") });
 dotenv.config({ path: join(__dirname, "..", ".env.local") });
 
-// Production Supabase URL (hardcoded for direct access)
-const PRODUCTION_SUPABASE_URL = "[REDACTED_SUPABASE_URL]";
+const PRODUCTION_SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
