@@ -23,6 +23,7 @@ import type {
   PathReviewMode,
 } from "../types/pathlab-content";
 import type { MapNode, StudentNodeProgress } from "../types/map";
+import type { ArchetypeId } from "../lib/wrapped/archetypes";
 
 type CardTone = "neutral" | "education" | "destination";
 const LIVE_HACKATHON_PROGRAM_SLUG = "super-seed-hackathon";
@@ -599,4 +600,62 @@ export async function completeActivityNode(
       );
     if (error) throw error;
   }, "Unable to save progress");
+}
+
+export interface TeammateWrappedReflection {
+  participantId: string;
+  name: string;
+  archetypeId: ArchetypeId;
+  phase1Title: string;
+  mm: number;
+  sb: number;
+}
+
+/**
+ * Fetch wrapped reflections for teammates in the same hackathon program enrollment.
+ * Excludes the current participant's own reflection.
+ */
+export async function getTeammateWrappedReflections(
+  enrollmentId: string,
+  currentParticipantId: string,
+): Promise<TeammateWrappedReflection[]> {
+  return withRetry(async () => {
+    const { data, error } = await supabase
+      .from("wrapped_reflections")
+      .select("participant_id, archetype, phase1_title, axes")
+      .eq("enrollment_id", enrollmentId)
+      .neq("participant_id", currentParticipantId);
+
+    if (error) throw error;
+
+    const rows = (data ?? []).filter(Boolean) as Array<{
+      participant_id: string;
+      archetype: ArchetypeId;
+      phase1_title: string | null;
+      axes: { MM?: number; SB?: number } | null;
+    }>;
+
+    if (rows.length === 0) return [];
+
+    // Fetch participant names
+    const participantIds = rows.map((r) => r.participant_id).filter(Boolean);
+    const { data: participantsData } = await supabase
+      .from("hackathon_participants")
+      .select("id, name")
+      .in("id", participantIds);
+
+    const nameMap = new Map<string, string>();
+    (participantsData ?? []).forEach((p: any) => {
+      if (p.id) nameMap.set(p.id, p.name ?? "Teammate");
+    });
+
+    return rows.map((row) => ({
+      participantId: row.participant_id,
+      name: nameMap.get(row.participant_id) ?? "Teammate",
+      archetypeId: row.archetype,
+      phase1Title: row.phase1_title ?? "",
+      mm: row.axes?.MM ?? 0,
+      sb: row.axes?.SB ?? 0,
+    }));
+  }, "Unable to load teammate wrapped reflections");
 }

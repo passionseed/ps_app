@@ -19,8 +19,7 @@ import {
   preloadHackathonHomeBundle,
   preloadHackathonJourneyBundle,
 } from "../../lib/hackathonScreenData";
-import { useState, useCallback } from "react";
-import { useFocusEffect } from "expo-router";
+import { useState, useRef } from "react";
 import { readHackathonToken } from "../../lib/hackathon-mode";
 import { AppText } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
@@ -311,24 +310,28 @@ export default function HackathonLayout() {
     void preloadHackathonJourneyBundle();
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      readHackathonToken().then(async (token) => {
-        if (!token) { signOutHackathon(); return; }
-        try {
-          const r = await fetch("https://www.passionseed.org/api/hackathon/student/team", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (r.status === 401) { signOutHackathon(); return; }
-          const data = await r.json();
-          if (!data.team || data.member_count <= 1) setTeamGate("blocked");
-          else setTeamGate("ok");
-        } catch {
-          setTeamGate("ok"); // fail open on network error
-        }
-      });
-    }, [])
-  );
+  // Use useEffect (not useFocusEffect) so this only runs ONCE on mount.
+  // useFocusEffect fires on every focus which can override navigation with signOutHackathon().
+  // Use a ref to avoid re-running when signOutHackathon reference changes.
+  const signOutHackathonRef = useRef(signOutHackathon);
+  signOutHackathonRef.current = signOutHackathon;
+  useEffect(() => {
+    void (async () => {
+      const token = await readHackathonToken();
+      if (!token) { signOutHackathonRef.current(); return; }
+      try {
+        const r = await fetch("https://www.passionseed.org/api/hackathon/student/team", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (r.status === 401) { signOutHackathonRef.current(); return; }
+        const data = await r.json();
+        if (!data.team || data.member_count <= 1) setTeamGate("blocked");
+        else setTeamGate("ok");
+      } catch {
+        setTeamGate("ok"); // fail open on network error
+      }
+    })();
+  }, []);
 
   if (teamGate === "loading") {
     return (
