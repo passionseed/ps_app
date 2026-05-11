@@ -59,3 +59,22 @@ google-services.json
 
 # Secret generators
 generate-apple-secret.js
+
+# Logs and output files
+*.log
+output.txt
+install_output.txt
+
+# Generated images
+image_*.jpg
+image_*.png
+
+# Output directories
+output/
+memory/
+
+# Build artifacts
+*.ipa
+*.apk
+*.aab
+*.tar.gz
