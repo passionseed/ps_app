@@ -659,10 +659,14 @@ function PastSubmissionsList({
                 <Image source={{ uri: sub.image_url }} style={styles.pastSubmissionImage} resizeMode="cover" />
               ) : null}
               {sub.file_urls?.[0] ? (
-                <View style={styles.submissionFileBlock}>
-                  <Ionicons name="document-outline" size={16} color="#91C4E3" />
-                  <AppText style={styles.pastSubmissionFile}>{sub.file_urls[0].split("/").pop()}</AppText>
-                </View>
+                isTxtFileUrl(sub.file_urls[0]) ? (
+                  <TextFilePreview url={sub.file_urls[0]} />
+                ) : (
+                  <View style={styles.submissionFileBlock}>
+                    <Ionicons name="document-outline" size={16} color="#91C4E3" />
+                    <AppText style={styles.pastSubmissionFile}>{sub.file_urls[0].split("/").pop()}</AppText>
+                  </View>
+                )
               ) : null}
             </View>
           ))}
@@ -677,6 +681,43 @@ function PastSubmissionsList({
             <SubmissionCard key={sub.id} submission={sub} />
           ))}
         </View>
+      )}
+    </View>
+  );
+}
+
+function isTxtFileUrl(url: string): boolean {
+  return url.endsWith(".txt") || url.includes(".txt?");
+}
+
+function TextFilePreview({ url }: { url: string }) {
+  const [content, setContent] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    fetch(url)
+      .then((r) => r.text())
+      .then((t) => setContent(t))
+      .catch(() => setContent(null));
+  }, [url]);
+
+  const displayText = content ?? "";
+  const isLong = displayText.length > 800;
+  const preview = isLong && !expanded ? displayText.slice(0, 800) + "…" : displayText;
+
+  return (
+    <View style={styles.textFilePreviewBlock}>
+      <View style={styles.textFileHeader}>
+        <Ionicons name="document-text-outline" size={14} color="#91C4E3" />
+        <AppText style={styles.textFileHeaderText}>Full text</AppText>
+      </View>
+      <AppText style={styles.textFileBody}>{preview}</AppText>
+      {isLong && (
+        <Pressable onPress={() => setExpanded((p) => !p)}>
+          <AppText style={styles.textFileToggle}>
+            {expanded ? "Show less" : "Show more"}
+          </AppText>
+        </Pressable>
       )}
     </View>
   );
@@ -721,12 +762,16 @@ function SubmissionCard({
         />
       ) : null}
       {submission.file_urls?.[0] ? (
-        <View style={styles.submissionFileBlock}>
-          <Ionicons name="document-outline" size={16} color="#91C4E3" />
-          <AppText style={styles.pastSubmissionFile}>
-            {submission.file_urls[0].split("/").pop()}
-          </AppText>
-        </View>
+        isTxtFileUrl(submission.file_urls[0]) ? (
+          <TextFilePreview url={submission.file_urls[0]} />
+        ) : (
+          <View style={styles.submissionFileBlock}>
+            <Ionicons name="document-outline" size={16} color="#91C4E3" />
+            <AppText style={styles.pastSubmissionFile}>
+              {submission.file_urls[0].split("/").pop()}
+            </AppText>
+          </View>
+        )
       ) : null}
     </View>
   );
@@ -776,10 +821,14 @@ function TeammateSubmissionsList({
                         {sub.text_answer ? <AppText style={styles.bodyText}>{sub.text_answer}</AppText> : null}
                         {sub.image_url ? <Image source={{ uri: sub.image_url }} style={styles.pastSubmissionImage} resizeMode="cover" /> : null}
                         {sub.file_urls?.[0] ? (
-                          <View style={styles.submissionFileBlock}>
-                            <Ionicons name="document-outline" size={16} color="#91C4E3" />
-                            <AppText style={styles.pastSubmissionFile}>{sub.file_urls[0].split("/").pop()}</AppText>
-                          </View>
+                          isTxtFileUrl(sub.file_urls[0]) ? (
+                            <TextFilePreview url={sub.file_urls[0]} />
+                          ) : (
+                            <View style={styles.submissionFileBlock}>
+                              <Ionicons name="document-outline" size={16} color="#91C4E3" />
+                              <AppText style={styles.pastSubmissionFile}>{sub.file_urls[0].split("/").pop()}</AppText>
+                            </View>
+                          )
                         ) : null}
                       </View>
                     ))}
@@ -2215,5 +2264,38 @@ const styles = StyleSheet.create({
   webNavLockedText: {
     fontSize: 13,
     color: WHITE55,
+  },
+
+  textFilePreviewBlock: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 8,
+  },
+  textFileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  textFileHeaderText: {
+    fontSize: 11,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_700Bold",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  textFileBody: {
+    fontSize: 14,
+    color: WHITE,
+    lineHeight: 22,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
+  textFileToggle: {
+    fontSize: 13,
+    color: CYAN,
+    fontFamily: "BaiJamjuree_600SemiBold",
+    marginTop: 4,
   },
 });

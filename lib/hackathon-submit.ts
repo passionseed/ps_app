@@ -8,6 +8,11 @@ import {
   isRetryableUploadError,
 } from "./storageUpload";
 
+// Max characters before we auto-upload as a .txt file to Supabase Storage.
+// Supabase REST payloads can hit limits around 1 MB; Thai text + JSON wrapper
+// can get heavy fast. 30k chars is a safe ceiling that keeps the request light.
+const MAX_TEXT_SUBMISSION_LENGTH = 30_000;
+
 export type SubmitResult = {
   submissionId: string;
   url: string | null;
@@ -183,6 +188,34 @@ async function resolveSubmissionTarget(
   return { isTeam: true, teamId: membership.team_id };
 }
 
+async function uploadTextAsFile(
+  text: string,
+  participantId: string,
+  activityId: string,
+  assessmentId: string
+): Promise<string> {
+  const bytes = new TextEncoder().encode(text);
+  const path = `${participantId}/${activityId}/${assessmentId}_${Date.now()}.txt`;
+
+  const { error } = await supabase.storage
+    .from("hackathon_submissions")
+    .upload(path, bytes, {
+      contentType: "text/plain; charset=utf-8",
+      upsert: true,
+    });
+
+  if (error) {
+    throw Object.assign(new Error(error.message), { stage: "upload_text_file" });
+  }
+
+  const { data: urlData } = supabase.storage.from("hackathon_submissions").getPublicUrl(path);
+  if (!urlData?.publicUrl) {
+    throw Object.assign(new Error("Failed to get public URL for text file"), { stage: "public_url" });
+  }
+
+  return urlData.publicUrl;
+}
+
 export async function submitTextAnswer(
   activityId: string,
   assessmentId: string,
@@ -191,11 +224,27 @@ export async function submitTextAnswer(
   const participant = await readHackathonParticipant();
   if (!participant) throw new Error("Not logged in");
 
+  const isLongText = textAnswer.length > MAX_TEXT_SUBMISSION_LENGTH;
+  let fileUrl: string | null = null;
+  let textToStore = textAnswer;
+
+  if (isLongText) {
+    try {
+      fileUrl = await uploadTextAsFile(textAnswer, participant.id, activityId, assessmentId);
+      textToStore = textAnswer.slice(0, 500) + "\n\n[Full text uploaded as file — tap to view]";
+    } catch (e: any) {
+      Sentry.captureException(e, {
+        tags: { component: "hackathon-submit", action: "uploadTextAsFile", activityId, assessmentId },
+        extra: { textLength: textAnswer.length, participantId: participant.id, stage: e?.stage },
+      });
+      throw Object.assign(new Error(e.message || "Failed to upload long text"), { stage: "upload_text_file" });
+    }
+  }
+
   try {
     const target = await resolveSubmissionTarget(activityId, assessmentId, participant.id);
 
     if (target.isTeam) {
-      // Upsert into team submissions table (UNIQUE on team_id, activity_id)
       const { data, error } = await supabase
         .from("hackathon_phase_activity_team_submissions")
         .upsert(
@@ -204,7 +253,8 @@ export async function submitTextAnswer(
             activity_id: activityId,
             assessment_id: assessmentId,
             submitted_by: participant.id,
-            text_answer: textAnswer,
+            text_answer: textToStore,
+            file_urls: fileUrl ? [fileUrl] : null,
             status: "submitted",
             submitted_at: new Date().toISOString(),
           },
@@ -221,10 +271,9 @@ export async function submitTextAnswer(
         console.warn("[score] awardScore failed", e)
       );
 
-      return { submissionId: data.id, url: null };
+      return { submissionId: data.id, url: fileUrl };
     }
 
-    // Individual submission — upsert so the BEFORE UPDATE trigger archives revisions
     const { data, error } = await supabase
       .from("hackathon_phase_activity_submissions")
       .upsert(
@@ -232,7 +281,8 @@ export async function submitTextAnswer(
           participant_id: participant.id,
           activity_id: activityId,
           assessment_id: assessmentId,
-          text_answer: textAnswer,
+          text_answer: textToStore,
+          file_urls: fileUrl ? [fileUrl] : null,
           status: "submitted",
           submitted_at: new Date().toISOString(),
         },
@@ -249,7 +299,7 @@ export async function submitTextAnswer(
       console.warn("[score] awardScore failed", e)
     );
 
-    return { submissionId: data.id, url: null };
+    return { submissionId: data.id, url: fileUrl };
   } catch (e: any) {
     Sentry.captureException(e, {
       tags: {
@@ -262,6 +312,7 @@ export async function submitTextAnswer(
       extra: {
         participantId: participant.id,
         textAnswerLength: textAnswer?.length,
+        isLongText,
         errorMessage: e?.message,
         stage: e?.stage,
       },
