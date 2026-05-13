@@ -227,7 +227,16 @@ export default function SettingsScreen() {
         career_goals: careerGoalsResult.data ?? [],
       });
     } catch (error) {
-      setDevUserDataError(error instanceof Error ? error.message : String(error));
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null && typeof (error as { message?: unknown }).message === "string"
+            ? (error as { message: string }).message
+            : typeof error === "object" && error !== null
+              ? JSON.stringify(error)
+              : String(error);
+
+      setDevUserDataError(errorMessage);
       setDevUserData(null);
     } finally {
       setDevUserDataLoading(false);
