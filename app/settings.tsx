@@ -42,6 +42,17 @@ import { LinearGradient } from "expo-linear-gradient";
 import Constants from "expo-constants";
 import * as WebBrowser from "expo-web-browser";
 
+declare const __DEV__: boolean;
+
+type DevUserData = {
+  loaded_at: string;
+  auth_user: Record<string, unknown> | null;
+  profile: Record<string, unknown> | null;
+  onboarding_state: Record<string, unknown> | null;
+  user_interests: unknown[];
+  career_goals: unknown[];
+};
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { setUserLanguage, user, appLanguage, signOut, isHackathon, signOutHackathon, session } = useAuth();
@@ -51,7 +62,12 @@ export default function SettingsScreen() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [showDevUserDataModal, setShowDevUserDataModal] = useState(false);
+  const [devUserData, setDevUserData] = useState<DevUserData | null>(null);
+  const [devUserDataError, setDevUserDataError] = useState<string | null>(null);
+  const [devUserDataLoading, setDevUserDataLoading] = useState(false);
 
+  const isDev = typeof __DEV__ !== "undefined" && __DEV__;
   const isThai = appLanguage === "th";
   const copy = {
     back: isThai ? "กลับ" : "Back",
@@ -92,6 +108,10 @@ export default function SettingsScreen() {
     cancel: isThai ? "ยกเลิก" : "Cancel",
     delete: isThai ? "ลบบัญชี" : "Delete Account",
     account: isThai ? "บัญชี" : "Account",
+    developer: isThai ? "นักพัฒนา" : "Developer",
+    showUserData: isThai ? "แสดงข้อมูลผู้ใช้" : "Show User Data",
+    userDataDebug: isThai ? "ข้อมูลผู้ใช้สำหรับดีบัก" : "User Data Debug",
+    close: isThai ? "ปิด" : "Close",
   };
 
   const handleDeleteAccount = async () => {
@@ -150,6 +170,68 @@ export default function SettingsScreen() {
       : `\n\n---\nDevice Info:\nPlatform: ${Platform.OS}\nApp Version: ${Constants.expoConfig?.version || "Unknown"}`;
 
     Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+  };
+
+  const handleShowDevUserData = async () => {
+    if (!isDev || !user?.id) return;
+
+    setShowDevUserDataModal(true);
+    setDevUserDataLoading(true);
+    setDevUserDataError(null);
+
+    try {
+      const [
+        profileResult,
+        onboardingStateResult,
+        interestsResult,
+        careerGoalsResult,
+      ] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase.from("onboarding_state").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("user_interests").select("*").eq("user_id", user.id),
+        supabase.from("career_goals").select("*").eq("user_id", user.id),
+      ]);
+
+      const firstError =
+        profileResult.error ||
+        onboardingStateResult.error ||
+        interestsResult.error ||
+        careerGoalsResult.error;
+
+      if (firstError) {
+        throw firstError;
+      }
+
+      const authUser = user as unknown as Record<string, unknown>;
+
+      setDevUserData({
+        loaded_at: new Date().toISOString(),
+        auth_user: {
+          id: user.id,
+          email: authUser.email,
+          phone: authUser.phone,
+          role: authUser.role,
+          aud: authUser.aud,
+          app_metadata: authUser.app_metadata,
+          user_metadata: authUser.user_metadata,
+          created_at: authUser.created_at,
+          updated_at: authUser.updated_at,
+          confirmed_at: authUser.confirmed_at,
+          email_confirmed_at: authUser.email_confirmed_at,
+          last_sign_in_at: authUser.last_sign_in_at,
+          identities: authUser.identities,
+        },
+        profile: (profileResult.data as Record<string, unknown> | null) ?? null,
+        onboarding_state: (onboardingStateResult.data as Record<string, unknown> | null) ?? null,
+        user_interests: interestsResult.data ?? [],
+        career_goals: careerGoalsResult.data ?? [],
+      });
+    } catch (error) {
+      setDevUserDataError(error instanceof Error ? error.message : String(error));
+      setDevUserData(null);
+    } finally {
+      setDevUserDataLoading(false);
+    }
   };
 
   const RadioButton = ({ selected }: { selected: boolean }) => {
@@ -331,6 +413,47 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
+      {isDev && (
+        <Modal
+          visible={showDevUserDataModal}
+          animationType="slide"
+          onRequestClose={() => setShowDevUserDataModal(false)}
+        >
+          <View style={[styles.devModalContainer, { paddingTop: insets.top + Space.lg }]}>
+            <View style={styles.devModalHeader}>
+              <View>
+                <Text style={styles.devEyebrow}>DEV ONLY</Text>
+                <Text style={styles.devModalTitle}>{copy.userDataDebug}</Text>
+              </View>
+              <Pressable
+                style={styles.devCloseButton}
+                onPress={() => setShowDevUserDataModal(false)}
+              >
+                <Text style={styles.devCloseText}>{copy.close}</Text>
+              </Pressable>
+            </View>
+
+            {devUserDataLoading ? (
+              <View style={styles.devLoading}>
+                <ActivityIndicator color="#8B5CF6" />
+                <Text style={styles.devHint}>Loading user data...</Text>
+              </View>
+            ) : devUserDataError ? (
+              <Text style={styles.devError}>{devUserDataError}</Text>
+            ) : (
+              <ScrollView
+                style={styles.devJsonScroll}
+                contentContainerStyle={styles.devJsonContent}
+              >
+                <Text selectable style={styles.devJsonText}>
+                  {JSON.stringify(devUserData, null, 2)}
+                </Text>
+              </ScrollView>
+            )}
+          </View>
+        </Modal>
+      )}
+
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -460,6 +583,26 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
             </View>
+
+            {isDev && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{copy.developer}</Text>
+                <View style={styles.card}>
+                  <Pressable
+                    style={styles.optionRow}
+                    onPress={handleShowDevUserData}
+                  >
+                    <View style={styles.optionCopy}>
+                      <Text style={styles.optionText}>{copy.showUserData}</Text>
+                      <Text style={styles.optionHint}>
+                        profiles.*, onboarding_state, interests, career goals
+                      </Text>
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{copy.account}</Text>
@@ -776,5 +919,82 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#FFFFFF",
     fontWeight: "600",
+  },
+  devModalContainer: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: Space.lg,
+  },
+  devModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Space.md,
+    paddingBottom: Space.md,
+  },
+  devEyebrow: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#8B5CF6",
+    letterSpacing: 1,
+  },
+  devModalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  devCloseButton: {
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: Space.lg,
+    paddingVertical: Space.sm,
+  },
+  devCloseText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#374151",
+  },
+  devLoading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Space.md,
+  },
+  devHint: {
+    fontSize: 12,
+    color: ThemeText.tertiary,
+  },
+  devError: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    color: "#B91C1C",
+    fontSize: 13,
+    lineHeight: 18,
+    padding: Space.lg,
+  },
+  devJsonScroll: {
+    flex: 1,
+    backgroundColor: "#111827",
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: "#374151",
+    marginBottom: Space.lg,
+  },
+  devJsonContent: {
+    padding: Space.md,
+  },
+  devJsonText: {
+    color: "#D1FAE5",
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: Platform.select({
+      ios: "Menlo",
+      android: "monospace",
+      default: "monospace",
+    }),
   },
 });
