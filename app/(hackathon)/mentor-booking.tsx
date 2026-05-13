@@ -677,6 +677,7 @@ export default function MentorBookingScreen() {
   const [selectedMentor, setSelectedMentor] = useState<MentorProfile | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [rebooking, setRebooking] = useState(false);
 
   function goToStep(s: Step) {
     setStep(s);
@@ -758,6 +759,7 @@ export default function MentorBookingScreen() {
   }
 
   function handleRebook() {
+    setRebooking(true);
     goToStep("grid");
     setSelectedMentor(null);
   }
@@ -779,10 +781,10 @@ export default function MentorBookingScreen() {
   const hasActiveBooking = quota?.booking && quota.booking.status !== "cancelled";
   // Only show cancelled card if chances are used up (cancelled by student)
   const hasCancelledBooking = quota?.booking && quota.booking.status === "cancelled" && quota.chances_left === 0;
-  const showBookingCard = hasActiveBooking || hasCancelledBooking;
+  const showBookingCard = !rebooking && (hasActiveBooking || hasCancelledBooking);
   const selectedIsGroupMentor = selectedMentor?.session_type === "group";
   // Group mentor bookings are unlimited — always allow the form for group mentors
-  const showForm = (!showBookingCard && quota?.chances_left === 1) || (selectedIsGroupMentor && (step === "detail" || step === "form"));
+  const showForm = (!showBookingCard && ((quota?.chances_left ?? 0) > 0 || rebooking)) || (selectedIsGroupMentor && (step === "detail" || step === "form"));
 
   // Header back label
   const backLabel = step === "form" ? "← ข้อมูล Mentor" : step === "detail" && selectedMentor ? "← เลือก Mentor" : "← Back";
@@ -810,9 +812,9 @@ export default function MentorBookingScreen() {
           <BookingForm
             mentor={selectedMentor}
             onBack={() => { goToStep("detail"); }}
-            onSuccess={() => { setQuotaLoading(true); goToStep("grid"); setSelectedMentor(null); fetchQuota(); }}
+            onSuccess={() => { setRebooking(false); setQuotaLoading(true); goToStep("grid"); setSelectedMentor(null); fetchQuota(); }}
           />
-        ) : showForm && step === "detail" && selectedMentor ? (
+        ) : step === "detail" && selectedMentor ? (
           <MentorDetail
             mentor={selectedMentor}
             onBook={() => goToStep("form")}
@@ -837,10 +839,14 @@ export default function MentorBookingScreen() {
           />
         ) : (
           <>
-            {/* One-chance banner — only when healthcare quota still available */}
+            {/* Quota banner — only when healthcare quota still available */}
             {!healthcareQuotaUsed && (
               <View style={s.onceNotice}>
-                <AppText variant="bold" style={s.onceNoticeTitle}>จองได้ 1 ครั้งต่อทีมเท่านั้น</AppText>
+                <AppText variant="bold" style={s.onceNoticeTitle}>
+                  {(quota?.chances_left ?? 0) > 1
+                    ? `จองได้อีก ${quota!.chances_left} ครั้ง`
+                    : "จองได้ 1 ครั้งต่อทีมเท่านั้น"}
+                </AppText>
                 <AppText style={s.onceNoticeSub}>เลือก Mentor ที่ต้องการ แล้วกรอกข้อมูลทีม</AppText>
               </View>
             )}

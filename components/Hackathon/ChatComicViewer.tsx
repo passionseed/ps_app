@@ -263,7 +263,7 @@ function ChatImage({ content, caption }: { content: string; caption?: string }) 
           <Pressable style={styles.closeBtn} onPress={resetAndClose}>
             <AppText style={styles.closeBtnText}>×</AppText>
           </Pressable>
-          
+
           <GestureDetector gesture={composed}>
             <Animated.Image
               source={{ uri: content }}
@@ -288,11 +288,11 @@ function ChatVideo({ content, caption }: { content: string; caption?: string }) 
   const thumbUrl = videoId ? `https://img.youtube.com/vi/${videoId}/0.jpg` : null;
 
   const handleOpen = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
     try {
       await WebBrowser.openBrowserAsync(content);
     } catch {
-      Linking.openURL(content).catch(() => {});
+      Linking.openURL(content).catch(() => { });
     }
   };
 
@@ -331,7 +331,7 @@ function ChatBubble({
 }) {
   // Mentor (Other) on LEFT, Students/Teams (Me) on RIGHT
   const onLeft = isMentor(message.sender) || message.avatar === 'pseed';
-  
+
   const scale = useSharedValue(0.8);
   const opacity = useSharedValue(0);
 
@@ -431,6 +431,9 @@ export default function ChatComicViewer({
   const [isTyping, setIsTyping] = useState(false);
   const [isComplete, setIsComplete] = useState(!clickToReveal);
   const scrollRef = useRef<ScrollView>(null);
+  const touchStartY = useRef(0);
+  const touchStartX = useRef(0);
+  const log = (msg: string) => console.log(`[ChatComic] ${msg}`);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -445,7 +448,7 @@ export default function ChatComicViewer({
 
     if (showTyping && revealedCount < messages.length) {
       setIsTyping(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
       setTimeout(() => {
         setIsTyping(false);
         setRevealedCount((prev) => {
@@ -487,16 +490,31 @@ export default function ChatComicViewer({
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         nestedScrollEnabled={true}
-        onTouchStart={(e) => {
-          e.stopPropagation?.();
-        }}
+        onScrollBeginDrag={() => log("scroll: drag started")}
+        onScrollEndDrag={() => log("scroll: drag ended")}
+        onContentSizeChange={(w, h) => log(`contentSize h=${Math.round(h)}`)}
+        onLayout={(e) => log(`scrollView h=${Math.round(e.nativeEvent.layout.height)}`)}
       >
-        <Pressable 
-          onPress={revealNext} 
+        <View
           style={styles.revealWrapper}
-          disabled={!clickToReveal || isComplete}
+          onStartShouldSetResponder={() => false}
+          onMoveShouldSetResponder={() => false}
+          onTouchStart={(e) => {
+            touchStartY.current = e.nativeEvent.pageY;
+            touchStartX.current = e.nativeEvent.pageX;
+            log(`touchStart y=${Math.round(e.nativeEvent.pageY)}`);
+          }}
+          onTouchEnd={(e) => {
+            const dy = Math.abs(e.nativeEvent.pageY - touchStartY.current);
+            const dx = Math.abs(e.nativeEvent.pageX - touchStartX.current);
+            log(`touchEnd dy=${Math.round(dy)} dx=${Math.round(dx)}`);
+            if (clickToReveal && !isComplete && dy < 10 && dx < 10) {
+              log("tap: revealNext");
+              revealNext();
+            }
+          }}
         >
           <View style={styles.dateLabelWrap}>
             <View style={styles.dateLabel}>
@@ -525,9 +543,8 @@ export default function ChatComicViewer({
               <AppText style={styles.completeText}>— จบการสนทนา —</AppText>
             </View>
           )}
-
           <ShimmerHint visible={!isComplete && hasMore && clickToReveal} />
-        </Pressable>
+        </View>
       </ScrollView>
     </View>
   );
@@ -538,11 +555,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: LINE_BG,
-    overflow: "hidden",
   },
   scroll: {
     flex: 1,
-    overflow: "hidden",
   },
   scrollContent: {
     flexGrow: 1,

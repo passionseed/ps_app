@@ -316,7 +316,7 @@ function ContentBlock({
   const chatComic = getChatComicContent(item);
   if (chatComic) {
     return (
-      <View style={{ height: Math.min(520, viewportHeight * 0.65), marginHorizontal: -Space.lg }}>
+      <View style={{ height: Math.min(700, viewportHeight * 0.8), marginHorizontal: -Space.lg }}>
         <ChatComicViewer
           data={chatComic}
           metadata={item.metadata as ChatComicMetadata}
@@ -1501,6 +1501,7 @@ export default function HackathonActivityScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 60 }]}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews
+        nestedScrollEnabled={true}
         onScroll={onScroll}
         scrollEventThrottle={16}
         onScrollEndDrag={(e) => {
