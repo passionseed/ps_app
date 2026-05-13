@@ -239,7 +239,7 @@ export default function ProgramsBrowserScreen() {
           const roundNumber = program.best_round?.round_number ?? 1;
           const careerName = isThai
             ? (program.field_name ?? program.program_name)
-            : (program.field_name_en ?? program.field_name ?? program.program_name_en ?? program.program_name);
+            : (program.field_name_en ?? program.program_name_en ?? program.field_name ?? program.program_name);
           const plan = await createPlanWithPrograms(
             isThai ? `${careerName} แผนสมัคร` : `${careerName} Plan`,
             { [roundNumber]: [program.program_id] },
