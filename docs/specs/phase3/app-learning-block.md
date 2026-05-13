@@ -114,7 +114,7 @@ This interactive check reuses the daily check-in AI mentor pipeline.
 **Content:**
 - The variable problem: "we tested, users were confused, so we changed copy + button + flow + colors. Cycle 2 went better. What worked?" Answer: nobody knows.
 - The discipline: between cycles, identify ONE variable to change. Hold everything else constant. Test. Compare to prior cycle.
-- Case study (3 cycles):
+- Case study (iterating until evidence is strong):
   - Cycle 1: signup-before-free-answer. 1/5 completed signup.
   - Hypothesis: signup gate is the blocker.
   - Variable changed: gate position only (signup AFTER free answer). Same copy, same flow, same design.
@@ -122,7 +122,8 @@ This interactive check reuses the daily check-in AI mentor pipeline.
   - Hypothesis sharpened: but 1/5 still abandoned. Why?
   - Variable changed: signup form length (5 fields → 2 fields).
   - Cycle 3: 5/5 completed. Both variables now isolated and validated.
-- What if you have multiple ideas? Stack them. Test in priority order across cycles. 3 cycles = 3 isolated variables = 3 confirmed insights.
+  - Team could have stopped at Cycle 2 (evidence was strong). Cycle 3 sharpened further.
+- What if you have multiple ideas? Stack them. Test in priority order across cycles. Each cycle = 1 isolated variable = 1 confirmed insight. Keep going until evidence is strong or you hit a dead end.
 - When NOT to single-variable: catastrophic pretotype failure (nobody could even use it). Reset to Phase 2 Pivot.
 
 **Interactive check:**

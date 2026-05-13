@@ -31,6 +31,7 @@ import { ActivityCommentsPreview } from "../../../components/Hackathon/ActivityC
 import HackathonEvidenceComic from "../../../components/Hackathon/HackathonEvidenceComic";
 import HackathonWebtoon from "../../../components/Hackathon/HackathonWebtoon";
 import ChatComicViewer, { type ChatComicData, type ChatComicMetadata } from "../../../components/Hackathon/ChatComicViewer";
+import AssessmentPromptRenderer from "../../../components/Hackathon/AssessmentPromptRenderer";
 import { getHackathonActivityHref } from "../../../lib/hackathonActivityRoute";
 import { getLatestRevisionFeedback } from "../../../lib/hackathonInbox";
 import type { InboxItemWithUnread } from "../../../types/hackathon-inbox";
@@ -505,7 +506,7 @@ function FileUploadBlock({
   );
 }
 
-// ── Assessment markdown styles ─────────────────────────────────────
+// ── Shared markdown styles ─────────────────────────────────────────
 const assessmentMarkdownStyles = {
   body: { fontFamily: "BaiJamjuree_400Regular", fontSize: 15, color: WHITE, lineHeight: 22, marginBottom: -12 },
   strong: { fontFamily: "BaiJamjuree_700Bold", color: WHITE },
@@ -558,9 +559,7 @@ function AssessmentBlock({
         {label}{assessment.points_possible ? ` · ${assessment.points_possible} pts` : ""}
       </AppText>
       {prompt ? (
-        <Markdown style={assessmentMarkdownStyles}>
-          {prompt}
-        </Markdown>
+        <AssessmentPromptRenderer prompt={prompt} />
       ) : null}
       {assessment.assessment_type === "text_answer" ? (
         <TextInput

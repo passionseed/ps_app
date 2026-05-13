@@ -11,11 +11,12 @@ import {
 import { AppText as Text } from "../../components/AppText";
 import { useLocalSearchParams, router } from "expo-router";
 import { MOCK_PATH_DATA } from "../../lib/mockPathData";
-import type { CareerPath, PathStep, StepType } from "../../types/journey";
+import type { CareerPath, PathStep, StudentJourney } from "../../types/journey";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { PathStepCard } from "../../components/JourneyBoard/PathStepCard";
 import { DonutScore } from "../../components/JourneyBoard/DonutScore";
+import { getJourneyById, updateJourney } from "../../lib/journey";
 
 const MOCK_LIBRARY_STEPS: PathStep[] = [
   {
@@ -64,26 +65,154 @@ const MOCK_LIBRARY_STEPS: PathStep[] = [
   },
 ];
 
+function studentJourneyToCareerPath(journey: StudentJourney): CareerPath {
+  const scores = journey.scores;
+  const passionScore = scores?.passion ?? null;
+  const futureScore = scores?.future ?? null;
+  const worldScore = scores?.world ?? null;
+  const journeyScore =
+    scores ? Math.round((scores.passion + scores.future + scores.world) / 3) : null;
+
+  const confidence: CareerPath["confidence"] =
+    journeyScore === null
+      ? "low"
+      : journeyScore >= 70
+        ? "high"
+        : journeyScore >= 50
+          ? "medium"
+          : "low";
+
+  const generateExplanation = (
+    type: "passion" | "future" | "world",
+    score: number | null
+  ): string => {
+    if (score === null) return "ยังไม่มีข้อมูลเพียงพอ";
+    if (score >= 85) {
+      if (type === "passion") return "คุณมีความสนใจและกระตือรือร้นในด้านนี้สูงมาก";
+      if (type === "future") return "อนาคตของอาชีพนี้สดใสและมีแนวโน้มเติบโต";
+      return "ตลาดแรงงานต้องการบุคลากรด้านนี้จำนวนมาก";
+    }
+    if (score >= 70) {
+      if (type === "passion") return "คุณมีความสนใจในด้านนี้ในระดับดี";
+      if (type === "future") return "อนาคตของอาชีพนี้มีแนวโน้มที่ดี";
+      return "มีความต้องการบุคลากรด้านนี้ในระดับดี";
+    }
+    if (score >= 50) {
+      if (type === "passion") return "คุณมีความสนใจในด้านนี้ในระดับปานกลาง";
+      if (type === "future") return "อนาคตของอาชีพนี้อยู่ในระดับปานกลาง";
+      return "ความต้องการบุคลากรอยู่ในระดับปานกลาง";
+    }
+    if (type === "passion") return "อาจต้องสำรวจเพิ่มเติมว่านี่คือสิ่งที่คุณรักจริงๆ";
+    if (type === "future") return "อาชีพนี้อาจมีความท้าทายในระยะยาว";
+    return "ตลาดแรงงานอาจมีการแข่งขันสูง";
+  };
+
+  const steps: PathStep[] = journey.steps.map((step, idx) => ({
+    id: `${journey.id}-step-${idx}`,
+    order: idx + 1,
+    type: step.type,
+    title: step.label,
+    subtitle: step.details.university_name ?? step.details.company_type ?? "",
+    detail: [step.details.faculty_name, step.details.salary_range, step.details.description]
+      .filter(Boolean)
+      .join(" · "),
+    duration: "",
+    icon:
+      step.type === "university"
+        ? "🎓"
+        : step.type === "internship"
+          ? "💼"
+          : "🚀",
+    status: "upcoming" as PathStep["status"],
+    universityMeta:
+      step.type === "university" &&
+      step.details.university_name &&
+      step.details.faculty_name
+        ? {
+            universityName: step.details.university_name,
+            facultyName: step.details.faculty_name,
+          }
+        : undefined,
+  }));
+
+  return {
+    id: journey.id,
+    label: journey.title,
+    careerGoal: journey.career_goal,
+    careerGoalIcon: "🎯",
+    passionScore,
+    futureScore,
+    worldScore,
+    journeyScore,
+    explanations: {
+      passion: generateExplanation("passion", passionScore),
+      future: generateExplanation("future", futureScore),
+      world: generateExplanation("world", worldScore),
+    },
+    confidence,
+    steps,
+  };
+}
+
+function pathStepsToJourneySteps(steps: PathStep[]): StudentJourney["steps"] {
+  return steps.map((step) => ({
+    type: step.type,
+    tcas_program_id: null,
+    label: step.title,
+    details: {
+      university_name: step.universityMeta?.universityName,
+      faculty_name: step.universityMeta?.facultyName,
+      company_type: step.subtitle || undefined,
+      salary_range: undefined,
+      description: step.detail || undefined,
+    },
+  }));
+}
+
 export default function EditPathScreen() {
   const { id } = useLocalSearchParams();
   const [path, setPath] = useState<CareerPath | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Modal State
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    const foundPath = MOCK_PATH_DATA.paths.find((p) => p.id === id);
-    if (foundPath) {
-      setPath(JSON.parse(JSON.stringify(foundPath)));
+    async function loadPath() {
+      setLoading(true);
+      try {
+        const journey = await getJourneyById(String(id));
+        if (journey) {
+          setPath(studentJourneyToCareerPath(journey));
+        } else {
+          const foundPath = MOCK_PATH_DATA.paths.find((p) => p.id === id);
+          if (foundPath) {
+            setPath(JSON.parse(JSON.stringify(foundPath)));
+          }
+        }
+      } catch (err) {
+        console.error("[EditPath] Failed to load journey:", err);
+        const foundPath = MOCK_PATH_DATA.paths.find((p) => p.id === id);
+        if (foundPath) {
+          setPath(JSON.parse(JSON.stringify(foundPath)));
+        }
+      } finally {
+        setLoading(false);
+      }
     }
+
+    loadPath();
   }, [id]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!path) return;
-    const index = MOCK_PATH_DATA.paths.findIndex((p) => p.id === id);
-    if (index !== -1) {
-      MOCK_PATH_DATA.paths[index] = path;
+    try {
+      await updateJourney(String(id), {
+        steps: pathStepsToJourneySteps(path.steps),
+      });
+    } catch (err) {
+      console.error("[EditPath] Save failed:", err);
     }
     router.back();
   };
@@ -127,11 +256,13 @@ export default function EditPathScreen() {
     setPath({ ...path, steps: newSteps });
   };
 
-  if (!path) {
+  if (loading || !path) {
     return (
-      <View style={styles.container}>
-        <Text>Loading or Path not found...</Text>
-      </View>
+      <SafeAreaView style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <Text style={{ color: "#6B7280", fontSize: 16 }}>
+          {loading ? "กำลังโหลด..." : "ไม่พบเส้นทาง"}
+        </Text>
+      </SafeAreaView>
     );
   }
 

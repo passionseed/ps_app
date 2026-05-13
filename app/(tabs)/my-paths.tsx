@@ -250,7 +250,7 @@ export default function MyPathsScreen() {
   const hasSimulations = paths.length > 0;
 
   const handleBuildPath = () => {
-    router.push("/build-path");
+    router.push("/onboarding");
   };
 
   return (

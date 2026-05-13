@@ -11,6 +11,7 @@ import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Polyline } from "react-native-svg";
+import { Ionicons } from "@expo/vector-icons";
 import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { HackathonJellyfishLoader } from "../../../components/Hackathon/HackathonJellyfishLoader";
@@ -23,6 +24,7 @@ import {
   preloadHackathonActivityBundle,
   type HackathonPhaseActivityWithStatus,
 } from "../../../lib/hackathonScreenData";
+import { supabase } from "../../../lib/supabase";
 import { Space } from "../../../lib/theme";
 import type {
   HackathonPhaseWithActivities,
@@ -35,6 +37,7 @@ const CARD_BG = "rgba(13,18,25,0.95)";
 const CYAN    = "#91C4E3";
 const BLUE    = "#65ABFC";
 const CYAN45  = "rgba(145,196,227,0.45)";
+const CYAN20  = "rgba(145,196,227,0.20)";
 const BORDER  = "rgba(74,107,130,0.35)";
 const WHITE   = "#FFFFFF";
 const WHITE55 = "rgba(255,255,255,0.55)";
@@ -58,6 +61,7 @@ export default function HackathonPhaseScreen() {
   const [teamSubmissionStatuses, setTeamSubmissionStatuses] = useState<Record<string, string>>(
     cachedBundle?.teamSubmissionStatuses ?? {},
   );
+  const [teamId, setTeamId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,12 +79,23 @@ export default function HackathonPhaseScreen() {
 
       (async () => {
         try {
-          const bundle = await loadHackathonPhaseBundle(phaseId!);
+          const [bundle, participant] = await Promise.all([
+            loadHackathonPhaseBundle(phaseId!),
+            supabase.auth.getUser().then(({ data }) => data.user),
+          ]);
           if (cancelled) return;
           setPhase(bundle.phase);
           setActivities(bundle.activities);
           setIsAdmin(bundle.isAdmin);
           setTeamSubmissionStatuses(bundle.teamSubmissionStatuses ?? {});
+          if (participant) {
+            const { data: member } = await supabase
+              .from("hackathon_team_members")
+              .select("team_id")
+              .eq("participant_id", participant.id)
+              .single();
+            if (member) setTeamId(member.team_id);
+          }
         } catch (e) {
           console.error("[PhaseScreen] load error:", e);
         } finally {
@@ -148,6 +163,53 @@ export default function HackathonPhaseScreen() {
             <AppText style={styles.progressText}>สำเร็จ {completedCount} จาก {totalCount}</AppText>
           </View>
         </View>
+
+        {phase.phase_number == 3 && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.workspaceCard,
+              pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push({
+                pathname: "/(hackathon)/phase3/workspace",
+                params: { teamId, programPhaseId: phase.id },
+              });
+            }}
+          >
+            <BlurView intensity={30} tint="dark" style={styles.cardBlur}>
+              <LinearGradient
+                colors={['rgba(145, 196, 227, 0.12)', 'rgba(255, 255, 255, 0.01)']}
+                style={[styles.activityCardInner, { borderColor: CYAN45 }]}
+              >
+                <View style={styles.activityCardLeft}>
+                  <Ionicons name="flask" size={24} color={CYAN} />
+                  <View style={styles.activityCardBody}>
+                    <View style={styles.activityHeaderRow}>
+                      <AppText style={styles.stepLabel}>Sprint Loop</AppText>
+                      <AppText style={[styles.statusBadge, { backgroundColor: CYAN20, color: CYAN }]}>
+                        Interactive
+                      </AppText>
+                    </View>
+                    <AppText variant="bold" style={[styles.activityTitle, { color: CYAN }]}>
+                      Enter Workspace
+                    </AppText>
+                    <AppText style={styles.activityInstructions} numberOfLines={2}>
+                      Test hypotheses, pretotype, and iterate in cycles
+                    </AppText>
+                    <View style={styles.activityMeta}>
+                      <AppText style={[styles.metaChip, { backgroundColor: CYAN20, color: CYAN }]}>
+                        👥 ทีม
+                      </AppText>
+                      <AppText style={styles.metaChip}>🔄 Iterative</AppText>
+                    </View>
+                  </View>
+                </View>
+              </LinearGradient>
+            </BlurView>
+          </Pressable>
+        )}
 
         {/* Activity list */}
         {activities.length > 0 && (
@@ -514,5 +576,14 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  workspaceCard: {
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: Space.md,
   },
 });
