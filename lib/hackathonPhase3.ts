@@ -2,6 +2,9 @@ import { supabase } from "./supabase";
 import type {
   HackathonPhase3Cycle,
   HackathonPhase3CycleStep,
+  HackathonPhase3StepType,
+  HackathonPhase3StepStatus,
+  HackathonPhase3CycleStatus,
   HackathonPhase3TestSession,
   HackathonPhase3DailyCheckin,
   HackathonPhase3MidphaseSynthesis,
@@ -62,12 +65,30 @@ export async function getPhase3Workspace(
       .order("step_type");
 
     activeStep = (steps ?? []).map((s) => ({
-      stepType: s.step_type as any,
-      status: s.status as any,
-      content: [], // populated by caller with activity content
-      assessments: [], // populated by caller with activity assessments
+      stepType: s.step_type as HackathonPhase3StepType,
+      status: s.status as HackathonPhase3StepStatus,
+      content: [],
+      assessments: [],
       aiFeedback: s.ai_feedback as AICoachResponse | null,
+      submissionData: s.submission_data as Record<string, unknown> | null,
     }));
+  }
+
+  const stepOrder: HackathonPhase3StepType[] = ['hypothesis', 'pretotype', 'test_session', 'synthesis'];
+  let currentStep: HackathonPhase3StepType = stepOrder[0];
+  let currentStepStatus: HackathonPhase3StepStatus = 'draft';
+  
+  if (activeStep.length > 0) {
+    const incompleteStep = activeStep.find(s => s.status === 'draft');
+    
+    if (incompleteStep) {
+      currentStep = incompleteStep.stepType;
+      currentStepStatus = incompleteStep.status;
+    } else {
+      const lastStep = activeStep[activeStep.length - 1];
+      currentStep = lastStep?.stepType ?? stepOrder[0];
+      currentStepStatus = lastStep?.status ?? 'draft';
+    }
   }
 
   return {
@@ -75,9 +96,9 @@ export async function getPhase3Workspace(
     currentCycle: currentCycle
       ? {
           cycleNumber: currentCycle.cycle_number,
-          status: currentCycle.status as any,
-          activeStep: activeStep[0]?.stepType ?? "hypothesis",
-          stepStatus: activeStep[0]?.status ?? "draft",
+          status: currentCycle.status as HackathonPhase3CycleStatus,
+          activeStep: currentStep as HackathonPhase3StepType,
+          stepStatus: currentStepStatus as HackathonPhase3StepStatus,
         }
       : null,
     tracker,
@@ -93,17 +114,38 @@ export async function startPhase3Cycle(
   teamId: string,
   programPhaseId: string
 ): Promise<string | null> {
-  const { data, error } = await supabase.rpc("start_phase3_cycle", {
-    p_team_id: teamId,
-    p_program_phase_id: programPhaseId,
-  });
+  try {
+    const { data: maxRow } = await supabase
+      .from("hackathon_phase3_cycles")
+      .select("cycle_number")
+      .eq("team_id", teamId)
+      .order("cycle_number", { ascending: false })
+      .limit(1)
+      .single();
 
-  if (error) {
-    console.error("startPhase3Cycle error", error);
+    const nextCycle = (maxRow?.cycle_number ?? 0) + 1;
+
+    const { data: inserted, error } = await supabase
+      .from("hackathon_phase3_cycles")
+      .insert({
+        team_id: teamId,
+        program_phase_id: programPhaseId,
+        cycle_number: nextCycle,
+        status: "planning",
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("startPhase3Cycle insert error", error);
+      return null;
+    }
+
+    return inserted?.id ?? null;
+  } catch (e) {
+    console.error("startPhase3Cycle error", e);
     return null;
   }
-
-  return data as string;
 }
 
 export async function getTeamCurrentCycle(teamId: string) {
@@ -172,6 +214,39 @@ export async function submitCycleStep(
   if (error) {
     console.error("submitCycleStep error", error);
     return false;
+  }
+
+  if (stepType === "hypothesis" && status === "submitted") {
+    const { error: cycleError } = await supabase
+      .from("hackathon_phase3_cycles")
+      .update({
+        hypothesis_who: submissionData.who as string,
+        hypothesis_will_do: submissionData.will_do as string,
+        hypothesis_because: submissionData.because as string,
+        hypothesis_measured_by: submissionData.measured_by as string,
+        hypothesis_full: submissionData.full as string,
+      })
+      .eq("id", cycleId);
+
+    if (cycleError) {
+      console.error("update cycle hypothesis error", cycleError);
+    }
+  }
+
+  if (stepType === "pretotype" && status === "submitted") {
+    const { error: cycleError } = await supabase
+      .from("hackathon_phase3_cycles")
+      .update({
+        pretotype_method: submissionData.method as string,
+        variable_changed: submissionData.variable_changed as string,
+        pretotype_artifact_url: submissionData.artifact_url as string | null,
+        pretotype_description: submissionData.description as string,
+      })
+      .eq("id", cycleId);
+
+    if (cycleError) {
+      console.error("update cycle pretotype error", cycleError);
+    }
   }
 
   return true;

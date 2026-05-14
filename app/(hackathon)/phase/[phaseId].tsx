@@ -25,6 +25,7 @@ import {
   type HackathonPhaseActivityWithStatus,
 } from "../../../lib/hackathonScreenData";
 import { supabase } from "../../../lib/supabase";
+import { readHackathonParticipant } from "../../../lib/hackathon-mode";
 import { Space } from "../../../lib/theme";
 import type {
   HackathonPhaseWithActivities,
@@ -81,20 +82,20 @@ export default function HackathonPhaseScreen() {
         try {
           const [bundle, participant] = await Promise.all([
             loadHackathonPhaseBundle(phaseId!),
-            supabase.auth.getUser().then(({ data }) => data.user),
+            readHackathonParticipant(),
           ]);
           if (cancelled) return;
           setPhase(bundle.phase);
           setActivities(bundle.activities);
           setIsAdmin(bundle.isAdmin);
           setTeamSubmissionStatuses(bundle.teamSubmissionStatuses ?? {});
-          if (participant) {
+          if (participant?.id) {
             const { data: member } = await supabase
               .from("hackathon_team_members")
               .select("team_id")
               .eq("participant_id", participant.id)
-              .single();
-            if (member) setTeamId(member.team_id);
+              .maybeSingle();
+            if (member?.team_id) setTeamId(member.team_id);
           }
         } catch (e) {
           console.error("[PhaseScreen] load error:", e);
@@ -160,7 +161,11 @@ export default function HackathonPhaseScreen() {
             <View style={styles.progressBarBg}>
               <View style={[styles.progressBarFill, { width: `${pct}%` }]} />
             </View>
-            <AppText style={styles.progressText}>สำเร็จ {completedCount} จาก {totalCount}</AppText>
+            <AppText style={styles.progressText}>
+              {phase.phase_number === 3
+                ? `เป้าหมาย: 3+ Cycles`
+                : `สำเร็จ ${completedCount} จาก ${totalCount}`}
+            </AppText>
           </View>
         </View>
 

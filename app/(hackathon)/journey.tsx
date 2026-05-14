@@ -196,13 +196,19 @@ function AnimatedVerticalPhaseCard({
             <View style={styles.cardFooter}>
               <View style={styles.statsRow}>
                 <View style={styles.statBox}>
-                  <AppText style={styles.statVal}>{card.activityCount}</AppText>
-                  <AppText style={styles.statLabel}>Tasks</AppText>
+                  <AppText style={styles.statVal}>
+                    {card.phase.phase_number === 3 ? "3" : card.activityCount}
+                  </AppText>
+                  <AppText style={styles.statLabel}>
+                    {card.phase.phase_number === 3 ? "Sprints" : "Tasks"}
+                  </AppText>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statBox}>
                   <AppText style={styles.statVal}>{card.completedCount}</AppText>
-                  <AppText style={styles.statLabel}>Done</AppText>
+                  <AppText style={styles.statLabel}>
+                    {card.phase.phase_number === 3 ? "Completed" : "Done"}
+                  </AppText>
                 </View>
               </View>
               {!isLocked ? (

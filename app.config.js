@@ -244,6 +244,12 @@ module.exports = {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
       supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      b2ApplicationKeyId: process.env.EXPO_PUBLIC_B2_APPLICATION_KEY_ID,
+      b2ApplicationKey: process.env.EXPO_PUBLIC_B2_APPLICATION_KEY,
+      b2BucketName: process.env.EXPO_PUBLIC_B2_BUCKET_NAME,
+      b2BucketId: process.env.EXPO_PUBLIC_B2_BUCKET_ID,
+      b2Endpoint: process.env.EXPO_PUBLIC_B2_ENDPOINT,
+      cloudflareDomain: process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN,
     },
     autolinking: {
       exclude: ["expo-glass-effect", "expo-apple-authentication"],

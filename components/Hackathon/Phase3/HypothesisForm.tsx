@@ -1,17 +1,17 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
   TextInput,
   Pressable,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { AppText } from "../../AppText";
 import { Ionicons } from "@expo/vector-icons";
-import type { AICoachResponse } from "../../types/hackathon-phase3";
+import type { AICoachResponse } from "../../../types/hackathon-phase3";
 
 const BG = "#03050a";
-const CARD_BG = "rgba(13,18,25,0.95)";
 const CYAN = "#91C4E3";
 const CYAN45 = "rgba(145,196,227,0.45)";
 const CYAN20 = "rgba(145,196,227,0.20)";
@@ -22,12 +22,19 @@ const WHITE55 = "rgba(255,255,255,0.55)";
 const WHITE28 = "rgba(255,255,255,0.28)";
 const RED = "#FF6B6B";
 const GREEN = "#4ECDC4";
+const ORANGE = "#FFA500";
 
 interface HypothesisFormProps {
   cycleId: string;
   teamId: string;
   phase1Evidence?: Array<{ quote: string; source: string }>;
   targetUsers?: string[];
+  onCheckAI: (data: {
+    who: string;
+    willDo: string;
+    because: string;
+    measuredBy: string;
+  }) => Promise<AICoachResponse>;
   onSubmit: (data: {
     who: string;
     willDo: string;
@@ -35,6 +42,16 @@ interface HypothesisFormProps {
     measuredBy: string;
   }) => void;
   aiFeedback?: AICoachResponse | null;
+  checkingAI?: boolean;
+  lang?: "th" | "en";
+  status?: "draft" | "submitted" | "ai_reviewed" | "mentor_reviewed" | "locked";
+  initialData?: {
+    who: string | null;
+    willDo: string | null;
+    because: string | null;
+    measuredBy: string | null;
+    full: string | null;
+  } | null;
 }
 
 const WILL_DO_TEMPLATES = [
@@ -54,26 +71,52 @@ const MEASURED_BY_TEMPLATES = [
 export default function HypothesisForm({
   phase1Evidence = [],
   targetUsers = [],
+  onCheckAI,
   onSubmit,
   aiFeedback,
+  checkingAI = false,
+  lang = "th",
+  status = "draft",
+  initialData = null,
 }: HypothesisFormProps) {
-  const [who, setWho] = useState("");
-  const [willDo, setWillDo] = useState("");
-  const [because, setBecause] = useState("");
-  const [measuredBy, setMeasuredBy] = useState("");
+  const [who, setWho] = useState(initialData?.who ?? "");
+  const [willDo, setWillDo] = useState(initialData?.willDo ?? "");
+  const [because, setBecause] = useState(initialData?.because ?? "");
+  const [measuredBy, setMeasuredBy] = useState(initialData?.measuredBy ?? "");
   const [showTemplates, setShowTemplates] = useState<string | null>(null);
+  const [showWhoHint, setShowWhoHint] = useState(false);
+  const [showBecauseHint, setShowBecauseHint] = useState(false);
+  const [showWillDoHint, setShowWillDoHint] = useState(false);
+  const [showMeasuredByHint, setShowMeasuredByHint] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (initialData?.who) setWho(initialData.who);
+    if (initialData?.willDo) setWillDo(initialData.willDo);
+    if (initialData?.because) setBecause(initialData.because);
+    if (initialData?.measuredBy) setMeasuredBy(initialData.measuredBy);
+  }, [initialData?.who, initialData?.willDo, initialData?.because, initialData?.measuredBy]);
 
   const hasWho = who.trim().length > 0 && who !== "users";
   const hasWillDo = willDo.trim().length > 0;
   const hasBecause = because.trim().length > 0;
   const hasMeasuredBy = measuredBy.trim().length > 0;
-  const canSubmit = hasWho && hasWillDo && hasBecause && hasMeasuredBy;
+  const canCheckAI = hasWho && hasWillDo && hasBecause && hasMeasuredBy;
+
+  const score = aiFeedback?.score ?? null;
+  const breakdown = aiFeedback?.breakdown ?? null;
+  const passedGate = score !== null && score >= 80;
+
+  const handleCheckAI = useCallback(async () => {
+    if (!canCheckAI) return;
+    await onCheckAI({ who, willDo, because, measuredBy });
+  }, [canCheckAI, who, willDo, because, measuredBy, onCheckAI]);
 
   const handleSubmit = useCallback(() => {
-    if (canSubmit) {
+    if (canCheckAI && passedGate) {
       onSubmit({ who, willDo, because, measuredBy });
     }
-  }, [canSubmit, who, willDo, because, measuredBy, onSubmit]);
+  }, [canCheckAI, passedGate, who, willDo, because, measuredBy, onSubmit]);
 
   const renderFieldStatus = (valid: boolean) => (
     <Ionicons
@@ -83,259 +126,453 @@ export default function HypothesisForm({
     />
   );
 
+  const getScoreColor = (s: number) => {
+    if (s >= 80) return GREEN;
+    if (s >= 60) return ORANGE;
+    return RED;
+  };
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.card}>
-        <AppText variant="bold" style={styles.title}>
-          Step 1: Write Your Hypothesis
-        </AppText>
-        <AppText style={styles.subtitle}>
-          Testable prediction with 4 parts
-        </AppText>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      <AppText variant="bold" style={styles.title}>
+        {lang === "th" ? "ขั้นตอนที่ 1: เขียน Hypothesis" : "Step 1: Write Your Hypothesis"}
+      </AppText>
+      <AppText style={styles.subtitle}>
+        {lang === "th" ? "สมมติฐานที่ทดสอบได้ 4 ส่วน" : "Testable prediction with 4 parts"}
+      </AppText>
 
-        {/* WHO */}
-        <View style={styles.fieldGroup}>
-          <View style={styles.fieldHeader}>
-            <AppText variant="bold" style={styles.fieldLabel}>WHO</AppText>
-            {renderFieldStatus(hasWho)}
-          </View>
-          <AppText style={styles.fieldHint}>Specific user type</AppText>
-          <View style={styles.dropdownContainer}>
-            {targetUsers.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {targetUsers.map((user) => (
-                  <Pressable
-                    key={user}
-                    style={[
-                      styles.chip,
-                      who === user && styles.chipActive,
-                    ]}
-                    onPress={() => setWho(user)}
-                  >
-                    <AppText
-                      style={[
-                        styles.chipText,
-                        who === user && styles.chipTextActive,
-                      ]}
-                    >
-                      {user}
-                    </AppText>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            )}
-            <TextInput
-              style={styles.input}
-              placeholder="Or type custom user..."
-              placeholderTextColor={WHITE28}
-              value={who}
-              onChangeText={setWho}
-            />
-          </View>
-        </View>
-
-        {/* WILL DO */}
-        <View style={styles.fieldGroup}>
-          <View style={styles.fieldHeader}>
-            <AppText variant="bold" style={styles.fieldLabel}>WILL DO</AppText>
-            {renderFieldStatus(hasWillDo)}
-          </View>
-          <AppText style={styles.fieldHint}>Observable action</AppText>
-          <Pressable
-            style={styles.templateToggle}
-            onPress={() =>
-              setShowTemplates(showTemplates === "willDo" ? null : "willDo")
-            }
-          >
-            <AppText style={styles.templateToggleText}>
-              {showTemplates === "willDo" ? "Hide templates" : "Show templates"}
+      {status !== "draft" && !isEditing && initialData?.who && (
+        <View style={styles.submittedView}>
+          <View style={styles.submittedHeader}>
+            <Ionicons name="checkmark-circle" size={20} color={GREEN} />
+            <AppText variant="bold" style={styles.submittedTitle}>
+              {lang === "th" ? "ส่งแล้ว ✓" : "Submitted ✓"}
             </AppText>
-            <Ionicons
-              name={showTemplates === "willDo" ? "chevron-up" : "chevron-down"}
-              size={16}
-              color={CYAN}
-            />
-          </Pressable>
-          {showTemplates === "willDo" && (
-            <View style={styles.templateList}>
-              {WILL_DO_TEMPLATES.map((t) => (
-                <Pressable
-                  key={t}
-                  style={styles.templateItem}
-                  onPress={() => setWillDo(t)}
-                >
-                  <AppText style={styles.templateText}>{t}</AppText>
-                </Pressable>
-              ))}
-            </View>
-          )}
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Specific action..."
-            placeholderTextColor={WHITE28}
-            value={willDo}
-            onChangeText={setWillDo}
-            multiline
-          />
-        </View>
-
-        {/* BECAUSE */}
-        <View style={styles.fieldGroup}>
-          <View style={styles.fieldHeader}>
-            <AppText variant="bold" style={styles.fieldLabel}>BECAUSE</AppText>
-            {renderFieldStatus(hasBecause)}
           </View>
-          <AppText style={styles.fieldHint}>Evidence from Phase 1</AppText>
-          {phase1Evidence.length > 0 && (
-            <View style={styles.evidenceList}>
-              {phase1Evidence.slice(0, 3).map((ev, i) => (
-                <Pressable
-                  key={i}
-                  style={styles.evidenceItem}
-                  onPress={() => setBecause(ev.quote)}
-                >
-                  <AppText style={styles.evidenceQuote}>"{ev.quote}"</AppText>
-                  <AppText style={styles.evidenceSource}>— {ev.source}</AppText>
-                </Pressable>
-              ))}
+          <View style={styles.submittedBody}>
+            <View style={styles.submittedRow}>
+              <AppText style={styles.submittedLabel}>WHO</AppText>
+              <AppText style={styles.submittedValue}>{initialData.who}</AppText>
             </View>
-          )}
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Why do you believe this?..."
-            placeholderTextColor={WHITE28}
-            value={because}
-            onChangeText={setBecause}
-            multiline
-          />
-        </View>
-
-        {/* MEASURED BY */}
-        <View style={styles.fieldGroup}>
-          <View style={styles.fieldHeader}>
-            <AppText variant="bold" style={styles.fieldLabel}>MEASURED BY</AppText>
-            {renderFieldStatus(hasMeasuredBy)}
+            <View style={styles.submittedRow}>
+              <AppText style={styles.submittedLabel}>WILL DO</AppText>
+              <AppText style={styles.submittedValue}>{initialData.willDo}</AppText>
+            </View>
+            <View style={styles.submittedRow}>
+              <AppText style={styles.submittedLabel}>BECAUSE</AppText>
+              <AppText style={styles.submittedValue}>{initialData.because}</AppText>
+            </View>
+            <View style={styles.submittedRow}>
+              <AppText style={styles.submittedLabel}>MEASURED BY</AppText>
+              <AppText style={styles.submittedValue}>{initialData.measuredBy}</AppText>
+            </View>
           </View>
-          <AppText style={styles.fieldHint}>Observable threshold</AppText>
           <Pressable
-            style={styles.templateToggle}
-            onPress={() =>
-              setShowTemplates(showTemplates === "measured" ? null : "measured")
-            }
+            style={styles.editButton}
+            onPress={() => setIsEditing(true)}
           >
-            <AppText style={styles.templateToggleText}>
-              {showTemplates === "measured" ? "Hide templates" : "Show templates"}
+            <Ionicons name="create-outline" size={16} color={CYAN} />
+            <AppText style={styles.editButtonText}>
+              {lang === "th" ? "แก้ไข" : "Edit"}
             </AppText>
-            <Ionicons
-              name={showTemplates === "measured" ? "chevron-up" : "chevron-down"}
-              size={16}
-              color={CYAN}
-            />
           </Pressable>
-          {showTemplates === "measured" && (
-            <View style={styles.templateList}>
-              {MEASURED_BY_TEMPLATES.map((t) => (
+        </View>
+      )}
+
+      <View style={styles.divider} />
+
+      <View>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelRow}>
+            <AppText variant="bold" style={styles.fieldLabel}>{lang === "th" ? "ใคร (WHO)" : "WHO"}</AppText>
+            <Pressable onPress={() => setShowWhoHint(true)}>
+              <Ionicons name="help-circle-outline" size={18} color={CYAN45} />
+            </Pressable>
+          </View>
+          {renderFieldStatus(hasWho)}
+        </View>
+        <AppText style={styles.fieldHint}>{lang === "th" ? "กลุ่มผู้ใช้เฉพาะ" : "Specific user type"}</AppText>
+        <View style={styles.dropdownContainer}>
+          {targetUsers.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {targetUsers.map((user) => (
                 <Pressable
-                  key={t}
-                  style={styles.templateItem}
-                  onPress={() => setMeasuredBy(t)}
+                  key={user}
+                  style={[styles.chip, who === user && styles.chipActive]}
+                  onPress={() => setWho(user)}
                 >
-                  <AppText style={styles.templateText}>{t}</AppText>
+                  <AppText style={[styles.chipText, who === user && styles.chipTextActive]}>
+                    {user}
+                  </AppText>
                 </Pressable>
               ))}
-            </View>
+            </ScrollView>
           )}
           <TextInput
             style={styles.input}
-            placeholder="Threshold..."
+            placeholder={lang === "th" ? "หรือพิมพ์เอง..." : "Or type custom user..."}
             placeholderTextColor={WHITE28}
-            value={measuredBy}
-            onChangeText={setMeasuredBy}
+            value={who}
+            onChangeText={setWho}
           />
         </View>
-
-        {/* Preview */}
-        {canSubmit && (
-          <View style={styles.previewCard}>
-            <AppText variant="bold" style={styles.previewTitle}>
-              Full Hypothesis
-            </AppText>
-            <AppText style={styles.previewText}>
-              {who} will {willDo} because {because} measured by {measuredBy}
-            </AppText>
-          </View>
-        )}
-
-        {/* Submit */}
-        <Pressable
-          style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-        >
-          <AppText variant="bold" style={styles.submitButtonText}>
-            Submit Hypothesis
-          </AppText>
-        </Pressable>
-
-        {/* AI Feedback */}
-        {aiFeedback && (
-          <View style={styles.aiFeedbackCard}>
-            <View style={styles.aiHeader}>
-              <Ionicons name="sparkles" size={16} color={CYAN} />
-              <AppText variant="bold" style={styles.aiTitle}>AI Coach</AppText>
-            </View>
-            {aiFeedback.flags.map((flag: any, i: number) => (
-              <View key={i} style={styles.aiFlag}>
-                <Ionicons
-                  name={
-                    flag.severity === "blocking"
-                      ? "close-circle"
-                      : flag.severity === "warning"
-                      ? "warning"
-                      : "information-circle"
-                  }
-                  size={16}
-                  color={
-                    flag.severity === "blocking"
-                      ? RED
-                      : flag.severity === "warning"
-                      ? "#FFA500"
-                      : CYAN
-                  }
-                />
-                <AppText style={styles.aiFlagText}>{flag.message}</AppText>
-              </View>
-            ))}
-            {aiFeedback.response && (
-              <AppText style={styles.aiResponse}>{aiFeedback.response}</AppText>
-            )}
-          </View>
-        )}
       </View>
+
+      <View style={styles.divider} />
+
+      <View>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelRow}>
+            <AppText variant="bold" style={styles.fieldLabel}>{lang === "th" ? "จะทำ (WILL DO)" : "WILL DO"}</AppText>
+            <Pressable onPress={() => setShowWillDoHint(true)}>
+              <Ionicons name="help-circle-outline" size={18} color={CYAN45} />
+            </Pressable>
+          </View>
+          {renderFieldStatus(hasWillDo)}
+        </View>
+        <AppText style={styles.fieldHint}>{lang === "th" ? "การกระทำที่สังเกตได้" : "Observable action"}</AppText>
+        <Pressable
+          style={styles.templateToggle}
+          onPress={() => setShowTemplates(showTemplates === "willDo" ? null : "willDo")}
+        >
+          <AppText style={styles.templateToggleText}>
+            {showTemplates === "willDo"
+              ? (lang === "th" ? "ซ่อนแม่แบบ" : "Hide templates")
+              : (lang === "th" ? "แสดงแม่แบบ" : "Show templates")}
+          </AppText>
+          <Ionicons
+            name={showTemplates === "willDo" ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={CYAN}
+          />
+        </Pressable>
+        {showTemplates === "willDo" && (
+          <View style={styles.templateList}>
+            {WILL_DO_TEMPLATES.map((t) => (
+              <Pressable key={t} style={styles.templateItem} onPress={() => setWillDo(t)}>
+                <AppText style={styles.templateText}>{t}</AppText>
+              </Pressable>
+            ))}
+          </View>
+        )}
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder={lang === "th" ? "การกระทำเฉพาะ..." : "Specific action..."}
+          placeholderTextColor={WHITE28}
+          value={willDo}
+          onChangeText={setWillDo}
+          multiline
+        />
+      </View>
+
+      <View style={styles.divider} />
+
+      <View>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelRow}>
+            <AppText variant="bold" style={styles.fieldLabel}>{lang === "th" ? "เพราะ (BECAUSE)" : "BECAUSE"}</AppText>
+            <Pressable onPress={() => setShowBecauseHint(true)}>
+              <Ionicons name="help-circle-outline" size={18} color={CYAN45} />
+            </Pressable>
+          </View>
+          {renderFieldStatus(hasBecause)}
+        </View>
+        <AppText style={styles.fieldHint}>{lang === "th" ? "หลักฐานจาก Phase 1" : "Evidence from Phase 1"}</AppText>
+        {phase1Evidence.length > 0 && (
+          <View style={styles.evidenceList}>
+            {phase1Evidence.slice(0, 3).map((ev, i) => (
+              <Pressable
+                key={i}
+                style={styles.evidenceItem}
+                onPress={() => setBecause(ev.quote)}
+              >
+                <AppText style={styles.evidenceQuote}>"{ev.quote}"</AppText>
+                <AppText style={styles.evidenceSource}>— {ev.source}</AppText>
+              </Pressable>
+            ))}
+          </View>
+        )}
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder={lang === "th" ? "ทำไมคุณเชื่อแบบนี้?..." : "Why do you believe this?..."}
+          placeholderTextColor={WHITE28}
+          value={because}
+          onChangeText={setBecause}
+          multiline
+        />
+      </View>
+
+      <View style={styles.divider} />
+
+      <View>
+        <View style={styles.fieldHeader}>
+          <View style={styles.fieldLabelRow}>
+            <AppText variant="bold" style={styles.fieldLabel}>{lang === "th" ? "วัดผลโดย (MEASURED BY)" : "MEASURED BY"}</AppText>
+            <Pressable onPress={() => setShowMeasuredByHint(true)}>
+              <Ionicons name="help-circle-outline" size={18} color={CYAN45} />
+            </Pressable>
+          </View>
+          {renderFieldStatus(hasMeasuredBy)}
+        </View>
+        <AppText style={styles.fieldHint}>{lang === "th" ? "เกณฑ์ที่สังเกตได้" : "Observable threshold"}</AppText>
+        <Pressable
+          style={styles.templateToggle}
+          onPress={() => setShowTemplates(showTemplates === "measured" ? null : "measured")}
+        >
+          <AppText style={styles.templateToggleText}>
+            {showTemplates === "measured"
+              ? (lang === "th" ? "ซ่อนแม่แบบ" : "Hide templates")
+              : (lang === "th" ? "แสดงแม่แบบ" : "Show templates")}
+          </AppText>
+          <Ionicons
+            name={showTemplates === "measured" ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={CYAN}
+          />
+        </Pressable>
+        {showTemplates === "measured" && (
+          <View style={styles.templateList}>
+            {MEASURED_BY_TEMPLATES.map((t) => (
+              <Pressable key={t} style={styles.templateItem} onPress={() => setMeasuredBy(t)}>
+                <AppText style={styles.templateText}>{t}</AppText>
+              </Pressable>
+            ))}
+          </View>
+        )}
+        <TextInput
+          style={styles.input}
+          placeholder={lang === "th" ? "เกณฑ์..." : "Threshold..."}
+          placeholderTextColor={WHITE28}
+          value={measuredBy}
+          onChangeText={setMeasuredBy}
+        />
+      </View>
+
+      {canCheckAI && (
+        <View style={styles.previewBlock}>
+          <AppText variant="bold" style={styles.previewTitle}>
+            {lang === "th" ? "Hypothesis ฉบับเต็ม" : "Full Hypothesis"}
+          </AppText>
+          <AppText style={styles.previewText}>
+            {who} will {willDo} because {because} measured by {measuredBy}
+          </AppText>
+        </View>
+      )}
+
+      <Pressable
+        style={[styles.aiCheckButton, !canCheckAI && styles.aiCheckButtonDisabled]}
+        onPress={handleCheckAI}
+        disabled={!canCheckAI || checkingAI}
+      >
+        {checkingAI ? (
+          <ActivityIndicator size="small" color={BG} />
+        ) : (
+          <View style={styles.aiCheckRow}>
+            <Ionicons name="sparkles" size={18} color={BG} />
+            <AppText variant="bold" style={styles.aiCheckButtonText}>
+              {lang === "th" ? "ตรวจสอบกับ AI" : "Check with AI"}
+            </AppText>
+          </View>
+        )}
+      </Pressable>
+
+      {score !== null && (
+        <View>
+          <View style={styles.scoreHeader}>
+            <AppText variant="bold" style={[styles.scoreValue, { color: getScoreColor(score) }]}>
+              {score}/100
+            </AppText>
+            <AppText style={styles.scoreLabel}>
+              {passedGate
+                ? (lang === "th" ? "ผ่าน! สามารถส่งได้" : "Passed! Ready to submit")
+                : (lang === "th" ? "ต้องแก้ไขก่อนส่ง (ต้อง ≥80)" : "Needs fix before submit (need ≥80)")
+              }
+            </AppText>
+          </View>
+          {breakdown && (
+            <View style={styles.breakdownRow}>
+              <View style={styles.breakdownItem}>
+                <AppText style={styles.breakdownLabel}>WHO</AppText>
+                <AppText style={[styles.breakdownValue, { color: getScoreColor(breakdown.who) }]}>
+                  {breakdown.who}
+                </AppText>
+              </View>
+              <View style={styles.breakdownItem}>
+                <AppText style={styles.breakdownLabel}>WILL DO</AppText>
+                <AppText style={[styles.breakdownValue, { color: getScoreColor(breakdown.will_do) }]}>
+                  {breakdown.will_do}
+                </AppText>
+              </View>
+              <View style={styles.breakdownItem}>
+                <AppText style={styles.breakdownLabel}>BECAUSE</AppText>
+                <AppText style={[styles.breakdownValue, { color: getScoreColor(breakdown.because) }]}>
+                  {breakdown.because}
+                </AppText>
+              </View>
+              <View style={styles.breakdownItem}>
+                <AppText style={styles.breakdownLabel}>MEASURED BY</AppText>
+                <AppText style={[styles.breakdownValue, { color: getScoreColor(breakdown.measured_by) }]}>
+                  {breakdown.measured_by}
+                </AppText>
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
+      <Pressable
+        style={[styles.submitButton, (!canCheckAI || !passedGate) && styles.submitButtonDisabled]}
+        onPress={handleSubmit}
+        disabled={!canCheckAI || !passedGate}
+      >
+        <AppText variant="bold" style={styles.submitButtonText}>
+          {lang === "th" ? "ส่ง Hypothesis" : "Submit Hypothesis"}
+        </AppText>
+      </Pressable>
+
+      {aiFeedback && (
+        <View style={styles.aiFeedback}>
+          <View style={styles.aiHeader}>
+            <Ionicons name="sparkles" size={16} color={CYAN} />
+            <AppText variant="bold" style={styles.aiTitle}>{lang === "th" ? "โค้ช AI" : "AI Coach"}</AppText>
+          </View>
+          {aiFeedback.flags.map((flag: any, i: number) => (
+            <View key={i} style={styles.aiFlag}>
+              <Ionicons
+                name={
+                  flag.severity === "blocking"
+                    ? "close-circle"
+                    : flag.severity === "warning"
+                    ? "warning"
+                    : "information-circle"
+                }
+                size={16}
+                color={
+                  flag.severity === "blocking"
+                    ? RED
+                    : flag.severity === "warning"
+                    ? ORANGE
+                    : CYAN
+                }
+              />
+              <View style={styles.aiFlagContent}>
+                <AppText style={styles.aiFlagText}>{flag.message}</AppText>
+                <AppText style={styles.aiFlagSuggestion}>{flag.suggestion}</AppText>
+              </View>
+            </View>
+          ))}
+          {aiFeedback.response && (
+            <AppText style={styles.aiResponse}>{aiFeedback.response}</AppText>
+          )}
+        </View>
+      )}
+
+      {showWhoHint && (
+        <View style={styles.hintOverlay}>
+          <View style={styles.hintCard}>
+            <View style={styles.hintHeader}>
+              <AppText variant="bold" style={styles.hintTitle}>
+                {lang === "th" ? "ใคร (WHO) คืออะไร?" : "What is WHO?"}
+              </AppText>
+              <Pressable onPress={() => setShowWhoHint(false)}>
+                <Ionicons name="close" size={20} color={WHITE55} />
+              </Pressable>
+            </View>
+            <AppText style={styles.hintBody}>
+              {lang === "th"
+                ? "ระบุกลุ่มผู้ใช้ที่เฉพาะเจาะจง ไม่ใช่ 'users' ทั่วไป\n\nตัวอย่างที่ดี:\n• พยาบาลวิชาชีพในแผนกผู้ป่วยนอก\n• ผู้ป่วยโรคเบาหวานอายุ 40-60 ปี\n• แพทย์ผู้เชี่ยวชาญด้านจักษุ\n\nตัวอย่างที่ไม่ดี:\n• users (ทั่วไปเกินไป)\n• คนทุกคน (ไม่เฉพาะเจาะจง)\n• ผู้ป่วย (กว้างเกินไป)"
+                : "Name a specific user group, not 'users' in general.\n\nGood examples:\n• Registered nurses in outpatient departments\n• Diabetic patients aged 40-60\n• Ophthalmology specialists\n\nBad examples:\n• users (too vague)\n• everyone (not specific)\n• patients (too broad)"}
+            </AppText>
+          </View>
+        </View>
+      )}
+
+      {showBecauseHint && (
+        <View style={styles.hintOverlay}>
+          <View style={styles.hintCard}>
+            <View style={styles.hintHeader}>
+              <AppText variant="bold" style={styles.hintTitle}>
+                {lang === "th" ? "เพราะ (BECAUSE) ต้องมีหลักฐาน" : "BECAUSE needs evidence"}
+              </AppText>
+              <Pressable onPress={() => setShowBecauseHint(false)}>
+                <Ionicons name="close" size={20} color={WHITE55} />
+              </Pressable>
+            </View>
+            <AppText style={styles.hintBody}>
+              {lang === "th"
+                ? "อย่าเขียนความรู้สึกที่คุณคาดเดา เช่น 'พวกเขากังวล' หรือ 'พวกเขาอยากได้'\n\nให้เขียนหลักฐานที่คุณเห็นหรือได้ยินจากผู้ใช้จริง\n\nตัวอย่างที่ดี (สุขภาพ):\n• 4 ใน 5 ผู้ป่วยเบาหวานบอกว่า 'ลืมตรวจน้ำตาลบ่อย'\n• พยาบาลใช้เวลาเฉลี่ย 15 นาทีค้นหาประวัติผู้ป่วยเก่า\n• 3 ใน 10 แพทย์เคยสั่งยาผิดเพราะไม่เห็นประวัติแพ้ยา\n\nตัวอย่างที่ไม่ดี:\n• พวกเขากังวล (คุณรู้ได้ไง?)\n• พวกเขาอยากได้แอป (คาดเดา)\n• ตลาดมีความต้องการสูง (ไม่เฉพาะเจาะจง)"
+                : "Don't write feelings you guess, like 'they are worried' or 'they want'.\n\nWrite evidence you saw or heard from real users.\n\nGood examples (healthcare):\n• 4 of 5 diabetic patients said they 'often forget to check blood sugar'\n• Nurses spent average 15 minutes searching old patient records\n• 3 in 10 doctors had prescribed wrong drug because allergy history was missing\n\nBad examples:\n• they are worried (how do you know?)\n• they want an app (assumption)\n• market demand is high (not specific)"}
+            </AppText>
+          </View>
+        </View>
+      )}
+
+      {showWillDoHint && (
+        <View style={styles.hintOverlay}>
+          <View style={styles.hintCard}>
+            <View style={styles.hintHeader}>
+              <AppText variant="bold" style={styles.hintTitle}>
+                {lang === "th" ? "จะทำ (WILL DO) ต้องสังเกตได้" : "WILL DO must be observable"}
+              </AppText>
+              <Pressable onPress={() => setShowWillDoHint(false)}>
+                <Ionicons name="close" size={20} color={WHITE55} />
+              </Pressable>
+            </View>
+            <AppText style={styles.hintBody}>
+              {lang === "th"
+                ? "เขียนการกระทำที่คุณสามารถเห็นหรือวัดได้จริง ไม่ใช่ความรู้สึก\n\nตัวอย่างที่ดี (สุขภาพ):\n• กรอกค่าน้ำตาลในแอปทุกวันเวลา 8:00 โดยไม่ต้องเตือน\n• ข้ามการจดบันทึกกระดาษ แล้วใช้แอปบันทึกแทน\n• ส่งผลตรวจให้พยาบาลผ่านแอปภายใน 2 ชั่วโมง\n• แชร์ลิงก์นัดหมายให้ญาติผ่าน LINE\n\nตัวอย่างที่ไม่ดี:\n• รู้สึกดีขึ้น (วัดไม่ได้)\n• สนใจแอป (ไม่ชัดเจน)\n• ใช้บ่อยขึ้น (กำกวม)"
+                : "Write an action you can actually see or measure, not a feeling.\n\nGood examples (healthcare):\n• Log blood sugar in the app daily at 8am without reminder\n• Skip paper records and use the app instead\n• Send lab results to nurse through app within 2 hours\n• Share appointment link to family via LINE\n\nBad examples:\n• feel better (not measurable)\n• interested in app (not clear)\n• use it more often (ambiguous)"}
+            </AppText>
+          </View>
+        </View>
+      )}
+
+      {showMeasuredByHint && (
+        <View style={styles.hintOverlay}>
+          <View style={styles.hintCard}>
+            <View style={styles.hintHeader}>
+              <AppText variant="bold" style={styles.hintTitle}>
+                {lang === "th" ? "วัดผลโดย (MEASURED BY) ต้องเป็นตัวเลข" : "MEASURED BY must be a number"}
+              </AppText>
+              <Pressable onPress={() => setShowMeasuredByHint(false)}>
+                <Ionicons name="close" size={20} color={WHITE55} />
+              </Pressable>
+            </View>
+            <AppText style={styles.hintBody}>
+              {lang === "th"
+                ? "ตั้งเกณฑ์ที่ชัดเจน มีตัวเลข และทดสอบได้ใน 1-2 สัปดาห์\n\nตัวอย่างที่ดี (สุขภาพ):\n• 6 ใน 10 พยาบาลจะบันทึกประวัติผู้ป่วยผ่านแอปภายใน 3 นาที\n• 70% ของผู้ป่วยเบาหวานจะกรอกค่าน้ำตาลครบ 7 วันติดต่อกัน\n• เวลาค้นหาประวัติผู้ป่วยจะลดจาก 15 นาที เหลือน้อยกว่า 2 นาที\n• ข้อผิดพลาดในการสั่งยาจะลดลงจาก 3% เหลือน้อยกว่า 1%\n\nตัวอย่างที่ไม่ดี:\n• คนส่วนใหญ่ชอบ (ไม่มีตัวเลข)\n• ใช้งานง่าย (วัดยาก)\n• ประสิทธิภาพดีขึ้น (กำกวม)"
+                : "Set a clear threshold with a number, testable in 1-2 weeks.\n\nGood examples (healthcare):\n• 6 of 10 nurses will record patient history in app within 3 minutes\n• 70% of diabetic patients will log blood sugar for 7 consecutive days\n• Time to find patient records will drop from 15 min to under 2 min\n• Prescription errors will drop from 3% to under 1%\n\nBad examples:\n• most people like it (no number)\n• easy to use (hard to measure)\n• efficiency improves (ambiguous)"}
+            </AppText>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
-  card: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    padding: 20,
-    margin: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
+  content: {
+    paddingVertical: 16,
+    gap: 20,
   },
-  title: { color: WHITE, fontSize: 22, marginBottom: 4 },
-  subtitle: { color: WHITE55, fontSize: 14, marginBottom: 20 },
-  fieldGroup: { marginBottom: 20 },
+  title: { color: WHITE, fontSize: 20, marginBottom: 2 },
+  subtitle: { color: WHITE55, fontSize: 14, marginBottom: 4 },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(74,107,130,0.2)",
+  },
   fieldHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 4,
   },
-  fieldLabel: { color: CYAN, fontSize: 16 },
+  fieldLabel: { color: CYAN, fontSize: 14 },
   fieldHint: { color: WHITE55, fontSize: 12, marginBottom: 8 },
   dropdownContainer: { gap: 8 },
   chip: {
@@ -354,7 +591,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: "rgba(74,107,130,0.25)",
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: WHITE,
@@ -387,24 +624,50 @@ const styles = StyleSheet.create({
   templateText: { color: WHITE75, fontSize: 13 },
   evidenceList: { gap: 8, marginBottom: 10 },
   evidenceItem: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 12,
     padding: 12,
     borderLeftWidth: 3,
     borderLeftColor: CYAN45,
   },
   evidenceQuote: { color: WHITE75, fontSize: 13, fontStyle: "italic" },
   evidenceSource: { color: WHITE55, fontSize: 11, marginTop: 4 },
-  previewCard: {
-    backgroundColor: CYAN20,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: CYAN45,
+  previewBlock: {
+    borderLeftWidth: 3,
+    borderLeftColor: CYAN,
+    paddingLeft: 12,
   },
   previewTitle: { color: CYAN, fontSize: 14, marginBottom: 8 },
   previewText: { color: WHITE, fontSize: 14, lineHeight: 20 },
+  aiCheckButton: {
+    backgroundColor: "#6B8E9F",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  aiCheckButtonDisabled: { backgroundColor: CYAN20, opacity: 0.5 },
+  aiCheckRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  aiCheckButtonText: { color: BG, fontSize: 16 },
+  scoreHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  scoreValue: { fontSize: 28 },
+  scoreLabel: { color: WHITE75, fontSize: 14 },
+  breakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  breakdownItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  breakdownLabel: { color: WHITE55, fontSize: 11, marginBottom: 4 },
+  breakdownValue: { fontSize: 18 },
   submitButton: {
     backgroundColor: CYAN,
     borderRadius: 12,
@@ -413,13 +676,10 @@ const styles = StyleSheet.create({
   },
   submitButtonDisabled: { backgroundColor: CYAN20, opacity: 0.5 },
   submitButtonText: { color: BG, fontSize: 16 },
-  aiFeedbackCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: CYAN45,
+  aiFeedback: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74,107,130,0.2)",
   },
   aiHeader: {
     flexDirection: "row",
@@ -434,6 +694,71 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 6,
   },
-  aiFlagText: { color: WHITE75, fontSize: 13, flex: 1 },
+  aiFlagContent: { flex: 1 },
+  aiFlagText: { color: WHITE75, fontSize: 13 },
+  aiFlagSuggestion: { color: WHITE55, fontSize: 12, marginTop: 2 },
   aiResponse: { color: WHITE75, fontSize: 13, marginTop: 8, lineHeight: 18 },
+  fieldLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  hintOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(3,5,10,0.85)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+    padding: 24,
+  },
+  hintCard: {
+    backgroundColor: "rgba(13,18,25,0.95)",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: CYAN45,
+    width: "100%",
+    maxWidth: 400,
+  },
+  hintHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  hintTitle: { color: WHITE, fontSize: 18 },
+  hintBody: { color: WHITE75, fontSize: 13, lineHeight: 20 },
+  submittedView: {
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(78,205,196,0.3)",
+    borderRadius: 12,
+  },
+  submittedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  submittedTitle: { color: GREEN, fontSize: 16 },
+  submittedBody: { gap: 10 },
+  submittedRow: { gap: 2 },
+  submittedLabel: { color: WHITE55, fontSize: 11, textTransform: "uppercase" },
+  submittedValue: { color: WHITE, fontSize: 14, lineHeight: 20 },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: CYAN20,
+    alignSelf: "flex-start",
+  },
+  editButtonText: { color: CYAN, fontSize: 13 },
 });

@@ -11,14 +11,13 @@ import { Ionicons } from "@expo/vector-icons";
 import type {
   AICoachResponse,
   HackathonPhase3SynthesisResult,
+  HackathonPhase3TestSession,
 } from "../../types/hackathon-phase3";
 
 const BG = "#03050a";
-const CARD_BG = "rgba(13,18,25,0.95)";
 const CYAN = "#91C4E3";
 const CYAN45 = "rgba(145,196,227,0.45)";
 const CYAN20 = "rgba(145,196,227,0.20)";
-const BORDER = "rgba(74,107,130,0.35)";
 const WHITE = "#FFFFFF";
 const WHITE75 = "rgba(255,255,255,0.75)";
 const WHITE55 = "rgba(255,255,255,0.55)";
@@ -30,22 +29,24 @@ interface SynthesisGateProps {
   cycleId: string;
   hypothesis: string;
   hypothesisResult: HackathonPhase3SynthesisResult | null;
-  testResults: Array<{ interval: string; action: string }>;
+  testSessions: HackathonPhase3TestSession[];
   priorCycleVariable?: string | null;
   onGateDecision: (decision: "refine" | "proceed" | "kill", data: {
     whatChanged: string;
     nextVariable?: string;
   }) => void;
   aiFeedback?: AICoachResponse | null;
+  lang?: "th" | "en";
 }
 
 export default function SynthesisGate({
   hypothesis,
   hypothesisResult,
-  testResults,
+  testSessions,
   priorCycleVariable,
   onGateDecision,
   aiFeedback,
+  lang = "th",
 }: SynthesisGateProps) {
   const [whatChanged, setWhatChanged] = useState("");
   const [nextVariable, setNextVariable] = useState("");
@@ -72,24 +73,34 @@ export default function SynthesisGate({
       : YELLOW;
 
   const resultLabel =
-    hypothesisResult === "confirmed"
+    lang === "th"
+      ? hypothesisResult === "confirmed"
+        ? "ยืนยัน"
+        : hypothesisResult === "killed"
+        ? "ไม่ผ่าน"
+        : "ไม่ชัดเจน"
+      : hypothesisResult === "confirmed"
       ? "Confirmed"
       : hypothesisResult === "killed"
-      ? "Killed"
+      ? "Kill"
       : "Unclear";
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.card}>
-        <AppText variant="bold" style={styles.title}>
-          Step 4: Synthesize + Choose Gate
-        </AppText>
-        <AppText style={styles.subtitle}>Honest synthesis. Make a decision.</AppText>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      <AppText variant="bold" style={styles.title}>
+        {lang === "th" ? "ขั้นตอนที่ 4: สังเคราะห์ + เลือก Gate" : "Step 4: Synthesize + Choose Gate"}
+      </AppText>
+      <AppText style={styles.subtitle}>{lang === "th" ? "สังเคราะห์อย่างตรงไปตรงมา ตัดสินใจ" : "Honest synthesis. Make a decision."}</AppText>
 
-        {/* Hypothesis Review */}
-        <View style={styles.reviewCard}>
-          <AppText variant="bold" style={styles.reviewTitle}>Hypothesis Review</AppText>
-          <AppText style={styles.reviewHypothesis}>{hypothesis}</AppText>
+      <View style={styles.divider} />
+
+        <View>
+          <AppText style={styles.sectionLabel}>{lang === "th" ? "ทบทวน Hypothesis" : "Hypothesis Review"}</AppText>
+          <AppText style={styles.hypothesisText}>{hypothesis}</AppText>
           <View style={[styles.resultBadge, { borderColor: resultColor }]}>
             <Ionicons
               name={
@@ -102,29 +113,65 @@ export default function SynthesisGate({
               size={18}
               color={resultColor}
             />
-            <AppText style={[styles.resultText, { color: resultColor }]}>
+            <AppText style={[styles.resultBadgeText, { color: resultColor }]}>
               {resultLabel}
             </AppText>
           </View>
         </View>
 
-        {/* Key Behaviors */}
-        <View style={styles.behaviorCard}>
-          <AppText variant="bold" style={styles.sectionLabel}>Key Behaviors Observed</AppText>
-          {testResults.slice(0, 4).map((r, i) => (
-            <View key={i} style={styles.behaviorItem}>
-              <AppText style={styles.behaviorInterval}>{r.interval}</AppText>
-              <AppText style={styles.behaviorAction}>{r.action}</AppText>
+        <View style={styles.divider} />
+
+        <View>
+          <AppText variant="bold" style={styles.sectionLabel}>
+            {lang === "th" ? "ผลการทดสอบ" : "Test Results"}
+          </AppText>
+          {testSessions.length === 0 && (
+            <AppText style={styles.mutedText}>
+              {lang === "th" ? "ยังไม่มีข้อมูลการทดสอบ" : "No test data yet"}
+            </AppText>
+          )}
+          {testSessions.slice(0, 4).map((session, i) => (
+            <View key={session.id ?? i} style={styles.testerRow}>
+              <View style={styles.testerHeader}>
+                <AppText style={styles.testerName}>{session.tester_name}</AppText>
+                <AppText
+                  style={[
+                    styles.testerResult,
+                    session.session_result === "confirmed" && { color: GREEN },
+                    session.session_result === "killed" && { color: RED },
+                    session.session_result === "unclear" && { color: YELLOW },
+                  ]}
+                >
+                  {session.session_result
+                    ? session.session_result === "confirmed"
+                      ? "ยืนยัน"
+                      : session.session_result === "killed"
+                      ? "ไม่ผ่าน"
+                      : "ไม่ชัดเจน"
+                    : "-"}
+                </AppText>
+              </View>
+              <AppText style={styles.testerNote}>
+                {session.painful_detail ?? session.behavior_log?.[0]?.action ?? ""}
+              </AppText>
             </View>
           ))}
+          {testSessions.length > 4 && (
+            <AppText style={styles.mutedText}>
+              {lang === "th"
+                ? `+${testSessions.length - 4} ผู้ทดสอบอื่น`
+                : `+${testSessions.length - 4} more testers`}
+            </AppText>
+          )}
         </View>
 
-        {/* What Changed */}
-        <View style={styles.fieldGroup}>
-          <AppText variant="bold" style={styles.sectionLabel}>What Changed About Our Understanding? *</AppText>
+        <View style={styles.divider} />
+
+        <View>
+          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "อะไรเปลี่ยนในการเข้าใจของเรา? *" : "What Changed About Our Understanding? *"}</AppText>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="What did this cycle reveal?"
+            placeholder={lang === "th" ? "Cycle นี้เผยอะไร?" : "What did this cycle reveal?"}
             placeholderTextColor={WHITE55}
             value={whatChanged}
             onChangeText={setWhatChanged}
@@ -132,33 +179,38 @@ export default function SynthesisGate({
           />
         </View>
 
-        {/* Compare to Prior */}
         {priorCycleVariable && (
-          <View style={styles.compareCard}>
-            <AppText variant="bold" style={styles.sectionLabel}>Compare to Prior Cycle</AppText>
-            <AppText style={styles.compareText}>
-              Prior variable: {priorCycleVariable}
+          <View>
+            <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "เปรียบเทียบกับ Cycle ก่อน" : "Compare to Prior Cycle"}</AppText>
+            <AppText style={styles.mutedText}>
+              {lang === "th" ? "ตัวแปรก่อนหน้า: " : "Prior variable: "}{priorCycleVariable}
             </AppText>
           </View>
         )}
 
-        {/* Next Variable (if Refine) */}
-        <View style={styles.fieldGroup}>
-          <AppText variant="bold" style={styles.sectionLabel}>ONE Variable to Change Next Cycle</AppText>
+        <View>
+          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "1 ตัวแปรที่จะเปลี่ยนใน Cycle ถัดไป" : "ONE Variable to Change Next Cycle"}</AppText>
           <TextInput
             style={styles.input}
-            placeholder="If refining, what ONE thing will you change?"
+            placeholder={lang === "th" ? "ถ้าปรับแต่ง สิ่งเดียวที่จะเปลี่ยนคืออะไร?" : "If refining, what ONE thing will you change?"}
             placeholderTextColor={WHITE55}
             value={nextVariable}
             onChangeText={setNextVariable}
           />
         </View>
 
-        {/* Scorecard Preview */}
-        <View style={styles.scorecard}>
-          <AppText variant="bold" style={styles.scorecardTitle}>Cycle Scorecard</AppText>
+        <View style={styles.divider} />
+
+        <View>
+          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "คะแนน Cycle" : "Cycle Scorecard"}</AppText>
           <View style={styles.scoreRow}>
-            {["Hypothesis", "Variable", "Behavior", "Freshness", "Synthesis"].map(
+            {[
+              lang === "th" ? "สมมติฐาน" : "Hypothesis",
+              lang === "th" ? "ตัวแปร" : "Variable",
+              lang === "th" ? "พฤติกรรม" : "Behavior",
+              lang === "th" ? "ความสดใหม่" : "Freshness",
+              lang === "th" ? "สังเคราะห์" : "Synthesis",
+            ].map(
               (label) => (
                 <View key={label} style={styles.scoreItem}>
                   <AppText style={styles.scoreLabel}>{label}</AppText>
@@ -171,9 +223,10 @@ export default function SynthesisGate({
           </View>
         </View>
 
-        {/* Gate Decision */}
-        <View style={styles.gateSection}>
-          <AppText variant="bold" style={styles.gateTitle}>Choose Gate</AppText>
+        <View style={styles.divider} />
+
+        <View>
+          <AppText variant="bold" style={styles.gateTitle}>{lang === "th" ? "เลือก Gate" : "Choose Gate"}</AppText>
           <View style={styles.gateRow}>
             <Pressable
               style={[
@@ -187,8 +240,8 @@ export default function SynthesisGate({
               }}
             >
               <Ionicons name="refresh" size={20} color={CYAN} />
-              <AppText variant="bold" style={styles.gateButtonText}>Refine</AppText>
-              <AppText style={styles.gateSubtext}>Start new cycle</AppText>
+              <AppText variant="bold" style={styles.gateButtonText}>{lang === "th" ? "ปรับแต่ง" : "Refine"}</AppText>
+              <AppText style={styles.gateSubtext}>{lang === "th" ? "เริ่ม Cycle ใหม่" : "Start new cycle"}</AppText>
             </Pressable>
 
             <Pressable
@@ -203,8 +256,8 @@ export default function SynthesisGate({
               }}
             >
               <Ionicons name="arrow-forward" size={20} color={GREEN} />
-              <AppText variant="bold" style={styles.gateButtonText}>Proceed</AppText>
-              <AppText style={styles.gateSubtext}>To Round 1 video</AppText>
+              <AppText variant="bold" style={styles.gateButtonText}>{lang === "th" ? "ดำเนินการ" : "Proceed"}</AppText>
+              <AppText style={styles.gateSubtext}>{lang === "th" ? "ไปยังวิดีโอรอบ 1" : "To Round 1 video"}</AppText>
             </Pressable>
 
             <Pressable
@@ -219,18 +272,17 @@ export default function SynthesisGate({
               }}
             >
               <Ionicons name="close" size={20} color={RED} />
-              <AppText variant="bold" style={styles.gateButtonText}>Kill</AppText>
-              <AppText style={styles.gateSubtext}>Exit workspace</AppText>
+              <AppText variant="bold" style={styles.gateButtonText}>{lang === "th" ? "ไม่ผ่าน" : "Kill"}</AppText>
+              <AppText style={styles.gateSubtext}>{lang === "th" ? "ออกจาก workspace" : "Exit workspace"}</AppText>
             </Pressable>
           </View>
         </View>
 
-        {/* AI Feedback */}
         {aiFeedback && (
-          <View style={styles.aiFeedbackCard}>
+          <View style={styles.aiFeedback}>
             <View style={styles.aiHeader}>
               <Ionicons name="sparkles" size={16} color={CYAN} />
-              <AppText variant="bold" style={styles.aiTitle}>AI Coach</AppText>
+              <AppText variant="bold" style={styles.aiTitle}>{lang === "th" ? "โค้ช AI" : "AI Coach"}</AppText>
             </View>
             {aiFeedback.flags.map((flag: any, i: number) => (
               <View key={i} style={styles.aiFlag}>
@@ -254,33 +306,26 @@ export default function SynthesisGate({
                 <AppText style={styles.aiFlagText}>{flag.message}</AppText>
               </View>
             ))}
-          </View>
-        )}
-      </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
-  card: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    padding: 20,
-    margin: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
+  content: {
+    paddingVertical: 16,
+    gap: 20,
   },
-  title: { color: WHITE, fontSize: 22, marginBottom: 4 },
-  subtitle: { color: WHITE55, fontSize: 14, marginBottom: 20 },
-  reviewCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+  title: { color: WHITE, fontSize: 20, marginBottom: 2 },
+  subtitle: { color: WHITE55, fontSize: 14 },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(74,107,130,0.2)",
   },
-  reviewTitle: { color: CYAN, fontSize: 14, marginBottom: 8 },
-  reviewHypothesis: { color: WHITE, fontSize: 14, lineHeight: 20, marginBottom: 10 },
+  sectionLabel: { color: CYAN, fontSize: 14, marginBottom: 10 },
+  hypothesisText: { color: WHITE75, fontSize: 14, lineHeight: 20, marginBottom: 10 },
   resultBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -291,27 +336,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  resultText: { fontSize: 14 },
-  behaviorCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+  resultBadgeText: { fontSize: 14 },
+  mutedText: { color: WHITE55, fontSize: 13 },
+  testerRow: {
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74,107,130,0.15)",
+    paddingBottom: 8,
   },
-  sectionLabel: { color: CYAN, fontSize: 16, marginBottom: 10 },
-  behaviorItem: {
+  testerHeader: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 6,
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
   },
-  behaviorInterval: { color: WHITE55, fontSize: 11, width: 60 },
-  behaviorAction: { color: WHITE75, fontSize: 13, flex: 1 },
-  fieldGroup: { marginBottom: 20 },
+  testerName: { color: WHITE, fontSize: 14, fontWeight: "700" },
+  testerResult: { fontSize: 12, fontWeight: "600" },
+  testerNote: { color: WHITE75, fontSize: 13, lineHeight: 18 },
   input: {
     backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: "rgba(74,107,130,0.25)",
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: WHITE,
@@ -322,20 +368,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     textAlignVertical: "top",
   },
-  compareCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-  },
-  compareText: { color: WHITE75, fontSize: 13 },
-  scorecard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  scorecardTitle: { color: CYAN, fontSize: 14, marginBottom: 12 },
   scoreRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -353,7 +385,6 @@ const styles = StyleSheet.create({
     backgroundColor: CYAN,
     borderRadius: 3,
   },
-  gateSection: { marginTop: 10 },
   gateTitle: { color: WHITE, fontSize: 18, marginBottom: 12 },
   gateRow: {
     flexDirection: "row",
@@ -394,13 +425,10 @@ const styles = StyleSheet.create({
   },
   gateButtonText: { color: WHITE, fontSize: 14 },
   gateSubtext: { color: WHITE55, fontSize: 11 },
-  aiFeedbackCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: CYAN45,
+  aiFeedback: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74,107,130,0.2)",
   },
   aiHeader: {
     flexDirection: "row",

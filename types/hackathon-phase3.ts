@@ -146,6 +146,13 @@ export interface AICoachResponse {
   flags: AICoachFlag[];
   response: string;
   linked_module?: string;
+  score?: number | null;
+  breakdown?: {
+    who: number;
+    will_do: number;
+    because: number;
+    measured_by: number;
+  } | null;
 }
 
 export interface AICoachFlag {
@@ -351,6 +358,7 @@ export interface Phase3WorkspaceStep {
   content: Phase3StepContent[];
   assessments: Phase3StepAssessment[];
   aiFeedback: AICoachResponse | null;
+  submissionData?: Record<string, unknown> | null;
 }
 
 export interface Phase3StepContent {

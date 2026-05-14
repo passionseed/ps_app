@@ -2,14 +2,12 @@ import React from "react";
 import { StyleSheet, View, ScrollView, Pressable } from "react-native";
 import { AppText } from "../../AppText";
 import { Ionicons } from "@expo/vector-icons";
-import type { Phase3CycleTrackerEntry } from "../../types/hackathon-phase3";
+import type { Phase3CycleTrackerEntry } from "../../../types/hackathon-phase3";
 
 const BG = "#03050a";
-const CARD_BG = "rgba(13,18,25,0.95)";
 const CYAN = "#91C4E3";
 const CYAN45 = "rgba(145,196,227,0.45)";
 const CYAN20 = "rgba(145,196,227,0.20)";
-const BORDER = "rgba(74,107,130,0.35)";
 const WHITE = "#FFFFFF";
 const WHITE75 = "rgba(255,255,255,0.75)";
 const WHITE55 = "rgba(255,255,255,0.55)";
@@ -21,18 +19,31 @@ interface HypothesisTrackerProps {
   cycles: Phase3CycleTrackerEntry[];
   activeCycleNumber?: number;
   onCyclePress?: (cycleNumber: number) => void;
+  lang?: "th" | "en";
+  compact?: boolean;
 }
 
 export default function HypothesisTracker({
   cycles,
   activeCycleNumber,
   onCyclePress,
+  lang = "th",
+  compact = false,
 }: HypothesisTrackerProps) {
+  const resultLabel = (r: string) => {
+    if (lang === "th") {
+      return r === "confirmed" ? "ยืนยัน" : r === "killed" ? "ไม่ผ่าน" : "ไม่ชัดเจน";
+    }
+    return r;
+  };
+
   return (
-    <View style={styles.container}>
-      <AppText variant="bold" style={styles.title}>
-        Hypothesis Evolution
-      </AppText>
+    <View style={[styles.container, compact && styles.containerCompact]}>
+      {!compact && (
+        <AppText variant="bold" style={styles.title}>
+          {lang === "th" ? "การพัฒนา Hypothesis" : "Hypothesis Evolution"}
+        </AppText>
+      )}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -46,6 +57,7 @@ export default function HypothesisTracker({
               key={cycle.cycleNumber}
               style={[
                 styles.cycleCard,
+                compact && styles.cycleCardCompact,
                 isActive && styles.cycleCardActive,
               ]}
               onPress={() => onCyclePress?.(cycle.cycleNumber)}
@@ -65,7 +77,7 @@ export default function HypothesisTracker({
 
               {/* Hypothesis */}
               <AppText style={styles.hypothesis} numberOfLines={2}>
-                {cycle.hypothesis || "No hypothesis"}
+                {cycle.hypothesis || (lang === "th" ? "ยังไม่มี hypothesis" : "No hypothesis")}
               </AppText>
 
               {/* Result */}
@@ -113,7 +125,7 @@ export default function HypothesisTracker({
                       },
                     ]}
                   >
-                    {cycle.result}
+                    {resultLabel(cycle.result)}
                   </AppText>
                 </View>
               )}
@@ -135,7 +147,7 @@ export default function HypothesisTracker({
               {/* Status indicator for active */}
               {isActive && (
                 <View style={styles.activeIndicator}>
-                  <AppText style={styles.activeText}>Active</AppText>
+                  <AppText style={styles.activeText}>{lang === "th" ? "กำลังทำ" : "Active"}</AppText>
                 </View>
               )}
             </Pressable>
@@ -148,13 +160,13 @@ export default function HypothesisTracker({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
+  },
+  containerCompact: {
+    padding: 10,
+    marginBottom: 8,
   },
   title: { color: WHITE, fontSize: 16, marginBottom: 12 },
   scrollContent: {
@@ -163,12 +175,16 @@ const styles = StyleSheet.create({
   },
   cycleCard: {
     width: 200,
+    padding: 14,
+    position: "relative",
     backgroundColor: "rgba(255,255,255,0.03)",
     borderRadius: 12,
-    padding: 14,
     borderWidth: 1,
-    borderColor: BORDER,
-    position: "relative",
+    borderColor: "rgba(74,107,130,0.25)",
+  },
+  cycleCardCompact: {
+    width: 160,
+    padding: 10,
   },
   cycleCardActive: {
     borderColor: CYAN,
