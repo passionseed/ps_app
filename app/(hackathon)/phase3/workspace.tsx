@@ -32,6 +32,7 @@ import { supabase } from "../../../lib/supabase";
 import { readHackathonParticipant } from "../../../lib/hackathon-mode";
 import { requestAIMentorFeedback } from "../../../lib/hackathonAiPhase3";
 import { Space } from "../../../lib/theme";
+import { useAuth } from "../../../lib/auth";
 import type {
   Phase3Workspace,
   HackathonPhase3Cycle,
@@ -66,6 +67,7 @@ export default function Phase3WorkspaceScreen() {
   const [lang, setLang] = useState<"th" | "en">("th");
   const [manualStep, setManualStep] = useState<string | null>(null);
   const [dismissedHints, setDismissedHints] = useState<Set<string>>(new Set());
+  const { signOutHackathon } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
@@ -345,6 +347,12 @@ export default function Phase3WorkspaceScreen() {
         <AppText style={styles.loadingText}>
           {lang === "th" ? "กำลังโหลด workspace..." : "Loading workspace..."}
         </AppText>
+        <Pressable style={styles.logoutBtn} onPress={signOutHackathon}>
+          <Ionicons name="log-out-outline" size={16} color={WHITE55} />
+          <AppText style={styles.logoutBtnText}>
+            {lang === "th" ? "ออกจากระบบ" : "Sign Out"}
+          </AppText>
+        </Pressable>
       </View>
     );
   }
@@ -365,6 +373,12 @@ export default function Phase3WorkspaceScreen() {
         >
           <AppText variant="bold" style={styles.startButtonText}>
             {lang === "th" ? "ลองใหม่" : "Retry"}
+          </AppText>
+        </Pressable>
+        <Pressable style={[styles.logoutBtn, { marginTop: 16 }]} onPress={signOutHackathon}>
+          <Ionicons name="log-out-outline" size={16} color={WHITE55} />
+          <AppText style={styles.logoutBtnText}>
+            {lang === "th" ? "ออกจากระบบ" : "Sign Out"}
           </AppText>
         </Pressable>
       </View>
@@ -706,6 +720,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   startButtonText: { color: BG, fontSize: 16 },
+
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(74,107,130,0.3)",
+  },
+  logoutBtnText: { color: WHITE55, fontSize: 13 },
 
   langToggle: {
     flexDirection: "row",
