@@ -22,6 +22,10 @@ function isWebRuntime(): boolean {
   return Platform.OS === "web" || (typeof window !== "undefined" && typeof document !== "undefined");
 }
 
+function encodeB2FileName(fileName: string): string {
+  return fileName.split("/").map(encodeURIComponent).join("/");
+}
+
 async function readFetchableUriBytes(uri: string): Promise<Uint8Array> {
   const response = await fetch(uri);
   if (!response.ok) {
@@ -63,15 +67,40 @@ export interface BackblazeUploadResult {
   fileName: string;
 }
 
+function getExtensionFromMimeType(mimeType: string): string {
+  const map: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/heic": "heic",
+  };
+  return map[mimeType] || "jpg";
+}
+
+function ensureExtension(fileName: string, mimeType: string): string {
+  const ext = getExtensionFromMimeType(mimeType);
+  const hasExt = /\.(jpg|jpeg|png|webp|gif|heic)$/i.test(fileName);
+  return hasExt ? fileName : `${fileName}.${ext}`;
+}
+
 export async function uploadToBackblaze(
   uri: string,
   fileName: string,
-  mimeType: string
+  mimeType: string,
+  teamId?: string
 ): Promise<BackblazeUploadResult> {
   try {
+    console.log("[backblazeUpload] Starting upload...", { uri: uri.substring(0, 50) + "...", fileName, mimeType, teamId });
     const bytes = await readFileBytes(uri);
-    const uniqueFileName = `pretotype-${Date.now()}-${fileName}`;
+    console.log("[backblazeUpload] Read file bytes:", bytes.length, "bytes");
+    const safeFileName = ensureExtension(fileName, mimeType);
+    const pathPrefix = teamId ? `hackathon/phase-3/${teamId}/pretotype/` : "pretotype/";
+    const uniqueFileName = `${pathPrefix}pretotype-${Date.now()}-${safeFileName}`;
+    console.log("[backblazeUpload] Generated filename:", uniqueFileName);
 
+    console.log("[backblazeUpload] Requesting upload URL from edge function...");
     const urlResponse = await fetch(`${SUPABASE_URL}/functions/v1/b2-upload-url`, {
       method: "POST",
       headers: {
@@ -82,29 +111,36 @@ export async function uploadToBackblaze(
       body: JSON.stringify({}),
     });
 
+    console.log("[backblazeUpload] Upload URL response status:", urlResponse.status);
     if (!urlResponse.ok) {
       const errorData = await urlResponse.json().catch(() => ({ error: "Unknown error" }));
+      console.error("[backblazeUpload] Failed to get upload URL:", errorData);
       throw new Error(errorData.error || `Failed to get upload URL: ${urlResponse.status}`);
     }
 
     const { uploadUrl, authorizationToken } = await urlResponse.json();
+    console.log("[backblazeUpload] Got upload URL:", uploadUrl?.substring(0, 60) + "...");
 
     const arrayBuffer = new Uint8Array(bytes).buffer as ArrayBuffer;
 
+    console.log("[backblazeUpload] Uploading to B2 directly...");
     let response: Response;
     try {
       response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
           Authorization: authorizationToken,
-          "X-Bz-File-Name": encodeURIComponent(uniqueFileName),
+          "X-Bz-File-Name": encodeB2FileName(uniqueFileName),
           "Content-Type": mimeType,
           "X-Bz-Content-Sha1": "do_not_verify",
         },
         body: arrayBuffer,
       });
+      console.log("[backblazeUpload] B2 direct upload response:", response.status);
     } catch (e) {
+      console.log("[backblazeUpload] Direct upload failed, trying fallback...", e);
       if (!isWebRuntime()) throw e;
+      console.log("[backblazeUpload] Using edge function fallback upload...");
       const fallbackResponse = await fetch(`${SUPABASE_URL}/functions/v1/b2-upload`, {
         method: "POST",
         headers: {
@@ -113,41 +149,43 @@ export async function uploadToBackblaze(
           "apikey": SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
-          fileName,
+          fileName: uniqueFileName,
           mimeType,
           base64Data: bytesToBase64(bytes),
         }),
       });
 
+      console.log("[backblazeUpload] Fallback response:", fallbackResponse.status);
       if (!fallbackResponse.ok) {
         const errorData = await fallbackResponse.json().catch(() => ({ error: "Unknown error" }));
+        console.error("[backblazeUpload] Fallback failed:", errorData);
         throw new Error(errorData.error || `B2 Edge upload failed: ${fallbackResponse.status}`);
       }
 
-      return fallbackResponse.json();
+      const fallbackData = await fallbackResponse.json();
+      console.log("[backblazeUpload] Fallback success! URL:", fallbackData.url);
+      return fallbackData;
     }
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("[backblazeUpload] B2 upload failed:", response.status, errorText);
       throw new Error(`B2 upload failed: ${response.status} ${errorText}`);
     }
 
-    const B2_BUCKET = process.env.EXPO_PUBLIC_B2_BUCKET_NAME ?? "pseed-dev";
-    const CDN_DOMAIN = process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN ?? "cdn.passionseed.org";
-    const cdnUrl = `https://${CDN_DOMAIN}/file/${B2_BUCKET}/${encodeURIComponent(uniqueFileName)}`;
+    const cdnUrl = `https://cdn.passionseed.org/${uniqueFileName}`;
+    console.log("[backblazeUpload] Upload complete! CDN URL:", cdnUrl);
 
     return {
       url: cdnUrl,
       fileName: uniqueFileName,
     };
   } catch (e) {
-    console.error("Backblaze upload error:", e);
+    console.error("[backblazeUpload] Fatal error:", e);
     throw e;
   }
 }
 
 export function getBackblazePublicUrl(fileName: string): string {
-  const B2_BUCKET = process.env.EXPO_PUBLIC_B2_BUCKET_NAME ?? "pseed-dev";
-  const CDN_DOMAIN = process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN ?? "cdn.passionseed.org";
-  return `https://${CDN_DOMAIN}/file/${B2_BUCKET}/${encodeURIComponent(fileName)}`;
+  return `https://cdn.passionseed.org/${fileName}`;
 }

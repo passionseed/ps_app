@@ -13,7 +13,6 @@ function requiredEnv(name: string) {
 }
 
 const B2_BUCKET = Deno.env.get("B2_BUCKET_NAME")?.trim() || "pseed-dev";
-const CDN_DOMAIN = Deno.env.get("CLOUDFLARE_DOMAIN")?.trim() || "cdn.passionseed.org";
 
 interface B2Auth {
   authorizationToken: string;
@@ -105,7 +104,7 @@ serve(async (req) => {
     }
 
     const bytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-    const uniqueFileName = `pretotype-${Date.now()}-${fileName}`;
+    const uniqueFileName = fileName;
 
     const auth = await b2Authorize();
     const uploadUrl = await b2GetUploadUrl(auth);
@@ -114,7 +113,7 @@ serve(async (req) => {
       method: "POST",
       headers: {
         Authorization: uploadUrl.authorizationToken,
-        "X-Bz-File-Name": encodeURIComponent(uniqueFileName),
+        "X-Bz-File-Name": uniqueFileName.split("/").map(encodeURIComponent).join("/"),
         "Content-Type": mimeType || "application/octet-stream",
         "Content-Length": String(bytes.length),
         "X-Bz-Content-Sha1": "do_not_verify",
@@ -128,7 +127,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const cdnUrl = `https://${CDN_DOMAIN}/file/${B2_BUCKET}/${encodeURIComponent(uniqueFileName)}`;
+    const cdnUrl = `https://cdn.passionseed.org/${uniqueFileName}`;
 
     return new Response(
       JSON.stringify({

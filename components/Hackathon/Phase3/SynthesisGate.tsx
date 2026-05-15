@@ -92,14 +92,14 @@ export default function SynthesisGate({
       showsVerticalScrollIndicator={false}
     >
       <AppText variant="bold" style={styles.title}>
-        {lang === "th" ? "ขั้นตอนที่ 4: สังเคราะห์ + เลือก Gate" : "Step 4: Synthesize + Choose Gate"}
+        {lang === "th" ? "ขั้นตอนที่ 4: สรุปผล" : "Step 4: Synthesize + Choose Gate"}
       </AppText>
-      <AppText style={styles.subtitle}>{lang === "th" ? "สังเคราะห์อย่างตรงไปตรงมา ตัดสินใจ" : "Honest synthesis. Make a decision."}</AppText>
+      <AppText style={styles.subtitle}>{lang === "th" ? "วิเคราะห์ผลทดสอบแล้วตัดสินใจทิศทาง" : "Honest synthesis. Make a decision."}</AppText>
 
       <View style={styles.divider} />
 
         <View>
-          <AppText style={styles.sectionLabel}>{lang === "th" ? "ทบทวน Hypothesis" : "Hypothesis Review"}</AppText>
+          <AppText style={styles.sectionLabel}>{lang === "th" ? "สมมติฐานที่ทดสอบ" : "Hypothesis Review"}</AppText>
           <AppText style={styles.hypothesisText}>{hypothesis}</AppText>
           <View style={[styles.resultBadge, { borderColor: resultColor }]}>
             <Ionicons
@@ -168,10 +168,10 @@ export default function SynthesisGate({
         <View style={styles.divider} />
 
         <View>
-          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "อะไรเปลี่ยนในการเข้าใจของเรา? *" : "What Changed About Our Understanding? *"}</AppText>
+          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "เรียนรู้อะไรจาก Cycle นี้? *" : "What Changed About Our Understanding? *"}</AppText>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder={lang === "th" ? "Cycle นี้เผยอะไร?" : "What did this cycle reveal?"}
+            placeholder={lang === "th" ? "สิ่งที่ได้เรียนรู้จริงๆ ไม่ต้องสวยงาม..." : "What did this cycle reveal?"}
             placeholderTextColor={WHITE55}
             value={whatChanged}
             onChangeText={setWhatChanged}
@@ -181,7 +181,7 @@ export default function SynthesisGate({
 
         {priorCycleVariable && (
           <View>
-            <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "เปรียบเทียบกับ Cycle ก่อน" : "Compare to Prior Cycle"}</AppText>
+            <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "ตัวแปรจาก Cycle ก่อน" : "Compare to Prior Cycle"}</AppText>
             <AppText style={styles.mutedText}>
               {lang === "th" ? "ตัวแปรก่อนหน้า: " : "Prior variable: "}{priorCycleVariable}
             </AppText>
@@ -189,10 +189,10 @@ export default function SynthesisGate({
         )}
 
         <View>
-          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "1 ตัวแปรที่จะเปลี่ยนใน Cycle ถัดไป" : "ONE Variable to Change Next Cycle"}</AppText>
+          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "ตัวแปรถัดไป (ถ้าปรับ)" : "ONE Variable to Change Next Cycle"}</AppText>
           <TextInput
             style={styles.input}
-            placeholder={lang === "th" ? "ถ้าปรับแต่ง สิ่งเดียวที่จะเปลี่ยนคืออะไร?" : "If refining, what ONE thing will you change?"}
+            placeholder={lang === "th" ? "สิ่งเดียวที่จะเปลี่ยน..." : "If refining, what ONE thing will you change?"}
             placeholderTextColor={WHITE55}
             value={nextVariable}
             onChangeText={setNextVariable}
@@ -226,22 +226,31 @@ export default function SynthesisGate({
         <View style={styles.divider} />
 
         <View>
-          <AppText variant="bold" style={styles.gateTitle}>{lang === "th" ? "เลือก Gate" : "Choose Gate"}</AppText>
+          <AppText variant="bold" style={styles.gateTitle}>{lang === "th" ? "ตัดสินใจ" : "Choose Gate"}</AppText>
+          {!canSubmit && (
+            <View style={styles.gateBlockedHint}>
+              <Ionicons name="lock-closed" size={13} color={YELLOW} />
+              <AppText style={styles.gateBlockedText}>
+                {lang === "th" ? "กรอกสิ่งที่เรียนรู้ก่อนจึงจะเลือกได้" : "Fill in what you learned above first"}
+              </AppText>
+            </View>
+          )}
           <View style={styles.gateRow}>
             <Pressable
               style={[
                 styles.gateButton,
                 styles.gateRefine,
                 selectedGate === "refine" && styles.gateRefineActive,
+                !canSubmit && styles.gateButtonLocked,
               ]}
               onPress={() => {
                 setSelectedGate("refine");
                 handleGate("refine");
               }}
             >
-              <Ionicons name="refresh" size={20} color={CYAN} />
-              <AppText variant="bold" style={styles.gateButtonText}>{lang === "th" ? "ปรับแต่ง" : "Refine"}</AppText>
-              <AppText style={styles.gateSubtext}>{lang === "th" ? "เริ่ม Cycle ใหม่" : "Start new cycle"}</AppText>
+              <Ionicons name="refresh" size={20} color={canSubmit ? CYAN : WHITE55} />
+              <AppText variant="bold" style={[styles.gateButtonText, !canSubmit && styles.gateButtonTextLocked]}>{lang === "th" ? "ปรับ" : "Refine"}</AppText>
+              <AppText style={styles.gateSubtext}>{lang === "th" ? "Cycle ใหม่" : "Start new cycle"}</AppText>
             </Pressable>
 
             <Pressable
@@ -249,15 +258,16 @@ export default function SynthesisGate({
                 styles.gateButton,
                 styles.gateProceed,
                 selectedGate === "proceed" && styles.gateProceedActive,
+                !canSubmit && styles.gateButtonLocked,
               ]}
               onPress={() => {
                 setSelectedGate("proceed");
                 handleGate("proceed");
               }}
             >
-              <Ionicons name="arrow-forward" size={20} color={GREEN} />
-              <AppText variant="bold" style={styles.gateButtonText}>{lang === "th" ? "ดำเนินการ" : "Proceed"}</AppText>
-              <AppText style={styles.gateSubtext}>{lang === "th" ? "ไปยังวิดีโอรอบ 1" : "To Round 1 video"}</AppText>
+              <Ionicons name="arrow-forward" size={20} color={canSubmit ? GREEN : WHITE55} />
+              <AppText variant="bold" style={[styles.gateButtonText, !canSubmit && styles.gateButtonTextLocked]}>{lang === "th" ? "ผ่าน" : "Proceed"}</AppText>
+              <AppText style={styles.gateSubtext}>{lang === "th" ? "ทำวิดีโอ Round 1" : "To Round 1 video"}</AppText>
             </Pressable>
 
             <Pressable
@@ -265,15 +275,16 @@ export default function SynthesisGate({
                 styles.gateButton,
                 styles.gateKill,
                 selectedGate === "kill" && styles.gateKillActive,
+                !canSubmit && styles.gateButtonLocked,
               ]}
               onPress={() => {
                 setSelectedGate("kill");
                 handleGate("kill");
               }}
             >
-              <Ionicons name="close" size={20} color={RED} />
-              <AppText variant="bold" style={styles.gateButtonText}>{lang === "th" ? "ไม่ผ่าน" : "Kill"}</AppText>
-              <AppText style={styles.gateSubtext}>{lang === "th" ? "ออกจาก workspace" : "Exit workspace"}</AppText>
+              <Ionicons name="close" size={20} color={canSubmit ? RED : WHITE55} />
+              <AppText variant="bold" style={[styles.gateButtonText, !canSubmit && styles.gateButtonTextLocked]}>{lang === "th" ? "หยุด" : "Kill"}</AppText>
+              <AppText style={styles.gateSubtext}>{lang === "th" ? "ยกเลิก idea นี้" : "Exit workspace"}</AppText>
             </Pressable>
           </View>
         </View>
@@ -424,7 +435,21 @@ const styles = StyleSheet.create({
     borderColor: RED,
   },
   gateButtonText: { color: WHITE, fontSize: 14 },
+  gateButtonTextLocked: { color: WHITE55 },
+  gateButtonLocked: { opacity: 0.45 },
   gateSubtext: { color: WHITE55, fontSize: 11 },
+  gateBlockedHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+    padding: 10,
+    backgroundColor: "rgba(255,165,0,0.08)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,165,0,0.25)",
+  },
+  gateBlockedText: { color: YELLOW, fontSize: 13, flex: 1 },
   aiFeedback: {
     paddingTop: 8,
     borderTopWidth: 1,

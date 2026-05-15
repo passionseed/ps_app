@@ -21,6 +21,7 @@ import { AppText } from "../components/AppText";
 import { SkiaBackButton } from "../components/navigation/SkiaBackButton";
 import { HackathonBackground } from "../components/Hackathon/HackathonBackground";
 import { useAuth } from "../lib/auth";
+import { readHackathonToken } from "../lib/hackathon-mode";
 import { Space } from "../lib/theme";
 
 // ── Bioluminescent Ocean tokens ──────────────────────────────
@@ -38,13 +39,36 @@ const CYAN55      = "rgba(145,196,227,0.55)";
 const CYAN50_TEXT = "rgba(145,196,227,0.5)";
 
 export default function HackathonLoginScreen() {
-  const { signInWithEmailPassword } = useAuth();
+  const { signInWithEmailPassword, isHackathon, loading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Auto-redirect if already logged in via hackathon session (handles hot reload)
+  useEffect(() => {
+    console.log("[HackathonLogin] Redirect effect running, isHackathon:", isHackathon, "authLoading:", authLoading);
+    if (authLoading) {
+      console.log("[HackathonLogin] Auth still loading, waiting...");
+      return;
+    }
+    if (isHackathon) {
+      console.log("[HackathonLogin] isHackathon is true, redirecting to home");
+      router.replace("/(hackathon)/home");
+      return;
+    }
+    readHackathonToken().then((token) => {
+      console.log("[HackathonLogin] readHackathonToken result:", token ? "has token" : "no token");
+      if (token) {
+        console.log("[HackathonLogin] Token found, redirecting to home");
+        router.replace("/(hackathon)/home");
+      } else {
+        console.log("[HackathonLogin] No token, staying on login page");
+      }
+    });
+  }, [isHackathon, authLoading]);
 
   const logoHeight = new Animated.Value(226);
   const logoOpacity = new Animated.Value(1);

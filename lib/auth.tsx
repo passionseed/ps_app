@@ -401,8 +401,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(`[${res.status}] ${body.error ?? "Invalid email or password"}${body.debug ? ` (${body.debug})` : ""}`);
     }
 
-    saveHackathonSession(body.token, body.participant);
-    saveHackathonMode(true);
+    console.log("[Auth] Saving hackathon session, token length:", body.token?.length);
+    await saveHackathonSession(body.token, body.participant);
+    console.log("[Auth] Saved hackathon session to storage");
+    await saveHackathonMode(true);
+    console.log("[Auth] Saved hackathon mode to storage");
     clearHackathonScreenDataCache();
     setIsHackathon(true);
     void preloadHackathonHomeBundle();

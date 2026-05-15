@@ -11,7 +11,7 @@ type Callback = ((error?: Error | null) => void) | undefined;
 
 function store(): Storage {
   if (typeof localStorage === "undefined" || localStorage === null) {
-    console.warn("[asyncStorage] localStorage not available - using in-memory fallback");
+    console.warn("[asyncStorage] localStorage not available - using in-memory fallback (TOKENS WILL NOT PERSIST ACROSS HOT RELOAD)");
     return memoryStorageApi;
   }
   return localStorage;
@@ -30,7 +30,9 @@ const memoryStorageApi = {
 
 export async function getItem(key: string, _callback?: Callback): Promise<string | null> {
   try {
-    return store().getItem(key);
+    const value = store().getItem(key);
+    console.log(`[asyncStorage] getItem("${key}"):`, value ? "found (length " + value.length + ")" : "null");
+    return value;
   } catch (e) {
     console.warn("[asyncStorage] Failed to getItem:", e);
     return null;
@@ -40,6 +42,7 @@ export async function getItem(key: string, _callback?: Callback): Promise<string
 export async function setItem(key: string, value: string, _callback?: Callback): Promise<void> {
   try {
     store().setItem(key, value);
+    console.log(`[asyncStorage] setItem("${key}") done`);
   } catch (e) {
     console.warn("[asyncStorage] Failed to setItem — storage may be full:", e);
   }
@@ -47,6 +50,7 @@ export async function setItem(key: string, value: string, _callback?: Callback):
 
 export async function removeItem(key: string, _callback?: Callback): Promise<void> {
   try {
+    console.log(`[asyncStorage] removeItem("${key}") called`);
     store().removeItem(key);
   } catch (e) {
     console.warn("[asyncStorage] Failed to removeItem:", e);

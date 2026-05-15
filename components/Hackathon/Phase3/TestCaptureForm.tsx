@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type {
   AICoachResponse,
   HackathonPhase3TestSession,
-} from "../../types/hackathon-phase3";
+} from "../../../types/hackathon-phase3";
 
 const BG = "#03050a";
 const CYAN = "#91C4E3";
@@ -39,16 +39,22 @@ interface TestCaptureFormProps {
   cycleNumber: number;
   hypothesis: string;
   onSubmit: (data: Omit<HackathonPhase3TestSession, "id" | "created_at">) => void;
+  onDelete?: (sessionId: string) => void;
   aiFeedback?: AICoachResponse | null;
   lang?: "th" | "en";
+  status?: "draft" | "submitted" | "ai_reviewed" | "mentor_reviewed" | "locked";
+  initialData?: HackathonPhase3TestSession[] | null;
 }
 
 export default function TestCaptureForm({
   cycleNumber,
   hypothesis,
   onSubmit,
+  onDelete,
   aiFeedback,
   lang = "th",
+  status = "draft",
+  initialData = null,
 }: TestCaptureFormProps) {
   const [testers, setTesters] = useState<SimpleTester[]>([
     { id: 1, name: "", role: "", note: "", result: "" },
@@ -132,120 +138,172 @@ export default function TestCaptureForm({
         </View>
       )}
 
+      {status !== "draft" && initialData && initialData.length > 0 && (
+        <View style={styles.submittedCard}>
+          <View style={styles.submittedHeader}>
+            <Ionicons name="checkmark-circle" size={20} color={GREEN} />
+            <AppText variant="bold" style={styles.submittedTitle}>
+              {lang === "th" ? "ส่งแล้ว ✓" : "Submitted ✓"}
+            </AppText>
+          </View>
+          <View style={styles.submittedBody}>
+            {initialData.map((session, idx) => (
+              <View key={session.id ?? idx} style={styles.submittedRow}>
+                <View style={styles.submittedRowHeader}>
+                  <AppText style={styles.submittedLabel}>
+                    {lang === "th" ? `ผู้ทดสอบ ${idx + 1}` : `Tester ${idx + 1}`}
+                  </AppText>
+                  {onDelete && (
+                    <Pressable onPress={() => onDelete(session.id)}>
+                      <Ionicons name="trash-outline" size={16} color={RED} />
+                    </Pressable>
+                  )}
+                </View>
+                <AppText style={styles.submittedValue}>{session.tester_name}</AppText>
+                {session.tester_role && (
+                  <AppText style={styles.submittedSecondary}>{session.tester_role}</AppText>
+                )}
+                <AppText style={styles.submittedValue}>{session.painful_detail}</AppText>
+                <AppText
+                  style={[
+                    styles.submittedResult,
+                    session.session_result === "confirmed" && { color: GREEN },
+                    session.session_result === "killed" && { color: RED },
+                    session.session_result === "unclear" && { color: YELLOW },
+                  ]}
+                >
+                  {session.session_result === "confirmed"
+                    ? lang === "th" ? "ยืนยัน" : "Confirmed"
+                    : session.session_result === "killed"
+                    ? lang === "th" ? "ไม่ผ่าน" : "Killed"
+                    : lang === "th" ? "ไม่ชัดเจน" : "Unclear"}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
       <AppText style={styles.subtitle}>
-        {lang === "th" ? "เพิ่มผู้ทดสอบ บันทึกสั้นๆ เลือกผล" : "Add testers. Short notes. Pick result."}
+        {status !== "draft" && initialData && initialData.length > 0
+          ? lang === "th"
+            ? `บันทึกเพิ่ม (มีแล้ว ${initialData.length} คน)`
+            : `Log more (already have ${initialData.length})`
+          : lang === "th"
+            ? "เพิ่มผู้ทดสอบ บันทึกสั้นๆ เลือกผล"
+            : "Add testers. Short notes. Pick result."}
       </AppText>
 
       {testers.map((tester, index) => (
         <View key={tester.id} style={styles.testerRow}>
-            <View style={styles.testerHeader}>
-              <AppText variant="bold" style={styles.testerNumber}>
-                {lang === "th" ? `ผู้ทดสอบ ${index + 1}` : `Tester ${index + 1}`}
-              </AppText>
-              {testers.length > 1 && (
-                <Pressable onPress={() => removeTester(tester.id)}>
-                  <Ionicons name="trash-outline" size={18} color={RED} />
-                </Pressable>
-              )}
-            </View>
-
-            <TextInput
-              style={styles.input}
-              placeholder={lang === "th" ? "ชื่อ *" : "Name *"}
-              placeholderTextColor={WHITE28}
-              value={tester.name}
-              onChangeText={(text) => updateTester(tester.id, "name", text)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder={lang === "th" ? "บทบาท (เช่น นักเรียน)" : "Role (e.g., student)"}
-              placeholderTextColor={WHITE28}
-              value={tester.role}
-              onChangeText={(text) => updateTester(tester.id, "role", text)}
-            />
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder={lang === "th" ? "สังเกตอะไร? (ทำอะไร พูดอะไร) *" : "What did you observe? *"}
-              placeholderTextColor={WHITE28}
-              value={tester.note}
-              onChangeText={(text) => updateTester(tester.id, "note", text)}
-              multiline
-            />
-
-            <View style={styles.resultRow}>
-              {resultOptions.map((opt) => (
-                <Pressable
-                  key={opt.value}
-                  style={[
-                    styles.resultChip,
-                    tester.result === opt.value && { borderColor: opt.color, backgroundColor: `${opt.color}20` },
-                  ]}
-                  onPress={() => updateTester(tester.id, "result", opt.value)}
-                >
-                  <Ionicons
-                    name={opt.icon}
-                    size={16}
-                    color={tester.result === opt.value ? opt.color : WHITE55}
-                  />
-                  <AppText
-                    style={[
-                      styles.resultText,
-                      tester.result === opt.value && { color: opt.color },
-                    ]}
-                  >
-                    {opt.label}
-                  </AppText>
-                </Pressable>
-              ))}
-            </View>
+          <View style={styles.testerHeader}>
+            <AppText variant="bold" style={styles.testerNumber}>
+              {lang === "th" ? `ผู้ทดสอบ ${index + 1}` : `Tester ${index + 1}`}
+            </AppText>
+            {testers.length > 1 && (
+              <Pressable onPress={() => removeTester(tester.id)}>
+                <Ionicons name="trash-outline" size={18} color={RED} />
+              </Pressable>
+            )}
           </View>
-        ))}
 
-        <Pressable style={styles.addTesterButton} onPress={addTester}>
-          <Ionicons name="add" size={18} color={CYAN} />
-          <AppText style={styles.addTesterText}>
-            {lang === "th" ? "เพิ่มผู้ทดสอบ" : "Add tester"}
-          </AppText>
-        </Pressable>
+          <TextInput
+            style={styles.input}
+            placeholder={lang === "th" ? "ชื่อ *" : "Name *"}
+            placeholderTextColor={WHITE28}
+            value={tester.name}
+            onChangeText={(text) => updateTester(tester.id, "name", text)}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder={lang === "th" ? "บทบาท (เช่น นักเรียน)" : "Role (e.g., student)"}
+            placeholderTextColor={WHITE28}
+            value={tester.role}
+            onChangeText={(text) => updateTester(tester.id, "role", text)}
+          />
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder={lang === "th" ? "สังเกตอะไร? (ทำอะไร พูดอะไร) *" : "What did you observe? *"}
+            placeholderTextColor={WHITE28}
+            value={tester.note}
+            onChangeText={(text) => updateTester(tester.id, "note", text)}
+            multiline
+          />
 
-        <Pressable
-          style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-        >
-          <AppText variant="bold" style={styles.submitButtonText}>
-            {lang === "th" ? "ส่งบันทึกการทดสอบ" : "Submit Test Log"}
-          </AppText>
-        </Pressable>
-
-        {aiFeedback && (
-          <View style={styles.aiFeedback}>
-            <View style={styles.aiHeader}>
-              <Ionicons name="sparkles" size={16} color={CYAN} />
-              <AppText variant="bold" style={styles.aiTitle}>{lang === "th" ? "โค้ช AI" : "AI Coach"}</AppText>
-            </View>
-            {aiFeedback.flags.map((flag: any, i: number) => (
-              <View key={i} style={styles.aiFlag}>
+          <View style={styles.resultRow}>
+            {resultOptions.map((opt) => (
+              <Pressable
+                key={opt.value}
+                style={[
+                  styles.resultChip,
+                  tester.result === opt.value && { borderColor: opt.color, backgroundColor: `${opt.color}20` },
+                ]}
+                onPress={() => updateTester(tester.id, "result", opt.value)}
+              >
                 <Ionicons
-                  name={
-                    flag.severity === "blocking"
-                      ? "close-circle"
-                      : flag.severity === "warning"
-                      ? "warning"
-                      : "information-circle"
-                  }
+                  name={opt.icon}
                   size={16}
-                  color={
-                    flag.severity === "blocking"
-                      ? RED
-                      : flag.severity === "warning"
-                      ? YELLOW
-                      : CYAN
-                  }
+                  color={tester.result === opt.value ? opt.color : WHITE55}
                 />
-                <AppText style={styles.aiFlagText}>{flag.message}</AppText>
-              </View>
+                <AppText
+                  style={[
+                    styles.resultText,
+                    tester.result === opt.value && { color: opt.color },
+                  ]}
+                >
+                  {opt.label}
+                </AppText>
+              </Pressable>
             ))}
+          </View>
+        </View>
+      ))}
+
+      <Pressable style={styles.addTesterButton} onPress={addTester}>
+        <Ionicons name="add" size={18} color={CYAN} />
+        <AppText style={styles.addTesterText}>
+          {lang === "th" ? "เพิ่มผู้ทดสอบ" : "Add tester"}
+        </AppText>
+      </Pressable>
+
+      <Pressable
+        style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
+        onPress={handleSubmit}
+        disabled={!canSubmit}
+      >
+        <AppText variant="bold" style={styles.submitButtonText}>
+          {lang === "th" ? "ส่งบันทึกการทดสอบ" : "Submit Test Log"}
+        </AppText>
+      </Pressable>
+
+      {aiFeedback && (
+        <View style={styles.aiFeedback}>
+          <View style={styles.aiHeader}>
+            <Ionicons name="sparkles" size={16} color={CYAN} />
+            <AppText variant="bold" style={styles.aiTitle}>{lang === "th" ? "โค้ช AI" : "AI Coach"}</AppText>
+          </View>
+          {aiFeedback.flags.map((flag: any, i: number) => (
+            <View key={i} style={styles.aiFlag}>
+              <Ionicons
+                name={
+                  flag.severity === "blocking"
+                    ? "close-circle"
+                    : flag.severity === "warning"
+                    ? "warning"
+                    : "information-circle"
+                }
+                size={16}
+                color={
+                  flag.severity === "blocking"
+                    ? RED
+                    : flag.severity === "warning"
+                    ? YELLOW
+                    : CYAN
+                }
+              />
+              <AppText style={styles.aiFlagText}>{flag.message}</AppText>
+            </View>
+          ))}
         </View>
       )}
     </ScrollView>
@@ -346,4 +404,34 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   aiFlagText: { color: WHITE75, fontSize: 13, flex: 1 },
+  submittedCard: {
+    borderWidth: 1,
+    borderColor: GREEN,
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: "rgba(78,205,196,0.08)",
+    gap: 12,
+  },
+  submittedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  submittedTitle: { color: GREEN, fontSize: 16 },
+  submittedBody: { gap: 14 },
+  submittedRow: {
+    gap: 4,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74,107,130,0.2)",
+  },
+  submittedRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  submittedLabel: { color: CYAN, fontSize: 12, textTransform: "uppercase" },
+  submittedValue: { color: WHITE, fontSize: 14 },
+  submittedSecondary: { color: WHITE55, fontSize: 13 },
+  submittedResult: { fontSize: 14, fontWeight: "bold" },
 });

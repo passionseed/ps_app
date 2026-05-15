@@ -353,6 +353,7 @@ export interface Phase3CycleTrackerEntry {
 }
 
 export interface Phase3WorkspaceStep {
+  stepId: string;
   stepType: HackathonPhase3StepType;
   status: HackathonPhase3StepStatus;
   content: Phase3StepContent[];

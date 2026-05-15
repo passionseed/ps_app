@@ -29,6 +29,8 @@ const YELLOW = "#FFA500";
 
 interface PretotypeFormProps {
   cycleId: string;
+  teamId: string;
+  hypothesis?: string;
   priorVariable?: string | null;
   onSubmit: (data: {
     method: string;
@@ -81,6 +83,8 @@ const METHODS = [
 ];
 
 export default function PretotypeForm({
+  teamId,
+  hypothesis,
   priorVariable,
   onSubmit,
   aiFeedback,
@@ -94,6 +98,7 @@ export default function PretotypeForm({
   const [artifactImageUri, setArtifactImageUri] = useState<string | null>(getPretotypeArtifactImageUri(initialData?.artifactUrl));
   const [artifactImageUrl, setArtifactImageUrl] = useState<string | null>(getPretotypeArtifactImageUri(initialData?.artifactUrl));
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [showMethodInfo, setShowMethodInfo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -116,25 +121,47 @@ export default function PretotypeForm({
   const canSubmit = hasMethod && hasVariable && hasDescription;
 
   const handlePickImage = useCallback(async () => {
+    console.log("[PretotypeForm] Opening image picker...");
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       quality: 0.85,
     });
-    if (result.canceled) return;
+    console.log("[PretotypeForm] Image picker result:", JSON.stringify(result, null, 2));
+    if (result.canceled) {
+      console.log("[PretotypeForm] User canceled image picker");
+      return;
+    }
     const asset = result.assets[0];
+    console.log("[PretotypeForm] Selected asset:", {
+      uri: asset.uri,
+      fileName: asset.uri.split("/").pop(),
+      mimeType: asset.mimeType,
+      width: asset.width,
+      height: asset.height,
+      fileSize: asset.fileSize,
+    });
     setArtifactImageUri(asset.uri);
     setUploadingImage(true);
+    setUploadError(null);
     try {
+      console.log("[PretotypeForm] Starting upload to Backblaze...");
       const uploadResult = await uploadToBackblaze(
         asset.uri,
         asset.uri.split("/").pop() ?? "pretotype.jpg",
-        asset.mimeType ?? "image/jpeg"
+        asset.mimeType ?? "image/jpeg",
+        teamId
       );
+      console.log("[PretotypeForm] Upload successful! URL:", uploadResult.url);
       setArtifactImageUrl(uploadResult.url);
       setArtifactUrl(uploadResult.url);
-    } catch (e) {
-      console.error("Image upload failed", e);
+    } catch (e: any) {
+      console.error("[PretotypeForm] Upload failed:", e);
+      console.error("[PretotypeForm] Error message:", e?.message);
+      console.error("[PretotypeForm] Error stack:", e?.stack);
+      setUploadError(e?.message || "Upload failed");
+      setArtifactImageUri(null);
     } finally {
+      console.log("[PretotypeForm] Upload attempt finished");
       setUploadingImage(false);
     }
   }, []);
@@ -143,6 +170,7 @@ export default function PretotypeForm({
     setArtifactImageUri(null);
     setArtifactImageUrl(null);
     setArtifactUrl("");
+    setUploadError(null);
   }, []);
 
   const handleSubmit = useCallback(() => {
@@ -167,6 +195,15 @@ export default function PretotypeForm({
       <AppText style={styles.subtitle}>
         {lang === "th" ? "สร้างเวอร์ชันที่ทดสอบได้เร็วที่สุด" : "Build the smallest testable version"}
       </AppText>
+
+      {hypothesis && hypothesis.length > 0 && (
+        <View style={styles.hypothesisBar}>
+          <AppText style={styles.hypothesisLabel}>
+            {lang === "th" ? "สมมติฐาน" : "Hypothesis"}
+          </AppText>
+          <AppText style={styles.hypothesisText}>{hypothesis}</AppText>
+        </View>
+      )}
 
       {status !== "draft" && !isEditing && initialData?.method && (
         <View style={styles.submittedView}>
@@ -359,6 +396,13 @@ export default function PretotypeForm({
             </Pressable>
           </View>
         )}
+
+        {uploadError && (
+          <View style={styles.uploadErrorRow}>
+            <Ionicons name="alert-circle" size={16} color={RED} />
+            <AppText style={styles.uploadErrorText}>{uploadError}</AppText>
+          </View>
+        )}
       </View>
 
       <View style={styles.divider} />
@@ -471,6 +515,13 @@ const styles = StyleSheet.create({
   },
   title: { color: WHITE, fontSize: 22, marginBottom: 4 },
   subtitle: { color: WHITE55, fontSize: 14, marginBottom: 4 },
+  hypothesisBar: {
+    borderLeftWidth: 3,
+    borderLeftColor: CYAN,
+    paddingLeft: 12,
+  },
+  hypothesisLabel: { color: CYAN, fontSize: 12, marginBottom: 4, textTransform: "uppercase" },
+  hypothesisText: { color: WHITE75, fontSize: 14, lineHeight: 20 },
   divider: {
     height: 1,
     backgroundColor: "rgba(74,107,130,0.2)",
@@ -665,4 +716,16 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   editButtonText: { color: CYAN, fontSize: 13 },
+  uploadErrorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    padding: 10,
+    backgroundColor: "rgba(255,107,107,0.1)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,107,107,0.3)",
+  },
+  uploadErrorText: { color: RED, fontSize: 13 },
 });

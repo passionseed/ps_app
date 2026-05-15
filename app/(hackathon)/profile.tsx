@@ -587,6 +587,15 @@ export default function HackathonProfileScreen() {
             <AppText style={styles.loadingText}>
               Loading profile data...
             </AppText>
+            <Pressable
+              style={({ pressed }) => [
+                styles.signOutBtn,
+                pressed && { opacity: 0.75 },
+              ]}
+              onPress={() => signOutHackathon()}
+            >
+              <AppText style={styles.signOutText}>Sign Out</AppText>
+            </Pressable>
           </View>
         ) : (
           <>

@@ -1,4 +1,4 @@
-const IMAGE_EXTENSION_RE = /\.(jpg|jpeg|png|webp|gif)(?:[?#].*)?$/i;
+const IMAGE_EXTENSION_RE = /\.(jpg|jpeg|png|webp|gif|heic)(?:[?#].*)?$/i;
 const RENDERABLE_IMAGE_SCHEME_RE = /^(https?:|file:|content:|data:image\/|blob:)/i;
 
 export function isPretotypeImageUri(value: string | null | undefined): boolean {

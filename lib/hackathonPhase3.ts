@@ -19,6 +19,16 @@ import type {
   AICoachResponse,
 } from "../types/hackathon-phase3";
 
+function readStepText(
+  data: Record<string, unknown> | null | undefined,
+  snakeKey: string,
+  camelKey: string
+): string | null {
+  if (!data) return null;
+  const value = data[snakeKey] ?? data[camelKey];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
 // ============================================================
 // Workspace Fetch
 // ============================================================
@@ -33,6 +43,7 @@ export async function getPhase3Workspace(
     .select("*")
     .eq("team_id", teamId)
     .eq("program_phase_id", programPhaseId)
+    .neq("status", "abandoned")
     .order("cycle_number", { ascending: true });
 
   if (cyclesError) {
@@ -40,20 +51,51 @@ export async function getPhase3Workspace(
     return null;
   }
 
-  // Build tracker from all cycles
-  const tracker: Phase3CycleTrackerEntry[] = (cycles ?? []).map((c) => ({
-    cycleNumber: c.cycle_number,
-    hypothesis: c.hypothesis_full,
-    result: c.synthesis_result,
-    variableChanged: c.variable_changed,
-    score: c.ai_score ? (c.ai_score as any).total ?? null : null,
-    status: c.status,
-  }));
-
   // Get current (latest) cycle
   const currentCycle = cycles && cycles.length > 0
     ? cycles[cycles.length - 1]
     : null;
+
+  // Fetch all cycle steps for all cycles to use as fallback for hypothesis
+  const cycleIds = (cycles ?? []).map((c) => c.id);
+  let allSteps: Record<string, Record<string, unknown> | null> = {};
+  if (cycleIds.length > 0) {
+    const { data: stepsData } = await supabase
+      .from("hackathon_phase3_cycle_steps")
+      .select("cycle_id, step_type, submission_data")
+      .in("cycle_id", cycleIds)
+      .eq("step_type", "hypothesis");
+
+    for (const s of stepsData ?? []) {
+      allSteps[s.cycle_id] = s.submission_data as Record<string, unknown> | null;
+    }
+  }
+
+  // Build tracker from all cycles (with step data fallback for hypothesis)
+  const tracker: Phase3CycleTrackerEntry[] = (cycles ?? []).map((c) => {
+    const stepData = allSteps[c.id];
+    // Prefer step submission_data.full (authoritative) over cycle column (can be stale)
+    const rawFull = (stepData?.full as string | null) ?? c.hypothesis_full ?? null;
+    const isGarbage = (s: string) => /^[\s]*will[\s]+because[\s]+measured by[\s]*$/.test(s.trim());
+    let hypothesis = rawFull && rawFull.trim().length > 20 && !isGarbage(rawFull) ? rawFull : null;
+    if (!hypothesis) {
+      const who = readStepText(stepData, "who", "who") ?? c.hypothesis_who ?? null;
+      const willDo = readStepText(stepData, "will_do", "willDo") ?? c.hypothesis_will_do ?? null;
+      const because = readStepText(stepData, "because", "because") ?? c.hypothesis_because ?? null;
+      const measuredBy = readStepText(stepData, "measured_by", "measuredBy") ?? c.hypothesis_measured_by ?? null;
+      if (who && willDo && because && measuredBy) {
+        hypothesis = `${who} will ${willDo} because ${because} measured by ${measuredBy}`;
+      }
+    }
+    return {
+      cycleNumber: c.cycle_number,
+      hypothesis,
+      result: c.synthesis_result,
+      variableChanged: c.variable_changed,
+      score: c.ai_score ? (c.ai_score as any).total ?? null : null,
+      status: c.status,
+    };
+  });
 
   let activeStep: Phase3WorkspaceStep[] = [];
 
@@ -65,6 +107,7 @@ export async function getPhase3Workspace(
       .order("step_type");
 
     activeStep = (steps ?? []).map((s) => ({
+      stepId: s.id,
       stepType: s.step_type as HackathonPhase3StepType,
       status: s.status as HackathonPhase3StepStatus,
       content: [],
@@ -104,6 +147,24 @@ export async function getPhase3Workspace(
     tracker,
     steps: activeStep,
   };
+}
+
+export async function getCycleWorkspaceSteps(cycleId: string): Promise<Phase3WorkspaceStep[]> {
+  const { data: steps } = await supabase
+    .from("hackathon_phase3_cycle_steps")
+    .select("*")
+    .eq("cycle_id", cycleId)
+    .order("step_type");
+
+  return (steps ?? []).map((s) => ({
+    stepId: s.id,
+    stepType: s.step_type as HackathonPhase3StepType,
+    status: s.status as HackathonPhase3StepStatus,
+    content: [],
+    assessments: [],
+    aiFeedback: s.ai_feedback as AICoachResponse | null,
+    submissionData: s.submission_data as Record<string, unknown> | null,
+  }));
 }
 
 // ============================================================
@@ -182,6 +243,7 @@ export async function getTeamCycles(teamId: string): Promise<HackathonPhase3Cycl
     .from("hackathon_phase3_cycles")
     .select("*")
     .eq("team_id", teamId)
+    .neq("status", "abandoned")
     .order("cycle_number", { ascending: true });
 
   if (error) return [];
@@ -217,13 +279,21 @@ export async function submitCycleStep(
   }
 
   if (stepType === "hypothesis" && status === "submitted") {
+    const who = submissionData.who as string;
+    const willDo = submissionData.will_do as string;
+    const because = submissionData.because as string;
+    const measuredBy = submissionData.measured_by as string;
+    if (!who || !willDo || !because || !measuredBy) {
+      console.error("submitCycleStep: refusing to write empty hypothesis fields to cycle", submissionData);
+      return true;
+    }
     const { error: cycleError } = await supabase
       .from("hackathon_phase3_cycles")
       .update({
-        hypothesis_who: submissionData.who as string,
-        hypothesis_will_do: submissionData.will_do as string,
-        hypothesis_because: submissionData.because as string,
-        hypothesis_measured_by: submissionData.measured_by as string,
+        hypothesis_who: who,
+        hypothesis_will_do: willDo,
+        hypothesis_because: because,
+        hypothesis_measured_by: measuredBy,
         hypothesis_full: submissionData.full as string,
       })
       .eq("id", cycleId);
@@ -294,7 +364,7 @@ export async function createTestSession(
   const { data, error } = await supabase
     .from("hackathon_phase3_test_sessions")
     .insert({
-      cycle_step_id: session.cycle_step_id,
+      cycle_step_id: session.cycle_step_id || null,
       team_id: session.team_id,
       cycle_number: session.cycle_number,
       tester_name: session.tester_name,
@@ -333,6 +403,44 @@ export async function getTeamTestSessions(teamId: string): Promise<HackathonPhas
 
   if (error) return [];
   return (data ?? []) as HackathonPhase3TestSession[];
+}
+
+export async function deleteTestSession(sessionId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from("hackathon_phase3_test_sessions")
+    .delete()
+    .eq("id", sessionId);
+
+  if (error) {
+    console.error("deleteTestSession error", error);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteCycleById(cycleId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from("hackathon_phase3_cycles")
+    .delete()
+    .eq("id", cycleId);
+
+  if (!error) {
+    return true;
+  }
+
+  console.warn("deleteCycleById hard delete failed, falling back to abandoned status", error);
+
+  const { error: softDeleteError } = await supabase
+    .from("hackathon_phase3_cycles")
+    .update({ status: "abandoned" })
+    .eq("id", cycleId);
+
+  if (softDeleteError) {
+    console.error("deleteCycleById fallback error", softDeleteError);
+    return false;
+  }
+
+  return true;
 }
 
 export async function checkFreshTester(

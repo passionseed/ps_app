@@ -41,25 +41,37 @@ async function b2Authorize() {
 }
 
 serve(async (req) => {
+  console.log("[b2-upload-url] Request received:", req.method);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS });
   }
 
   try {
+    console.log("[b2-upload-url] Authorizing with B2...");
     const auth = await b2Authorize();
+    console.log("[b2-upload-url] B2 auth success, apiUrl:", auth.apiUrl?.substring(0, 40) + "...");
 
+    const bucketId = requiredEnv("B2_BUCKET_ID");
+    console.log("[b2-upload-url] Getting upload URL for bucket:", bucketId.substring(0, 10) + "...");
+    
     const response = await fetch(`${auth.apiUrl}/b2api/v2/b2_get_upload_url`, {
       method: "POST",
       headers: {
         Authorization: auth.authorizationToken,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ bucketId: requiredEnv("B2_BUCKET_ID") }),
+      body: JSON.stringify({ bucketId }),
     });
 
-    if (!response.ok) throw new Error(`B2 get_upload_url failed: ${response.status}`);
+    console.log("[b2-upload-url] B2 get_upload_url response:", response.status);
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      console.error("[b2-upload-url] B2 get_upload_url failed:", response.status, errorText);
+      throw new Error(`B2 get_upload_url failed: ${response.status}`);
+    }
 
     const data = await response.json();
+    console.log("[b2-upload-url] Got upload URL successfully");
 
     return new Response(
       JSON.stringify({
@@ -74,7 +86,7 @@ serve(async (req) => {
       }
     );
   } catch (e: any) {
-    console.error("B2 upload url error:", e);
+    console.error("[b2-upload-url] Error:", e.message);
     return new Response(
       JSON.stringify({ error: e.message || "Failed to get upload URL" }),
       {

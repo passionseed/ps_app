@@ -35,6 +35,9 @@ export async function saveHackathonSession(token: string, participant: Hackathon
     setItem(HACKATHON_TOKEN_KEY, token),
     setItem(HACKATHON_PARTICIPANT_KEY, JSON.stringify(participant)),
   ]);
+  // Verify write
+  const verifyToken = await getItem(HACKATHON_TOKEN_KEY);
+  console.log("[hackathon-mode] saveHackathonSession verify token:", verifyToken ? "saved ok" : "VERIFY FAILED");
 }
 
 export async function readHackathonToken(): Promise<string | null> {
@@ -52,6 +55,7 @@ export async function readHackathonParticipant(): Promise<HackathonParticipant |
 }
 
 export async function clearHackathonSession(): Promise<void> {
+  console.log("[hackathon-mode] clearHackathonSession called — stack:", new Error().stack?.split('\n').slice(1,4).join(' | '));
   await Promise.all([
     removeItem(HACKATHON_TOKEN_KEY),
     removeItem(HACKATHON_PARTICIPANT_KEY),

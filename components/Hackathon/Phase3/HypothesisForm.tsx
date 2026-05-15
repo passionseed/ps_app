@@ -52,6 +52,12 @@ interface HypothesisFormProps {
     measuredBy: string | null;
     full: string | null;
   } | null;
+  priorHypothesis?: {
+    who: string | null;
+    willDo: string | null;
+    because: string | null;
+    measuredBy: string | null;
+  } | null;
 }
 
 const WILL_DO_TEMPLATES = [
@@ -69,6 +75,7 @@ const MEASURED_BY_TEMPLATES = [
 ];
 
 export default function HypothesisForm({
+  cycleId,
   phase1Evidence = [],
   targetUsers = [],
   onCheckAI,
@@ -78,6 +85,7 @@ export default function HypothesisForm({
   lang = "th",
   status = "draft",
   initialData = null,
+  priorHypothesis = null,
 }: HypothesisFormProps) {
   const [who, setWho] = useState(initialData?.who ?? "");
   const [willDo, setWillDo] = useState(initialData?.willDo ?? "");
@@ -91,17 +99,24 @@ export default function HypothesisForm({
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    if (initialData?.who) setWho(initialData.who);
-    if (initialData?.willDo) setWillDo(initialData.willDo);
-    if (initialData?.because) setBecause(initialData.because);
-    if (initialData?.measuredBy) setMeasuredBy(initialData.measuredBy);
-  }, [initialData?.who, initialData?.willDo, initialData?.because, initialData?.measuredBy]);
+    setWho(initialData?.who ?? "");
+    setWillDo(initialData?.willDo ?? "");
+    setBecause(initialData?.because ?? "");
+    setMeasuredBy(initialData?.measuredBy ?? "");
+    setIsEditing(false);
+  }, [cycleId, initialData?.who, initialData?.willDo, initialData?.because, initialData?.measuredBy]);
 
   const hasWho = who.trim().length > 0 && who !== "users";
   const hasWillDo = willDo.trim().length > 0;
   const hasBecause = because.trim().length > 0;
   const hasMeasuredBy = measuredBy.trim().length > 0;
   const canCheckAI = hasWho && hasWillDo && hasBecause && hasMeasuredBy;
+  const hasPriorHypothesis = Boolean(
+    (priorHypothesis?.who && priorHypothesis.who.trim().length > 0) ||
+    (priorHypothesis?.willDo && priorHypothesis.willDo.trim().length > 0) ||
+    (priorHypothesis?.because && priorHypothesis.because.trim().length > 0) ||
+    (priorHypothesis?.measuredBy && priorHypothesis.measuredBy.trim().length > 0)
+  );
 
   const score = aiFeedback?.score ?? null;
   const breakdown = aiFeedback?.breakdown ?? null;
@@ -144,6 +159,29 @@ export default function HypothesisForm({
       <AppText style={styles.subtitle}>
         {lang === "th" ? "สมมติฐานที่ทดสอบได้ 4 ส่วน" : "Testable prediction with 4 parts"}
       </AppText>
+
+      {hasPriorHypothesis && !initialData?.who && status === "draft" && (
+        <Pressable
+          style={styles.loadPriorBanner}
+          onPress={() => {
+            setWho(priorHypothesis?.who ?? "");
+            setWillDo(priorHypothesis?.willDo ?? "");
+            setBecause(priorHypothesis?.because ?? "");
+            setMeasuredBy(priorHypothesis?.measuredBy ?? "");
+          }}
+        >
+          <Ionicons name="copy-outline" size={15} color={CYAN} />
+          <View style={{ flex: 1 }}>
+            <AppText style={styles.loadPriorTitle}>
+              {lang === "th" ? "โหลด Hypothesis จาก Cycle ก่อน" : "Load previous hypothesis"}
+            </AppText>
+            <AppText style={styles.loadPriorPreview} numberOfLines={1}>
+              {(priorHypothesis?.who ?? (lang === "th" ? "ผู้ใช้เดิม" : "same users"))} will {(priorHypothesis?.willDo ?? "...")}...
+            </AppText>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color={CYAN} />
+        </Pressable>
+      )}
 
       {status !== "draft" && !isEditing && initialData?.who && (
         <View style={styles.submittedView}>
@@ -562,6 +600,18 @@ const styles = StyleSheet.create({
   },
   title: { color: WHITE, fontSize: 20, marginBottom: 2 },
   subtitle: { color: WHITE55, fontSize: 14, marginBottom: 4 },
+  loadPriorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    backgroundColor: "rgba(145,196,227,0.07)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.25)",
+  },
+  loadPriorTitle: { color: CYAN, fontSize: 13, fontFamily: "BaiJamjuree_700Bold" },
+  loadPriorPreview: { color: WHITE55, fontSize: 11, marginTop: 2 },
   divider: {
     height: 1,
     backgroundColor: "rgba(74,107,130,0.2)",
