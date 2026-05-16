@@ -233,7 +233,7 @@ export default function HackathonPhaseScreen() {
                 activityStatus: activity.status,
                 previousActivitySubmissionStatus: prevSubmissionStatus,
                 isAdmin,
-              });
+              }) && phase.phase_number !== 3;
               if (locked) {
                 console.log(
                   `[PhaseScreen] Activity ${i + 1} "${activity.title}" is locked`,
