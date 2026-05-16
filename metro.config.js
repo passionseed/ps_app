@@ -7,6 +7,12 @@ const originalResolver = config.resolver || {};
 config.resolver = {
   ...originalResolver,
   assetExts: [...(originalResolver.assetExts || []), "wasm"],
+  blockList: [
+    ...(originalResolver.blockList
+      ? [originalResolver.blockList].flat()
+      : []),
+    /node_modules[/\\]@expo-google-fonts[/\\]material-symbols[/\\].*/,
+  ],
 };
 
 // Add react-native-reanimated support

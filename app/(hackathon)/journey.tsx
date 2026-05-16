@@ -280,6 +280,7 @@ export default function HackathonJourneyScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [debugMsg, setDebugMsg] = useState("");
   const currentPhaseCard =
+    phaseCards.find((card) => card.phase.phase_number === 3 && card.phase.status === "released") ??
     phaseCards.find((card) => card.isActive) ??
     phaseCards.find((card) => card.phase.status === "released") ??
     null;
