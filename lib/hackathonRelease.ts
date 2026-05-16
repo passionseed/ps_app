@@ -46,6 +46,9 @@ export function isHackathonActivityAccessible({
 }: ActivityAccessInput) {
   if (isAdmin) return true;
 
+  // Phase 3 is always unlocked for everyone
+  if (phaseStatus === "released") return true;
+
   if (!isReleased(phaseStatus) || !isReleased(activityStatus)) {
     return false;
   }

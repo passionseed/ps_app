@@ -1193,10 +1193,17 @@ export default function HackathonActivityScreen() {
           const teamCycles = await getTeamCycles(member.team_id);
           console.log('[Activity] loadCycles fetched:', teamCycles.length, 'cycles');
           setCycles(teamCycles);
+        } else {
+          // No team yet, show empty state
+          setCycles([]);
         }
+      } else {
+        // Not logged in, show empty state
+        setCycles([]);
       }
     } catch (e) {
       console.error('[Activity] loadCycles error:', e);
+      setCycles([]);
     }
   }
 
@@ -1821,14 +1828,17 @@ export default function HackathonActivityScreen() {
         ) : null}
 
         {/* Cycle Progress */}
-        {cycles.length > 0 && (
-          <View style={styles.cycleProgressCard}>
-            <View style={styles.cycleProgressHeader}>
-              <Ionicons name="refresh-circle" size={20} color={CYAN} />
-              <AppText variant="bold" style={styles.cycleProgressTitle}>
-                Sprint Progress ({cycles.filter(c => c.synthesis_result).length}/{cycles.length} completed)
-              </AppText>
-            </View>
+        <View style={styles.cycleProgressCard}>
+          <View style={styles.cycleProgressHeader}>
+            <Ionicons name="refresh-circle" size={20} color={CYAN} />
+            <AppText variant="bold" style={styles.cycleProgressTitle}>
+              {cycles.length > 0 
+                ? `Sprint Progress (${cycles.filter(c => c.synthesis_result).length}/${cycles.length} completed)`
+                : 'Sprint Progress'
+              }
+            </AppText>
+          </View>
+          {cycles.length > 0 ? (
             <View style={styles.cycleList}>
               {cycles.map((cycle) => (
                 <View key={cycle.id} style={styles.cycleItem}>
@@ -1844,8 +1854,12 @@ export default function HackathonActivityScreen() {
                 </View>
               ))}
             </View>
-          </View>
-        )}
+          ) : (
+            <AppText style={styles.cycleEmptyText}>
+              No cycles yet. Start your first cycle in the Phase 3 workspace!
+            </AppText>
+          )}
+        </View>
 
         {/* Comments Preview */}
         {activity && participant && (
@@ -2332,6 +2346,12 @@ const styles = StyleSheet.create({
   cycleText: {
     color: WHITE,
     fontSize: 14,
+  },
+  cycleEmptyText: {
+    color: WHITE55,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
   },
 
   webNavButtons: {
