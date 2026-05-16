@@ -138,7 +138,7 @@ function AnimatedVerticalPhaseCard({
   const phaseNumString = String(card.phase.phase_number).padStart(2, "0");
   
   const isCompleted = pct === 100;
-  const isLocked = !isAdmin && card.phase.status !== "released";
+  const isLocked = !isAdmin && card.phase.status !== "released" && card.phase.phase_number !== 3;
 
   return (
     <Animated.View 

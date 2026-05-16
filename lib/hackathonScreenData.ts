@@ -190,6 +190,15 @@ function buildJourneyPhaseCards(
     };
   });
 
+  // Always show phase 3 as active if it's released
+  const phase3Card = cards.find((card) => card.phase.phase_number === 3);
+  if (phase3Card && phase3Card.phase.status === "released") {
+    // Clear previous active
+    cards.forEach((card) => { card.isActive = false; });
+    phase3Card.isActive = true;
+    foundActive = true;
+  }
+
   if (!foundActive && cards.length > 0) {
     const releasedCurrentPhase = getCurrentReleasedPhase(
       cards.map((card) => card.phase),
