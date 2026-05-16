@@ -31,10 +31,8 @@ interface PretotypeFormProps {
   cycleId: string;
   teamId: string;
   hypothesis?: string;
-  priorVariable?: string | null;
   onSubmit: (data: {
     method: string;
-    variableChanged: string;
     artifactUrl: string | null;
     description: string;
   }) => void;
@@ -43,7 +41,6 @@ interface PretotypeFormProps {
   status?: "draft" | "submitted" | "ai_reviewed" | "mentor_reviewed" | "locked";
   initialData?: {
     method: string | null;
-    variableChanged: string | null;
     artifactUrl: string | null;
     description: string | null;
   } | null;
@@ -85,7 +82,6 @@ const METHODS = [
 export default function PretotypeForm({
   teamId,
   hypothesis,
-  priorVariable,
   onSubmit,
   aiFeedback,
   lang = "th",
@@ -93,32 +89,28 @@ export default function PretotypeForm({
   initialData = null,
 }: PretotypeFormProps) {
   const [method, setMethod] = useState(initialData?.method ?? "");
-  const [variableChanged, setVariableChanged] = useState(initialData?.variableChanged ?? "");
   const [artifactUrl, setArtifactUrl] = useState(initialData?.artifactUrl ?? "");
   const [artifactImageUri, setArtifactImageUri] = useState<string | null>(getPretotypeArtifactImageUri(initialData?.artifactUrl));
   const [artifactImageUrl, setArtifactImageUrl] = useState<string | null>(getPretotypeArtifactImageUri(initialData?.artifactUrl));
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [description, setDescription] = useState(initialData?.description ?? "");
-  const [showMethodInfo, setShowMethodInfo] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (initialData?.method) setMethod(initialData.method);
-    if (initialData?.variableChanged) setVariableChanged(initialData.variableChanged);
     if (initialData?.artifactUrl) {
       setArtifactUrl(initialData.artifactUrl);
       setArtifactImageUri(getPretotypeArtifactImageUri(initialData.artifactUrl));
       setArtifactImageUrl(getPretotypeArtifactImageUri(initialData.artifactUrl));
     }
     if (initialData?.description) setDescription(initialData.description);
-  }, [initialData?.method, initialData?.variableChanged, initialData?.artifactUrl, initialData?.description]);
+  }, [initialData?.method, initialData?.artifactUrl, initialData?.description]);
 
   const selectedMethod = METHODS.find((m) => m.value === method);
   const hasMethod = method.length > 0;
-  const hasVariable = variableChanged.trim().length > 0;
   const hasDescription = description.trim().length > 0;
-  const canSubmit = hasMethod && hasVariable && hasDescription;
+  const canSubmit = hasMethod && hasDescription;
 
   const handlePickImage = useCallback(async () => {
     console.log("[PretotypeForm] Opening image picker...");
@@ -177,11 +169,10 @@ export default function PretotypeForm({
     if (!canSubmit) return;
     onSubmit({
       method,
-      variableChanged,
       artifactUrl: artifactUrl.trim() || artifactImageUrl || null,
       description,
     });
-  }, [canSubmit, method, variableChanged, artifactUrl, artifactImageUrl, description, onSubmit]);
+  }, [canSubmit, method, artifactUrl, artifactImageUrl, description, onSubmit]);
 
   return (
     <ScrollView
@@ -217,10 +208,6 @@ export default function PretotypeForm({
             <View style={styles.submittedRow}>
               <AppText style={styles.submittedLabel}>Method</AppText>
               <AppText style={styles.submittedValue}>{METHODS.find(m => m.value === initialData.method)?.label ?? initialData.method}</AppText>
-            </View>
-            <View style={styles.submittedRow}>
-              <AppText style={styles.submittedLabel}>Variable</AppText>
-              <AppText style={styles.submittedValue}>{initialData.variableChanged}</AppText>
             </View>
             {initialData.artifactUrl && (
               <View style={styles.submittedRow}>
@@ -273,12 +260,7 @@ export default function PretotypeForm({
                 styles.methodCard,
                 method === m.value && styles.methodCardActive,
               ]}
-              onPress={() => {
-                setMethod(m.value);
-                setShowMethodInfo(
-                  showMethodInfo === m.value ? null : m.value
-                );
-              }}
+              onPress={() => setMethod(m.value)}
             >
               <View style={styles.methodHeader}>
                 <Ionicons
@@ -307,49 +289,12 @@ export default function PretotypeForm({
                   {m.label}
                 </AppText>
               </View>
-              {showMethodInfo === m.value && (
-                <AppText style={styles.methodDescription}>
-                  {m.description}
-                </AppText>
-              )}
+              <AppText style={styles.methodDescription}>
+                {m.description}
+              </AppText>
             </Pressable>
           ))}
         </View>
-      </View>
-
-      <View style={styles.divider} />
-
-      <View>
-        <View style={styles.fieldHeader}>
-          <AppText variant="bold" style={styles.fieldLabel}>
-            {lang === "th" ? "เปลี่ยน 1 ตัวแปร *" : "ONE Variable Changed *"}
-          </AppText>
-          <Ionicons
-            name={hasVariable ? "checkmark-circle" : "close-circle"}
-            size={20}
-            color={hasVariable ? GREEN : RED}
-          />
-        </View>
-        <AppText style={styles.fieldHint}>
-          {lang === "th" ? "สิ่งเดียวที่คุณเปลี่ยนจาก Cycle ก่อน" : "What is the ONE thing you changed from the last cycle?"}
-        </AppText>
-        {priorVariable && (
-          <View style={styles.priorVariableBlock}>
-            <AppText style={styles.priorVariableLabel}>{lang === "th" ? "ตัวแปรก่อนหน้า:" : "Prior variable:"}</AppText>
-            <AppText style={styles.priorVariableText}>{priorVariable}</AppText>
-          </View>
-        )}
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder={lang === "th" ? "เราเปลี่ยน ___ เพราะเราได้เรียนรู้ ___" : "We changed ___ because we learned ___"}
-          placeholderTextColor={WHITE28}
-          value={variableChanged}
-          onChangeText={setVariableChanged}
-          multiline
-        />
-        <AppText style={styles.variableTip}>
-          <Ionicons name="bulb" size={12} color={YELLOW} /> {lang === "th" ? "เปลี่ยนเพียง 1 ตัวแปรต่อ Cycle มิฉะนั้นจะไม่รู้ว่าอะไรเป็นสาเหตุ" : "Tip: Change only ONE variable per cycle. Otherwise you won't know what caused the result."}
-        </AppText>
       </View>
 
       <View style={styles.divider} />
@@ -459,10 +404,6 @@ export default function PretotypeForm({
             <AppText style={styles.previewValue}>
               {selectedMethod.label}
             </AppText>
-          </View>
-          <View style={styles.previewRow}>
-            <AppText style={styles.previewLabel}>{lang === "th" ? "ตัวแปร:" : "Variable:"}</AppText>
-            <AppText style={styles.previewValue}>{variableChanged}</AppText>
           </View>
           <View style={styles.previewRow}>
             <AppText style={styles.previewLabel}>{lang === "th" ? "ทดสอบ:" : "Test:"}</AppText>
@@ -583,14 +524,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingLeft: 28,
   },
-  priorVariableBlock: {
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: CYAN45,
-    marginBottom: 10,
-  },
-  priorVariableLabel: { color: WHITE55, fontSize: 11, marginBottom: 4 },
-  priorVariableText: { color: WHITE75, fontSize: 13 },
   input: {
     backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 12,
@@ -605,12 +538,6 @@ const styles = StyleSheet.create({
     minHeight: 80,
     paddingTop: 12,
     textAlignVertical: "top",
-  },
-  variableTip: {
-    color: WHITE55,
-    fontSize: 12,
-    marginTop: 8,
-    lineHeight: 18,
   },
   previewBlock: {
     borderLeftWidth: 3,

@@ -300,7 +300,6 @@ export default function Phase3WorkspaceScreen() {
   const handleSubmitPretotype = useCallback(
     async (data: {
       method: string;
-      variableChanged: string;
       artifactUrl: string | null;
       description: string;
     }) => {
@@ -318,7 +317,6 @@ export default function Phase3WorkspaceScreen() {
         "pretotype",
         {
           method: data.method,
-          variable_changed: data.variableChanged,
           artifact_url: data.artifactUrl,
           description: data.description,
         },
@@ -838,7 +836,6 @@ export default function Phase3WorkspaceScreen() {
                 cycleId={String(effectiveCycleNum)}
                 teamId={resolvedTeamId ?? ""}
                 hypothesis={currentHypothesisFull}
-                priorVariable={!isViewingPrior ? priorCycle?.variable_changed : undefined}
                 onSubmit={handleSubmitPretotype}
                 aiFeedback={isViewingPrior ? null : aiFeedback}
                 lang={lang}
@@ -847,7 +844,6 @@ export default function Phase3WorkspaceScreen() {
                   const stepData = effectiveSteps.find(s => s.stepType === "pretotype")?.submissionData;
                   return {
                     method: effectiveCycleData?.pretotype_method ?? (stepData?.method as string | null) ?? null,
-                    variableChanged: effectiveCycleData?.variable_changed ?? (stepData?.variable_changed as string | null) ?? null,
                     artifactUrl: effectiveCycleData?.pretotype_artifact_url ?? (stepData?.artifact_url as string | null) ?? null,
                     description: effectiveCycleData?.pretotype_description ?? (stepData?.description as string | null) ?? null,
                   };

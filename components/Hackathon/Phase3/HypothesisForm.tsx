@@ -234,6 +234,7 @@ export default function HypothesisForm({
           {renderFieldStatus(hasWho)}
         </View>
         <AppText style={styles.fieldHint}>{lang === "th" ? "กลุ่มผู้ใช้เฉพาะ" : "Specific user type"}</AppText>
+        <AppText style={styles.fieldExample}>{lang === "th" ? "เช่น คนทำงานออฟฟิศที่อยากออกกำลังกายแต่ไม่มีเวลา" : "e.g. office workers who want to exercise but feel they have no time"}</AppText>
         <View style={styles.dropdownContainer}>
           {targetUsers.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -273,6 +274,7 @@ export default function HypothesisForm({
           {renderFieldStatus(hasWillDo)}
         </View>
         <AppText style={styles.fieldHint}>{lang === "th" ? "การกระทำที่สังเกตได้" : "Observable action"}</AppText>
+        <AppText style={styles.fieldExample}>{lang === "th" ? "เช่น ออกกำลังกาย 10 นาทีก่อนอาหารเช้าโดยไม่ต้องเตือน" : "e.g. exercise 10 minutes before breakfast without being reminded"}</AppText>
         <Pressable
           style={styles.templateToggle}
           onPress={() => setShowTemplates(showTemplates === "willDo" ? null : "willDo")}
@@ -320,6 +322,7 @@ export default function HypothesisForm({
           {renderFieldStatus(hasBecause)}
         </View>
         <AppText style={styles.fieldHint}>{lang === "th" ? "หลักฐานจาก Phase 1" : "Evidence from Phase 1"}</AppText>
+        <AppText style={styles.fieldExample}>{lang === "th" ? "เช่น การออกกำลังกายเริ่มต้นได้เลยโดยไม่ต้องเตรียมอุปกรณ์" : "e.g. exercising can be started immediately without any equipment"}</AppText>
         {phase1Evidence.length > 0 && (
           <View style={styles.evidenceList}>
             {phase1Evidence.slice(0, 3).map((ev, i) => (
@@ -357,6 +360,7 @@ export default function HypothesisForm({
           {renderFieldStatus(hasMeasuredBy)}
         </View>
         <AppText style={styles.fieldHint}>{lang === "th" ? "เกณฑ์ที่สังเกตได้" : "Observable threshold"}</AppText>
+        <AppText style={styles.fieldExample}>{lang === "th" ? "เช่น 6 ใน 10 คนออกกำลังกายครบ 3 วันติดต่อกัน" : "e.g. 6 of 10 will exercise for 3 consecutive days"}</AppText>
         <Pressable
           style={styles.templateToggle}
           onPress={() => setShowTemplates(showTemplates === "measured" ? null : "measured")}
@@ -623,7 +627,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   fieldLabel: { color: CYAN, fontSize: 14 },
-  fieldHint: { color: WHITE55, fontSize: 12, marginBottom: 8 },
+  fieldHint: { color: WHITE55, fontSize: 12, marginBottom: 2 },
+  fieldExample: { color: WHITE28, fontSize: 12, marginBottom: 8, fontStyle: "italic" },
   dropdownContainer: { gap: 8 },
   chip: {
     backgroundColor: CYAN20,
