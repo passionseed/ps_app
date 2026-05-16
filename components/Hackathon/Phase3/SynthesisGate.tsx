@@ -5,6 +5,7 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { AppText } from "../../AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,12 +32,20 @@ interface SynthesisGateProps {
   hypothesisResult: HackathonPhase3SynthesisResult | null;
   testSessions: HackathonPhase3TestSession[];
   priorCycleVariable?: string | null;
-  onGateDecision: (decision: "refine" | "proceed" | "kill", data: {
+  onGateDecision: (decision: "next_cycle" | "finish" | "kill", data: {
     whatChanged: string;
     nextVariable?: string;
   }) => void;
+  onSaveDraft?: (data: { whatChanged: string; nextVariable?: string }) => Promise<boolean>;
   aiFeedback?: AICoachResponse | null;
   lang?: "th" | "en";
+  onConfirmRequest?: (gate: string, data: { whatChanged: string; nextVariable?: string }) => void;
+  status?: "draft" | "submitted" | "ai_reviewed" | "mentor_reviewed" | "locked";
+  initialData?: {
+    whatChanged: string | null;
+    nextVariable: string | null;
+    gateDecision: string | null;
+  } | null;
 }
 
 export default function SynthesisGate({
@@ -45,44 +54,88 @@ export default function SynthesisGate({
   testSessions,
   priorCycleVariable,
   onGateDecision,
+  onSaveDraft,
   aiFeedback,
   lang = "th",
+  onConfirmRequest,
+  status = "draft",
+  initialData = null,
 }: SynthesisGateProps) {
-  const [whatChanged, setWhatChanged] = useState("");
-  const [nextVariable, setNextVariable] = useState("");
-  const [selectedGate, setSelectedGate] = useState<string | null>(null);
+  const [whatChanged, setWhatChanged] = useState(initialData?.whatChanged ?? "");
+  const [nextVariable, setNextVariable] = useState(initialData?.nextVariable ?? "");
+  const [selectedGate, setSelectedGate] = useState<string | null>(initialData?.gateDecision ?? null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
+  const isSubmitted = status !== "draft" && initialData?.gateDecision;
   const canSubmit = whatChanged.trim().length > 0;
 
+  const handleSave = useCallback(async () => {
+    if (!onSaveDraft || !whatChanged.trim()) return;
+    setSaving(true);
+    const success = await onSaveDraft({
+      whatChanged,
+      nextVariable: nextVariable || undefined,
+    });
+    setSaving(false);
+    if (success) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  }, [onSaveDraft, whatChanged, nextVariable]);
+
   const handleGate = useCallback(
-    (gate: "refine" | "proceed" | "kill") => {
+    (gate: "next_cycle" | "finish" | "kill") => {
       if (!canSubmit) return;
       onGateDecision(gate, {
         whatChanged,
-        nextVariable: gate === "refine" ? nextVariable : undefined,
+        nextVariable: gate === "next_cycle" ? nextVariable : undefined,
       });
     },
     [canSubmit, whatChanged, nextVariable, onGateDecision]
   );
 
+  const requestConfirm = useCallback(
+    (gate: string) => {
+      onConfirmRequest?.(gate, {
+        whatChanged,
+        nextVariable: gate === "next_cycle" ? nextVariable : undefined,
+      });
+    },
+    [onConfirmRequest, whatChanged, nextVariable]
+  );
+
+  // Derive result from gateDecision fallback if hypothesisResult is null
+  // Map UI gate values to result values
+  const effectiveResult: HackathonPhase3SynthesisResult | null =
+    hypothesisResult ??
+    (initialData?.gateDecision === "finish" || initialData?.gateDecision === "proceed"
+      ? "confirmed"
+      : initialData?.gateDecision === "kill"
+      ? "killed"
+      : initialData?.gateDecision === "next_cycle" || initialData?.gateDecision === "refine"
+      ? "unclear"
+      : null);
+
   const resultColor =
-    hypothesisResult === "confirmed"
+    effectiveResult === "confirmed"
       ? GREEN
-      : hypothesisResult === "killed"
+      : effectiveResult === "killed"
       ? RED
       : YELLOW;
 
   const resultLabel =
     lang === "th"
-      ? hypothesisResult === "confirmed"
-        ? "ยืนยัน"
-        : hypothesisResult === "killed"
+      ? effectiveResult === "confirmed"
+        ? "ผ่าน"
+        : effectiveResult === "killed"
         ? "ไม่ผ่าน"
         : "ไม่ชัดเจน"
-      : hypothesisResult === "confirmed"
+      : effectiveResult === "confirmed"
       ? "Confirmed"
-      : hypothesisResult === "killed"
-      ? "Kill"
+      : effectiveResult === "killed"
+      ? "Killed"
       : "Unclear";
 
   return (
@@ -96,6 +149,61 @@ export default function SynthesisGate({
       </AppText>
       <AppText style={styles.subtitle}>{lang === "th" ? "วิเคราะห์ผลทดสอบแล้วตัดสินใจทิศทาง" : "Honest synthesis. Make a decision."}</AppText>
 
+      {isSubmitted && !isEditing && (
+        <View style={styles.submittedView}>
+          <View style={styles.submittedHeader}>
+            <Ionicons name="checkmark-circle" size={20} color={GREEN} />
+            <AppText variant="bold" style={styles.submittedTitle}>
+              {lang === "th" ? "ส่งแล้ว ✓" : "Submitted ✓"}
+            </AppText>
+          </View>
+          <View style={styles.submittedBody}>
+            <View style={styles.submittedRow}>
+              <AppText style={styles.submittedLabel}>
+                {lang === "th" ? "สิ่งที่เรียนรู้" : "What Changed"}
+              </AppText>
+              <AppText style={styles.submittedValue}>{initialData?.whatChanged}</AppText>
+            </View>
+            {initialData?.nextVariable && (
+              <View style={styles.submittedRow}>
+                <AppText style={styles.submittedLabel}>
+                  {lang === "th" ? "ตัวแปรถัดไป" : "Next Variable"}
+                </AppText>
+                <AppText style={styles.submittedValue}>{initialData?.nextVariable}</AppText>
+              </View>
+            )}
+            <View style={styles.submittedRow}>
+              <AppText style={styles.submittedLabel}>
+                {lang === "th" ? "การตัดสินใจ" : "Decision"}
+              </AppText>
+              <AppText
+                style={[
+                  styles.submittedValue,
+                  initialData?.gateDecision === "proceed" && { color: GREEN },
+                  initialData?.gateDecision === "kill" && { color: RED },
+                  initialData?.gateDecision === "refine" && { color: CYAN },
+                ]}
+              >
+                {initialData?.gateDecision === "finish"
+                  ? lang === "th" ? "เสร็จสิ้น → จบ Sprint" : "Finish → Complete Sprint"
+                  : initialData?.gateDecision === "kill"
+                  ? lang === "th" ? "เปลี่ยน Idea → เริ่มใหม่" : "Change Idea → Start Fresh"
+                  : lang === "th" ? "Cycle ถัดไป → ทดสอบใหม่" : "Next Cycle → Test New Hypothesis"}
+              </AppText>
+            </View>
+          </View>
+          <Pressable
+            style={styles.editButton}
+            onPress={() => setIsEditing(true)}
+          >
+            <Ionicons name="create-outline" size={16} color={CYAN} />
+            <AppText style={styles.editButtonText}>
+              {lang === "th" ? "แก้ไข" : "Edit"}
+            </AppText>
+          </Pressable>
+        </View>
+      )}
+
       <View style={styles.divider} />
 
         <View>
@@ -104,9 +212,9 @@ export default function SynthesisGate({
           <View style={[styles.resultBadge, { borderColor: resultColor }]}>
             <Ionicons
               name={
-                hypothesisResult === "confirmed"
+                effectiveResult === "confirmed"
                   ? "checkmark-circle"
-                  : hypothesisResult === "killed"
+                  : effectiveResult === "killed"
                   ? "close-circle"
                   : "help-circle"
               }
@@ -144,7 +252,7 @@ export default function SynthesisGate({
                 >
                   {session.session_result
                     ? session.session_result === "confirmed"
-                      ? "ยืนยัน"
+                      ? "ผ่าน"
                       : session.session_result === "killed"
                       ? "ไม่ผ่าน"
                       : "ไม่ชัดเจน"
@@ -167,127 +275,164 @@ export default function SynthesisGate({
 
         <View style={styles.divider} />
 
-        <View>
-          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "เรียนรู้อะไรจาก Cycle นี้? *" : "What Changed About Our Understanding? *"}</AppText>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder={lang === "th" ? "สิ่งที่ได้เรียนรู้จริงๆ ไม่ต้องสวยงาม..." : "What did this cycle reveal?"}
-            placeholderTextColor={WHITE55}
-            value={whatChanged}
-            onChangeText={setWhatChanged}
-            multiline
-          />
-        </View>
+        {(!isSubmitted || isEditing) && (
+          <>
+            <View>
+              <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "เรียนรู้อะไรจาก Cycle นี้? *" : "What Changed About Our Understanding? *"}</AppText>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder={lang === "th" ? "สิ่งที่ได้เรียนรู้จริงๆ ไม่ต้องสวยงาม..." : "What did this cycle reveal?"}
+                placeholderTextColor={WHITE55}
+                value={whatChanged}
+                onChangeText={setWhatChanged}
+                multiline
+              />
+            </View>
 
-        {priorCycleVariable && (
-          <View>
-            <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "ตัวแปรจาก Cycle ก่อน" : "Compare to Prior Cycle"}</AppText>
-            <AppText style={styles.mutedText}>
-              {lang === "th" ? "ตัวแปรก่อนหน้า: " : "Prior variable: "}{priorCycleVariable}
-            </AppText>
-          </View>
+            {priorCycleVariable && (
+              <View>
+                <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "ตัวแปรจาก Cycle ก่อน" : "Compare to Prior Cycle"}</AppText>
+                <AppText style={styles.mutedText}>
+                  {lang === "th" ? "ตัวแปรก่อนหน้า: " : "Prior variable: "}{priorCycleVariable}
+                </AppText>
+              </View>
+            )}
+
+            <View>
+              <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "ตัวแปรถัดไป (ถ้าปรับ)" : "ONE Variable to Change Next Cycle"}</AppText>
+              <TextInput
+                style={styles.input}
+                placeholder={lang === "th" ? "สิ่งเดียวที่จะเปลี่ยน..." : "If refining, what ONE thing will you change?"}
+                placeholderTextColor={WHITE55}
+                value={nextVariable}
+                onChangeText={setNextVariable}
+              />
+            </View>
+
+            {/* Save button */}
+            {onSaveDraft && (
+              <Pressable
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                onPress={handleSave}
+                disabled={saving || !whatChanged.trim()}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color={CYAN} />
+                ) : (
+                  <>
+                    <Ionicons name={saved ? "checkmark" : "save-outline"} size={16} color={saved ? GREEN : CYAN} />
+                    <AppText style={[styles.saveButtonText, saved && { color: GREEN }]}>
+                      {saved
+                        ? (lang === "th" ? "บันทึกแล้ว" : "Saved")
+                        : (lang === "th" ? "บันทึกร่าง" : "Save Draft")}
+                    </AppText>
+                  </>
+                )}
+              </Pressable>
+            )}
+
+            <View style={styles.divider} />
+
+            <View>
+              <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "สรุป Cycle" : "Cycle Summary"}</AppText>
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryItem}>
+                  <AppText variant="bold" style={styles.summaryValue}>{testSessions.length}</AppText>
+                  <AppText style={styles.summaryLabel}>{lang === "th" ? "ผู้ทดสอบ" : "Testers"}</AppText>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <AppText variant="bold" style={[styles.summaryValue, { color: GREEN }]}>
+                    {testSessions.filter(s => s.session_result === "confirmed").length}
+                  </AppText>
+                  <AppText style={styles.summaryLabel}>{lang === "th" ? "ผ่าน" : "Confirmed"}</AppText>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <AppText variant="bold" style={[styles.summaryValue, { color: RED }]}>
+                    {testSessions.filter(s => s.session_result === "killed").length}
+                  </AppText>
+                  <AppText style={styles.summaryLabel}>{lang === "th" ? "ไม่ผ่าน" : "Killed"}</AppText>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <AppText variant="bold" style={[styles.summaryValue, { color: YELLOW }]}>
+                    {testSessions.filter(s => s.session_result === "unclear").length}
+                  </AppText>
+                  <AppText style={styles.summaryLabel}>{lang === "th" ? "ไม่ชัดเจน" : "Unclear"}</AppText>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View>
+              <AppText variant="bold" style={styles.gateTitle}>{lang === "th" ? "ตัดสินใจ" : "Choose Gate"}</AppText>
+              {!canSubmit && (
+                <View style={styles.gateBlockedHint}>
+                  <Ionicons name="lock-closed" size={13} color={YELLOW} />
+                  <AppText style={styles.gateBlockedText}>
+                    {lang === "th" ? "กรอกสิ่งที่เรียนรู้ก่อนจึงจะเลือกได้" : "Fill in what you learned above first"}
+                  </AppText>
+                </View>
+              )}
+              <View style={styles.gateRow}>
+                <Pressable
+                  style={[
+                    styles.gateButton,
+                    styles.gateRefine,
+                    selectedGate === "next_cycle" && styles.gateRefineActive,
+                    !canSubmit && styles.gateButtonLocked,
+                  ]}
+                  onPress={() => {
+                    if (!canSubmit) return;
+                    requestConfirm("next_cycle");
+                  }}
+                >
+                  <Ionicons name="arrow-forward" size={20} color={canSubmit ? CYAN : WHITE55} />
+                  <AppText variant="bold" style={[styles.gateButtonText, !canSubmit && styles.gateButtonTextLocked]}>{lang === "th" ? "Cycle ถัดไป" : "Next Cycle"}</AppText>
+                  <AppText style={styles.gateSubtext}>{lang === "th" ? "ทดสอบสมมติฐานใหม่" : "Test new hypothesis"}</AppText>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.gateButton,
+                    styles.gateProceed,
+                    selectedGate === "finish" && styles.gateProceedActive,
+                    !canSubmit && styles.gateButtonLocked,
+                  ]}
+                  onPress={() => {
+                    if (!canSubmit) return;
+                    requestConfirm("finish");
+                  }}
+                >
+                  <Ionicons name="checkmark-done" size={20} color={canSubmit ? GREEN : WHITE55} />
+                  <AppText variant="bold" style={[styles.gateButtonText, !canSubmit && styles.gateButtonTextLocked]}>{lang === "th" ? "เสร็จสิ้น" : "Finish"}</AppText>
+                  <AppText style={styles.gateSubtext}>{lang === "th" ? "จบ Sprint นี้" : "Complete this sprint"}</AppText>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.gateButton,
+                    styles.gateKill,
+                    selectedGate === "kill" && styles.gateKillActive,
+                    !canSubmit && styles.gateButtonLocked,
+                  ]}
+                  onPress={() => {
+                    if (!canSubmit) return;
+                    requestConfirm("kill");
+                  }}
+                >
+                  <Ionicons name="swap-horizontal" size={20} color={canSubmit ? RED : WHITE55} />
+                  <AppText variant="bold" style={[styles.gateButtonText, !canSubmit && styles.gateButtonTextLocked]}>{lang === "th" ? "เปลี่ยน Idea" : "Change Idea"}</AppText>
+                  <AppText style={styles.gateSubtext}>{lang === "th" ? "เริ่ม Idea ใหม่" : "Start new idea"}</AppText>
+                </Pressable>
+              </View>
+            </View>
+          </>
         )}
 
-        <View>
-          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "ตัวแปรถัดไป (ถ้าปรับ)" : "ONE Variable to Change Next Cycle"}</AppText>
-          <TextInput
-            style={styles.input}
-            placeholder={lang === "th" ? "สิ่งเดียวที่จะเปลี่ยน..." : "If refining, what ONE thing will you change?"}
-            placeholderTextColor={WHITE55}
-            value={nextVariable}
-            onChangeText={setNextVariable}
-          />
-        </View>
-
-        <View style={styles.divider} />
-
-        <View>
-          <AppText variant="bold" style={styles.sectionLabel}>{lang === "th" ? "คะแนน Cycle" : "Cycle Scorecard"}</AppText>
-          <View style={styles.scoreRow}>
-            {[
-              lang === "th" ? "สมมติฐาน" : "Hypothesis",
-              lang === "th" ? "ตัวแปร" : "Variable",
-              lang === "th" ? "พฤติกรรม" : "Behavior",
-              lang === "th" ? "ความสดใหม่" : "Freshness",
-              lang === "th" ? "สังเคราะห์" : "Synthesis",
-            ].map(
-              (label) => (
-                <View key={label} style={styles.scoreItem}>
-                  <AppText style={styles.scoreLabel}>{label}</AppText>
-                  <View style={styles.scoreBar}>
-                    <View style={[styles.scoreFill, { width: "60%" }]} />
-                  </View>
-                </View>
-              )
-            )}
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View>
-          <AppText variant="bold" style={styles.gateTitle}>{lang === "th" ? "ตัดสินใจ" : "Choose Gate"}</AppText>
-          {!canSubmit && (
-            <View style={styles.gateBlockedHint}>
-              <Ionicons name="lock-closed" size={13} color={YELLOW} />
-              <AppText style={styles.gateBlockedText}>
-                {lang === "th" ? "กรอกสิ่งที่เรียนรู้ก่อนจึงจะเลือกได้" : "Fill in what you learned above first"}
-              </AppText>
-            </View>
-          )}
-          <View style={styles.gateRow}>
-            <Pressable
-              style={[
-                styles.gateButton,
-                styles.gateRefine,
-                selectedGate === "refine" && styles.gateRefineActive,
-                !canSubmit && styles.gateButtonLocked,
-              ]}
-              onPress={() => {
-                setSelectedGate("refine");
-                handleGate("refine");
-              }}
-            >
-              <Ionicons name="refresh" size={20} color={canSubmit ? CYAN : WHITE55} />
-              <AppText variant="bold" style={[styles.gateButtonText, !canSubmit && styles.gateButtonTextLocked]}>{lang === "th" ? "ปรับ" : "Refine"}</AppText>
-              <AppText style={styles.gateSubtext}>{lang === "th" ? "Cycle ใหม่" : "Start new cycle"}</AppText>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.gateButton,
-                styles.gateProceed,
-                selectedGate === "proceed" && styles.gateProceedActive,
-                !canSubmit && styles.gateButtonLocked,
-              ]}
-              onPress={() => {
-                setSelectedGate("proceed");
-                handleGate("proceed");
-              }}
-            >
-              <Ionicons name="arrow-forward" size={20} color={canSubmit ? GREEN : WHITE55} />
-              <AppText variant="bold" style={[styles.gateButtonText, !canSubmit && styles.gateButtonTextLocked]}>{lang === "th" ? "ผ่าน" : "Proceed"}</AppText>
-              <AppText style={styles.gateSubtext}>{lang === "th" ? "ทำวิดีโอ Round 1" : "To Round 1 video"}</AppText>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.gateButton,
-                styles.gateKill,
-                selectedGate === "kill" && styles.gateKillActive,
-                !canSubmit && styles.gateButtonLocked,
-              ]}
-              onPress={() => {
-                setSelectedGate("kill");
-                handleGate("kill");
-              }}
-            >
-              <Ionicons name="close" size={20} color={canSubmit ? RED : WHITE55} />
-              <AppText variant="bold" style={[styles.gateButtonText, !canSubmit && styles.gateButtonTextLocked]}>{lang === "th" ? "หยุด" : "Kill"}</AppText>
-              <AppText style={styles.gateSubtext}>{lang === "th" ? "ยกเลิก idea นี้" : "Exit workspace"}</AppText>
-            </Pressable>
-          </View>
-        </View>
+  
 
         {aiFeedback && (
           <View style={styles.aiFeedback}>
@@ -324,7 +469,7 @@ export default function SynthesisGate({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1 },
   content: {
     paddingVertical: 16,
     gap: 20,
@@ -379,22 +524,33 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     textAlignVertical: "top",
   },
-  scoreRow: {
+  summaryRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+    alignItems: "center",
+    justifyContent: "space-around",
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "rgba(74,107,130,0.25)",
   },
-  scoreItem: { width: "30%", marginBottom: 8 },
-  scoreLabel: { color: WHITE55, fontSize: 11, marginBottom: 4 },
-  scoreBar: {
-    height: 6,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 3,
+  summaryItem: {
+    alignItems: "center",
+    flex: 1,
   },
-  scoreFill: {
-    height: 6,
-    backgroundColor: CYAN,
-    borderRadius: 3,
+  summaryValue: {
+    color: WHITE,
+    fontSize: 20,
+  },
+  summaryLabel: {
+    color: WHITE55,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: "rgba(74,107,130,0.3)",
   },
   gateTitle: { color: WHITE, fontSize: 18, marginBottom: 12 },
   gateRow: {
@@ -450,6 +606,54 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,165,0,0.25)",
   },
   gateBlockedText: { color: YELLOW, fontSize: 13, flex: 1 },
+  saveButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: CYAN20,
+    borderWidth: 1,
+    borderColor: CYAN45,
+    alignSelf: "flex-start",
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    color: CYAN,
+    fontSize: 13,
+  },
+  submittedView: {
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(78,205,196,0.3)",
+    borderRadius: 12,
+  },
+  submittedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  submittedTitle: { color: GREEN, fontSize: 16 },
+  submittedBody: { gap: 10 },
+  submittedRow: { gap: 2 },
+  submittedLabel: { color: WHITE55, fontSize: 11, textTransform: "uppercase" },
+  submittedValue: { color: WHITE, fontSize: 14, lineHeight: 20 },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: CYAN20,
+    alignSelf: "flex-start",
+  },
+  editButtonText: { color: CYAN, fontSize: 13 },
   aiFeedback: {
     paddingTop: 8,
     borderTopWidth: 1,

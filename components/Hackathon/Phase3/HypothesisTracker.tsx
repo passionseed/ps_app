@@ -82,7 +82,7 @@ export default function HypothesisTracker({
 
   const resultLabel = (r: string) => {
     if (lang === "th") {
-      return r === "confirmed" ? "ยืนยัน" : r === "killed" ? "ไม่ผ่าน" : "ไม่ชัดเจน";
+      return r === "confirmed" ? "ผ่าน" : r === "killed" ? "ไม่ผ่าน" : "ไม่ชัดเจน";
     }
     return r === "confirmed" ? "Confirmed" : r === "killed" ? "Killed" : "Unclear";
   };

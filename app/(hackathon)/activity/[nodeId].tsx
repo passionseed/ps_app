@@ -53,6 +53,7 @@ import {
   type SubmissionRecord,
   type TeammateSubmissionRecord,
 } from "../../../lib/hackathon-submit";
+import { getTeamCycles } from "../../../lib/hackathonPhase3";
 import { supabase } from "../../../lib/supabase";
 import { Space } from "../../../lib/theme";
 import Animated, {
@@ -923,6 +924,7 @@ export default function HackathonActivityScreen() {
   const [teammateSubmissions, setTeammateSubmissions] = useState<TeammateSubmissionRecord[]>(
     cachedBundle?.teammateSubmissions ?? [],
   );
+  const [cycles, setCycles] = useState<any[]>([]);
   const [loading, setLoading] = useState(!cachedBundle);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [pickedFiles, setPickedFiles] = useState<Record<string, PickedFile | null>>({});
@@ -1175,6 +1177,29 @@ export default function HackathonActivityScreen() {
     setIsAdmin(bundle.isAdmin ?? false);
   }
 
+  async function loadCycles() {
+    try {
+      const participant = await readHackathonParticipant();
+      console.log('[Activity] loadCycles participant:', { id: participant?.id, team_name: participant?.team_name });
+      if (participant?.id) {
+        // participant.id is the user id, we need to find their team_id
+        const { data: member } = await supabase
+          .from('hackathon_team_members')
+          .select('team_id')
+          .eq('participant_id', participant.id)
+          .maybeSingle();
+        console.log('[Activity] loadCycles team member:', member);
+        if (member?.team_id) {
+          const teamCycles = await getTeamCycles(member.team_id);
+          console.log('[Activity] loadCycles fetched:', teamCycles.length, 'cycles');
+          setCycles(teamCycles);
+        }
+      }
+    } catch (e) {
+      console.error('[Activity] loadCycles error:', e);
+    }
+  }
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -1199,6 +1224,9 @@ export default function HackathonActivityScreen() {
           if (!cancelled) setLoading(false);
         }
       })();
+
+      // Load cycle progress for phase 3
+      loadCycles();
 
       // Load revision feedback if coming from revision flow OR if viewing submission
       // Also load if there are past submissions (user may have navigated directly)
@@ -1792,6 +1820,33 @@ export default function HackathonActivityScreen() {
           />
         ) : null}
 
+        {/* Cycle Progress */}
+        {cycles.length > 0 && (
+          <View style={styles.cycleProgressCard}>
+            <View style={styles.cycleProgressHeader}>
+              <Ionicons name="refresh-circle" size={20} color={CYAN} />
+              <AppText variant="bold" style={styles.cycleProgressTitle}>
+                Sprint Progress ({cycles.filter(c => c.synthesis_result).length}/{cycles.length} completed)
+              </AppText>
+            </View>
+            <View style={styles.cycleList}>
+              {cycles.map((cycle) => (
+                <View key={cycle.id} style={styles.cycleItem}>
+                  <View style={[
+                    styles.cycleDot,
+                    cycle.synthesis_result === 'confirmed' && styles.cycleDotConfirmed,
+                    cycle.synthesis_result === 'killed' && styles.cycleDotKilled,
+                    cycle.synthesis_result === 'unclear' && styles.cycleDotUnclear
+                  ]} />
+                  <AppText style={styles.cycleText}>
+                    Cycle {cycle.cycle_number}: {cycle.synthesis_result === 'confirmed' ? 'ผ่าน' : cycle.synthesis_result === 'killed' ? 'ไม่ผ่าน' : cycle.synthesis_result === 'unclear' ? 'ไม่ชัดเจน' : 'กำลังทำ'}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Comments Preview */}
         {activity && participant && (
           <>
@@ -2229,6 +2284,54 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(145, 196, 227, 0.3)",
     marginVertical: 8,
+  },
+
+  // Cycle progress
+  cycleProgressCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: Space.lg,
+    marginTop: Space.lg,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  cycleProgressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  cycleProgressTitle: {
+    color: CYAN,
+    fontSize: 16,
+  },
+  cycleList: {
+    gap: 8,
+  },
+  cycleItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  cycleDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "rgba(255,255,255,0.3)",
+  },
+  cycleDotConfirmed: {
+    backgroundColor: "#4ECDC4",
+  },
+  cycleDotKilled: {
+    backgroundColor: "#FF6B6B",
+  },
+  cycleDotUnclear: {
+    backgroundColor: "#FFA500",
+  },
+  cycleText: {
+    color: WHITE,
+    fontSize: 14,
   },
 
   webNavButtons: {

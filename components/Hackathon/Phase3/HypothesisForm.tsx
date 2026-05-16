@@ -593,7 +593,7 @@ export default function HypothesisForm({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1 },
   content: {
     paddingVertical: 16,
     gap: 20,

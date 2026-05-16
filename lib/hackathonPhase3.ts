@@ -176,6 +176,7 @@ export async function startPhase3Cycle(
   programPhaseId: string
 ): Promise<string | null> {
   try {
+    // Get max cycle number across ALL cycles (including abandoned) to avoid unique constraint violations
     const { data: maxRow } = await supabase
       .from("hackathon_phase3_cycles")
       .select("cycle_number")
@@ -294,7 +295,6 @@ export async function submitCycleStep(
         hypothesis_will_do: willDo,
         hypothesis_because: because,
         hypothesis_measured_by: measuredBy,
-        hypothesis_full: submissionData.full as string,
       })
       .eq("id", cycleId);
 
@@ -316,6 +316,38 @@ export async function submitCycleStep(
 
     if (cycleError) {
       console.error("update cycle pretotype error", cycleError);
+    }
+  }
+
+  if (stepType === "synthesis" && status === "submitted") {
+    const gateDecision = submissionData.gate_decision as string;
+    // Map new gate values to legacy values for DB compatibility
+    const dbGateDecision =
+      gateDecision === "next_cycle"
+        ? "refine"
+        : gateDecision === "finish"
+        ? "proceed"
+        : gateDecision === "kill"
+        ? "kill"
+        : gateDecision;
+    const { error: cycleError } = await supabase
+      .from("hackathon_phase3_cycles")
+      .update({
+        gate_decision: dbGateDecision,
+        synthesis_result:
+          dbGateDecision === "proceed"
+            ? "confirmed"
+            : dbGateDecision === "kill"
+            ? "killed"
+            : dbGateDecision === "refine"
+            ? "unclear"
+            : null,
+        synthesis_what_changed: submissionData.what_changed as string,
+      })
+      .eq("id", cycleId);
+
+    if (cycleError) {
+      console.error("update cycle synthesis error", cycleError);
     }
   }
 
@@ -419,28 +451,57 @@ export async function deleteTestSession(sessionId: string): Promise<boolean> {
 }
 
 export async function deleteCycleById(cycleId: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data: deletedRow, error } = await supabase
     .from("hackathon_phase3_cycles")
     .delete()
-    .eq("id", cycleId);
+    .eq("id", cycleId)
+    .select("id")
+    .maybeSingle();
 
-  if (!error) {
+  if (deletedRow?.id === cycleId) {
     return true;
   }
 
-  console.warn("deleteCycleById hard delete failed, falling back to abandoned status", error);
+  if (error) {
+    console.warn("deleteCycleById hard delete failed, falling back to abandoned status", error);
+  } else {
+    console.warn("deleteCycleById hard delete affected zero rows, falling back to abandoned status", { cycleId });
+  }
 
-  const { error: softDeleteError } = await supabase
+  const { data: softDeletedRow, error: softDeleteError } = await supabase
     .from("hackathon_phase3_cycles")
     .update({ status: "abandoned" })
-    .eq("id", cycleId);
+    .eq("id", cycleId)
+    .neq("status", "abandoned")
+    .select("id,status")
+    .maybeSingle();
+
+  if (softDeletedRow?.id === cycleId) {
+    return true;
+  }
 
   if (softDeleteError) {
     console.error("deleteCycleById fallback error", softDeleteError);
     return false;
   }
 
-  return true;
+  const { data: remainingRow, error: verifyError } = await supabase
+    .from("hackathon_phase3_cycles")
+    .select("id,status")
+    .eq("id", cycleId)
+    .maybeSingle();
+
+  if (verifyError) {
+    console.error("deleteCycleById verification error", verifyError);
+    return false;
+  }
+
+  if (!remainingRow || remainingRow.status === "abandoned") {
+    return true;
+  }
+
+  console.error("deleteCycleById could not delete or soft-delete cycle", remainingRow);
+  return false;
 }
 
 export async function checkFreshTester(

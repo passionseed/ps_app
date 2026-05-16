@@ -17,6 +17,7 @@ import HypothesisForm from "../../../components/Hackathon/Phase3/HypothesisForm"
 import PretotypeForm from "../../../components/Hackathon/Phase3/PretotypeForm";
 import TestCaptureForm from "../../../components/Hackathon/Phase3/TestCaptureForm";
 import SynthesisGate from "../../../components/Hackathon/Phase3/SynthesisGate";
+import SynthesisCelebration from "../../../components/Hackathon/Phase3/SynthesisCelebration";
 import HypothesisTracker from "../../../components/Hackathon/Phase3/HypothesisTracker";
 
 import {
@@ -94,6 +95,15 @@ export default function Phase3WorkspaceScreen() {
   const [workingCycleSteps, setWorkingCycleSteps] = useState<Phase3WorkspaceStep[]>([]);
   const [loadingWorkingCycle, setLoadingWorkingCycle] = useState(false);
   const [priorCycleStepData, setPriorCycleStepData] = useState<Record<string, unknown> | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{
+    hypothesis: string;
+    hypothesisResult: string | null;
+    testSessions: HackathonPhase3TestSession[];
+    whatChanged: string;
+  } | null>(null);
+  const [confirmGate, setConfirmGate] = useState<string | null>(null);
+  const [pendingGateData, setPendingGateData] = useState<{ whatChanged: string; nextVariable?: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,8 +200,11 @@ export default function Phase3WorkspaceScreen() {
   }, [resolvedTeamId, programPhaseId, loadWorkspace]);
 
   const handleDeleteLatestCycle = useCallback(async () => {
-    if (cycles.length === 0) return;
-    const latestCycle = cycles[cycles.length - 1];
+    const phaseCycles = programPhaseId
+      ? cycles.filter(c => c.program_phase_id === programPhaseId)
+      : cycles;
+    if (phaseCycles.length === 0) return;
+    const latestCycle = phaseCycles[phaseCycles.length - 1];
     setDeletingCycle(true);
     setConfirmDelete(false);
     setDeleteError(null);
@@ -204,7 +217,7 @@ export default function Phase3WorkspaceScreen() {
       setDeleteError(lang === "th" ? "ลบ Cycle ไม่สำเร็จ กรุณาลองใหม่" : "Failed to delete cycle. Please try again.");
     }
     setDeletingCycle(false);
-  }, [cycles, loadWorkspace, lang]);
+  }, [cycles, programPhaseId, loadWorkspace, lang]);
 
   const handleCheckAI = useCallback(
     async (data: {
@@ -231,6 +244,13 @@ export default function Phase3WorkspaceScreen() {
     },
     []
   );
+
+  const goToNextStep = useCallback((currentStep: string) => {
+    const idx = stepOrder.indexOf(currentStep);
+    if (idx >= 0 && idx < stepOrder.length - 1) {
+      setManualStep(stepOrder[idx + 1]);
+    }
+  }, []);
 
   const handleSubmitHypothesis = useCallback(
     async (data: {
@@ -270,10 +290,11 @@ export default function Phase3WorkspaceScreen() {
         await loadWorkspace();
         setManualStep(null);
         setAiFeedback(null);
+        goToNextStep("hypothesis");
       }
       setSubmitting(false);
     },
-    [workspace, cycles, loadWorkspace, aiFeedback, workingCycleNum]
+    [workspace, cycles, loadWorkspace, aiFeedback, workingCycleNum, goToNextStep]
   );
 
   const handleSubmitPretotype = useCallback(
@@ -319,10 +340,11 @@ export default function Phase3WorkspaceScreen() {
         });
         await loadWorkspace();
         setManualStep(null);
+        goToNextStep("pretotype");
       }
       setSubmitting(false);
     },
-    [workspace, cycles, loadWorkspace, workingCycleNum]
+    [workspace, cycles, loadWorkspace, workingCycleNum, goToNextStep]
   );
 
   const handleSubmitTest = useCallback(
@@ -368,19 +390,52 @@ export default function Phase3WorkspaceScreen() {
           response: "Test logged. Keep going or synthesize when ready.",
         });
         await loadWorkspace();
+        goToNextStep("test_session");
       }
       setSubmitting(false);
     },
-    [workspace, cycles, resolvedTeamId, loadWorkspace, testSessions, workingCycleNum]
+    [workspace, cycles, resolvedTeamId, loadWorkspace, testSessions, workingCycleNum, goToNextStep]
   );
+
+  const handleSaveSynthesisDraft = useCallback(
+    async (data: { whatChanged: string; nextVariable?: string }) => {
+      if (!workspace?.currentCycle && !workingCycleNum) return false;
+      const targetCycleNum = workingCycleNum ?? workspace!.currentCycle!.cycleNumber;
+      const cycle = cycles.find((c) => c.cycle_number === targetCycleNum);
+      if (!cycle) return false;
+
+      const success = await submitCycleStep(
+        cycle.id,
+        "synthesis",
+        {
+          what_changed: data.whatChanged,
+          next_variable: data.nextVariable,
+        },
+        "draft"
+      );
+
+      if (success) {
+        await loadWorkspace();
+      }
+      return success;
+    },
+    [workspace, cycles, loadWorkspace, workingCycleNum]
+  );
+
+  const handleStartNewCycleFromCelebration = useCallback(() => {
+    setShowCelebration(false);
+    setCelebrationData(null);
+    handleStartCycle();
+  }, [handleStartCycle]);
 
   const handleGateDecision = useCallback(
     async (
-      decision: "refine" | "proceed" | "kill",
+      decision: "next_cycle" | "finish" | "kill",
       data: { whatChanged: string; nextVariable?: string }
     ) => {
       if (!workspace?.currentCycle && !workingCycleNum) return;
       setSubmitting(true);
+      setConfirmGate(null);
       const targetCycleNum = workingCycleNum ?? workspace!.currentCycle!.cycleNumber;
       const cycle = cycles.find((c) => c.cycle_number === targetCycleNum);
       if (!cycle) {
@@ -402,19 +457,29 @@ export default function Phase3WorkspaceScreen() {
       if (success) {
         setAiFeedback(null);
         setManualStep(null);
-        if (decision === "refine") {
+        if (decision === "next_cycle") {
           await handleStartCycle();
-        } else if (decision === "proceed") {
-          router.push(
-            `/(hackathon)/phase3/video?teamId=${resolvedTeamId}&programPhaseId=${programPhaseId}`
-          );
+        } else if (decision === "finish") {
+          // Show celebration + learnings review before finishing
+          // Use tracker result (more reliable) or fallback to cycle data
+          const trackerResult = workspace?.tracker?.find(t => t.cycleNumber === targetCycleNum)?.result;
+          const cycleData = cycles.find((c) => c.cycle_number === targetCycleNum);
+          const synthesisResult = trackerResult ?? cycleData?.synthesis_result ?? null;
+          console.log("Celebration result:", { trackerResult, cycleResult: cycleData?.synthesis_result, final: synthesisResult });
+          setCelebrationData({
+            hypothesis: currentHypothesisFull,
+            hypothesisResult: synthesisResult,
+            testSessions: effectiveSessions,
+            whatChanged: data.whatChanged,
+          });
+          setShowCelebration(true);
         } else {
           router.back();
         }
       }
       setSubmitting(false);
     },
-    [workspace, cycles, resolvedTeamId, programPhaseId, handleStartCycle, workingCycleNum]
+    [workspace, cycles, resolvedTeamId, programPhaseId, handleStartCycle, workingCycleNum, currentHypothesisFull, effectiveSessions]
   );
 
   const currentCycle = workspace?.currentCycle;
@@ -501,7 +566,7 @@ export default function Phase3WorkspaceScreen() {
           variant="dark"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.back();
+            router.push(`/(hackathon)/phase/${programPhaseId}`);
           }}
         />
       </View>
@@ -808,23 +873,64 @@ export default function Phase3WorkspaceScreen() {
               />
             )}
 
-            {displayedStep === "synthesis" && (
+            {displayedStep === "synthesis" && showCelebration && celebrationData && (
+              <SynthesisCelebration
+                hypothesis={celebrationData.hypothesis}
+                hypothesisResult={celebrationData.hypothesisResult as any}
+                testSessions={celebrationData.testSessions}
+                whatChanged={celebrationData.whatChanged}
+                cycleCount={cycles.length}
+                onContinue={() => {
+                  router.back();
+                }}
+                onStartNewCycle={handleStartNewCycleFromCelebration}
+                lang={lang}
+              />
+            )}
+
+            {displayedStep === "synthesis" && !showCelebration && (
               <>
                 <SynthesisGate
                   cycleId={String(effectiveCycleNum)}
                   hypothesis={currentHypothesisFull}
-                  hypothesisResult={effectiveCycleData?.synthesis_result ?? null}
+                  hypothesisResult={(() => {
+                    // Prefer tracker result (from getPhase3Workspace) over cycles (from getTeamCycles)
+                    // to avoid stale data issues
+                    const trackerResult = workspace?.tracker?.find(t => t.cycleNumber === effectiveCycleNum)?.result;
+                    return trackerResult ?? effectiveCycleData?.synthesis_result ?? null;
+                  })()}
                   testSessions={effectiveSessions}
                   priorCycleVariable={!isViewingPrior ? priorCycle?.variable_changed : undefined}
                   onGateDecision={isViewingPrior ? async () => {} : handleGateDecision}
+                  onSaveDraft={isViewingPrior ? undefined : handleSaveSynthesisDraft}
+                  onConfirmRequest={isViewingPrior ? undefined : (gate, data) => {
+                    setConfirmGate(gate);
+                    setPendingGateData(data);
+                  }}
                   aiFeedback={isViewingPrior ? null : aiFeedback}
                   lang={lang}
+                  status={effectiveSteps.find(s => s.stepType === "synthesis")?.status ?? "draft"}
+                  initialData={(() => {
+                    const stepData = effectiveSteps.find(s => s.stepType === "synthesis")?.submissionData;
+                    // Map legacy DB gate values to UI values
+                    const dbGate = effectiveCycleData?.gate_decision;
+                    const uiGate = dbGate === "proceed"
+                      ? "finish"
+                      : dbGate === "refine"
+                      ? "next_cycle"
+                      : dbGate === "kill"
+                      ? "kill"
+                      : (stepData?.gate_decision as string) ?? null;
+                    return {
+                      whatChanged: (stepData?.what_changed as string | null) ?? effectiveCycleData?.synthesis_what_changed ?? null,
+                      nextVariable: (stepData?.next_variable as string | null) ?? null,
+                      gateDecision: uiGate,
+                    };
+                  })()}
                 />
                 {!isViewingPrior && (() => {
-                  const synthStep = effectiveSteps.find(s => s.stepType === "synthesis");
-                  const synthDone = synthStep && synthStep.status !== "draft";
                   const gateDecision = effectiveCycleData?.gate_decision;
-                  if (synthDone && !gateDecision) {
+                  if (gateDecision === "refine" || gateDecision === "next_cycle") {
                     return (
                       <Pressable style={styles.startButton} onPress={handleStartCycle}>
                         <AppText variant="bold" style={styles.startButtonText}>
@@ -869,6 +975,102 @@ export default function Phase3WorkspaceScreen() {
               </Pressable>
             );
           })}
+        </View>
+      )}
+
+      {/* Gate Confirmation Dialog - rendered at screen level */}
+      {confirmGate && (
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <View style={[styles.confirmIconCircle, { borderColor: confirmGate === "next_cycle" ? CYAN : confirmGate === "finish" ? GREEN : RED }]}>
+              <Ionicons
+                name={
+                  confirmGate === "next_cycle"
+                    ? "arrow-forward"
+                    : confirmGate === "finish"
+                    ? "checkmark-done"
+                    : "swap-horizontal"
+                }
+                size={32}
+                color={
+                  confirmGate === "next_cycle"
+                    ? CYAN
+                    : confirmGate === "finish"
+                    ? GREEN
+                    : RED
+                }
+              />
+            </View>
+            <AppText variant="bold" style={styles.confirmTitle}>
+              {lang === "th"
+                ? confirmGate === "next_cycle"
+                  ? "ไป Cycle ถัดไป?"
+                  : confirmGate === "finish"
+                  ? "จบ Sprint นี้?"
+                  : "เปลี่ยนไป Idea ใหม่?"
+                : confirmGate === "next_cycle"
+                ? "Go to next cycle?"
+                : confirmGate === "finish"
+                ? "Complete this sprint?"
+                : "Switch to a new idea?"}
+            </AppText>
+            <AppText style={styles.confirmMessage}>
+              {lang === "th"
+                ? confirmGate === "next_cycle"
+                  ? "เริ่ม Cycle ใหม่ด้วยสมมติฐานที่ปรับปรุงแล้ว ข้อมูลเดิมยังคงอยู่"
+                  : confirmGate === "finish"
+                  ? "บันทึกผลสรุปและจบ Sprint นี้ คุณสามารถกลับมาดูย้อนหลังได้ตลอด"
+                  : "ออกจาก Idea นี้และเริ่มต้นใหม่ ข้อมูลเก่าจะถูกเก็บไว้ดูย้อนหลัง"
+                : confirmGate === "next_cycle"
+                ? "Start a new cycle with your refined hypothesis. Previous data is preserved."
+                : confirmGate === "finish"
+                ? "Save your synthesis and complete this sprint. You can review it anytime."
+                : "Exit this idea and start fresh. Old data will be kept for reference."}
+            </AppText>
+
+            <View style={styles.confirmButtons}>
+              <Pressable
+                style={styles.confirmCancelBtn}
+                onPress={() => {
+                  setConfirmGate(null);
+                  setPendingGateData(null);
+                }}
+              >
+                <AppText style={styles.confirmCancelText}>
+                  {lang === "th" ? "กลับไปแก้ไข" : "Go Back"}
+                </AppText>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.confirmYesBtn,
+                  confirmGate === "next_cycle" && { backgroundColor: CYAN },
+                  confirmGate === "finish" && { backgroundColor: GREEN },
+                  confirmGate === "kill" && { backgroundColor: RED },
+                ]}
+                onPress={() => {
+                  if (pendingGateData) {
+                    handleGateDecision(confirmGate as any, pendingGateData);
+                  }
+                  setConfirmGate(null);
+                  setPendingGateData(null);
+                }}
+              >
+                <AppText variant="bold" style={styles.confirmYesText}>
+                  {lang === "th"
+                    ? confirmGate === "next_cycle"
+                      ? "ใช่ Cycle ถัดไป"
+                      : confirmGate === "finish"
+                      ? "ใช่ เสร็จสิ้น"
+                      : "ใช่ เปลี่ยน Idea"
+                    : confirmGate === "next_cycle"
+                    ? "Yes, next cycle"
+                    : confirmGate === "finish"
+                    ? "Yes, finish"
+                    : "Yes, change idea"}
+                </AppText>
+              </Pressable>
+            </View>
+          </View>
         </View>
       )}
 
@@ -1228,4 +1430,77 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   submittingText: { color: CYAN, fontSize: 14, marginTop: 8 },
+
+  confirmOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(3,5,10,0.85)",
+    zIndex: 200,
+    padding: 24,
+  },
+  confirmCard: {
+    backgroundColor: "rgba(13,18,25,0.95)",
+    borderRadius: 20,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: "rgba(74,107,130,0.3)",
+    width: "100%",
+    maxWidth: 340,
+    alignItems: "center",
+    gap: 16,
+  },
+  confirmIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  confirmTitle: {
+    color: WHITE,
+    fontSize: 20,
+    textAlign: "center",
+  },
+  confirmMessage: {
+    color: WHITE55,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  confirmButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+    marginTop: 8,
+  },
+  confirmCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(74,107,130,0.3)",
+    alignItems: "center",
+  },
+  confirmCancelText: {
+    color: WHITE55,
+    fontSize: 14,
+  },
+  confirmYesBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  confirmYesText: {
+    color: BG,
+    fontSize: 14,
+  },
 });

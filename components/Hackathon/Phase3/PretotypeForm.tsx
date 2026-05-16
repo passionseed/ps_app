@@ -363,17 +363,35 @@ export default function PretotypeForm({
         </AppText>
 
         {artifactImageUri && (
-          <View style={styles.imagePreviewContainer}>
-            <Image source={{ uri: artifactImageUri }} style={styles.imagePreview} />
-            <Pressable style={styles.removeImageButton} onPress={handleRemoveImage}>
-              <Ionicons name="close-circle" size={24} color={RED} />
-            </Pressable>
+          <>
+            <View style={styles.imagePreviewContainer}>
+              <Image source={{ uri: artifactImageUri }} style={styles.imagePreview} />
+              <Pressable style={styles.removeImageButton} onPress={handleRemoveImage}>
+                <Ionicons name="close-circle" size={24} color={RED} />
+              </Pressable>
+              {uploadingImage && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator size="small" color={CYAN} />
+                </View>
+              )}
+            </View>
             {uploadingImage && (
-              <View style={styles.uploadingOverlay}>
+              <View style={styles.uploadStatusRow}>
                 <ActivityIndicator size="small" color={CYAN} />
+                <AppText style={styles.uploadStatusText}>
+                  {lang === "th" ? "กำลังอัปโหลด..." : "Uploading..."}
+                </AppText>
               </View>
             )}
-          </View>
+            {!uploadingImage && artifactImageUrl && (
+              <View style={styles.uploadStatusRow}>
+                <Ionicons name="cloud-done" size={16} color={GREEN} />
+                <AppText style={[styles.uploadStatusText, { color: GREEN }]}>
+                  {lang === "th" ? "อัปโหลดสำเร็จ ✓" : "Upload complete ✓"}
+                </AppText>
+              </View>
+            )}
+          </>
         )}
 
         {!artifactImageUri && (
@@ -508,7 +526,7 @@ export default function PretotypeForm({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1 },
   content: {
     paddingVertical: 16,
     gap: 20,
@@ -728,4 +746,16 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,107,107,0.3)",
   },
   uploadErrorText: { color: RED, fontSize: 13 },
+  uploadStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 6,
+  },
+  uploadStatusText: {
+    color: CYAN,
+    fontSize: 13,
+    fontFamily: "BaiJamjuree_400Regular",
+  },
 });

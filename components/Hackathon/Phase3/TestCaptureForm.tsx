@@ -46,6 +46,20 @@ interface TestCaptureFormProps {
   initialData?: HackathonPhase3TestSession[] | null;
 }
 
+function parseHypothesisParts(full: string) {
+  // Try to extract WHO / WILL DO / BECAUSE / MEASURED BY from the full sentence
+  const willMatch = full.match(/^(.*?)\s+will\s+(.*?)\s+because\s+(.*?)\s+measured by\s+(.*)$/i);
+  if (willMatch) {
+    return {
+      who: willMatch[1].trim(),
+      willDo: willMatch[2].trim(),
+      because: willMatch[3].trim(),
+      measuredBy: willMatch[4].trim(),
+    };
+  }
+  return null;
+}
+
 export default function TestCaptureForm({
   cycleNumber,
   hypothesis,
@@ -114,10 +128,12 @@ export default function TestCaptureForm({
   }, [canSubmit, testers, cycleNumber, onSubmit]);
 
   const resultOptions: { value: SimpleTester["result"]; label: string; color: string; icon: any }[] = [
-    { value: "confirmed", label: lang === "th" ? "ยืนยัน" : "Confirmed", color: GREEN, icon: "checkmark-circle" },
+    { value: "confirmed", label: lang === "th" ? "ผ่าน" : "Confirmed", color: GREEN, icon: "checkmark-circle" },
     { value: "killed", label: lang === "th" ? "ไม่ผ่าน" : "Kill", color: RED, icon: "close-circle" },
     { value: "unclear", label: lang === "th" ? "ไม่ชัดเจน" : "Unclear", color: YELLOW, icon: "help-circle" },
   ];
+
+  const parsed = parseHypothesisParts(hypothesis);
 
   return (
     <ScrollView
@@ -129,14 +145,87 @@ export default function TestCaptureForm({
         {lang === "th" ? "ขั้นตอนที่ 3: ทดสอบกับผู้ใช้จริง" : "Step 3: Test With Real Users"}
       </AppText>
 
-      {hypothesis.length > 0 && (
+      {parsed ? (
+        <View style={styles.hypothesisCard}>
+          <AppText style={styles.hypothesisCardLabel}>
+            {lang === "th" ? "สมมติฐานที่ทดสอบ" : "Hypothesis Under Test"}
+          </AppText>
+          <View style={styles.hypothesisPartRow}>
+            <View style={styles.hypothesisPartBadge}>
+              <AppText style={styles.hypothesisPartBadgeText}>WHO</AppText>
+            </View>
+            <AppText style={styles.hypothesisPartValue}>{parsed.who}</AppText>
+          </View>
+          <View style={styles.hypothesisPartRow}>
+            <View style={styles.hypothesisPartBadge}>
+              <AppText style={styles.hypothesisPartBadgeText}>WILL DO</AppText>
+            </View>
+            <AppText style={styles.hypothesisPartValue}>{parsed.willDo}</AppText>
+          </View>
+          <View style={styles.hypothesisPartRow}>
+            <View style={styles.hypothesisPartBadge}>
+              <AppText style={styles.hypothesisPartBadgeText}>BECAUSE</AppText>
+            </View>
+            <AppText style={styles.hypothesisPartValue}>{parsed.because}</AppText>
+          </View>
+          <View style={styles.hypothesisPartRow}>
+            <View style={styles.hypothesisPartBadge}>
+              <AppText style={styles.hypothesisPartBadgeText}>MEASURED BY</AppText>
+            </View>
+            <AppText style={styles.hypothesisPartValue}>{parsed.measuredBy}</AppText>
+          </View>
+        </View>
+      ) : hypothesis.length > 0 ? (
         <View style={styles.hypothesisBar}>
           <AppText style={styles.hypothesisLabel}>
             {lang === "th" ? "สมมติฐาน" : "Hypothesis"}
           </AppText>
           <AppText style={styles.hypothesisText}>{hypothesis}</AppText>
         </View>
-      )}
+      ) : null}
+
+      <View style={styles.guideCard}>
+        <View style={styles.guideHeader}>
+          <Ionicons name="bulb" size={16} color={CYAN} />
+          <AppText variant="bold" style={styles.guideTitle}>
+            {lang === "th" ? "คำแนะนำการทดสอบ" : "Testing Guide"}
+          </AppText>
+        </View>
+        <View style={styles.guideBody}>
+          <View style={styles.guideItem}>
+            <Ionicons name="people" size={14} color={CYAN45} />
+            <AppText style={styles.guideItemText}>
+              {lang === "th"
+                ? "หาผู้ทดสอบที่ไม่เคยเห็น pretotype มาก่อน (fresh tester)"
+                : "Find testers who have never seen your pretotype before"}
+            </AppText>
+          </View>
+          <View style={styles.guideItem}>
+            <Ionicons name="eye" size={14} color={CYAN45} />
+            <AppText style={styles.guideItemText}>
+              {lang === "th"
+                ? "บันทึกพฤติกรรมจริง ไม่ใช่ความคิดเห็น — 'ทำอะไร' ไม่ใช่ 'ชอบไหม'"
+                : "Log actual behavior, not opinions — what they DO, not what they say"}
+            </AppText>
+          </View>
+          <View style={styles.guideItem}>
+            <Ionicons name="chatbubble" size={14} color={CYAN45} />
+            <AppText style={styles.guideItemText}>
+              {lang === "th"
+                ? "จดคำพูดที่ผู้ทดสอบพูดเองโดยไม่ถาม (unprompted quotes)"
+                : "Write down unprompted quotes — things they say without being asked"}
+            </AppText>
+          </View>
+          <View style={styles.guideItem}>
+            <Ionicons name="trending-up" size={14} color={CYAN45} />
+            <AppText style={styles.guideItemText}>
+              {lang === "th"
+                ? "ทดสอบอย่างน้อย 3 คน ถึงจะมีแนวโน้มที่เชื่อถือได้"
+                : "Test at least 3 people to see a reliable pattern"}
+            </AppText>
+          </View>
+        </View>
+      </View>
 
       {status !== "draft" && initialData && initialData.length > 0 && (
         <View style={styles.submittedCard}>
@@ -173,7 +262,7 @@ export default function TestCaptureForm({
                   ]}
                 >
                   {session.session_result === "confirmed"
-                    ? lang === "th" ? "ยืนยัน" : "Confirmed"
+                    ? lang === "th" ? "ผ่าน" : "Confirmed"
                     : session.session_result === "killed"
                     ? lang === "th" ? "ไม่ผ่าน" : "Killed"
                     : lang === "th" ? "ไม่ชัดเจน" : "Unclear"}
@@ -280,8 +369,13 @@ export default function TestCaptureForm({
         <View style={styles.aiFeedback}>
           <View style={styles.aiHeader}>
             <Ionicons name="sparkles" size={16} color={CYAN} />
-            <AppText variant="bold" style={styles.aiTitle}>{lang === "th" ? "โค้ช AI" : "AI Coach"}</AppText>
+            <AppText variant="bold" style={styles.aiTitle}>
+              {lang === "th" ? "โค้ช AI — คำแนะนำ" : "AI Coach — Guidance"}
+            </AppText>
           </View>
+          {aiFeedback.response && (
+            <AppText style={styles.aiResponse}>{aiFeedback.response}</AppText>
+          )}
           {aiFeedback.flags.map((flag: any, i: number) => (
             <View key={i} style={styles.aiFlag}>
               <Ionicons
@@ -301,7 +395,12 @@ export default function TestCaptureForm({
                     : CYAN
                 }
               />
-              <AppText style={styles.aiFlagText}>{flag.message}</AppText>
+              <View style={styles.aiFlagContent}>
+                <AppText style={styles.aiFlagText}>{flag.message}</AppText>
+                {flag.suggestion && (
+                  <AppText style={styles.aiFlagSuggestion}>{flag.suggestion}</AppText>
+                )}
+              </View>
             </View>
           ))}
         </View>
@@ -311,7 +410,7 @@ export default function TestCaptureForm({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1 },
   content: {
     paddingVertical: 16,
     gap: 20,
@@ -324,6 +423,82 @@ const styles = StyleSheet.create({
   },
   hypothesisLabel: { color: CYAN, fontSize: 12, marginBottom: 4, textTransform: "uppercase" },
   hypothesisText: { color: WHITE75, fontSize: 14, lineHeight: 20 },
+  hypothesisCard: {
+    backgroundColor: "rgba(145,196,227,0.06)",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.2)",
+    gap: 10,
+  },
+  hypothesisCardLabel: {
+    color: CYAN,
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    fontFamily: "BaiJamjuree_700Bold",
+    marginBottom: 2,
+  },
+  hypothesisPartRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  hypothesisPartBadge: {
+    backgroundColor: CYAN20,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: CYAN45,
+    minWidth: 90,
+    alignItems: "center",
+  },
+  hypothesisPartBadgeText: {
+    color: CYAN,
+    fontSize: 10,
+    fontFamily: "BaiJamjuree_700Bold",
+    letterSpacing: 0.5,
+  },
+  hypothesisPartValue: {
+    color: WHITE75,
+    fontSize: 13,
+    lineHeight: 18,
+    flex: 1,
+    flexWrap: "wrap",
+    paddingTop: 2,
+  },
+  guideCard: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(74,107,130,0.25)",
+    gap: 10,
+  },
+  guideHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  guideTitle: {
+    color: CYAN,
+    fontSize: 14,
+  },
+  guideBody: {
+    gap: 10,
+  },
+  guideItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  guideItemText: {
+    color: WHITE55,
+    fontSize: 13,
+    lineHeight: 18,
+    flex: 1,
+  },
   subtitle: { color: WHITE55, fontSize: 14 },
   testerRow: {
     gap: 10,
@@ -401,9 +576,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  aiFlagText: { color: WHITE75, fontSize: 13, flex: 1 },
+  aiFlagContent: {
+    flex: 1,
+    gap: 4,
+  },
+  aiFlagText: { color: WHITE75, fontSize: 13, lineHeight: 18 },
+  aiFlagSuggestion: { color: WHITE55, fontSize: 12, lineHeight: 16, fontStyle: "italic" },
+  aiResponse: {
+    color: WHITE,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(74,107,130,0.2)",
+  },
   submittedCard: {
     borderWidth: 1,
     borderColor: GREEN,
