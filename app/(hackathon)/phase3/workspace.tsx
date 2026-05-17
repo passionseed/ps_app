@@ -13,7 +13,6 @@ import { AppText } from "../../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { HackathonBackground } from "../../../components/Hackathon/HackathonBackground";
-import CycleIntro from "../../../components/Hackathon/Phase3/CycleIntro";
 import HypothesisForm from "../../../components/Hackathon/Phase3/HypothesisForm";
 import PretotypeForm from "../../../components/Hackathon/Phase3/PretotypeForm";
 import TestCaptureForm from "../../../components/Hackathon/Phase3/TestCaptureForm";
@@ -494,12 +493,13 @@ export default function Phase3WorkspaceScreen() {
   const effectiveSessions = testSessions.filter(s => s.cycle_number === effectiveCycleNum);
   const effectiveCycleData = cycles.find(c => c.cycle_number === effectiveCycleNum);
 
-  const activeStep = workspace?.currentCycle?.activeStep ?? "intro";
+  const rawActiveStep = workspace?.currentCycle?.activeStep;
+  const activeStep = (rawActiveStep === "intro" || rawActiveStep == null) ? "hypothesis" : rawActiveStep;
   const effectiveActiveStep: string = isViewingPrior
     ? (() => {
         const incomplete = workingCycleSteps.find(s => s.status === "draft");
         if (incomplete) return incomplete.stepType;
-        const stepOrderArr = ["intro", "hypothesis", "pretotype", "test_session", "test_run", "synthesis"];
+        const stepOrderArr = ["hypothesis", "pretotype", "test_session", "test_run", "synthesis"];
         for (let i = stepOrderArr.length - 1; i >= 0; i--) {
           if (workingCycleSteps.find(s => s.stepType === stepOrderArr[i])) return stepOrderArr[i];
         }
@@ -514,7 +514,6 @@ export default function Phase3WorkspaceScreen() {
   const displayedStep = manualStep ?? effectiveActiveStep;
 
   const stepLabels: Record<string, string> = {
-    intro: lang === "th" ? "เริ่มต้น" : "Intro",
     hypothesis: lang === "th" ? "สมมติฐาน" : "Hypothesis",
     pretotype: "Pretotype",
     test_session: lang === "th" ? "หาคนทดสอบ" : "Find Testers",
@@ -523,10 +522,6 @@ export default function Phase3WorkspaceScreen() {
   };
 
   const stepHints: Record<string, { th: string; en: string }> = {
-    intro: {
-      th: "ทำความเข้าใจว่าทำไมและทำอย่างไรก่อนเริ่ม Cycle",
-      en: "Understand why and how before starting the cycle",
-    },
     hypothesis: {
       th: "เขียนสมมติฐานที่ทดสอบได้ด้วยรูปแบบ WHO → WILL DO → BECAUSE → MEASURED BY ใช้ AI ตรวจสอบให้ได้คะแนน ≥80 ก่อนส่ง",
       en: "Write a testable hypothesis using WHO → WILL DO → BECAUSE → MEASURED BY. Get AI score ≥80 before submitting.",
@@ -549,7 +544,7 @@ export default function Phase3WorkspaceScreen() {
     },
   };
 
-  const stepOrder = ["intro", "hypothesis", "pretotype", "test_session", "test_run", "synthesis"];
+  const stepOrder = ["hypothesis", "pretotype", "test_session", "test_run", "synthesis"];
 
   const hypothesisStepData = effectiveSteps.find(
     (s) => s.stepType === "hypothesis"
@@ -814,14 +809,6 @@ export default function Phase3WorkspaceScreen() {
                     : `Viewing Cycle ${effectiveCycleNum} — tap to return to current`}
                 </AppText>
               </Pressable>
-            )}
-
-            {displayedStep === "intro" && (
-              <CycleIntro
-                cycleNumber={effectiveCycleNum ?? 1}
-                lang={lang}
-                onStart={() => setManualStep("hypothesis")}
-              />
             )}
 
             {displayedStep === "hypothesis" && (

@@ -16,6 +16,7 @@ import { AppText } from "../../../components/AppText";
 import { SkiaBackButton } from "../../../components/navigation/SkiaBackButton";
 import { HackathonJellyfishLoader } from "../../../components/Hackathon/HackathonJellyfishLoader";
 import { HackathonBackground } from "../../../components/Hackathon/HackathonBackground";
+import CycleIntro from "../../../components/Hackathon/Phase3/CycleIntro";
 import { getHackathonActivityHref } from "../../../lib/hackathonActivityRoute";
 import { isHackathonActivityAccessible } from "../../../lib/hackathonRelease";
 import {
@@ -214,6 +215,13 @@ export default function HackathonPhaseScreen() {
               </LinearGradient>
             </BlurView>
           </Pressable>
+        )}
+
+        {/* Phase 3 explainer — static read content */}
+        {phase.phase_number === 3 && (
+          <View style={styles.explainerCard}>
+            <CycleIntro cycleNumber={1} onStart={() => {}} readOnly />
+          </View>
         )}
 
         {/* Activity list */}
@@ -581,6 +589,14 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  explainerCard: {
+    backgroundColor: "rgba(13,18,25,0.85)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(145,196,227,0.15)",
+    padding: Space.lg,
+    overflow: "hidden",
   },
   workspaceCard: {
     borderRadius: 18,
