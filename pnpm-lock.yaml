@@ -21,6 +21,9 @@ importers:
       '@expo-google-fonts/libre-franklin':
         specifier: ^0.4.2
         version: 0.4.2
+      '@expo-google-fonts/material-symbols':
+        specifier: ^0.4.37
+        version: 0.4.37
       '@expo-google-fonts/reenie-beanie':
         specifier: ^0.4.1
         version: 0.4.1
@@ -781,8 +784,8 @@ packages:
   '@expo-google-fonts/libre-franklin@0.4.2':
     resolution: {integrity: sha512-aUf6qenmy23hL2BteGl8bk1Y1rmxplz3e1HhmjDkFt171aT7gEc4uSbuS1URbD5mUPzt0rv+VuOlKezPlDegew==}
 
-  '@expo-google-fonts/material-symbols@0.4.29':
-    resolution: {integrity: sha512-3WBhUiK6V91KFlAqWkBRk/lLIHyo0EXg2Paifp+J0LLwlAw7pW2/xf42A5U2g3JzAfzvYHYylfD5Ch4sjvVmqg==}
+  '@expo-google-fonts/material-symbols@0.4.37':
+    resolution: {integrity: sha512-ll8twI7PcfxmjG2hMDS+QNEZ3qYmMERG0YVSJxgYHPlx3VqSNGCasMDAOgPzCE+RhKAVNqlrgTUcIFc8XrHqZQ==}
 
   '@expo-google-fonts/reenie-beanie@0.4.1':
     resolution: {integrity: sha512-d/w/6+cGJxXxVp8cJyRffHSDwaGO2tUmNsongqm8gJiwI75App5U6k73G92CctBxMf7bRZLE1NA8wMsPn3arRA==}
@@ -5398,7 +5401,7 @@ snapshots:
 
   '@expo-google-fonts/libre-franklin@0.4.2': {}
 
-  '@expo-google-fonts/material-symbols@0.4.29': {}
+  '@expo-google-fonts/material-symbols@0.4.37': {}
 
   '@expo-google-fonts/reenie-beanie@0.4.1': {}
 
@@ -7719,7 +7722,7 @@ snapshots:
 
   expo-symbols@55.0.7(expo-font@55.0.6)(expo@55.0.15)(react-native@0.83.4(@babel/core@7.29.0)(@react-native/metro-config@0.85.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.0))(react@19.2.0):
     dependencies:
-      '@expo-google-fonts/material-symbols': 0.4.29
+      '@expo-google-fonts/material-symbols': 0.4.37
       expo: 55.0.15(@babel/core@7.29.0)(@expo/dom-webview@55.0.5)(@expo/metro-runtime@55.0.9)(expo-router@55.0.12)(react-dom@19.2.0(react@19.2.0))(react-native-webview@13.16.1(react-native@0.83.4(@babel/core@7.29.0)(@react-native/metro-config@0.85.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(react-native-worklets@0.7.4(@babel/core@7.29.0)(react-native@0.83.4(@babel/core@7.29.0)(@react-native/metro-config@0.85.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(react-native@0.83.4(@babel/core@7.29.0)(@react-native/metro-config@0.85.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
       expo-font: 55.0.6(expo@55.0.15)(react-native@0.83.4(@babel/core@7.29.0)(@react-native/metro-config@0.85.0(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       react: 19.2.0
