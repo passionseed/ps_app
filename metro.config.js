@@ -11,7 +11,6 @@ config.resolver = {
     ...(originalResolver.blockList
       ? [originalResolver.blockList].flat()
       : []),
-    /node_modules[/\\]@expo-google-fonts[/\\]material-symbols[/\\].*/,
   ],
 };
 
