@@ -16,6 +16,7 @@ import { HackathonBackground } from "../../../components/Hackathon/HackathonBack
 import HypothesisForm from "../../../components/Hackathon/Phase3/HypothesisForm";
 import PretotypeForm from "../../../components/Hackathon/Phase3/PretotypeForm";
 import TestCaptureForm from "../../../components/Hackathon/Phase3/TestCaptureForm";
+import TestRunForm, { type TesterRun } from "../../../components/Hackathon/Phase3/TestRunForm";
 import SynthesisGate from "../../../components/Hackathon/Phase3/SynthesisGate";
 import SynthesisCelebration from "../../../components/Hackathon/Phase3/SynthesisCelebration";
 import HypothesisTracker from "../../../components/Hackathon/Phase3/HypothesisTracker";
@@ -25,8 +26,6 @@ import {
   getCycleWorkspaceSteps,
   submitCycleStep,
   startPhase3Cycle,
-  createTestSession,
-  deleteTestSession,
   deleteCycleById,
   getTeamCycles,
   getTeamTestSessions,
@@ -346,7 +345,7 @@ export default function Phase3WorkspaceScreen() {
   );
 
   const handleSubmitTest = useCallback(
-    async (data: any) => {
+    async (data: { testers: Array<{ name: string; role: string; oldHabit: string }> }) => {
       if (!workspace?.currentCycle && !workingCycleNum) return;
       setSubmitting(true);
       const targetCycleNum = workingCycleNum ?? workspace!.currentCycle!.cycleNumber;
@@ -356,43 +355,47 @@ export default function Phase3WorkspaceScreen() {
         return;
       }
 
-      await submitCycleStep(
+      const success = await submitCycleStep(
         cycle.id,
         "test_session",
-        { sessions_logged: (testSessions.filter(s => s.cycle_number === cycle.cycle_number).length + 1) },
+        { testers: data.testers },
         "submitted"
       );
 
-      const refreshedWs = await getPhase3Workspace(resolvedTeamId!, programPhaseId!);
-      const refreshedStep = refreshedWs?.steps?.find(
-        (s) => s.stepType === "test_session"
-      );
-
-      const sessionId = await createTestSession({
-        ...data,
-        team_id: resolvedTeamId,
-        cycle_step_id: refreshedStep?.stepId || null,
-      });
-
-      if (sessionId) {
-        setAiFeedback({
-          flags: [
-            {
-              severity: "info",
-              flag_id: "test_logged",
-              field: "test_session",
-              message: "Test session logged.",
-              suggestion: "Continue testing or move to synthesis.",
-            },
-          ],
-          response: "Test logged. Keep going or synthesize when ready.",
-        });
+      if (success) {
         await loadWorkspace();
         goToNextStep("test_session");
       }
       setSubmitting(false);
     },
-    [workspace, cycles, resolvedTeamId, loadWorkspace, testSessions, workingCycleNum, goToNextStep]
+    [workspace, cycles, loadWorkspace, workingCycleNum, goToNextStep]
+  );
+
+  const handleSubmitTestRun = useCallback(
+    async (data: { runs: TesterRun[] }) => {
+      if (!workspace?.currentCycle && !workingCycleNum) return;
+      setSubmitting(true);
+      const targetCycleNum = workingCycleNum ?? workspace!.currentCycle!.cycleNumber;
+      const cycle = cycles.find((c) => c.cycle_number === targetCycleNum);
+      if (!cycle) {
+        setSubmitting(false);
+        return;
+      }
+
+      const success = await submitCycleStep(
+        cycle.id,
+        "test_run",
+        { runs: data.runs },
+        "submitted"
+      );
+
+      if (success) {
+        await loadWorkspace();
+        goToNextStep("test_run");
+      }
+      setSubmitting(false);
+    },
+    [workspace, cycles, loadWorkspace, workingCycleNum, goToNextStep]
   );
 
   const handleSaveSynthesisDraft = useCallback(
@@ -495,7 +498,7 @@ export default function Phase3WorkspaceScreen() {
     ? (() => {
         const incomplete = workingCycleSteps.find(s => s.status === "draft");
         if (incomplete) return incomplete.stepType;
-        const stepOrderArr = ["hypothesis", "pretotype", "test_session", "synthesis"];
+        const stepOrderArr = ["hypothesis", "pretotype", "test_session", "test_run", "synthesis"];
         for (let i = stepOrderArr.length - 1; i >= 0; i--) {
           if (workingCycleSteps.find(s => s.stepType === stepOrderArr[i])) return stepOrderArr[i];
         }
@@ -512,7 +515,8 @@ export default function Phase3WorkspaceScreen() {
   const stepLabels: Record<string, string> = {
     hypothesis: lang === "th" ? "สมมติฐาน" : "Hypothesis",
     pretotype: "Pretotype",
-    test_session: lang === "th" ? "ทดสอบ" : "Test",
+    test_session: lang === "th" ? "หาคนทดสอบ" : "Find Testers",
+    test_run: lang === "th" ? "ทดสอบ" : "Test",
     synthesis: lang === "th" ? "สรุปผล" : "Synthesis",
   };
 
@@ -526,8 +530,12 @@ export default function Phase3WorkspaceScreen() {
       en: "Pick the fastest test method — Video Prototype, Fake Door, etc. Change only ONE variable per cycle.",
     },
     test_session: {
-      th: "ทดสอบกับผู้ใช้จริงอย่างน้อย 3 คน บันทึกผลทุกครั้งแล้วไปสรุปผลในขั้นตอนถัดไป",
-      en: "Test with at least 3 real users. Log every result, then move to synthesis.",
+      th: "หาคนที่เหมาะสมอย่างน้อย 3 คน บันทึกข้อมูลพื้นฐานและพฤติกรรมเดิมก่อนทดสอบ",
+      en: "Find at least 3 suitable testers. Record their background and existing habits.",
+    },
+    test_run: {
+      th: "ทดสอบกับแต่ละคน บันทึกพฤติกรรมจริงระหว่างทดสอบ และเลือกผลลัพธ์",
+      en: "Run the test with each person. Log real behavior during the session and pick a result.",
     },
     synthesis: {
       th: "วิเคราะห์ผลทั้งหมดแล้วตัดสินใจ: ยืนยัน / ไม่ผ่าน / หรือปรับแก้แล้วเริ่ม Cycle ใหม่",
@@ -535,7 +543,7 @@ export default function Phase3WorkspaceScreen() {
     },
   };
 
-  const stepOrder = ["hypothesis", "pretotype", "test_session", "synthesis"];
+  const stepOrder = ["hypothesis", "pretotype", "test_session", "test_run", "synthesis"];
 
   const hypothesisStepData = effectiveSteps.find(
     (s) => s.stepType === "hypothesis"
@@ -858,14 +866,32 @@ export default function Phase3WorkspaceScreen() {
                 cycleNumber={effectiveCycleNum ?? 1}
                 hypothesis={currentHypothesisFull}
                 onSubmit={isViewingPrior ? async () => {} : handleSubmitTest}
-                onDelete={isViewingPrior ? undefined : async (sessionId) => {
-                  const success = await deleteTestSession(sessionId);
-                  if (success) await loadWorkspace();
-                }}
                 aiFeedback={isViewingPrior ? null : aiFeedback}
                 lang={lang}
                 status={effectiveSteps.find(s => s.stepType === "test_session")?.status ?? "draft"}
-                initialData={effectiveSessions}
+                initialData={(() => {
+                  const stepData = effectiveSteps.find(s => s.stepType === "test_session")?.submissionData;
+                  return (stepData?.testers as Array<{ name: string; role: string; oldHabit: string }>) ?? null;
+                })()}
+              />
+            )}
+
+            {displayedStep === "test_run" && (
+              <TestRunForm
+                cycleNumber={effectiveCycleNum ?? 1}
+                hypothesis={currentHypothesisFull}
+                testers={(() => {
+                  const stepData = effectiveSteps.find(s => s.stepType === "test_session")?.submissionData;
+                  return (stepData?.testers as Array<{ name: string; role: string; oldHabit: string }>) ?? [];
+                })()}
+                onSubmit={isViewingPrior ? async () => {} : handleSubmitTestRun}
+                aiFeedback={isViewingPrior ? null : aiFeedback}
+                lang={lang}
+                status={effectiveSteps.find(s => s.stepType === "test_run")?.status ?? "draft"}
+                initialData={(() => {
+                  const stepData = effectiveSteps.find(s => s.stepType === "test_run")?.submissionData;
+                  return (stepData?.runs as TesterRun[]) ?? null;
+                })()}
               />
             )}
 

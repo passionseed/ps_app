@@ -29,8 +29,7 @@ interface SimpleTester {
   id: number;
   name: string;
   role: string;
-  note: string;
-  result: "confirmed" | "killed" | "unclear" | "";
+  oldHabit: string;
 }
 
 interface TestCaptureFormProps {
@@ -38,12 +37,11 @@ interface TestCaptureFormProps {
   teamId: string;
   cycleNumber: number;
   hypothesis: string;
-  onSubmit: (data: Omit<HackathonPhase3TestSession, "id" | "created_at">) => void;
-  onDelete?: (sessionId: string) => void;
+  onSubmit: (data: { testers: Array<{ name: string; role: string; oldHabit: string }> }) => void;
   aiFeedback?: AICoachResponse | null;
   lang?: "th" | "en";
   status?: "draft" | "submitted" | "ai_reviewed" | "mentor_reviewed" | "locked";
-  initialData?: HackathonPhase3TestSession[] | null;
+  initialData?: Array<{ name: string; role: string; oldHabit: string }> | null;
 }
 
 function parseHypothesisParts(full: string) {
@@ -61,23 +59,21 @@ function parseHypothesisParts(full: string) {
 }
 
 export default function TestCaptureForm({
-  cycleNumber,
   hypothesis,
   onSubmit,
-  onDelete,
   aiFeedback,
   lang = "th",
   status = "draft",
   initialData = null,
 }: TestCaptureFormProps) {
   const [testers, setTesters] = useState<SimpleTester[]>([
-    { id: 1, name: "", role: "", note: "", result: "" },
+    { id: 1, name: "", role: "", oldHabit: "" },
   ]);
 
   const addTester = useCallback(() => {
     setTesters((prev) => [
       ...prev,
-      { id: prev.length + 1, name: "", role: "", note: "", result: "" },
+      { id: prev.length + 1, name: "", role: "", oldHabit: "" },
     ]);
   }, []);
 
@@ -95,43 +91,14 @@ export default function TestCaptureForm({
   );
 
   const canSubmit = testers.some(
-    (t) => t.name.trim().length > 0 && t.note.trim().length > 0 && t.result.length > 0
+    (t) => t.name.trim().length > 0
   );
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit) return;
-    const validTesters = testers.filter(
-      (t) => t.name.trim().length > 0 && t.note.trim().length > 0 && t.result.length > 0
-    );
-    validTesters.forEach((tester) => {
-      onSubmit({
-        cycle_step_id: "",
-        team_id: "",
-        cycle_number: cycleNumber,
-        tester_name: tester.name,
-        tester_role: tester.role || null,
-        tester_contact: null,
-        tester_channel: null,
-        fresh_tester: true,
-        fresh_override_reason: null,
-        session_date: new Date().toISOString().split("T")[0],
-        session_duration_min: null,
-        behavior_log: [{ interval: "session", action: tester.note, surprise: false }],
-        unprompted_quotes: [],
-        painful_detail: tester.note,
-        session_result: tester.result as any,
-        clip_url: null,
-        screenshot_urls: null,
-        ai_behavior_quality: null,
-      });
-    });
-  }, [canSubmit, testers, cycleNumber, onSubmit]);
-
-  const resultOptions: { value: SimpleTester["result"]; label: string; color: string; icon: any }[] = [
-    { value: "confirmed", label: lang === "th" ? "ผ่าน" : "Confirmed", color: GREEN, icon: "checkmark-circle" },
-    { value: "killed", label: lang === "th" ? "ไม่ผ่าน" : "Kill", color: RED, icon: "close-circle" },
-    { value: "unclear", label: lang === "th" ? "ไม่ชัดเจน" : "Unclear", color: YELLOW, icon: "help-circle" },
-  ];
+    const validTesters = testers.filter((t) => t.name.trim().length > 0);
+    onSubmit({ testers: validTesters.map(t => ({ name: t.name, role: t.role, oldHabit: t.oldHabit })) });
+  }, [canSubmit, testers, onSubmit]);
 
   const parsed = parseHypothesisParts(hypothesis);
 
@@ -142,7 +109,7 @@ export default function TestCaptureForm({
       showsVerticalScrollIndicator={false}
     >
       <AppText variant="bold" style={styles.title}>
-        {lang === "th" ? "ขั้นตอนที่ 3: ทดสอบกับผู้ใช้จริง" : "Step 3: Test With Real Users"}
+        {lang === "th" ? "ขั้นตอนที่ 3: หาคนทดสอบ" : "Step 3: Find Testers"}
       </AppText>
 
       {parsed ? (
@@ -188,7 +155,7 @@ export default function TestCaptureForm({
         <View style={styles.guideHeader}>
           <Ionicons name="bulb" size={16} color={CYAN} />
           <AppText variant="bold" style={styles.guideTitle}>
-            {lang === "th" ? "คำแนะนำการทดสอบ" : "Testing Guide"}
+            {lang === "th" ? "คำแนะนำ" : "Guide"}
           </AppText>
         </View>
         <View style={styles.guideBody}>
@@ -196,32 +163,24 @@ export default function TestCaptureForm({
             <Ionicons name="people" size={14} color={CYAN45} />
             <AppText style={styles.guideItemText}>
               {lang === "th"
-                ? "หาผู้ทดสอบที่ไม่เคยเห็น pretotype มาก่อน (fresh tester)"
-                : "Find testers who have never seen your pretotype before"}
+                ? "หาคนที่ไม่เคยเห็น pretotype ของคุณมาก่อน (fresh tester)"
+                : "Find people who have never seen your pretotype before"}
             </AppText>
           </View>
           <View style={styles.guideItem}>
-            <Ionicons name="eye" size={14} color={CYAN45} />
+            <Ionicons name="person" size={14} color={CYAN45} />
             <AppText style={styles.guideItemText}>
               {lang === "th"
-                ? "บันทึกพฤติกรรมจริง ไม่ใช่ความคิดเห็น — 'ทำอะไร' ไม่ใช่ 'ชอบไหม'"
-                : "Log actual behavior, not opinions — what they DO, not what they say"}
-            </AppText>
-          </View>
-          <View style={styles.guideItem}>
-            <Ionicons name="chatbubble" size={14} color={CYAN45} />
-            <AppText style={styles.guideItemText}>
-              {lang === "th"
-                ? "จดคำพูดที่ผู้ทดสอบพูดเองโดยไม่ถาม (unprompted quotes)"
-                : "Write down unprompted quotes — things they say without being asked"}
+                ? "บันทึกข้อมูลพื้นฐานและพฤติกรรมเดิมก่อนทดสอบ"
+                : "Record their background and existing habits before the test"}
             </AppText>
           </View>
           <View style={styles.guideItem}>
             <Ionicons name="trending-up" size={14} color={CYAN45} />
             <AppText style={styles.guideItemText}>
               {lang === "th"
-                ? "ทดสอบอย่างน้อย 3 คน ถึงจะมีแนวโน้มที่เชื่อถือได้"
-                : "Test at least 3 people to see a reliable pattern"}
+                ? "หาอย่างน้อย 3 คน ถึงจะมีแนวโน้มที่เชื่อถือได้"
+                : "Find at least 3 people to see a reliable pattern"}
             </AppText>
           </View>
         </View>
@@ -232,41 +191,18 @@ export default function TestCaptureForm({
           <View style={styles.submittedHeader}>
             <Ionicons name="checkmark-circle" size={20} color={GREEN} />
             <AppText variant="bold" style={styles.submittedTitle}>
-              {lang === "th" ? "ส่งแล้ว ✓" : "Submitted ✓"}
+              {lang === "th" ? `บันทึกแล้ว ${initialData.length} คน ✓` : `${initialData.length} testers saved ✓`}
             </AppText>
           </View>
           <View style={styles.submittedBody}>
-            {initialData.map((session, idx) => (
-              <View key={session.id ?? idx} style={styles.submittedRow}>
-                <View style={styles.submittedRowHeader}>
-                  <AppText style={styles.submittedLabel}>
-                    {lang === "th" ? `ผู้ทดสอบ ${idx + 1}` : `Tester ${idx + 1}`}
-                  </AppText>
-                  {onDelete && (
-                    <Pressable onPress={() => onDelete(session.id)}>
-                      <Ionicons name="trash-outline" size={16} color={RED} />
-                    </Pressable>
-                  )}
-                </View>
-                <AppText style={styles.submittedValue}>{session.tester_name}</AppText>
-                {session.tester_role && (
-                  <AppText style={styles.submittedSecondary}>{session.tester_role}</AppText>
-                )}
-                <AppText style={styles.submittedValue}>{session.painful_detail}</AppText>
-                <AppText
-                  style={[
-                    styles.submittedResult,
-                    session.session_result === "confirmed" && { color: GREEN },
-                    session.session_result === "killed" && { color: RED },
-                    session.session_result === "unclear" && { color: YELLOW },
-                  ]}
-                >
-                  {session.session_result === "confirmed"
-                    ? lang === "th" ? "ผ่าน" : "Confirmed"
-                    : session.session_result === "killed"
-                    ? lang === "th" ? "ไม่ผ่าน" : "Killed"
-                    : lang === "th" ? "ไม่ชัดเจน" : "Unclear"}
+            {initialData.map((tester, idx) => (
+              <View key={idx} style={styles.submittedRow}>
+                <AppText style={styles.submittedLabel}>
+                  {lang === "th" ? `คนที่ ${idx + 1}` : `Tester ${idx + 1}`}
                 </AppText>
+                <AppText style={styles.submittedValue}>{tester.name}</AppText>
+                {tester.role ? <AppText style={styles.submittedSecondary}>{tester.role}</AppText> : null}
+                {tester.oldHabit ? <AppText style={styles.submittedSecondary}>{tester.oldHabit}</AppText> : null}
               </View>
             ))}
           </View>
@@ -274,13 +210,7 @@ export default function TestCaptureForm({
       )}
 
       <AppText style={styles.subtitle}>
-        {status !== "draft" && initialData && initialData.length > 0
-          ? lang === "th"
-            ? `บันทึกเพิ่ม (มีแล้ว ${initialData.length} คน)`
-            : `Log more (already have ${initialData.length})`
-          : lang === "th"
-            ? "เพิ่มผู้ทดสอบ บันทึกสั้นๆ เลือกผล"
-            : "Add testers. Short notes. Pick result."}
+        {lang === "th" ? "เพิ่มคนทดสอบ บันทึกข้อมูลพื้นฐาน" : "Add testers and record their background"}
       </AppText>
 
       {testers.map((tester, index) => (
@@ -305,46 +235,19 @@ export default function TestCaptureForm({
           />
           <TextInput
             style={styles.input}
-            placeholder={lang === "th" ? "บทบาท (เช่น นักเรียน)" : "Role (e.g., student)"}
+            placeholder={lang === "th" ? "บทบาท (เช่น นักศึกษา, พนักงานออฟฟิศ)" : "Role (e.g., student, office worker)"}
             placeholderTextColor={WHITE28}
             value={tester.role}
             onChangeText={(text) => updateTester(tester.id, "role", text)}
           />
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder={lang === "th" ? "สังเกตอะไร? (ทำอะไร พูดอะไร) *" : "What did you observe? *"}
+            placeholder={lang === "th" ? "พฤติกรรมเดิมของเขาก่อนทดสอบ (เช่น ปกติออกกำลังกายไหม? ใช้อะไรอยู่แล้ว?)" : "Their existing habit before the test (e.g., do they currently exercise? what do they use now?)"}
             placeholderTextColor={WHITE28}
-            value={tester.note}
-            onChangeText={(text) => updateTester(tester.id, "note", text)}
+            value={tester.oldHabit}
+            onChangeText={(text) => updateTester(tester.id, "oldHabit", text)}
             multiline
           />
-
-          <View style={styles.resultRow}>
-            {resultOptions.map((opt) => (
-              <Pressable
-                key={opt.value}
-                style={[
-                  styles.resultChip,
-                  tester.result === opt.value && { borderColor: opt.color, backgroundColor: `${opt.color}20` },
-                ]}
-                onPress={() => updateTester(tester.id, "result", opt.value)}
-              >
-                <Ionicons
-                  name={opt.icon}
-                  size={16}
-                  color={tester.result === opt.value ? opt.color : WHITE55}
-                />
-                <AppText
-                  style={[
-                    styles.resultText,
-                    tester.result === opt.value && { color: opt.color },
-                  ]}
-                >
-                  {opt.label}
-                </AppText>
-              </Pressable>
-            ))}
-          </View>
         </View>
       ))}
 
@@ -361,7 +264,7 @@ export default function TestCaptureForm({
         disabled={!canSubmit}
       >
         <AppText variant="bold" style={styles.submitButtonText}>
-          {lang === "th" ? "ส่งบันทึกการทดสอบ" : "Submit Test Log"}
+          {lang === "th" ? "บันทึกคนทดสอบ" : "Save Testers"}
         </AppText>
       </Pressable>
 
@@ -527,24 +430,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     textAlignVertical: "top",
   },
-  resultRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  resultChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: CYAN20,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: CYAN45,
-    flex: 1,
-    justifyContent: "center",
-  },
-  resultText: { color: WHITE75, fontSize: 13 },
   addTesterButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -622,5 +507,4 @@ const styles = StyleSheet.create({
   submittedLabel: { color: CYAN, fontSize: 12, textTransform: "uppercase" },
   submittedValue: { color: WHITE, fontSize: 14 },
   submittedSecondary: { color: WHITE55, fontSize: 13 },
-  submittedResult: { fontSize: 14, fontWeight: "bold" },
 });
