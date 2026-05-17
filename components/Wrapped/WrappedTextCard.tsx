@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { AppText } from "../AppText";
+import { WrappedButton } from "./WrappedButton";
 import { Space } from "../../lib/theme";
 import type { WrappedPrompt } from "../../lib/wrapped/prompts";
 
@@ -69,11 +70,10 @@ export function WrappedTextCard({
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(500)}>
-        <Pressable style={styles.ctaButton} onPress={onNext}>
-          <AppText variant="bold" style={styles.ctaText}>
+        <WrappedButton onPress={onNext}>
             See My Results →
-          </AppText>
-        </Pressable>
+          
+          </WrappedButton>
       </Animated.View>
     </View>
   );
@@ -132,23 +132,5 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.3)",
     textAlign: "right",
     fontFamily: "BaiJamjuree_400Regular",
-  },
-  ctaButton: {
-    backgroundColor: PURPLE,
-    borderRadius: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginTop: Space.lg,
-    shadowColor: PURPLE,
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 8,
-    minWidth: 200,
-    alignItems: "center",
-  },
-  ctaText: {
-    fontSize: 16,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
   },
 });

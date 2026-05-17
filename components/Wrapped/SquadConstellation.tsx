@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { AppText } from "../AppText";
+import { WrappedButton } from "./WrappedButton";
 import { Space } from "../../lib/theme";
 import type { ArchetypeResult } from "../../lib/wrapped/archetypes";
 
@@ -15,6 +16,8 @@ const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
 const PURPLE = "#9D81AC";
 const { width: SCREEN_W } = Dimensions.get("window");
+
+import { Image } from "expo-image";
 
 // Archetype accent colors for constellation nodes
 const archetypeColors: Record<string, string> = {
@@ -27,6 +30,18 @@ const archetypeColors: Record<string, string> = {
   "the-auditor": "#94A3B8",
   "the-pivot-forcer": "#F87171",
   wanderer: "#D1D5DB",
+};
+
+const archetypeImages: Record<string, number> = {
+  "the-advocate": require("../../assets/wrapped/archetypes/the-advocate.jpg"),
+  "the-architect": require("../../assets/wrapped/archetypes/the-architect.jpg"),
+  "the-auditor": require("../../assets/wrapped/archetypes/the-auditor.jpg"),
+  "the-empath": require("../../assets/wrapped/archetypes/the-empath.jpg"),
+  "the-interrogator": require("../../assets/wrapped/archetypes/the-interrogator.jpg"),
+  "the-mythbuster": require("../../assets/wrapped/archetypes/the-mythbuster.jpg"),
+  "the-pivot-forcer": require("../../assets/wrapped/archetypes/the-pivot-forcer.jpg"),
+  "the-synthesizer": require("../../assets/wrapped/archetypes/the-synthesizer.jpg"),
+  wanderer: require("../../assets/wrapped/archetypes/wanderer.jpg"),
 };
 
 export interface ConstellationTeammate {
@@ -216,6 +231,11 @@ export function SquadConstellation({
             {Array.from({ length: squadSize }).map((_, i) => {
               const isFilled = i < finishedCount;
               const isUser = i === 0;
+              // If it's a filled slot, we can grab the corresponding node's archetype image
+              // positionedNodes[0] is user, positionedNodes[1..] are teammates.
+              const mappedNode = isFilled ? positionedNodes[i] : null;
+              const avatarSrc = mappedNode ? (archetypeImages[mappedNode.archetypeId] || archetypeImages["wanderer"]) : null;
+
               return (
                 <View
                   key={i}
@@ -225,20 +245,26 @@ export function SquadConstellation({
                     isUser && styles.placeholderSlotUser,
                   ]}
                 >
-                  <AppText style={styles.placeholderSlotText}>
-                    {isUser ? "You" : isFilled ? "✨" : "?"}
-                  </AppText>
+                  {isFilled && avatarSrc ? (
+                    <Image source={avatarSrc} style={styles.placeholderAvatar} contentFit="cover" />
+                  ) : (
+                    <AppText style={styles.placeholderSlotText}>?</AppText>
+                  )}
+                  {isUser && (
+                    <View style={[styles.userBadge, { backgroundColor: "#A78BFA" }]}>
+                      <AppText style={styles.userBadgeText}>You</AppText>
+                    </View>
+                  )}
                 </View>
               );
             })}
           </Animated.View>
 
           <Animated.View entering={FadeInUp.duration(500).delay(400)}>
-            <Pressable style={styles.ctaButton} onPress={onNext}>
-              <AppText variant="bold" style={styles.ctaText}>
-                Continue →
-              </AppText>
-            </Pressable>
+            <WrappedButton onPress={onNext}>
+            See Individual Result →
+              
+          </WrappedButton>
           </Animated.View>
         </View>
       </ScrollView>
@@ -291,6 +317,7 @@ export function SquadConstellation({
           {positionedNodes.map((node) => {
             const color = archetypeColors[node.archetypeId] ?? PURPLE;
             const isUser = node.participantId === "__user__";
+            const avatarSrc = archetypeImages[node.archetypeId] || archetypeImages["wanderer"];
             return (
               <View
                 key={node.participantId}
@@ -300,21 +327,16 @@ export function SquadConstellation({
                     left: node.x - 28,
                     top: node.y - 28,
                     borderColor: color,
-                    backgroundColor: `${color}22`,
                     shadowColor: color,
                   },
                   isUser && styles.nodeUser,
                 ]}
               >
-                <AppText
-                  style={[styles.nodeTitle, { color }]}
-                  numberOfLines={1}
-                >
-                  {node.phase1Title}
-                </AppText>
-                <AppText style={styles.nodeArchetype} numberOfLines={1}>
-                  {node.archetypeDisplay?.en ?? node.archetypeId}
-                </AppText>
+                <Image
+                  source={avatarSrc}
+                  style={styles.nodeAvatar}
+                  contentFit="cover"
+                />
                 {isUser && (
                   <View style={[styles.userBadge, { backgroundColor: color }]}>
                     <AppText style={styles.userBadgeText}>You</AppText>
@@ -336,11 +358,10 @@ export function SquadConstellation({
         )}
 
         <Animated.View entering={FadeInUp.duration(500).delay(400)}>
-          <Pressable style={styles.ctaButton} onPress={onNext}>
-            <AppText variant="bold" style={styles.ctaText}>
-              Share Your Archetype →
-            </AppText>
-          </Pressable>
+          <WrappedButton onPress={onNext}>
+            Next →
+            
+          </WrappedButton>
         </Animated.View>
       </View>
     </ScrollView>
@@ -418,10 +439,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 4,
     shadowOpacity: 0.6,
     shadowRadius: 12,
     elevation: 6,
+    backgroundColor: "#1A2530",
+    overflow: "visible",
   },
   nodeUser: {
     borderWidth: 2.5,
@@ -431,6 +453,11 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
+  },
+  nodeAvatar: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 999,
   },
   nodeTitle: {
     fontSize: 8,
@@ -451,6 +478,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   userBadgeText: {
     fontSize: 8,
@@ -495,6 +524,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.02)",
+    overflow: "visible",
   },
   placeholderSlotFilled: {
     borderColor: CYAN,
@@ -504,25 +534,15 @@ const styles = StyleSheet.create({
   placeholderSlotUser: {
     borderColor: "rgba(255,255,255,0.85)",
     backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 2,
+  },
+  placeholderAvatar: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 999,
   },
   placeholderSlotText: {
     fontSize: 13,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  ctaButton: {
-    backgroundColor: PURPLE,
-    borderRadius: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginTop: Space.lg,
-    shadowColor: PURPLE,
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  ctaText: {
-    fontSize: 16,
     color: WHITE,
     fontFamily: "BaiJamjuree_700Bold",
   },

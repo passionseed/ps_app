@@ -7,6 +7,7 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
@@ -20,6 +21,7 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import { AppText } from "../AppText";
+import { WrappedButton } from "./WrappedButton";
 import { Space } from "../../lib/theme";
 import { prompts } from "../../lib/wrapped/prompts";
 import {
@@ -36,8 +38,10 @@ import {
   getCurrentHackathonTeamMembership,
   getCurrentHackathonProgramHome,
 } from "../../lib/hackathonProgram";
-import { saveWrappedReflection } from "../../lib/wrapped/saveReflection";
+import { fetchParticipantSubmissionsDashboard } from "../../lib/hackathonParticipantSubmissions";
+import { saveWrappedReflection, loadSavedWrappedReflection } from "../../lib/wrapped/saveReflection";
 import type { TeammateWrappedReflection } from "../../lib/hackathonProgram";
+import type { WrappedReflection } from "../../lib/wrapped/archetypes";
 import { readHackathonParticipant } from "../../lib/hackathon-mode";
 import { WrappedSliderCard } from "./WrappedSliderCard";
 import { WrappedMultiSelectCard } from "./WrappedMultiSelectCard";
@@ -48,6 +52,8 @@ import { ArchetypeReveal } from "./ArchetypeReveal";
 import { BestAllyLine } from "./BestAllyLine";
 import { SquadConstellation, type ConstellationTeammate } from "./SquadConstellation";
 import { SummaryCard } from "./SummaryCard";
+import { IdeaGraveyardCard } from "./IdeaGraveyardCard";
+import { TestingMethodCard } from "./TestingMethodCard";
 
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
@@ -82,12 +88,82 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
   const [showConstellation, setShowConstellation] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
+  // Saved reflection state — if user already completed Wrapped
+  const [savedReflection, setSavedReflection] = useState<WrappedReflection | null>(null);
+  const [checkingSaved, setCheckingSaved] = useState(false);
+
   // Team data for constellation
   const [teammates, setTeammates] = useState<ConstellationTeammate[]>([]);
   const [totalSquadSize, setTotalSquadSize] = useState(1);
   const [teamDataLoading, setTeamDataLoading] = useState(false);
 
-  const totalSteps = 12; // intro + 6 prompts + reveal + calibration + bestAlly + constellation + summary
+  // Phase 2 data
+  const [phase2IdeasKilled, setPhase2IdeasKilled] = useState<number>(3);
+  const [phase2PrimaryMethod, setPhase2PrimaryMethod] = useState<string>("Figma Mockup");
+  const [phase2Surprise, setPhase2Surprise] = useState<string>("Users didn't care about the main feature, they just wanted the shortcut.");
+
+  const totalSteps = 14; // intro + 6 prompts + reveal + calibration + bestAlly + constellation + graveyard + method + summary
+
+  // Check for saved reflection when modal opens
+  useEffect(() => {
+    if (visible) {
+      setCheckingSaved(true);
+      setSavedReflection(null);
+      (async () => {
+        try {
+          const [participant, home] = await Promise.all([
+            readHackathonParticipant(),
+            getCurrentHackathonProgramHome(),
+          ]);
+          const enrollmentId = home.enrollment?.id;
+          const participantId = participant?.id;
+
+          console.log("[WrappedModal] Checking saved reflection:", { enrollmentId, participantId });
+
+          if (participantId) {
+            const saved = await loadSavedWrappedReflection(enrollmentId, participantId);
+            console.log("[WrappedModal] Loaded saved reflection:", saved ? "FOUND" : "NOT FOUND", saved?.archetype);
+            if (saved) {
+              setSavedReflection(saved);
+            }
+          } else {
+            console.log("[WrappedModal] Missing participantId, skipping load");
+          }
+        } catch (e) {
+          console.error("[WrappedModal] Failed to check saved reflection:", e);
+        } finally {
+          setCheckingSaved(false);
+        }
+      })();
+
+      // Also fetch Phase 2 data
+      fetchParticipantSubmissionsDashboard().then((subs) => {
+        let killed = 0;
+        let method = "Figma Mockup";
+        let surprise = "";
+
+        subs.forEach(s => {
+          const text = JSON.stringify(s.answers).toLowerCase();
+          if (s.activityTitle.toLowerCase().includes("gate") || s.activityTitle.toLowerCase().includes("synthesize")) {
+             killed += (text.match(/kill|pivot/gi) || []).length;
+          }
+          if (s.activityTitle.toLowerCase().includes("method") || s.activityTitle.toLowerCase().includes("prototype")) {
+             if (text.includes("wizard")) method = "Wizard of Oz";
+             else if (text.includes("paper")) method = "Paper Prototype";
+             else if (text.includes("concierge")) method = "Concierge MVP";
+          }
+          if (s.activityTitle.toLowerCase().includes("test") || s.activityTitle.toLowerCase().includes("surprise")) {
+             const ansText = s.answers?.[0]?.fullText || s.answers?.[0]?.textPreview;
+             if (ansText && ansText.length > 10 && !surprise) surprise = ansText;
+          }
+        });
+
+        if (killed > 0) setPhase2IdeasKilled(killed);
+        if (method !== "Figma Mockup") setPhase2PrimaryMethod(method);
+        if (surprise.length > 5) setPhase2Surprise(surprise);
+      }).catch(console.error);
+    }
+  }, [visible]);
 
   const handleClose = useCallback(() => {
     setCurrentStep(0);
@@ -109,8 +185,45 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
     setTeammates([]);
     setTotalSquadSize(1);
     setTeamDataLoading(false);
+    setSavedReflection(null);
     onClose();
   }, [onClose, progress]);
+
+  const handleViewSavedResults = useCallback(() => {
+    if (!savedReflection) return;
+
+    // Restore all state from saved reflection
+    const saved = savedReflection;
+    const scores: AxisScores = {
+      mm: saved.axes.MM,
+      sb: saved.axes.SB,
+      pr: saved.axes.PR,
+      sq: saved.axes.SQ,
+    };
+    const archetype = classifyArchetype(scores);
+    const secondary = getSecondaryArchetype(scores);
+
+    setAxisScores(scores);
+    setRevealedArchetype(archetype);
+    setSecondaryArchetype(secondary);
+    setArchetypeFit(saved.archetype_fit);
+    setP5Text(saved.surprise_evidence);
+    setP6Title(saved.phase1_title);
+    if (saved.phase2_ideas_killed) setPhase2IdeasKilled(saved.phase2_ideas_killed);
+    if (saved.phase2_primary_method) setPhase2PrimaryMethod(saved.phase2_primary_method);
+    if (saved.phase2_surprise) setPhase2Surprise(saved.phase2_surprise);
+
+    // Jump directly to summary
+    setShowSummary(true);
+    setCurrentStep(13);
+    progress.value = withTiming(13, { duration: 300 });
+  }, [savedReflection, progress]);
+
+  const handleRetake = useCallback(() => {
+    setSavedReflection(null);
+    setCurrentStep(0);
+    progress.value = 0;
+  }, [progress]);
 
   const computeAndReveal = useCallback(() => {
     const scores: AxisScores = {
@@ -210,6 +323,19 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
 
   const handleConstellationNext = useCallback(async () => {
     setShowConstellation(false);
+    // Show graveyard card
+    const nextStep = currentStep + 1;
+    setCurrentStep(nextStep);
+    progress.value = withTiming(nextStep, { duration: 300 });
+  }, [currentStep, progress]);
+
+  const handleGraveyardNext = useCallback(() => {
+    const nextStep = currentStep + 1;
+    setCurrentStep(nextStep);
+    progress.value = withTiming(nextStep, { duration: 300 });
+  }, [currentStep, progress]);
+
+  const handleMethodNext = useCallback(async () => {
     setShowSummary(true);
     const nextStep = currentStep + 1;
     setCurrentStep(nextStep);
@@ -229,8 +355,8 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
           await saveWrappedReflection({
             enrollment_id: enrollmentId,
             participant_id: participantId,
-            archetype: revealedArchetype.id as any,
-            archetype_secondary: secondaryArchetype.id as any,
+            archetype: revealedArchetype.id,
+            archetype_secondary: secondaryArchetype.id,
             axes: {
               MM: axisScores.mm,
               SB: axisScores.sb,
@@ -240,13 +366,17 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
             surprise_evidence: p5Text,
             phase1_title: p6Title,
             archetype_fit: archetypeFit ?? "nailed",
+            phase2_cycles_run: 0,
+            phase2_primary_method: phase2PrimaryMethod,
+            phase2_ideas_killed: phase2IdeasKilled,
+            phase2_surprise: phase2Surprise,
           });
         }
       } catch (e) {
         console.error("[WrappedModal] Failed to save wrapped reflection:", e);
       }
     }
-  }, [currentStep, progress, revealedArchetype, secondaryArchetype, axisScores, p5Text, p6Title, archetypeFit]);
+  }, [currentStep, progress, revealedArchetype, secondaryArchetype, axisScores, p5Text, p6Title, archetypeFit, phase2PrimaryMethod, phase2IdeasKilled, phase2Surprise]);
 
   const progressWidth = useAnimatedStyle(() => ({
     width: `${((progress.value + 1) / totalSteps) * 100}%`,
@@ -281,7 +411,7 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
             disabled={currentStep === 0}
             style={[styles.backButton, currentStep === 0 && styles.backButtonDisabled]}
           >
-            <AppText style={styles.backText}>{"< Back"}</AppText>
+            <AppText style={styles.backText}>←</AppText>
           </Pressable>
           <View style={styles.progressTrack}>
             <Animated.View style={[styles.progressFill, progressWidth]} />
@@ -301,7 +431,21 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
             entering={FadeInUp.duration(400).springify()}
             style={styles.cardContainer}
           >
-            {currentStep === 0 && <IntroCard onNext={handleNext} />}
+            {checkingSaved && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={CYAN} />
+                <AppText style={styles.loadingText}>Loading your results...</AppText>
+              </View>
+            )}
+
+            {!checkingSaved && currentStep === 0 && savedReflection && (
+              <ViewResultsCard
+                archetypeId={savedReflection.archetype}
+                onViewResults={handleViewSavedResults}
+                onRetake={handleRetake}
+              />
+            )}
+            {!checkingSaved && currentStep === 0 && !savedReflection && <IntroCard onNext={handleNext} />}
 
             {currentStep === 1 && p1Prompt && (
               <WrappedSliderCard
@@ -391,13 +535,28 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
               />
             )}
 
-            {currentStep === 11 && revealedArchetype && axisScores && (
+            {currentStep === 11 && (
+              <IdeaGraveyardCard
+                ideasKilled={phase2IdeasKilled}
+                onNext={handleGraveyardNext}
+              />
+            )}
+
+            {currentStep === 12 && (
+              <TestingMethodCard
+                primaryMethod={phase2PrimaryMethod}
+                onNext={handleMethodNext}
+              />
+            )}
+
+            {currentStep === 13 && revealedArchetype && axisScores && (
               <SummaryCard
                 archetype={revealedArchetype}
                 secondaryArchetype={archetypeFit === "not_me" ? secondaryArchetype : undefined}
                 scores={axisScores}
                 phase1Title={p6Title}
                 archetypeFit={archetypeFit}
+                phase2Surprise={phase2Surprise}
                 onDone={handleClose}
               />
             )}
@@ -407,6 +566,19 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
     </Modal>
   );
 }
+
+// Archetype accent colors (matches ArchetypeReveal.tsx)
+const archetypeAccentColors: Record<string, string> = {
+  "the-empath": "#F472B6",
+  "the-advocate": "#4ADE80",
+  "the-interrogator": "#60A5FA",
+  "the-mythbuster": "#FB923C",
+  "the-architect": "#A78BFA",
+  "the-synthesizer": "#2DD4BF",
+  "the-auditor": "#94A3B8",
+  "the-pivot-forcer": "#F87171",
+  wanderer: "#D1D5DB",
+};
 
 function CalibrationCard({
   archetype,
@@ -418,6 +590,7 @@ function CalibrationCard({
   onSelect: (fit: ArchetypeFit) => void;
 }) {
   const [showSecondary, setShowSecondary] = React.useState(false);
+  const accentColor = archetypeAccentColors[archetype.id] ?? CYAN;
 
   const handleNotMe = () => {
     setShowSecondary(true);
@@ -457,14 +630,9 @@ function CalibrationCard({
           </AppText>
         </Animated.View>
         <Animated.View entering={FadeIn.delay(900).duration(600)}>
-          <Pressable
-            style={styles.ctaButton}
-            onPress={() => handleSecondarySelect("not_me")}
-          >
-            <AppText variant="bold" style={styles.ctaText}>
-              This is me →
-            </AppText>
-          </Pressable>
+          <WrappedButton onPress={() => handleSecondarySelect("not_me")}>
+            This is me →
+          </WrappedButton>
         </Animated.View>
       </View>
     );
@@ -473,44 +641,52 @@ function CalibrationCard({
   return (
     <View style={styles.card}>
       <Animated.View entering={FadeIn.delay(100).duration(600)}>
-        <AppText style={styles.introEmoji}>🎯</AppText>
+        <AppText style={styles.stepIndicator}>Archetype Reveal</AppText>
       </Animated.View>
-      <Animated.View entering={FadeIn.delay(300).duration(600)}>
-        <AppText variant="bold" style={styles.introTitle}>
+
+      {/* Archetype identity card */}
+      <Animated.View
+        entering={FadeIn.delay(300).duration(800).springify()}
+        style={styles.calibrationIdentityCard}
+      >
+        <View style={[styles.calibrationAccentBar, { backgroundColor: accentColor }]} />
+        <AppText variant="bold" style={styles.calibrationArchetypeName}>
+          {archetype.display.en}
+        </AppText>
+        <AppText style={styles.calibrationArchetypeTh}>
+          {archetype.display.th}
+        </AppText>
+        <AppText style={styles.calibrationCaption}>
+          {archetype.caption.en}
+        </AppText>
+      </Animated.View>
+
+      <Animated.View entering={FadeIn.delay(600).duration(600)}>
+        <AppText variant="bold" style={styles.calibrationQuestion}>
           Did we get you right?
         </AppText>
       </Animated.View>
-      <Animated.View entering={FadeIn.delay(500).duration(600)}>
-        <AppText style={styles.introText}>
-          You were identified as{" "}
-          <AppText variant="bold" style={{ color: CYAN }}>
-            {archetype.display.en}
-          </AppText>
-        </AppText>
-      </Animated.View>
-      <Animated.View entering={FadeIn.delay(700).duration(600)} style={styles.calibrationButtons}>
+
+      <Animated.View entering={FadeIn.delay(800).duration(600)} style={styles.calibrationButtons}>
+        <WrappedButton onPress={() => onSelect("nailed")}>
+          🎯 Nailed it
+        </WrappedButton>
+
         <Pressable
-          style={[styles.calibrationButton, { backgroundColor: "#4ADE80" }]}
-          onPress={() => onSelect("nailed")}
-        >
-          <AppText variant="bold" style={styles.calibrationButtonText}>
-            🎯 Nailed it
-          </AppText>
-        </Pressable>
-        <Pressable
-          style={[styles.calibrationButton, { backgroundColor: "#FB923C" }]}
+          style={styles.calibrationSecondaryButton}
           onPress={() => onSelect("sort_of")}
         >
-          <AppText variant="bold" style={styles.calibrationButtonText}>
+          <AppText variant="bold" style={styles.calibrationSecondaryText}>
             🤔 Sort of
           </AppText>
         </Pressable>
+
         <Pressable
-          style={[styles.calibrationButton, { backgroundColor: PURPLE }]}
+          style={styles.calibrationTertiaryButton}
           onPress={handleNotMe}
         >
-          <AppText variant="bold" style={styles.calibrationButtonText}>
-            ❌ Not me
+          <AppText style={styles.calibrationTertiaryText}>
+            Not me — show alternative
           </AppText>
         </Pressable>
       </Animated.View>
@@ -536,9 +712,69 @@ function IntroCard({ onNext }: { onNext: () => void }) {
         </AppText>
       </Animated.View>
       <Animated.View entering={FadeIn.delay(700).duration(600)}>
-        <Pressable style={styles.ctaButton} onPress={onNext}>
-          <AppText variant="bold" style={styles.ctaText}>
-            Let's Go →
+        <WrappedButton onPress={onNext}>
+          Let's Go →
+        </WrappedButton>
+      </Animated.View>
+    </View>
+  );
+}
+
+function ViewResultsCard({
+  archetypeId,
+  onViewResults,
+  onRetake,
+}: {
+  archetypeId: string;
+  onViewResults: () => void;
+  onRetake: () => void;
+}) {
+  // Format archetype ID for display (e.g., "the-empath" → "The Empath")
+  const displayName = archetypeId
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
+  return (
+    <View style={styles.card}>
+      <Animated.View entering={FadeIn.delay(100).duration(600)}>
+        <AppText style={styles.stepIndicator}>Welcome Back</AppText>
+      </Animated.View>
+
+      <Animated.View entering={FadeIn.delay(200).duration(600)}>
+        <AppText style={styles.introEmoji}>✨</AppText>
+      </Animated.View>
+
+      <Animated.View entering={FadeIn.delay(300).duration(600)}>
+        <AppText variant="bold" style={styles.introTitle}>
+          You already have your results
+        </AppText>
+      </Animated.View>
+
+      <Animated.View
+        entering={FadeIn.delay(400).duration(800).springify()}
+        style={styles.viewResultsIdentityCard}
+      >
+        <View style={[styles.viewResultsAccentBar, { backgroundColor: CYAN }]} />
+        <AppText variant="bold" style={styles.viewResultsArchetypeName}>
+          {displayName}
+        </AppText>
+      </Animated.View>
+
+      <Animated.View entering={FadeIn.delay(600).duration(600)}>
+        <AppText style={styles.introText}>
+          Your Hackathon Wrapped is ready. View your full results or retake to update them.
+        </AppText>
+      </Animated.View>
+
+      <Animated.View entering={FadeIn.delay(800).duration(600)} style={styles.viewResultsButtons}>
+        <WrappedButton onPress={onViewResults}>
+          View My Results →
+        </WrappedButton>
+
+        <Pressable style={styles.viewResultsRetakeButton} onPress={onRetake}>
+          <AppText style={styles.viewResultsRetakeText}>
+            Retake Quiz
           </AppText>
         </Pressable>
       </Animated.View>
@@ -571,17 +807,23 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   backButton: {
-    paddingVertical: Space.sm,
-    paddingRight: Space.sm,
-    minWidth: 64,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   backButtonDisabled: {
     opacity: 0,
   },
   backText: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.62)",
+    fontSize: 18,
+    color: "rgba(255,255,255,0.7)",
     fontFamily: "BaiJamjuree_700Bold",
+    lineHeight: 22,
   },
   closeButton: {
     padding: Space.sm,
@@ -639,22 +881,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: "BaiJamjuree_400Regular",
   },
-  ctaButton: {
-    backgroundColor: PURPLE,
-    borderRadius: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginTop: Space.lg,
-    shadowColor: PURPLE,
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  ctaText: {
-    fontSize: 16,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
   revealEmoji: {
     fontSize: 48,
     textAlign: "center",
@@ -708,5 +934,150 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: WHITE,
     fontFamily: "BaiJamjuree_700Bold",
+  },
+  // --- Calibration Card (Did we get you right?) ---
+  calibrationIdentityCard: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    padding: Space.xl,
+    alignItems: "center",
+    width: "100%",
+    gap: Space.sm,
+    overflow: "hidden",
+  },
+  calibrationAccentBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  calibrationEmoji: {
+    fontSize: 56,
+    textAlign: "center",
+    marginTop: Space.sm,
+  },
+  calibrationArchetypeName: {
+    fontSize: 24,
+    color: WHITE,
+    textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
+    lineHeight: 32,
+  },
+  calibrationArchetypeTh: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.6)",
+    textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  calibrationCaption: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.5)",
+    textAlign: "center",
+    lineHeight: 20,
+    fontFamily: "BaiJamjuree_400Regular",
+    paddingHorizontal: Space.md,
+    marginTop: Space.xs,
+  },
+  calibrationQuestion: {
+    fontSize: 20,
+    color: WHITE,
+    textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
+    marginTop: Space.md,
+  },
+  calibrationSecondaryButton: {
+    borderRadius: 100,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  calibrationSecondaryText: {
+    fontSize: 15,
+    color: "rgba(255,255,255,0.7)",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  calibrationTertiaryButton: {
+    paddingVertical: Space.sm,
+    alignItems: "center",
+  },
+  calibrationTertiaryText: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.4)",
+    fontFamily: "BaiJamjuree_400Regular",
+    textDecorationLine: "underline",
+  },
+  // --- View Results Card ---
+  viewResultsIdentityCard: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    padding: Space.xl,
+    alignItems: "center",
+    width: "100%",
+    gap: Space.sm,
+    overflow: "hidden",
+  },
+  viewResultsAccentBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  viewResultsEmoji: {
+    fontSize: 48,
+    textAlign: "center",
+    marginTop: Space.sm,
+  },
+  viewResultsArchetypeName: {
+    fontSize: 22,
+    color: WHITE,
+    textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
+    lineHeight: 30,
+  },
+  viewResultsArchetypeTh: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.6)",
+    textAlign: "center",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  viewResultsButtons: {
+    gap: Space.md,
+    width: "100%",
+    paddingHorizontal: Space.lg,
+    marginTop: Space.lg,
+  },
+  viewResultsRetakeButton: {
+    paddingVertical: Space.sm,
+    alignItems: "center",
+  },
+  viewResultsRetakeText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.5)",
+    fontFamily: "BaiJamjuree_400Regular",
+    textDecorationLine: "underline",
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Space.md,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.5)",
+    fontFamily: "BaiJamjuree_400Regular",
   },
 });

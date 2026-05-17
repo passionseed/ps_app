@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { AppText } from "../AppText";
+import { WrappedButton } from "./WrappedButton";
 import { Space } from "../../lib/theme";
 import type { ArchetypeResult, AxisScores } from "../../lib/wrapped/archetypes";
 import { phase2Hints } from "../../lib/wrapped/phase2Hints";
@@ -193,11 +194,10 @@ export function ArchetypeReveal({ archetype, scores, onComplete }: ArchetypeReve
           )}
 
           <Animated.View entering={FadeIn.duration(350).delay(250)} style={styles.footer}>
-            <Pressable style={styles.ctaButton} onPress={onComplete}>
-              <AppText variant="bold" style={styles.ctaText}>
-                Continue →
-              </AppText>
-            </Pressable>
+            <WrappedButton onPress={onComplete}>
+            Continue →
+              
+          </WrappedButton>
           </Animated.View>
         </ScrollView>
       )}
@@ -422,21 +422,5 @@ const styles = StyleSheet.create({
     zIndex: 2,
     alignItems: "center",
     paddingBottom: Space.lg,
-  },
-  ctaButton: {
-    backgroundColor: CYAN,
-    borderRadius: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginTop: Space.md,
-    shadowColor: CYAN,
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  ctaText: {
-    fontSize: 16,
-    color: "#03050a",
-    fontFamily: "BaiJamjuree_700Bold",
   },
 });

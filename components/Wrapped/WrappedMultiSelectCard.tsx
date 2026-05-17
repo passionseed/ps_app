@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../AppText";
+import { WrappedButton } from "./WrappedButton";
 import { Space } from "../../lib/theme";
 import type { WrappedPrompt } from "../../lib/wrapped/prompts";
 
@@ -75,11 +76,10 @@ export function WrappedMultiSelectCard({
       </Animated.View>
 
       <Animated.View entering={FadeInUp.duration(500).delay(600)}>
-        <Pressable style={styles.ctaButton} onPress={onNext}>
-          <AppText variant="bold" style={styles.ctaText}>
+        <WrappedButton onPress={onNext}>
             Next →
-          </AppText>
-        </Pressable>
+          
+          </WrappedButton>
       </Animated.View>
     </View>
   );
@@ -217,23 +217,5 @@ const styles = StyleSheet.create({
   },
   chipTextSelectedTh: {
     color: "rgba(255,255,255,0.85)",
-  },
-  ctaButton: {
-    backgroundColor: PURPLE,
-    borderRadius: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginTop: Space.lg,
-    shadowColor: PURPLE,
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 8,
-    minWidth: 160,
-    alignItems: "center",
-  },
-  ctaText: {
-    fontSize: 16,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
   },
 });

@@ -9,6 +9,7 @@ import {
 import { Image } from "expo-image";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { AppText } from "../AppText";
+import { WrappedButton } from "./WrappedButton";
 import { Space } from "../../lib/theme";
 import type { ArchetypeResult, AxisScores, ArchetypeFit } from "../../lib/wrapped/archetypes";
 import { axes } from "../../lib/wrapped/archetypes";
@@ -38,6 +39,7 @@ interface SummaryCardProps {
   scores: AxisScores;
   phase1Title?: string;
   archetypeFit?: ArchetypeFit | null;
+  phase2Surprise?: string;
   onDone: () => void;
 }
 
@@ -47,6 +49,7 @@ export function SummaryCard({
   scores,
   phase1Title,
   archetypeFit,
+  phase2Surprise,
   onDone,
 }: SummaryCardProps) {
   const hints = phase2Hints[archetype.id];
@@ -120,6 +123,14 @@ export function SummaryCard({
           <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.titleSection}>
             <AppText style={styles.titleLabel}>Your Phase 1 Title</AppText>
             <AppText variant="bold" style={styles.titleText}>"{phase1Title}"</AppText>
+          </Animated.View>
+        )}
+
+        {/* Phase 2 Surprise */}
+        {phase2Surprise && (
+          <Animated.View entering={FadeInUp.duration(500).delay(225)} style={styles.titleSection}>
+            <AppText style={styles.titleLabel}>Phase 2 Biggest Surprise</AppText>
+            <AppText variant="bold" style={styles.titleText}>"{phase2Surprise}"</AppText>
           </Animated.View>
         )}
 
@@ -232,15 +243,11 @@ export function SummaryCard({
           entering={FadeInUp.duration(500).delay(600)}
           style={styles.actions}
         >
-          <Pressable style={styles.shareButton} onPress={handleShare}>
-            <AppText variant="bold" style={styles.shareText}>
-              Share →
-            </AppText>
-          </Pressable>
-          <Pressable style={styles.doneButton} onPress={onDone}>
-            <AppText variant="bold" style={styles.doneText}>
-              Done
-            </AppText>
+          <WrappedButton onPress={handleShare} style={{ minWidth: 140 }}>
+            Share →
+          </WrappedButton>
+          <Pressable style={styles.doneLinkButton} onPress={onDone}>
+            <AppText style={styles.doneLinkText}>Done</AppText>
           </Pressable>
         </Animated.View>
       </ScrollView>
@@ -631,36 +638,14 @@ const styles = StyleSheet.create({
     width: "100%",
     justifyContent: "center",
   },
-  shareButton: {
-    backgroundColor: "rgba(145,196,227,0.12)",
-    borderRadius: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderWidth: 1,
-    borderColor: CYAN,
+  doneLinkButton: {
+    paddingVertical: Space.sm,
     alignItems: "center",
-    minWidth: 120,
   },
-  shareText: {
-    fontSize: 16,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  doneButton: {
-    backgroundColor: PURPLE,
-    borderRadius: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    shadowColor: PURPLE,
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 8,
-    alignItems: "center",
-    minWidth: 120,
-  },
-  doneText: {
-    fontSize: 16,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
+  doneLinkText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.5)",
+    fontFamily: "BaiJamjuree_400Regular",
+    textDecorationLine: "underline",
   },
 });

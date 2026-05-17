@@ -8,7 +8,7 @@ export interface AxisScores {
 }
 
 export interface ArchetypeResult {
-  id: string;
+  id: ArchetypeId;
   display: { en: string; th: string };
   caption: { en: string; th: string };
   bgmPrompt: string;
@@ -677,11 +677,16 @@ export type ArchetypeFit = "nailed" | "sort_of" | "not_me";
 
 export interface WrappedReflection {
   enrollment_id: string;
+  participant_id: string;
   archetype: ArchetypeId;
   archetype_secondary: ArchetypeId;
   axes: { MM: number; SB: number; PR: number; SQ: number };
   surprise_evidence: string;
   phase1_title: string;
   archetype_fit: ArchetypeFit;
+  phase2_cycles_run?: number;
+  phase2_primary_method?: string;
+  phase2_ideas_killed?: number;
+  phase2_surprise?: string;
   created_at: string;
 }

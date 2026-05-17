@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../AppText";
+import { WrappedButton } from "./WrappedButton";
 import { Space } from "../../lib/theme";
 import type { WrappedPrompt } from "../../lib/wrapped/prompts";
 
@@ -72,29 +73,22 @@ export function WrappedDragRankCard({
 
   return (
     <View style={styles.card}>
-      <View>
-        <AppText style={styles.stepIndicator}>Question 4 of 6</AppText>
-      </View>
-
-      <View>
-        <AppText variant="bold" style={styles.question}>
-          {questionEn}
-        </AppText>
-      </View>
-
-      <View>
-        <AppText style={styles.questionTh}>{questionTh}</AppText>
-      </View>
-
-      <AppText style={styles.helperText}>
-        Tap a moment to add it. Your order is controlled in the top 3 box.
-      </AppText>
-
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.headerContainer}>
+          <AppText style={styles.stepIndicator}>Question 4 of 6</AppText>
+          <AppText variant="bold" style={styles.question}>
+            {questionEn}
+          </AppText>
+          <AppText style={styles.questionTh}>{questionTh}</AppText>
+          <AppText style={styles.helperText}>
+            Tap a moment to add it. Your order is controlled in the top 3 box.
+          </AppText>
+        </View>
+
         <View style={styles.topBox}>
           <View style={styles.topBoxHeader}>
             <AppText variant="bold" style={styles.sectionLabel}>
@@ -181,15 +175,10 @@ export function WrappedDragRankCard({
         <AppText style={styles.selectionCount}>
           {rankedIndices.length}/{pickCount} selected
         </AppText>
-        <Pressable
-          style={[styles.ctaButton, !canContinue && styles.ctaButtonDisabled]}
-          onPress={handleNextPress}
-          disabled={!canContinue}
-        >
-          <AppText variant="bold" style={styles.ctaText}>
+        <WrappedButton onPress={handleNextPress} disabled={!canContinue}>
             Next →
-          </AppText>
-        </Pressable>
+          
+          </WrappedButton>
       </View>
     </View>
   );
@@ -279,6 +268,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
   },
+  headerContainer: {
+    gap: Space.sm,
+    alignItems: "center",
+    marginBottom: Space.sm,
+    width: "100%",
+  },
   stepIndicator: {
     fontSize: 12,
     color: CYAN,
@@ -312,7 +307,6 @@ const styles = StyleSheet.create({
   scrollArea: {
     width: "100%",
     flex: 1,
-    marginTop: Space.md,
   },
   scrollContent: {
     gap: Space.md,
@@ -498,26 +492,5 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.52)",
     fontFamily: "BaiJamjuree_400Regular",
     fontSize: 12,
-  },
-  ctaButton: {
-    backgroundColor: PURPLE,
-    borderRadius: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginTop: Space.lg,
-    shadowColor: PURPLE,
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 8,
-    minWidth: 160,
-    alignItems: "center",
-  },
-  ctaButtonDisabled: {
-    opacity: 0.4,
-  },
-  ctaText: {
-    fontSize: 16,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
   },
 });

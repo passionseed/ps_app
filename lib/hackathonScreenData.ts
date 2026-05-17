@@ -422,12 +422,26 @@ async function createPhaseBundle(phaseId: string): Promise<HackathonPhaseBundle>
 
   return {
     phase,
-    activities: (phase.activities ?? []).filter(Boolean).map((activity) => ({
-      ...activity,
-      submissionStatus:
-        (statuses[activity.id] as HackathonPhaseActivitySubmissionStatus | undefined) ??
-        "not_started",
-    })),
+    activities: (phase.activities ?? []).filter(Boolean).map((activity) => {
+      const isTeam =
+        activity.submission_scope === "team" ||
+        (activity.assessments ?? []).some(
+          (a: any) => a.metadata?.is_group_submission === true,
+        );
+      const teamStatus = teamStatuses[activity.id];
+      const individualStatus = statuses[activity.id] as
+        | HackathonPhaseActivitySubmissionStatus
+        | undefined;
+      const submissionStatus: HackathonPhaseActivitySubmissionStatus =
+        isTeam && teamStatus
+          ? (teamStatus as HackathonPhaseActivitySubmissionStatus)
+          : (individualStatus ?? "not_started");
+
+      return {
+        ...activity,
+        submissionStatus,
+      };
+    }),
     participantId: participant.id,
     isAdmin,
     teamSubmissionStatuses: teamStatuses,
