@@ -115,13 +115,13 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
             readHackathonParticipant(),
             getCurrentHackathonProgramHome(),
           ]);
-          const enrollmentId = home.enrollment?.id;
+          const teamId = home.team?.id;
           const participantId = participant?.id;
 
-          console.log("[WrappedModal] Checking saved reflection:", { enrollmentId, participantId });
+          console.log("[WrappedModal] Checking saved reflection:", { teamId, participantId });
 
           if (participantId) {
-            const saved = await loadSavedWrappedReflection(enrollmentId, participantId);
+            const saved = await loadSavedWrappedReflection(teamId, participantId);
             console.log("[WrappedModal] Loaded saved reflection:", saved ? "FOUND" : "NOT FOUND", saved?.archetype);
             if (saved) {
               setSavedReflection(saved);
@@ -292,15 +292,19 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
           readHackathonParticipant(),
           getCurrentHackathonProgramHome(),
         ]);
-        const enrollmentId = home.enrollment?.id;
+        const teamId = home.team?.id;
         const participantId = participant?.id;
         const teamMembers = home.team?.members ?? [];
         setTotalSquadSize(Math.max(teamMembers.length, 1));
 
-        if (enrollmentId && participantId) {
+        if (participantId) {
+          const teammateIds = teamMembers
+            .map((m: any) => m.participant_id)
+            .filter((id: string) => id && id !== participantId);
           const reflections = await getTeammateWrappedReflections(
-            enrollmentId,
+            teamId,
             participantId,
+            teammateIds.length > 0 ? teammateIds : undefined,
           );
           const mapped: ConstellationTeammate[] = reflections.map((r) => ({
             participantId: r.participantId,
@@ -348,12 +352,12 @@ export function WrappedModal({ visible, onClose }: WrappedModalProps) {
           readHackathonParticipant(),
           getCurrentHackathonProgramHome(),
         ]);
-        const enrollmentId = home.enrollment?.id;
+        const teamId = home.team?.id;
         const participantId = participant?.id;
 
-        if (enrollmentId && participantId) {
+        if (participantId) {
           await saveWrappedReflection({
-            enrollment_id: enrollmentId,
+            enrollment_id: teamId ?? "",
             participant_id: participantId,
             archetype: revealedArchetype.id,
             archetype_secondary: secondaryArchetype.id,

@@ -31,7 +31,7 @@ interface BestAllyLineProps {
 }
 
 export function BestAllyLine({ archetype, onNext }: BestAllyLineProps) {
-  const bestAlly = getBestAlly(archetype.id as any);
+  const bestAlly = getBestAlly(archetype.id);
   const allyArchetype = archetypes.find((a) => a.id === bestAlly.allyArchetypeId);
   const allyImage = archetypeImages[bestAlly.allyArchetypeId];
 

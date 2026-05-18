@@ -5,6 +5,7 @@ import {
   Pressable,
   Share,
   ScrollView,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import Animated, { FadeInUp } from "react-native-reanimated";
@@ -16,6 +17,8 @@ import { axes } from "../../lib/wrapped/archetypes";
 import { phase2Hints } from "../../lib/wrapped/phase2Hints";
 import { getBestAlly } from "../../lib/wrapped/bestAlly";
 import { archetypes } from "../../lib/wrapped/archetypes";
+import { WrappedShareCard } from "./WrappedShareCard";
+import { useWrappedShareImage, ViewShot, type ViewShotRef } from "../../lib/hooks/useWrappedShareImage";
 
 const WHITE = "#FFFFFF";
 const CYAN = "#91C4E3";
@@ -54,24 +57,42 @@ export function SummaryCard({
 }: SummaryCardProps) {
   const hints = phase2Hints[archetype.id];
 
-  const bestAlly = getBestAlly(archetype.id as any);
+  const bestAlly = getBestAlly(archetype.id);
   const allyArchetype = archetypes.find((a) => a.id === bestAlly.allyArchetypeId);
   const archetypeImage = archetypeImages[archetype.id];
   const allyImage = archetypeImages[bestAlly.allyArchetypeId];
 
+  const { viewShotRef, capture, capturing } = useWrappedShareImage();
+
   const handleShare = async () => {
+    if (Platform.OS === "web") {
+      // Web fallback: text-only share
+      try {
+        const shareMessage = [
+          `My PassionSeed Hackathon archetype is ${archetype.display.en} (${archetype.display.th})!`,
+          phase1Title ? `\n"${phase1Title}"` : "",
+          `\nBest ally: ${allyArchetype?.display.en ?? bestAlly.allyArchetypeId}`,
+          `\n${bestAlly.line.en}`,
+        ].join("");
+        await Share.share({
+          message: shareMessage,
+        });
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     try {
-      const shareMessage = [
-        `My PassionSeed Hackathon archetype is ${archetype.display.en} (${archetype.display.th})!`,
-        phase1Title ? `\n"${phase1Title}"` : "",
-        `\nBest ally: ${allyArchetype?.display.en ?? bestAlly.allyArchetypeId}`,
-        `\n${bestAlly.line.en}`,
-      ].join("");
-      await Share.share({
-        message: shareMessage,
+      const uri = await capture();
+      if (!uri) return;
+      const Sharing = await import("expo-sharing");
+      await Sharing.shareAsync(uri, {
+        mimeType: "image/png",
+        dialogTitle: "Share Your Hackathon Wrapped",
       });
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error("[SummaryCard] Share failed:", e);
     }
   };
 
@@ -243,14 +264,35 @@ export function SummaryCard({
           entering={FadeInUp.duration(500).delay(600)}
           style={styles.actions}
         >
-          <WrappedButton onPress={handleShare} style={{ minWidth: 140 }}>
-            Share →
+          <WrappedButton onPress={handleShare} style={{ minWidth: 140 }} disabled={capturing}>
+            {capturing ? "Generating..." : "Share →"}
           </WrappedButton>
           <Pressable style={styles.doneLinkButton} onPress={onDone}>
             <AppText style={styles.doneLinkText}>Done</AppText>
           </Pressable>
         </Animated.View>
       </ScrollView>
+
+      {/* Off-screen share card for image capture */}
+      {Platform.OS !== "web" && (
+        <View
+          style={{
+            position: "absolute",
+            opacity: 0,
+            pointerEvents: "none",
+            top: 0,
+            left: 0,
+          }}
+          collapsable={false}
+        >
+          <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1, result: "tmpfile" }}>
+            <WrappedShareCard
+              archetype={archetype}
+              phase1Title={phase1Title}
+            />
+          </ViewShot>
+        </View>
+      )}
     </View>
   );
 }

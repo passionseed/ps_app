@@ -616,15 +616,25 @@ export interface TeammateWrappedReflection {
  * Excludes the current participant's own reflection.
  */
 export async function getTeammateWrappedReflections(
-  enrollmentId: string,
+  enrollmentId: string | undefined,
   currentParticipantId: string,
+  teammateParticipantIds?: string[],
 ): Promise<TeammateWrappedReflection[]> {
   return withRetry(async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("wrapped_reflections")
       .select("participant_id, archetype, phase1_title, axes")
-      .eq("enrollment_id", enrollmentId)
       .neq("participant_id", currentParticipantId);
+
+    if (enrollmentId) {
+      query = query.eq("enrollment_id", enrollmentId);
+    } else if (teammateParticipantIds && teammateParticipantIds.length > 0) {
+      query = query.in("participant_id", teammateParticipantIds);
+    } else {
+      return [];
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 

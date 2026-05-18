@@ -69,6 +69,7 @@
     "react-native-screens": "~4.23.0",
     "react-native-svg": "^15.15.3",
     "react-native-url-polyfill": "^3.0.0",
+    "react-native-view-shot": "4.0.3",
     "react-native-web": "^0.21.2",
     "react-native-web-webview": "^1.0.2",
     "react-native-webview": "^13.16.0",
