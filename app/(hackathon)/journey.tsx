@@ -48,7 +48,7 @@ function formatDate(dateStr: string | null): string {
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
-function CircularProgress({ percent, size = 64, strokeWidth = 6 }: { percent: number; size?: number; strokeWidth?: number }) {
+function CircularProgress({ percent, size = 64, strokeWidth = 6, label }: { percent: number; size?: number; strokeWidth?: number; label?: string }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const strokeDashoffset = circumference - (percent / 100) * circumference;
@@ -80,7 +80,7 @@ function CircularProgress({ percent, size = 64, strokeWidth = 6 }: { percent: nu
         />
       </Svg>
       <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-        <AppText variant="bold" style={{ fontSize: 13, color: WHITE }}>{percent}%</AppText>
+        <AppText variant="bold" style={{ fontSize: 13, color: WHITE }}>{label ?? `${percent}%`}</AppText>
       </View>
     </View>
   );
@@ -188,7 +188,12 @@ function AnimatedVerticalPhaseCard({
 
               {!isLocked && (
                 <View style={styles.progressRingWrapper}>
-                  <CircularProgress percent={pct} size={54} strokeWidth={4} />
+                  <CircularProgress
+                    percent={pct}
+                    size={54}
+                    strokeWidth={4}
+                    label={card.phase.phase_number === 3 ? `${card.completedCount}/3` : undefined}
+                  />
                 </View>
               )}
             </View>

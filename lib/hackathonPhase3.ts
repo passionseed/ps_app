@@ -343,6 +343,8 @@ export async function submitCycleStep(
             ? "unclear"
             : null,
         synthesis_what_changed: submissionData.what_changed as string,
+        status: "completed",
+        completed_at: new Date().toISOString(),
       })
       .eq("id", cycleId);
 
