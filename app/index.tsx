@@ -218,6 +218,34 @@ export default function LandingPage() {
     transform: [{ translateY: backgroundY }],
   };
 
+  if (Platform.OS === "web") {
+    return (
+      <View style={styles.webPage}>
+        <View style={styles.webCard}>
+          <Image
+            source={require("../assets/icon.png")}
+            style={styles.webLogo}
+            resizeMode="contain"
+          />
+          <AppText variant="bold" style={styles.webTitle}>
+            Passion Seed
+          </AppText>
+          <AppText style={styles.webMessage}>
+            Please download our app to get the full experience.
+          </AppText>
+          <Pressable
+            style={({ pressed }) => [styles.webBtn, pressed && { opacity: 0.8 }]}
+            onPress={() => Linking.openURL("https://www.passionseed.org/download")}
+          >
+            <AppText variant="bold" style={styles.webBtnText}>
+              Download the App
+            </AppText>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.page}>
       <StatusBar style="dark" />
@@ -625,5 +653,45 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 15,
     fontFamily: "BaiJamjuree_700Bold",
+  },
+  webPage: {
+    flex: 1,
+    backgroundColor: PageBg,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  webCard: {
+    alignItems: "center",
+    maxWidth: 360,
+    width: "100%",
+    gap: 20,
+  },
+  webLogo: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+  },
+  webTitle: {
+    fontSize: 28,
+    color: "#FFFFFF",
+    fontFamily: "BaiJamjuree_700Bold",
+  },
+  webMessage: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.65)",
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  webBtn: {
+    backgroundColor: Accent,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    marginTop: 8,
+  },
+  webBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
   },
 });

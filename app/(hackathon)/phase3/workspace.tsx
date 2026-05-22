@@ -953,7 +953,7 @@ export default function Phase3WorkspaceScreen() {
                 />
                 {!isViewingPrior && (() => {
                   const gateDecision = effectiveCycleData?.gate_decision;
-                  if (gateDecision === "refine" || gateDecision === "next_cycle") {
+                  if (gateDecision === "refine" || gateDecision === "next_cycle" || gateDecision === "proceed") {
                     return (
                       <Pressable style={styles.startButton} onPress={handleStartCycle}>
                         <AppText variant="bold" style={styles.startButtonText}>
