@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { View, StyleSheet, ScrollView, Text, Pressable, Modal, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, Text, Pressable, Modal, ActivityIndicator, Linking } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -240,15 +240,14 @@ export default function HackathonHomeScreen() {
         )}
 
         {/* Mentor Guides */}
-        <Pressable style={styles.placeholderCard} onPress={() => router.push("/(hackathon)/mentor-guides")}>
+        <Pressable style={styles.submitRoundCard} onPress={() => Linking.openURL("https://forms.gle/MHhtcwUej1WVP8PB9")}>
           <View style={styles.mentorGuideHeader}>
-            <AppText style={{ fontSize: 24 }}>📚</AppText>
+            <AppText style={{ fontSize: 24 }}>🎉</AppText>
             <View style={{ flex: 1 }}>
-              <AppText variant="bold" style={styles.placeholderTitle}>Mentor Guides</AppText>
-              <AppText style={styles.mentorGuideSubtitle}>Read guides, earn +1 pt/day. Day by day.</AppText>
+              <AppText variant="bold" style={styles.placeholderTitle}>Submit Round 1</AppText>
             </View>
+            <AppText variant="bold" style={styles.placeholderTitle}>→</AppText>
           </View>
-          <AppText variant="bold" style={styles.placeholderBadgeCyan}>Browse Guides →</AppText>
         </Pressable>
 
         <InboxCard preview={inboxPreview} loading={loading} darkTheme />
@@ -468,10 +467,24 @@ const styles = StyleSheet.create({
     padding: Space.lg,
     gap: Space.xs,
   },
+  submitRoundCard: {
+    backgroundColor: "rgba(255,215,0,0.08)",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,215,0,0.5)",
+    padding: Space.lg,
+    gap: Space.xs,
+    shadowColor: "#FFD700",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
+    elevation: 12,
+  },
   placeholderTitle: { fontSize: 16, color: WHITE, fontFamily: "BaiJamjuree_700Bold" },
   placeholderText: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "BaiJamjuree_400Regular" },
   placeholderBadge: { fontSize: 10, color: AMBER, textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold" },
   placeholderBadgeCyan: { fontSize: 10, color: CYAN, textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold" },
+  placeholderBadgeGold: { fontSize: 10, color: "#FFD700", textTransform: "uppercase", letterSpacing: 1.5, marginTop: Space.xs, fontFamily: "BaiJamjuree_700Bold", textShadowColor: "#FFD700", textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 },
   mentorGuideHeader: { flexDirection: "row", alignItems: "center", gap: Space.md },
   mentorGuideSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "BaiJamjuree_400Regular", marginTop: 2 },
   mentorAvatarRow: {
