@@ -23,18 +23,9 @@ import { useState, useRef } from "react";
 import { readHackathonToken } from "../../lib/hackathon-mode";
 import { AppText } from "../../components/AppText";
 import { useAuth } from "../../lib/auth";
+import { HACK_COLORS } from "../../lib/hackathonTheme";
 
-// Design Tokens from Hackathon Design System
-export const HACK_COLORS = {
-  bgDeep: "#03050a",
-  bgCard: "#0d1219",
-  cyan: "#91C4E3",
-  blue: "#65ABFC",
-  purpleLight: "#A594BA",
-  purpleMuted: "#9D81AC",
-  borderLight: "#7aa4c4",
-  borderMuted: "#5a7a94",
-};
+export { HACK_COLORS };
 
 type TabRoute = "home" | "journey" | "profile";
 

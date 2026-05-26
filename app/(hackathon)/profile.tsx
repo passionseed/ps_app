@@ -2,23 +2,35 @@ import { useCallback, useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
-  Pressable,
   Platform,
   ScrollView,
-  ActivityIndicator,
-  Linking,
-  TextInput,
   Alert,
-  Image,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useFocusEffect } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import Constants from "expo-constants";
 
-import { AppText } from "../../components/AppText";
+import { HackathonJellyfishLoader } from "../../components/Hackathon/HackathonJellyfishLoader";
+import { ProfileHeroCard } from "../../components/Hackathon/Profile/ProfileHeroCard";
+import {
+  ProfileTeamCard,
+  ProfileTeamEmptyCard,
+} from "../../components/Hackathon/Profile/ProfileTeamCard";
+import { ProfileAccordionSection } from "../../components/Hackathon/Profile/ProfileAccordionSection";
+import {
+  ProfileSocialFields,
+  buildSocialSummary,
+} from "../../components/Hackathon/Profile/ProfileSocialCard";
+import {
+  ProfileQuestionnaireFields,
+  ProfileQuestionnaireEmptyFields,
+  buildQuestionnaireSummary,
+} from "../../components/Hackathon/Profile/ProfileQuestionnaireCard";
+import { ProfileSettingsCard } from "../../components/Hackathon/Profile/ProfileSettingsCard";
 import { useAuth } from "../../lib/auth";
-import { Space, Radius } from "../../lib/theme";
+import { Space } from "../../lib/theme";
+import { HACK_COLORS } from "../../lib/hackathonTheme";
 import { useHackathonParticipant, readHackathonParticipant } from "../../lib/hackathon-mode";
 import { isHackathonAdminEmail } from "../../lib/hackathonAdminAccess";
 import { getCurrentHackathonProgramHome } from "../../lib/hackathonProgram";
@@ -38,17 +50,6 @@ import type { HackathonTeam } from "../../types/hackathon-program";
 import { requestAndRegisterPushToken } from "../../lib/hackathonPushTokens";
 import { getExistingPushToken } from "../../lib/notifications";
 import { getSentryRuntimeContext } from "../../lib/sentry";
-import Constants from "expo-constants";
-
-const BG = "#03050a";
-const CYAN = "#91C4E3";
-const CYAN_BORDER = "rgba(145,196,227,0.1)";
-const WHITE = "#FFFFFF";
-const WHITE75 = "rgba(255,255,255,0.75)";
-const WHITE55 = "rgba(255,255,255,0.55)";
-const WHITE35 = "rgba(255,255,255,0.35)";
-const AMBER = "#F59E0B";
-const DARK_BG = "rgba(20, 28, 41, 0.6)";
 
 export default function HackathonProfileScreen() {
   const { signOutHackathon, user } = useAuth();
@@ -61,24 +62,23 @@ export default function HackathonProfileScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const hasLoadedRef = useRef(false);
 
-  // Social media fields
   const [instagramHandle, setInstagramHandle] = useState("");
   const [discordUsername, setDiscordUsername] = useState("");
   const [savingSocial, setSavingSocial] = useState(false);
 
-  // Emoji state
   const [teamEmoji, setTeamEmoji] = useState<string | null>(null);
   const [emojiRollCount, setEmojiRollCount] = useState(0);
   const [rollingEmoji, setRollingEmoji] = useState(false);
 
-  // Team avatar
   const [teamAvatarUrl, setTeamAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  // Push notification state
   const [hasPushToken, setHasPushToken] = useState(false);
   const [pushChecked, setPushChecked] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
+
+  const [socialExpanded, setSocialExpanded] = useState(false);
+  const [questionnaireExpanded, setQuestionnaireExpanded] = useState(false);
 
   const applySnapshot = useCallback((snapshot: HackathonProfileSnapshot) => {
     setTeam(snapshot.team);
@@ -90,7 +90,6 @@ export default function HackathonProfileScreen() {
     setTeamAvatarUrl(snapshot.teamAvatarUrl);
   }, []);
 
-  // Load profile data with stale-while-revalidate
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -102,16 +101,19 @@ export default function HackathonProfileScreen() {
           return;
         }
 
-        // Check if push token exists for this participant
         supabase
           .from("hackathon_participant_push_tokens")
           .select("id")
           .eq("participant_id", p.id)
           .limit(1)
-          .then(({ data }) => { setHasPushToken(!!data?.length); setPushChecked(true); })
-          .then(undefined, () => { setPushChecked(true); });
+          .then(({ data }) => {
+            setHasPushToken(!!data?.length);
+            setPushChecked(true);
+          })
+          .then(undefined, () => {
+            setPushChecked(true);
+          });
 
-        // Read cache synchronously for instant render
         let cachedSnapshot: HackathonProfileSnapshot | null = null;
         try {
           cachedSnapshot = readCachedHackathonProfile(p.id);
@@ -157,7 +159,6 @@ export default function HackathonProfileScreen() {
           setTeam(homeData.team);
           setQuestionnaire(qData);
 
-          // Set social fields
           let igHandle = "";
           let discord = "";
           let emoji: string | null = null;
@@ -175,7 +176,6 @@ export default function HackathonProfileScreen() {
             setEmojiRollCount(rollCount);
           }
 
-          // Set team avatar
           if (homeData.team?.team_avatar_url) {
             avatarUrl = homeData.team.team_avatar_url;
             setTeamAvatarUrl(avatarUrl);
@@ -183,7 +183,6 @@ export default function HackathonProfileScreen() {
 
           setLoading(false);
 
-          // Write fresh snapshot to cache
           const snapshot: HackathonProfileSnapshot = {
             version: 1,
             cachedAt: new Date().toISOString(),
@@ -195,7 +194,9 @@ export default function HackathonProfileScreen() {
             emojiRollCount: rollCount,
             teamAvatarUrl: avatarUrl,
           };
-          try { writeCachedHackathonProfile(p.id, snapshot); } catch {}
+          try {
+            writeCachedHackathonProfile(p.id, snapshot);
+          } catch {}
         } catch (err) {
           console.error("[Profile] load error", err);
           if (!cancelled) setLoading(false);
@@ -209,10 +210,9 @@ export default function HackathonProfileScreen() {
     }, [applySnapshot]),
   );
 
-  // Auto-roll emoji if not set
   useEffect(() => {
     if (!loading && !teamEmoji && team?.id && participant?.id) {
-      handleAutoRollEmoji();
+      void handleAutoRollEmoji();
     }
   }, [loading, teamEmoji, team?.id, participant?.id]);
 
@@ -256,9 +256,15 @@ export default function HackathonProfileScreen() {
       const token = await requestAndRegisterPushToken(participant.id);
       if (token) {
         setHasPushToken(true);
-        Alert.alert("Notifications Enabled", token);
+        Alert.alert(
+          "Notifications Enabled",
+          "You'll receive updates from your team and mentors.",
+        );
       } else {
-        Alert.alert("Notifications", "Could not enable notifications. Please check your device settings.");
+        Alert.alert(
+          "Notifications",
+          "Could not enable notifications. Please check your device settings.",
+        );
       }
     } catch {
       Alert.alert("Error", "Failed to enable notifications.");
@@ -280,7 +286,6 @@ export default function HackathonProfileScreen() {
       if (!error) {
         setTeamEmoji(emoji);
         setEmojiRollCount(rollCount);
-        // Update the team members array to reflect the new emoji in the roster
         if (team.members) {
           setTeam({
             ...team,
@@ -291,7 +296,6 @@ export default function HackathonProfileScreen() {
             ),
           });
         }
-        // Update cache
         try {
           const cached = readCachedHackathonProfile(participant.id);
           if (cached) {
@@ -324,7 +328,6 @@ export default function HackathonProfileScreen() {
       if (error) {
         Alert.alert("Error", "Failed to save social media handles.");
       } else {
-        // Update cache with saved values
         try {
           const cached = readCachedHackathonProfile(participant.id);
           if (cached) {
@@ -336,6 +339,7 @@ export default function HackathonProfileScreen() {
           }
         } catch {}
         Alert.alert("Saved", "Your social media handles have been updated.");
+        setSocialExpanded(false);
       }
     } catch (err) {
       console.error("[Profile] save social error", err);
@@ -364,7 +368,6 @@ export default function HackathonProfileScreen() {
       if (!error) {
         setTeamEmoji(emoji);
         setEmojiRollCount(newRollCount);
-        // Update the team members array to reflect the new emoji in the roster
         if (team.members) {
           setTeam({
             ...team,
@@ -375,7 +378,6 @@ export default function HackathonProfileScreen() {
             ),
           });
         }
-        // Update cache
         try {
           const cached = readCachedHackathonProfile(participant.id);
           if (cached) {
@@ -401,9 +403,13 @@ export default function HackathonProfileScreen() {
     if (!team?.id) return;
 
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Please grant access to your photo library to upload an avatar.");
+        Alert.alert(
+          "Permission Required",
+          "Please grant access to your photo library to upload an avatar.",
+        );
         return;
       }
 
@@ -430,13 +436,12 @@ export default function HackathonProfileScreen() {
         "jpg";
       const fileName = `avatar.${fileExt}`;
 
-      // Use shared Android-safe upload helper
       let uploadResult;
       try {
         uploadResult = await uploadAssetToSupabase(
-          { uri: asset.uri, fileName, mimeType: asset.mimeType },
+          { uri: asset.uri, fileName, mimeType: asset.mimeType ?? "image/jpeg" },
           "hackathon-team-avatars",
-          () => `${team.id}/${fileName}`
+          () => `${team.id}/${fileName}`,
         );
       } catch (e: unknown) {
         const message = formatUploadError(e);
@@ -447,7 +452,6 @@ export default function HackathonProfileScreen() {
 
       const avatarUrl = uploadResult.url;
 
-      // Update team record
       const { error: updateError } = await supabase
         .from("hackathon_teams")
         .update({ team_avatar_url: avatarUrl })
@@ -457,7 +461,6 @@ export default function HackathonProfileScreen() {
         Alert.alert("Error", "Failed to update team avatar.");
       } else {
         setTeamAvatarUrl(avatarUrl);
-        // Update cache
         try {
           if (participant?.id) {
             const cached = readCachedHackathonProfile(participant.id);
@@ -479,7 +482,6 @@ export default function HackathonProfileScreen() {
     }
   };
 
-  // Get team initials for placeholder
   const getTeamInitials = () => {
     const displayName = team?.team_name || team?.name;
     if (!displayName) return "??";
@@ -490,833 +492,127 @@ export default function HackathonProfileScreen() {
     return displayName.slice(0, 2).toUpperCase();
   };
 
+  const handleDebugInfo = async () => {
+    const token = await getExistingPushToken().catch(() => null);
+    const ctx = getSentryRuntimeContext();
+    Alert.alert(
+      "Debug Info",
+      [
+        `App: ${Constants.expoConfig?.version ?? "?"}+${ctx.dist ?? "?"}`,
+        `Runtime: ${ctx.runtimeVersion ?? "?"}`,
+        `Channel: ${ctx.channel ?? "?"}`,
+        `Update: ${ctx.updateId ?? "none"}`,
+        `OS: ${Platform.OS} ${Platform.Version}`,
+        `Env: ${ctx.environment ?? "?"}`,
+        "",
+        `User: ${user?.id ?? "null"}`,
+        `Participant: ${participant?.id ?? "null"}`,
+        `Team: ${team?.id ?? "null"}`,
+        `Push: ${token ?? "none"}`,
+        `Push saved: ${hasPushToken}`,
+      ].join("\n"),
+    );
+  };
+
+  const socialSummary = buildSocialSummary(instagramHandle, discordUsername);
+  const questionnaireSummary = buildQuestionnaireSummary(questionnaire);
+  const showInitialLoader = loading && !team && !participant?.email;
+
+  if (showInitialLoader) {
+    return (
+      <View style={[styles.root, styles.loaderRoot]}>
+        <HackathonJellyfishLoader />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + Space.xl },
+          { paddingTop: insets.top + Space.md },
         ]}
       >
-        <AppText variant="bold" style={styles.eyebrow}>
-          YOUR PROFILE
-        </AppText>
-        <View style={styles.titleRow}>
-          {teamEmoji && (
-            <AppText style={styles.titleEmoji}>{teamEmoji}</AppText>
-          )}
-          <View style={styles.titleTextWrap}>
-            <AppText variant="bold" style={styles.title}>
-              {participant?.name ?? "Participant"}
-            </AppText>
-            {emojiRollCount > 0 ? (
-              <AppText style={styles.rollCountInline}>
-                Rolled {emojiRollCount} times
-              </AppText>
-            ) : null}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Roll profile emoji"
-            style={({ pressed }) => [
-              styles.diceBtn,
-              pressed && { opacity: 0.7 },
-              rollingEmoji && { opacity: 0.5 },
-            ]}
-            onPress={handleRollEmoji}
-            disabled={rollingEmoji || !team?.id || !participant?.id}
-          >
-            {rollingEmoji ? (
-              <ActivityIndicator color={WHITE} size="small" />
-            ) : (
-              <AppText style={styles.diceText}>🎲</AppText>
-            )}
-          </Pressable>
-        </View>
+        <ProfileHeroCard
+          name={participant?.name ?? "Participant"}
+          email={participant?.email ?? "—"}
+          university={participant?.university ?? "—"}
+          role={participant?.role ?? "—"}
+          teamEmoji={teamEmoji}
+          emojiRollCount={emojiRollCount}
+          rollingEmoji={rollingEmoji}
+          canRoll={Boolean(team?.id && participant?.id)}
+          onRollEmoji={handleRollEmoji}
+        />
 
-        {/* Basic Info Card */}
-        <View style={styles.infoCard}>
-          <LinearGradient
-            colors={[DARK_BG, "rgba(8, 14, 22, 0.8)"]}
-            style={StyleSheet.absoluteFill}
+        {team ? (
+          <ProfileTeamCard
+            team={team}
+            teamAvatarUrl={teamAvatarUrl}
+            teamInitials={getTeamInitials()}
+            currentParticipantId={participant?.id}
+            uploadingAvatar={uploadingAvatar}
+            onUploadAvatar={handleUploadTeamAvatar}
           />
-          <InfoRow label="EMAIL" value={participant?.email ?? "—"} />
-          <View style={styles.divider} />
-          <InfoRow label="UNIVERSITY" value={participant?.university ?? "—"} />
-          <View style={styles.divider} />
-          <InfoRow label="ROLE" value={participant?.role ?? "—"} />
-        </View>
-
-        {/* Enable Push Notifications Banner */}
-        {pushChecked && !hasPushToken && !loading && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Enable push notifications"
-            style={({ pressed }) => [
-              styles.pushBanner,
-              pressed && { opacity: 0.7 },
-              enablingPush && { opacity: 0.5 },
-            ]}
-            onPress={handleEnablePush}
-            disabled={enablingPush}
-          >
-            <View style={styles.pushBannerContent}>
-              <AppText style={styles.pushBannerIcon}>🔔</AppText>
-              <View style={{ flex: 1 }}>
-                <AppText variant="bold" style={styles.pushBannerTitle}>
-                  Enable Notifications
-                </AppText>
-                <AppText style={styles.pushBannerText}>
-                  Get updates from your team and mentors
-                </AppText>
-              </View>
-              {enablingPush ? (
-                <ActivityIndicator color={AMBER} size="small" />
-              ) : (
-                <AppText variant="bold" style={styles.pushBannerAction}>
-                  ENABLE
-                </AppText>
-              )}
-            </View>
-          </Pressable>
-        )}
-
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator color={CYAN} />
-            <AppText style={styles.loadingText}>
-              Loading profile data...
-            </AppText>
-            <Pressable
-              style={({ pressed }) => [
-                styles.signOutBtn,
-                pressed && { opacity: 0.75 },
-              ]}
-              onPress={() => signOutHackathon()}
-            >
-              <AppText style={styles.signOutText}>Sign Out</AppText>
-            </Pressable>
-          </View>
         ) : (
-          <>
-            {/* Social Media Card */}
-            <View style={styles.sectionCard}>
-              <LinearGradient
-                colors={[
-                  "rgba(145, 196, 227, 0.05)",
-                  "rgba(145, 196, 227, 0.01)",
-                ]}
-                style={StyleSheet.absoluteFill}
-              />
-              <AppText variant="bold" style={styles.sectionTitle}>
-                Social Media
-              </AppText>
-
-              <View style={styles.socialInputRow}>
-                <AppText style={styles.socialIcon}>📷</AppText>
-                <TextInput
-                  style={styles.socialInput}
-                  placeholder="Instagram handle"
-                  placeholderTextColor={WHITE35}
-                  value={instagramHandle}
-                  onChangeText={setInstagramHandle}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-
-              <View style={styles.socialInputRow}>
-                <AppText style={styles.socialIcon}>💬</AppText>
-                <TextInput
-                  style={styles.socialInput}
-                  placeholder="Discord username"
-                  placeholderTextColor={WHITE35}
-                  value={discordUsername}
-                  onChangeText={setDiscordUsername}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.saveBtn,
-                  pressed && { opacity: 0.7 },
-                  savingSocial && { opacity: 0.5 },
-                ]}
-                onPress={handleSaveSocial}
-                disabled={savingSocial}
-              >
-                {savingSocial ? (
-                  <ActivityIndicator color={CYAN} size="small" />
-                ) : (
-                  <AppText variant="bold" style={styles.saveBtnText}>
-                    Save Changes
-                  </AppText>
-                )}
-              </Pressable>
-            </View>
-
-            {/* Team Card */}
-            {team ? (
-              <View style={styles.sectionCard}>
-                <LinearGradient
-                  colors={[
-                    "rgba(145, 196, 227, 0.05)",
-                    "rgba(145, 196, 227, 0.01)",
-                  ]}
-                  style={StyleSheet.absoluteFill}
-                />
-
-                <View style={styles.teamHeader}>
-                  {/* Team Avatar */}
-                  {teamAvatarUrl ? (
-                    <Image
-                      source={{ uri: teamAvatarUrl }}
-                      style={styles.teamAvatar}
-                    />
-                  ) : (
-                    <View style={styles.teamAvatarPlaceholder}>
-                      <AppText variant="bold" style={styles.teamInitials}>
-                        {getTeamInitials()}
-                      </AppText>
-                    </View>
-                  )}
-
-                  <View style={styles.teamNameContainer}>
-                    <AppText variant="bold" style={styles.sectionTitle}>
-                      Team: {team.team_name || team.name || "Unnamed Team"}
-                    </AppText>
-                  </View>
-                </View>
-
-                {/* Upload Avatar Button */}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.uploadBtn,
-                    pressed && { opacity: 0.7 },
-                    uploadingAvatar && { opacity: 0.5 },
-                  ]}
-                  onPress={handleUploadTeamAvatar}
-                  disabled={uploadingAvatar}
-                >
-                  {uploadingAvatar ? (
-                    <ActivityIndicator color={CYAN} size="small" />
-                  ) : (
-                    <AppText variant="bold" style={styles.uploadBtnText}>
-                      {teamAvatarUrl ? "Change Avatar" : "Upload Team Avatar"}
-                    </AppText>
-                  )}
-                </Pressable>
-
-                {/* Team Roster */}
-                <View style={styles.rosterList}>
-                  {team.members?.filter(Boolean).map((member) => (
-                    <View key={member.participant_id} style={styles.rosterItem}>
-                      <View style={styles.rosterDot} />
-                      <View style={styles.rosterInfo}>
-                        <AppText variant="bold" style={styles.rosterName}>
-                          {/* Show emoji before name */}
-                          {member.team_emoji ? `${member.team_emoji} ` : ""}
-                          {member.name}
-                        </AppText>
-                        {(member.university || member.track) && (
-                          <AppText style={styles.rosterMeta}>
-                            {[member.track, member.university]
-                              .filter(Boolean)
-                              .join(" • ")}
-                          </AppText>
-                        )}
-                      </View>
-                      {member.participant_id === participant?.id && (
-                        <View style={styles.youBadge}>
-                          <AppText style={styles.youBadgeText}>YOU</AppText>
-                        </View>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : (
-              <View style={styles.placeholderCard}>
-                <AppText variant="bold" style={styles.placeholderTitle}>
-                  Team Roster
-                </AppText>
-                <AppText style={styles.placeholderText}>
-                  You are not assigned to a team yet.
-                </AppText>
-              </View>
-            )}
-
-            {/* Pre-Hackathon Questionnaire */}
-            {questionnaire ? (
-              <View style={styles.sectionCard}>
-                <LinearGradient
-                  colors={[
-                    "rgba(145, 196, 227, 0.05)",
-                    "rgba(145, 196, 227, 0.01)",
-                  ]}
-                  style={StyleSheet.absoluteFill}
-                />
-                <AppText variant="bold" style={styles.sectionTitle}>
-                  Pre-Hackathon Profile
-                </AppText>
-                <View style={styles.qList}>
-                  {questionnaire.dream_faculty ? (
-                    <QItem
-                      label="Dream Faculty"
-                      value={questionnaire.dream_faculty}
-                    />
-                  ) : null}
-                  {questionnaire.team_role_preference ? (
-                    <QItem
-                      label="Preferred Role"
-                      value={questionnaire.team_role_preference}
-                    />
-                  ) : null}
-                  {questionnaire.ai_proficiency ? (
-                    <QItem
-                      label="AI Proficiency"
-                      value={questionnaire.ai_proficiency}
-                    />
-                  ) : null}
-                  {questionnaire.why_hackathon ? (
-                    <QItem label="Goal" value={questionnaire.why_hackathon} />
-                  ) : null}
-                  {questionnaire.loves ? (
-                    <QItem label="Passions" value={questionnaire.loves} />
-                  ) : null}
-                  {questionnaire.good_at ? (
-                    <QItem label="Strengths" value={questionnaire.good_at} />
-                  ) : null}
-                </View>
-              </View>
-            ) : (
-              <View style={styles.placeholderCard}>
-                <AppText variant="bold" style={styles.placeholderTitle}>
-                  Pre-Hackathon Profile
-                </AppText>
-                <AppText style={styles.placeholderText}>
-                  You haven't filled out your pre-hackathon questionnaire yet.
-                </AppText>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.linkBtn,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                  onPress={() =>
-                    Linking.openURL(
-                      "https://www.passionseed.org/hackathon/onboarding",
-                    )
-                  }
-                >
-                  <AppText variant="bold" style={styles.linkBtnText}>
-                    Complete Questionnaire
-                  </AppText>
-                </Pressable>
-              </View>
-            )}
-
-            {/* Knowledge Vault Placeholder */}
-            <View style={styles.placeholderCard}>
-              <AppText variant="bold" style={styles.placeholderTitle}>
-                Knowledge Vault
-              </AppText>
-              <AppText style={styles.placeholderText}>
-                Your completed activities, generated ideas, and reflections in
-                one place.
-              </AppText>
-              <AppText variant="bold" style={styles.placeholderBadge}>
-                Coming Soon
-              </AppText>
-            </View>
-
-            {isAdmin ? (
-              <View style={styles.adminCard}>
-                <LinearGradient
-                  colors={[
-                    "rgba(101, 171, 252, 0.14)",
-                    "rgba(145, 196, 227, 0.04)",
-                  ]}
-                  style={StyleSheet.absoluteFill}
-                />
-                <AppText variant="bold" style={styles.adminTitle}>
-                  Hackathon Admin
-                </AppText>
-                <AppText style={styles.adminText}>
-                  Review app stats, activity submissions, and team progress.
-                </AppText>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.adminBtn,
-                    pressed && { opacity: 0.75 },
-                  ]}
-                  onPress={() => router.push("/admin/hackathon" as any)}
-                >
-                  <AppText variant="bold" style={styles.adminBtnText}>
-                    Open Dashboard
-                  </AppText>
-                </Pressable>
-              </View>
-            ) : null}
-
-            {/* Debug Info */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.signOutBtn,
-                pressed && { opacity: 0.75 },
-              ]}
-              onPress={async () => {
-                const token = await getExistingPushToken().catch(() => null);
-                const ctx = getSentryRuntimeContext();
-                Alert.alert(
-                  "Debug Info",
-                  [
-                    `App: ${Constants.expoConfig?.version ?? "?"}+${ctx.dist ?? "?"}`,
-                    `Runtime: ${ctx.runtimeVersion ?? "?"}`,
-                    `Channel: ${ctx.channel ?? "?"}`,
-                    `Update: ${ctx.updateId ?? "none"}`,
-                    `OS: ${Platform.OS} ${Platform.Version}`,
-                    `Env: ${ctx.environment ?? "?"}`,
-                    "",
-                    `User: ${user?.id ?? "null"}`,
-                    `Participant: ${participant?.id ?? "null"}`,
-                    `Team: ${team?.id ?? "null"}`,
-                    `Push: ${token ?? "none"}`,
-                    `Push saved: ${hasPushToken}`,
-                  ].join("\n"),
-                );
-              }}
-            >
-              <AppText style={styles.signOutText}>ℹ️ Debug Info</AppText>
-            </Pressable>
-
-            {/* Sign Out */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.signOutBtn,
-                pressed && { opacity: 0.75 },
-              ]}
-              onPress={() => signOutHackathon()}
-            >
-              <AppText style={styles.signOutText}>Sign Out</AppText>
-            </Pressable>
-          </>
+          <ProfileTeamEmptyCard />
         )}
+
+        <ProfileAccordionSection
+          title="Social links"
+          summary={socialSummary}
+          expanded={socialExpanded}
+          onToggle={() => setSocialExpanded((v) => !v)}
+        >
+          <ProfileSocialFields
+            instagramHandle={instagramHandle}
+            discordUsername={discordUsername}
+            saving={savingSocial}
+            onChangeInstagram={setInstagramHandle}
+            onChangeDiscord={setDiscordUsername}
+            onSave={handleSaveSocial}
+          />
+        </ProfileAccordionSection>
+
+        <ProfileAccordionSection
+          title="Pre-hackathon profile"
+          summary={questionnaireSummary}
+          expanded={questionnaireExpanded}
+          onToggle={() => setQuestionnaireExpanded((v) => !v)}
+        >
+          {questionnaire ? (
+            <ProfileQuestionnaireFields questionnaire={questionnaire} />
+          ) : (
+            <ProfileQuestionnaireEmptyFields />
+          )}
+        </ProfileAccordionSection>
+
+        <ProfileSettingsCard
+          showPushRow={pushChecked && !hasPushToken}
+          enablingPush={enablingPush}
+          onEnablePush={handleEnablePush}
+          isAdmin={isAdmin}
+          onDebugInfo={handleDebugInfo}
+          onSignOut={() => signOutHackathon()}
+        />
       </ScrollView>
     </View>
   );
 }
 
-function InfoRow({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <View style={styles.infoRow}>
-      <AppText style={styles.infoLabel}>{label}</AppText>
-      <AppText
-        variant="bold"
-        style={[styles.infoValue, accent && { color: CYAN }]}
-      >
-        {value}
-      </AppText>
-    </View>
-  );
-}
-
-function QItem({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.qItem}>
-      <AppText style={styles.qLabel}>{label}</AppText>
-      <AppText style={styles.qValue}>{value}</AppText>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+  root: {
+    flex: 1,
+    backgroundColor: HACK_COLORS.bgDeep,
+  },
+  loaderRoot: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   content: {
-    padding: Space.xl,
+    paddingHorizontal: Space.lg,
     paddingBottom: 120,
-    gap: Space.md,
-  },
-  eyebrow: {
-    fontSize: 11,
-    color: CYAN,
-    textTransform: "uppercase",
-    letterSpacing: 2,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: Space.sm,
-  },
-  titleEmoji: {
-    fontSize: 36,
-  },
-  titleTextWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    fontSize: 30,
-    lineHeight: 36,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  rollCountInline: {
-    fontSize: 11,
-    color: WHITE55,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  diceBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  diceText: {
-    fontSize: 24,
-    lineHeight: 30,
-  },
-  infoCard: {
-    borderRadius: Radius.lg,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    padding: Space.lg,
-    gap: Space.md,
-    marginTop: Space.sm,
-  },
-  infoRow: {
-    gap: 4,
-  },
-  infoLabel: {
-    fontSize: 10,
-    color: CYAN,
-    textTransform: "uppercase",
-    letterSpacing: 1.5,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  infoValue: {
-    fontSize: 15,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_500Medium",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
-  loadingContainer: {
-    padding: Space.xl,
-    alignItems: "center",
-    gap: Space.md,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_500Medium",
-  },
-  sectionCard: {
-    borderRadius: Radius.lg,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.15)",
-    padding: Space.lg,
-    gap: Space.md,
-    marginTop: Space.sm,
-    backgroundColor: "rgba(3, 5, 10, 0.4)",
-  },
-  sectionTitle: {
-    fontSize: 18,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  // Social Media Styles
-  socialInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Space.md,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: Radius.md,
-    padding: Space.md,
-  },
-  socialIcon: {
-    fontSize: 20,
-  },
-  socialInput: {
-    flex: 1,
-    fontSize: 15,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_400Regular",
-    padding: 0,
-  },
-  saveBtn: {
-    backgroundColor: "rgba(145, 196, 227, 0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(145, 196, 227, 0.3)",
-    borderRadius: Radius.md,
-    paddingVertical: Space.sm,
-    paddingHorizontal: Space.md,
-    alignItems: "center",
-    alignSelf: "flex-start",
-  },
-  saveBtnText: {
-    color: CYAN,
-    fontSize: 12,
-    fontFamily: "BaiJamjuree_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  // Team Styles
-  teamHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Space.md,
-  },
-  teamAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
-  teamAvatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(145, 196, 227, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  teamInitials: {
-    fontSize: 16,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  teamNameContainer: {
-    flex: 1,
-  },
-  uploadBtn: {
-    backgroundColor: "rgba(145, 196, 227, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(145, 196, 227, 0.2)",
-    borderRadius: Radius.md,
-    paddingVertical: Space.sm,
-    paddingHorizontal: Space.md,
-    alignItems: "center",
-    alignSelf: "flex-start",
-  },
-  uploadBtnText: {
-    color: CYAN,
-    fontSize: 11,
-    fontFamily: "BaiJamjuree_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  rosterList: {
-    gap: Space.md,
-    marginTop: Space.md,
-  },
-  rosterItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Space.md,
-  },
-  rosterDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: CYAN,
-  },
-  rosterInfo: {
-    flex: 1,
-  },
-  rosterName: {
-    fontSize: 15,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  rosterMeta: {
-    fontSize: 12,
-    color: WHITE55,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  youBadge: {
-    backgroundColor: "rgba(145,196,227,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.3)",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  youBadgeText: {
-    fontSize: 10,
-    color: CYAN,
-    fontFamily: "BaiJamjuree_700Bold",
-    letterSpacing: 0.5,
-  },
-  // Questionnaire Styles
-  qList: {
-    gap: Space.md,
-  },
-  qItem: {
-    gap: 4,
-    backgroundColor: "rgba(255,255,255,0.03)",
-    padding: Space.md,
-    borderRadius: Radius.md,
-  },
-  qLabel: {
-    fontSize: 11,
-    color: CYAN,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  qValue: {
-    fontSize: 14,
-    color: WHITE,
-    lineHeight: 20,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  // Placeholder Styles
-  placeholderCard: {
-    backgroundColor: "rgba(145,196,227,0.05)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.1)",
-    padding: Space.lg,
-    gap: Space.xs,
-    marginTop: Space.sm,
-  },
-  placeholderTitle: {
-    fontSize: 16,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  placeholderText: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.45)",
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  placeholderBadge: {
-    fontSize: 10,
-    color: AMBER,
-    textTransform: "uppercase",
-    letterSpacing: 1.5,
-    marginTop: Space.xs,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  adminCard: {
-    borderRadius: Radius.lg,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(101,171,252,0.28)",
-    padding: Space.lg,
-    gap: Space.sm,
-    marginTop: Space.sm,
-    backgroundColor: "rgba(3, 5, 10, 0.48)",
-  },
-  adminTitle: {
-    fontSize: 17,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  adminText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: WHITE75,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  adminBtn: {
-    backgroundColor: "rgba(101,171,252,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(101,171,252,0.4)",
-    borderRadius: Radius.md,
-    paddingVertical: Space.sm,
-    paddingHorizontal: Space.md,
-    alignItems: "center",
-    alignSelf: "flex-start",
-    marginTop: Space.xs,
-  },
-  adminBtnText: {
-    color: CYAN,
-    fontSize: 12,
-    fontFamily: "BaiJamjuree_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  linkBtn: {
-    backgroundColor: "rgba(145,196,227,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(145,196,227,0.3)",
-    borderRadius: Radius.md,
-    paddingVertical: Space.sm,
-    paddingHorizontal: Space.md,
-    alignItems: "center",
-    marginTop: Space.sm,
-    alignSelf: "flex-start",
-  },
-  linkBtnText: {
-    color: CYAN,
-    fontSize: 12,
-    fontFamily: "BaiJamjuree_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  // Sign Out
-  signOutBtn: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    paddingVertical: Space.md,
-    alignItems: "center",
-    marginTop: Space.lg,
-  },
-  signOutText: {
-    fontSize: 15,
-    color: WHITE75,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  // Push Notification Banner
-  pushBanner: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.3)",
-    backgroundColor: "rgba(245, 158, 11, 0.08)",
-    padding: Space.md,
-    marginTop: Space.sm,
-  },
-  pushBannerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Space.md,
-  },
-  pushBannerIcon: { fontSize: 24 },
-  pushBannerTitle: {
-    fontSize: 14,
-    color: WHITE,
-    fontFamily: "BaiJamjuree_700Bold",
-  },
-  pushBannerText: {
-    fontSize: 12,
-    color: WHITE55,
-    fontFamily: "BaiJamjuree_400Regular",
-  },
-  pushBannerAction: {
-    fontSize: 11,
-    color: AMBER,
-    fontFamily: "BaiJamjuree_700Bold",
-    letterSpacing: 1,
   },
 });
