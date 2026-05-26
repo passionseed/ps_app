@@ -25,6 +25,7 @@ import {
   preloadHackathonActivityBundle,
   type HackathonPhaseActivityWithStatus,
 } from "../../../lib/hackathonScreenData";
+import { getTeamCycles } from "../../../lib/hackathonPhase3";
 import { supabase } from "../../../lib/supabase";
 import { readHackathonParticipant } from "../../../lib/hackathon-mode";
 import { Space } from "../../../lib/theme";
@@ -64,6 +65,7 @@ export default function HackathonPhaseScreen() {
     cachedBundle?.teamSubmissionStatuses ?? {},
   );
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [phase3CycleCount, setPhase3CycleCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -96,7 +98,13 @@ export default function HackathonPhaseScreen() {
               .select("team_id")
               .eq("participant_id", participant.id)
               .maybeSingle();
-            if (member?.team_id) setTeamId(member.team_id);
+            if (member?.team_id) {
+              setTeamId(member.team_id);
+              if (bundle.phase?.phase_number === 3) {
+                const cycles = await getTeamCycles(member.team_id);
+                if (!cancelled) setPhase3CycleCount(cycles.length);
+              }
+            }
           }
         } catch (e) {
           console.error("[PhaseScreen] load error:", e);
@@ -112,7 +120,9 @@ export default function HackathonPhaseScreen() {
     (a) => a.submissionStatus === "passed" || a.submissionStatus === "submitted"
   ).length;
   const totalCount = activities.length;
-  const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const pct = phase?.phase_number === 3
+    ? (phase3CycleCount >= 1 ? 100 : 0)
+    : totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   if (loading) {
     return (

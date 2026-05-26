@@ -17,6 +17,7 @@ import {
   type TeammateSubmissionRecord,
 } from "./hackathon-submit";
 import { getCurrentReleasedPhase, isHackathonActivityAccessible } from "./hackathonRelease";
+import { getTeamCycles } from "./hackathonPhase3";
 import { supabase } from "./supabase";
 import type {
   HackathonPhaseActivityDetail,
@@ -159,6 +160,7 @@ function buildJourneyPhaseCards(
   home: HackathonProgramHome,
   phaseSummaries: Awaited<ReturnType<typeof getProgramPhaseActivitySummaries>>,
   submissionStatuses: Record<string, string>,
+  phase3CycleCount = 0,
 ): HackathonJourneyPhaseCard[] {
   const currentPhaseId = home.enrollment?.current_phase_id;
   let foundActive = false;
@@ -181,11 +183,12 @@ function buildJourneyPhaseCards(
       );
     }).length;
 
+    const isPhase3 = phase.phase_number === 3;
     return {
       phase,
       activityTitles: activities.filter(Boolean).map((activity) => activity.title),
-      activityCount: activities.length,
-      completedCount,
+      activityCount: isPhase3 ? 1 : activities.length,
+      completedCount: isPhase3 ? (phase3CycleCount >= 1 ? 1 : 0) : completedCount,
       isActive: isPhaseActive,
     };
   });
@@ -340,9 +343,14 @@ async function createJourneyBundle(): Promise<HackathonJourneyBundle> {
   const allActivityIds = phaseSummaries.flatMap((phase) =>
     (phase.activities ?? []).filter(Boolean).map((activity) => activity.id),
   );
-  const [submissionStatuses, teamStatuses] = await Promise.all([
+  const cycleCountPromise = teamId
+    ? getTeamCycles(teamId).then((c) => c.length).catch(() => 0)
+    : Promise.resolve(0);
+
+  const [submissionStatuses, teamStatuses, phase3CycleCount] = await Promise.all([
     fetchActivitySubmissionStatuses(allActivityIds),
     fetchTeamActivitySubmissionStatuses(allActivityIds),
+    cycleCountPromise,
   ]);
 
   // Merge: team status wins when present (team-scope activities were migrated)
@@ -356,7 +364,7 @@ async function createJourneyBundle(): Promise<HackathonJourneyBundle> {
   return {
     data: home,
     impact: await impactPromise,
-    phaseCards: buildJourneyPhaseCards(home, phaseSummaries, mergedStatuses),
+    phaseCards: buildJourneyPhaseCards(home, phaseSummaries, mergedStatuses, phase3CycleCount),
     isAdmin,
   };
 }

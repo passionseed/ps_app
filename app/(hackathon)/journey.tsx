@@ -192,7 +192,7 @@ function AnimatedVerticalPhaseCard({
                     percent={pct}
                     size={54}
                     strokeWidth={4}
-                    label={card.phase.phase_number === 3 ? `${card.completedCount}/3` : undefined}
+                    label={card.phase.phase_number === 3 ? (card.completedCount >= 1 ? "✓" : "0/1") : undefined}
                   />
                 </View>
               )}
@@ -202,10 +202,10 @@ function AnimatedVerticalPhaseCard({
               <View style={styles.statsRow}>
                 <View style={styles.statBox}>
                   <AppText style={styles.statVal}>
-                    {card.phase.phase_number === 3 ? "3" : card.activityCount}
+                    {card.activityCount}
                   </AppText>
                   <AppText style={styles.statLabel}>
-                    {card.phase.phase_number === 3 ? "Sprints" : "Tasks"}
+                    {card.phase.phase_number === 3 ? "Sprint" : "Tasks"}
                   </AppText>
                 </View>
                 <View style={styles.statDivider} />
@@ -430,12 +430,12 @@ export default function HackathonJourneyScreen() {
         {/* Vertical Phases */}
         {phaseCards.length > 0 ? (
           <View style={styles.timelineSection}>
-            {phaseCards.map((card, index) => (
+            {phaseCards.filter((card) => card.phase.phase_number !== 4).map((card, index, arr) => (
               <AnimatedVerticalPhaseCard
                 key={card.phase.id}
                 card={card}
                 index={index}
-                isLast={index === phaseCards.length - 1}
+                isLast={index === arr.length - 1}
                 isAdmin={isAdmin}
               />
             ))}
