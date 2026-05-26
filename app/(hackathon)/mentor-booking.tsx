@@ -634,9 +634,9 @@ function BookingCard({
             {cancelledByStudent && (
               <>
                 <AppText style={[s.infoLabel, { color: RED }]}>คุณยกเลิกการนัดนี้</AppText>
-                <TouchableOpacity onPress={onRebook} style={s.rebookBtn}>
-                  <AppText variant="bold" style={s.rebookBtnText}>จองใหม่</AppText>
-                </TouchableOpacity>
+                <AppText style={[s.refundNote, { color: WHITE40 }]}>
+                  สิทธิ์การจองถูกใช้ไปแล้ว ไม่สามารถจองใหม่ได้
+                </AppText>
               </>
             )}
           </View>
@@ -749,8 +749,8 @@ export default function MentorBookingScreen() {
     Alert.alert(
       "ยืนยันการยกเลิก",
       mentorAccepted
-        ? "Mentor ยืนยันการนัดแล้ว ต้องการยกเลิกและจองใหม่ใช่ไหม?"
-        : "Mentor ยังไม่ได้รับนัด ต้องการยกเลิกใช่ไหม?",
+        ? "Mentor ยืนยันการนัดแล้ว หากยกเลิกตอนนี้ สิทธิ์การจอง 1 ครั้งจะหมดไป ไม่สามารถจองใหม่ได้"
+        : "Mentor ยังไม่ได้รับนัด หากยกเลิกตอนนี้ สิทธิ์การจองจะได้รับคืน",
       [
         { text: "ไม่ใช่", style: "cancel" },
         { text: "ยืนยันยกเลิก", style: "destructive", onPress: () => { void doCancel(); } },
@@ -764,13 +764,27 @@ export default function MentorBookingScreen() {
     setSelectedMentor(null);
   }
 
-  // Show all non-healthcare mentors; anyone can book freely without quota limits
-  const filteredMentors = mentors.filter((m) => m.session_type !== "healthcare");
+  // Group mentors: only show those assigned to this team
+  // Healthcare mentors: show all unless quota used up
+  // Order: group mentors first, then healthcare
+  const assignedMentorIds = quota?.assigned_mentor_ids ?? null;
+  const healthcareQuotaUsed = quota !== null && quota.chances_left === 0;
+  const groupMentors = assignedMentorIds
+    ? mentors.filter((m) => m.session_type === "group" && assignedMentorIds.includes(m.id))
+    : [];
+  const healthcareMentors = healthcareQuotaUsed
+    ? []
+    : mentors.filter((m) => m.session_type === "healthcare");
+  const filteredMentors = [...groupMentors, ...healthcareMentors];
 
-  // Determine what to show — no quota limits, always allow booking
+  // Determine what to show
   const hasActiveBooking = quota?.booking && quota.booking.status !== "cancelled";
-  const showBookingCard = !rebooking && hasActiveBooking;
-  const showForm = !showBookingCard || (step === "detail" || step === "form");
+  // Only show cancelled card if chances are used up (cancelled by student)
+  const hasCancelledBooking = quota?.booking && quota.booking.status === "cancelled" && quota.chances_left === 0;
+  const showBookingCard = !rebooking && (hasActiveBooking || hasCancelledBooking);
+  const selectedIsGroupMentor = selectedMentor?.session_type === "group";
+  // Group mentor bookings are unlimited — always allow the form for group mentors
+  const showForm = (!showBookingCard && ((quota?.chances_left ?? 0) > 0 || rebooking)) || (selectedIsGroupMentor && (step === "detail" || step === "form"));
 
   // Header back label
   const backLabel = step === "form" ? "← ข้อมูล Mentor" : step === "detail" && selectedMentor ? "← เลือก Mentor" : "← Back";
@@ -825,6 +839,18 @@ export default function MentorBookingScreen() {
           />
         ) : (
           <>
+            {/* Quota banner — only when healthcare quota still available */}
+            {!healthcareQuotaUsed && (
+              <View style={s.onceNotice}>
+                <AppText variant="bold" style={s.onceNoticeTitle}>
+                  {(quota?.chances_left ?? 0) > 1
+                    ? `จองได้อีก ${quota!.chances_left} ครั้ง`
+                    : "จองได้ 1 ครั้งต่อทีมเท่านั้น"}
+                </AppText>
+                <AppText style={s.onceNoticeSub}>เลือก Mentor ที่ต้องการ แล้วกรอกข้อมูลทีม</AppText>
+              </View>
+            )}
+
             <MentorGrid
               mentors={filteredMentors}
               loading={mentorsLoading}

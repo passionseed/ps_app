@@ -220,36 +220,29 @@ export default function LandingPage() {
 
   if (Platform.OS === "web") {
     return (
-      <LinearGradient
-        colors={["#0f0c29", "#302b63", "#24243e"]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={styles.webPage}
-      >
+      <View style={styles.webPage}>
         <View style={styles.webCard}>
-          <View style={styles.webLogoWrapper}>
-            <Image
-              source={require("../assets/passionseed-logo-1024.png")}
-              style={styles.webLogo}
-              resizeMode="contain"
-            />
-          </View>
+          <Image
+            source={require("../assets/icon.png")}
+            style={styles.webLogo}
+            resizeMode="contain"
+          />
           <AppText variant="bold" style={styles.webTitle}>
             Passion Seed
           </AppText>
           <AppText style={styles.webMessage}>
-            Our app is designed for mobile.{"\n"}Download it to get the full experience.
+            Please download our app to get the full experience.
           </AppText>
           <Pressable
-            style={({ pressed }) => [styles.webBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] }]}
+            style={({ pressed }) => [styles.webBtn, pressed && { opacity: 0.8 }]}
             onPress={() => Linking.openURL("https://www.passionseed.org/download")}
           >
             <AppText variant="bold" style={styles.webBtnText}>
-              ↓  Download the App
+              Download the App
             </AppText>
           </Pressable>
         </View>
-      </LinearGradient>
+      </View>
     );
   }
 
@@ -663,68 +656,42 @@ const styles = StyleSheet.create({
   },
   webPage: {
     flex: 1,
+    backgroundColor: PageBg,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    minHeight: "100vh" as any,
   },
   webCard: {
     alignItems: "center",
-    maxWidth: 400,
+    maxWidth: 360,
     width: "100%",
     gap: 20,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    padding: 48,
-  },
-  webLogoWrapper: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
-    overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    marginBottom: 8,
   },
   webLogo: {
-    width: 96,
-    height: 96,
+    width: 80,
+    height: 80,
+    borderRadius: 20,
   },
   webTitle: {
-    fontSize: 32,
+    fontSize: 28,
     color: "#FFFFFF",
     fontFamily: "BaiJamjuree_700Bold",
-    letterSpacing: 0.5,
-  },
-  webTagline: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.5)",
-    textAlign: "center",
-    letterSpacing: 1.5,
-    textTransform: "uppercase" as any,
   },
   webMessage: {
     fontSize: 16,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(255,255,255,0.65)",
     textAlign: "center",
-    lineHeight: 26,
-    marginTop: 4,
+    lineHeight: 24,
   },
   webBtn: {
-    backgroundColor: "#6C63FF",
+    backgroundColor: Accent,
     borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    marginTop: 12,
-    shadowColor: "#6C63FF",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    marginTop: 8,
   },
   webBtnText: {
     color: "#FFFFFF",
-    fontSize: 17,
-    letterSpacing: 0.3,
+    fontSize: 16,
   },
 });
