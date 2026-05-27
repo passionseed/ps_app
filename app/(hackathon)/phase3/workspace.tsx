@@ -462,11 +462,11 @@ export default function Phase3WorkspaceScreen() {
           await handleStartCycle();
         } else if (decision === "finish") {
           // Show celebration + learnings review before finishing
-          // Use tracker result (more reliable) or fallback to cycle data
+          // Prefer tracker/cycle result; fall back to deriving from decision (DB may not be updated yet)
           const trackerResult = workspace?.tracker?.find(t => t.cycleNumber === targetCycleNum)?.result;
           const cycleData = cycles.find((c) => c.cycle_number === targetCycleNum);
-          const synthesisResult = trackerResult ?? cycleData?.synthesis_result ?? null;
-          console.log("Celebration result:", { trackerResult, cycleResult: cycleData?.synthesis_result, final: synthesisResult });
+          const decisionResult = decision === "finish" ? "confirmed" : null;
+          const synthesisResult = trackerResult ?? cycleData?.synthesis_result ?? decisionResult;
           setCelebrationData({
             hypothesis: currentHypothesisFull,
             hypothesisResult: synthesisResult,
