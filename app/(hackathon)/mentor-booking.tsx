@@ -89,10 +89,12 @@ function generateAllSlots(): string[] {
   const now = new Date();
   for (let day = 0; day < 14; day++) {
     for (let hour = 8; hour <= 20; hour++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() + day);
-      d.setHours(hour, 0, 0, 0);
-      if (d.getTime() > now.getTime() + 30 * 60 * 1000) slots.push(d.toISOString());
+      for (const minute of [0, 30]) {
+        const d = new Date(now);
+        d.setDate(now.getDate() + day);
+        d.setHours(hour, minute, 0, 0);
+        if (d.getTime() > now.getTime() + 30 * 60 * 1000) slots.push(d.toISOString());
+      }
     }
   }
   return slots;
