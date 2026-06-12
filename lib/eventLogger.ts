@@ -316,3 +316,48 @@ export async function logUploadComplete(params: {
     uri_scheme: params.uriScheme,
   });
 }
+
+/**
+ * Log when the passion identity profile surface loads (profile tab opened).
+ */
+export async function logProfileExposed(
+  stage: 'seedling' | 'revealed',
+): Promise<void> {
+  await logEvent('profile_exposed', { identity_stage: stage });
+}
+
+/**
+ * Log when the user changes their profile visibility/privacy settings.
+ */
+export async function logPrivacyChanged(
+  isPublic: boolean,
+  sections: string[],
+): Promise<void> {
+  await logEvent('privacy_changed', { is_public: isPublic, sections });
+}
+
+/**
+ * Log when the share card capture is attempted (success or failure).
+ */
+export async function logShareGenerated(
+  stage: 'seedling' | 'revealed',
+  success: boolean,
+): Promise<void> {
+  await logEvent('share_generated', { identity_stage: stage, success });
+}
+
+/**
+ * Log when the share sheet completes (user actually shared).
+ */
+export async function logShareCompleted(
+  stage: 'seedling' | 'revealed',
+): Promise<void> {
+  await logEvent('share_completed', { identity_stage: stage });
+}
+
+/**
+ * Log when a user opens someone else's public profile via handle/link.
+ */
+export async function logPublicProfileOpened(handle: string): Promise<void> {
+  await logEvent('public_profile_opened', { handle });
+}
