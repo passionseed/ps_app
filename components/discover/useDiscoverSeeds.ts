@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getAvailableSeeds,
   getCachedAvailableSeeds,
@@ -9,11 +9,20 @@ import { mergeSeedEnrollmentState } from "../../lib/seedEnrollmentMerge";
 import { supabase } from "../../lib/supabase";
 import {
   buildFallbackRecommendations,
+  buildSeedRecommendationSections,
   hydrateRecommendationSeedMedia,
   type SeedRecommendationsPayload,
+  type RecommendationSections,
 } from "../../lib/seedRecommendations";
 import { getEmptySeedSocialProof } from "../../lib/seedSocialProof";
 import type { SeedWithEnrollment } from "../../types/seeds";
+
+export interface DiscoverSeedsData {
+  seeds: SeedWithEnrollment[];
+  recommendations: SeedRecommendationsPayload;
+  sections: RecommendationSections;
+  mergedSeeds: SeedWithEnrollment[];
+}
 
 type UseDiscoverSeedsArgs = {
   isGuest: boolean;
@@ -264,12 +273,71 @@ export function useDiscoverSeeds({
     void loadSeeds({ forceRefresh: true, showLoader: seeds.length === 0 });
   }, [loadSeeds]);
 
+  // Memoize merged recommendations with live seed data (prevents re-merge every render)
+  const mergedSeeds = useMemo(() => {
+    const seedsById = new Map(seeds.map((s) => [s.id, s]));
+    const recSeeds = recommendations?.seeds ?? [];
+    return recSeeds.map((recSeed) => {
+      const liveSeed = seedsById.get(recSeed.id);
+      if (!liveSeed) return recSeed;
+      return {
+        ...recSeed,
+        enrollment: liveSeed.enrollment ?? recSeed.enrollment,
+        path: liveSeed.path ?? recSeed.path,
+        socialProof: liveSeed.socialProof ?? recSeed.socialProof ?? null,
+      };
+    }) as SeedWithEnrollment[];
+  }, [seeds, recommendations]);
+
+  // Helper for section memoization (must be declared BEFORE sections useMemo)
+  const seedsById = useMemo(() => {
+    return new Map(seeds.map((s) => [s.id, s] as const));
+  }, [seeds]);
+
+  const getLiveSeed = useCallback(
+    (seedId: string): SeedWithEnrollment | null => seedsById.get(seedId) ?? null,
+    [seedsById],
+  );
+
+  // Memoize sections based on merged seeds
+  const sections = useMemo(() => {
+    if (!recommendations) return { continue: [], recommended: [], exploreMore: [], deprioritized: [] } as RecommendationSections;
+    return buildSeedRecommendationSections(
+      (recommendations.seeds ?? []).map((recSeed) => {
+        const liveSeed = getLiveSeed(recSeed.id);
+        if (!liveSeed) return recSeed;
+        return {
+          ...recSeed,
+          enrollment: liveSeed.enrollment ?? recSeed.enrollment,
+          path: liveSeed.path ?? recSeed.path,
+          socialProof: liveSeed.socialProof ?? recSeed.socialProof ?? null,
+        };
+      }) as Parameters<typeof buildSeedRecommendationSections>[0],
+    );
+  }, [recommendations, getLiveSeed]);
+
+  // Build data object for standardized hook pattern
+  const data: DiscoverSeedsData | null = useMemo(() => {
+    if (seeds.length === 0 && !recommendations) return null;
+    return {
+      seeds,
+      recommendations: recommendations ?? buildFallbackRecommendations(seeds),
+      sections,
+      mergedSeeds,
+    };
+  }, [seeds, recommendations, sections, mergedSeeds]);
+
   return {
+    // Legacy flat return (backward-compatible)
     seeds,
     recommendations,
     loading,
     refreshing,
     loadSeeds,
     onRefresh,
+    // New standardized return
+    data,
+    mergedSeeds,
+    sections,
   };
 }

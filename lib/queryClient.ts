@@ -84,6 +84,21 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.seeds.all, id] as const,
     paths: (seedId: string) => [...queryKeys.seeds.all, "paths", seedId] as const,
   },
+
+  // PathLab
+  pathlab: {
+    all: ["pathlab"] as const,
+    enrollment: (id: string) =>
+      [...queryKeys.pathlab.all, "enrollment", id] as const,
+    dayBundle: (enrollmentId: string) =>
+      [...queryKeys.pathlab.all, "dayBundle", enrollmentId] as const,
+    seed: (id: string) =>
+      [...queryKeys.pathlab.all, "seed", id] as const,
+    seeds: (userId?: string) =>
+      [...queryKeys.pathlab.all, "seeds", userId ?? "__public__"] as const,
+    reflections: (enrollmentId: string) =>
+      [...queryKeys.pathlab.all, "reflections", enrollmentId] as const,
+  },
 };
 
 /**

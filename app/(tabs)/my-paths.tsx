@@ -8,10 +8,11 @@ import {
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
+import * as Sentry from "@sentry/react-native";
 import { CareerPathCard } from "../../components/JourneyBoard/CareerPathCard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getActiveJourneys } from "../../lib/journey";
@@ -192,6 +193,9 @@ export default function MyPathsScreen() {
           try { writeCachedMyPathsSnapshot(snapshot); } catch {}
         } catch (error) {
           console.error("[MyPaths] Failed to load:", error);
+          Sentry.captureException(error, {
+            tags: { screen: "MyPaths", userId },
+          });
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -246,7 +250,7 @@ export default function MyPathsScreen() {
           pathlabDay: (day: number, total: number) => `วัน ${day}/${total}`,
         };
 
-  const paths = journeys.map(journeyToCareerPath);
+  const paths = useMemo(() => journeys.map(journeyToCareerPath), [journeys]);
   const hasSimulations = paths.length > 0;
 
   const handleBuildPath = () => {

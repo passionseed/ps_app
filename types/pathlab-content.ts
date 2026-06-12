@@ -79,7 +79,11 @@ export type PathContentType =
   | "emotion_check"
   | "progress_snapshot"
   | "ai_chat"
-  | "npc_chat";
+  | "npc_chat"
+  // Comic / narrative content types
+  | "infographic_comic"
+  | "webtoon"
+  | "chat_comic";
 
 export interface PathContent {
   id: string;
@@ -188,6 +192,25 @@ export interface NPCChatMetadata {
   summary?: string;
   allow_restart?: boolean;
   show_history?: boolean;
+}
+
+export interface InfographicComicMetadata {
+  panels?: Array<{ image_url: string; caption?: string; overlay?: string }>;
+}
+
+export interface WebtoonMetadata {
+  image_url?: string;
+  chunks?: Array<{ url: string; height: number }>;
+}
+
+export interface ChatComicMetadata {
+  messages?: Array<{
+    sender: string;
+    avatar?: string;
+    message: string;
+    image?: string;
+    delay?: number;
+  }>;
 }
 
 // ============ Assessment Metadata Types ============

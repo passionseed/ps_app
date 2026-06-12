@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useMemo } from "react";
 import {
   View,
   Animated,
@@ -15,9 +15,10 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth";
 import {
-  buildFallbackRecommendations,
   buildSeedRecommendationSections,
+  type SeedRecommendation,
 } from "../../lib/seedRecommendations";
+import { preloadSeedBundle } from "../../lib/pathlabScreenData";
 import { AppText as Text } from "../../components/AppText";
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { getDiscoverScrollInterpolations } from "../../components/discover/scrollInterpolations";
@@ -40,7 +41,7 @@ export default function DiscoverScreen() {
 
   const [inlineSearchMode, setInlineSearchMode] = useState(false);
 
-  const { seeds, recommendations, loading, refreshing, onRefresh } =
+  const { seeds, recommendations, loading, refreshing, onRefresh, mergedSeeds, sections: hookSections } =
     useDiscoverSeeds({
       isGuest,
       userId: user?.id,
@@ -77,42 +78,24 @@ export default function DiscoverScreen() {
     setInlineSearchMode(false);
   }, []);
 
-  const fallbackPayload = buildFallbackRecommendations(seeds);
-  const displayRecommendations = recommendations ?? fallbackPayload;
+  // Memoized: filter merged seeds by search query (was computed every render)
+  const filteredMergedSeeds = useMemo(() => {
+    if (!searchQuery.trim()) return mergedSeeds;
 
-  // RADICAL: Re-merge live enrollment data into recommendations every render
-  // to ensure remote payloads or hydration misses never hide progress.
-  const seedsById = new Map(seeds.map((s) => [s.id, s]));
-  const mergedSeeds = displayRecommendations.seeds.map((recSeed) => {
-    const liveSeed = seedsById.get(recSeed.id);
-    if (!liveSeed) return recSeed;
+    const haystack = (seed: typeof mergedSeeds[number]) =>
+      `${seed.title} ${(seed as any).slogan ?? ""} ${(seed as any).description ?? ""}`.toLowerCase();
 
-    return {
-      ...recSeed,
-      enrollment: liveSeed.enrollment ?? recSeed.enrollment,
-      path: liveSeed.path ?? recSeed.path,
-      socialProof: liveSeed.socialProof ?? recSeed.socialProof ?? null,
-    };
-  });
+    return mergedSeeds.filter((seed) =>
+      haystack(seed).indexOf(searchQuery.trim().toLowerCase()) !== -1
+    );
+  }, [mergedSeeds, searchQuery]);
 
-  console.log(
-    "[Discover] Render -> Seeds count:",
-    seeds.length,
-    "Enrolled seeds in DB:",
-    seeds.filter((s) => s.enrollment).length,
-    "Enrolled seeds in merged payload:",
-    mergedSeeds.filter((s) => s.enrollment).length
-  );
-
-  const filteredRecommendations = mergedSeeds.filter((seed) => {
-    if (!searchQuery.trim()) return true;
-
-    const haystack =
-      `${seed.title} ${seed.slogan ?? ""} ${seed.description ?? ""}`.toLowerCase();
-    return haystack.indexOf(searchQuery.trim().toLowerCase()) !== -1;
-  });
-
-  const sections = buildSeedRecommendationSections(filteredRecommendations);
+  // Memoized: build sections from filtered seeds
+  const sections = useMemo(() => {
+    return buildSeedRecommendationSections(
+      filteredMergedSeeds as SeedRecommendation[]
+    );
+  }, [filteredMergedSeeds]);
 
   if (loading) {
     return (

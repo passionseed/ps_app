@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
+import * as Sentry from "@sentry/react-native";
 import { AnimatedSplash } from "../../components/AnimatedSplash";
 import {
   getEnrollmentDayBundle,
@@ -17,6 +18,7 @@ import type { PathDay } from "../../types/pathlab";
 import type { PathActivityWithContent } from "../../types/pathlab-content";
 import { warmPathDayBundle, getCachedPathDayBundle } from "../../lib/pathlabSession";
 import { readCachedPathDayBundle, writeCachedPathDayBundle } from "../../lib/seedRecommendations";
+import { preloadDayBundle } from "../../lib/pathlabScreenData";
 import { formatPathDayLabel } from "../../lib/pathlab-day-label";
 import {
   getPathlabActivityRoute,
@@ -97,6 +99,9 @@ export default function DailyPathScreen() {
       });
     } catch (error) {
       console.error("❌ Failed to load path data:", error);
+      Sentry.captureException(error, {
+        tags: { screen: "DailyPath", enrollmentId },
+      });
       if (!cachedBundle) {
         setError(error instanceof Error ? error.message : "Failed to load path data");
       }
@@ -180,16 +185,23 @@ export default function DailyPathScreen() {
   if (!enrollment || !pathDay) {
     return (
       <View style={styles.errorContainer}>
-        <AppText style={styles.errorIcon}>🎉</AppText>
+        <AppText style={styles.errorIcon}>{error ? "⚠️" : "🎉"}</AppText>
         <AppText variant="bold" style={styles.errorTitle}>
           {error ? "Unable to Load Path" : "Path Completed!"}
         </AppText>
         <AppText style={styles.errorText}>
           {error || "You've finished exploring this path"}
         </AppText>
-        <GlassButton variant="primary" onPress={() => router.back()}>
-          Go Back
-        </GlassButton>
+        <View style={styles.errorButtons}>
+          {error && (
+            <GlassButton variant="primary" onPress={() => loadData()} style={styles.retryBtn}>
+              Retry
+            </GlassButton>
+          )}
+          <GlassButton variant="secondary" onPress={() => router.back()}>
+            Go Back
+          </GlassButton>
+        </View>
       </View>
     );
   }
@@ -309,6 +321,10 @@ function ActivityTimelineCard({
                       activity.path_assessment?.assessment_type ||
                       'unknown';
 
+  // Determine status for badge
+  const progressStatus = activity.progress?.status ?? 'not_started';
+  const statusBadge = getStatusBadge(progressStatus);
+
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "npc_chat": return "💬";
@@ -361,6 +377,7 @@ function ActivityTimelineCard({
           styles.cardWrapper,
           pressed && { opacity: 0.8 }
         ]}
+        onPressIn={() => void preloadDayBundle(enrollmentId)}
         onPress={handlePress}
       >
         <GlassCard variant={completed ? "neutral" : "experience"} style={[
@@ -371,9 +388,16 @@ function ActivityTimelineCard({
             <View style={styles.typeTag}>
               <AppText style={styles.typeIcon}>{getTypeIcon(activityType)}</AppText>
             </View>
-            {activity.estimated_minutes && (
-              <AppText style={styles.durationTag}>{activity.estimated_minutes} นาที</AppText>
-            )}
+            <View style={styles.cardHeaderRight}>
+              <View style={[styles.statusBadge, statusBadge.style]}>
+                <AppText style={[styles.statusBadgeText, { color: statusBadge.color }]}>
+                  {statusBadge.label}
+                </AppText>
+              </View>
+              {activity.estimated_minutes && (
+                <AppText style={styles.durationTag}>{activity.estimated_minutes} นาที</AppText>
+              )}
+            </View>
           </View>
           <AppText variant="bold" style={styles.activityTitle}>{activity.title}</AppText>
           {activity.instructions && (
@@ -385,6 +409,37 @@ function ActivityTimelineCard({
       </Pressable>
     </View>
   );
+}
+
+// ── Status Badge Helper ──
+
+function getStatusBadge(status: string): { label: string; color: string; style: object } {
+  switch (status) {
+    case "completed":
+      return {
+        label: "✓ Done",
+        color: "#059669",
+        style: { backgroundColor: "rgba(16, 185, 129, 0.1)", borderColor: "rgba(16, 185, 129, 0.3)" },
+      };
+    case "in_progress":
+      return {
+        label: "In Progress",
+        color: "#2563EB",
+        style: { backgroundColor: "rgba(59, 130, 246, 0.1)", borderColor: "rgba(59, 130, 246, 0.3)" },
+      };
+    case "skipped":
+      return {
+        label: "Skipped",
+        color: "#D97706",
+        style: { backgroundColor: "rgba(245, 158, 11, 0.1)", borderColor: "rgba(245, 158, 11, 0.3)" },
+      };
+    default:
+      return {
+        label: "Pending",
+        color: "#6B7280",
+        style: { backgroundColor: "rgba(107, 114, 128, 0.1)", borderColor: "rgba(107, 114, 128, 0.2)" },
+      };
+  }
 }
 
 const styles = StyleSheet.create({
@@ -605,5 +660,28 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     paddingTop: 20,
     backgroundColor: "rgba(248, 249, 250, 0.9)",
+  },
+  errorButtons: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  retryBtn: {
+    flex: 1,
+  },
+  cardHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
   },
 });

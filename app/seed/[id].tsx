@@ -20,6 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import * as Sentry from "@sentry/react-native";
 import { AppText } from "../../components/AppText";
 import { GlassButton } from "../../components/Glass";
 import { AnimatedSplash } from "../../components/AnimatedSplash";
@@ -40,6 +41,7 @@ import {
   getReflectionsForEnrollment,
   type ExpertInfo,
 } from "../../lib/pathlab";
+import { preloadDayBundle } from "../../lib/pathlabScreenData";
 import { warmPathDayBundle, clearEnrollmentCache, markEnrollmentReset } from "../../lib/pathlabSession";
 import { formatPathDayLabel } from "../../lib/pathlab-day-label";
 import {
@@ -242,6 +244,9 @@ export default function SeedDetailScreen() {
       try { writeCachedSeedDetailSnapshot(snapshot); } catch {}
     } catch (error) {
       console.error("[SeedDetail] Error loading data:", error);
+      Sentry.captureException(error, {
+        tags: { screen: "SeedDetail", seedId: id },
+      });
       setLoadError(
         error instanceof Error ? error.message : "Unable to load this path. Please try again."
       );
@@ -656,6 +661,11 @@ export default function SeedDetailScreen() {
                             s.activityItem, 
                             isActClickable && pressed && { opacity: 0.6 }
                           ]}
+                          onPressIn={() => {
+                            if (isActClickable && enrollment) {
+                              void preloadDayBundle(enrollment.id);
+                            }
+                          }}
                           onPress={() => {
                             if (isActClickable && enrollment) {
                               router.push(

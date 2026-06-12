@@ -12,6 +12,7 @@ import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Sentry from "@sentry/react-native";
 import { logSeedCompleted } from "../../lib/eventLogger";
 import { supabase } from "../../lib/supabase";
 import { getPathDay, submitDailyReflection } from "../../lib/pathlab";
@@ -117,6 +118,7 @@ export default function ReflectionScreen() {
   const insets = useSafeAreaInsets();
   const [enrollment, setEnrollment] = useState<EnrollmentData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [scoreError, setScoreError] = useState<string | null>(null);
@@ -130,41 +132,60 @@ export default function ReflectionScreen() {
 
   const allRatingsSet = energyLevel !== null && confusionLevel !== null && interestLevel !== null;
 
-  useEffect(() => {
-    async function load() {
-      if (!enrollmentId) return;
-      try {
-        const { data, error } = await supabase
-          .from("path_enrollments")
-          .select(
-            `id, current_day, path:paths(id, total_days, seed:seeds(id, title, category_id, tags))`,
-          )
-          .eq("id", enrollmentId)
-          .single();
-
-        if (error) throw error;
-
-        const normalizedPath = Array.isArray(data?.path) ? data.path[0] : data?.path;
-        const normalizedSeed = Array.isArray(normalizedPath?.seed)
-          ? normalizedPath.seed[0]
-          : normalizedPath?.seed;
-        const normalizedEnrollment = data && normalizedPath
-          ? { ...data, path: { ...normalizedPath, seed: normalizedSeed } }
-          : null;
-
-        setEnrollment(normalizedEnrollment as EnrollmentData | null);
-
-        if (normalizedPath?.id && data.current_day) {
-          const currentDay = await getPathDay(normalizedPath.id, data.current_day);
-          setDayTitle(currentDay?.title ?? null);
-        }
-      } catch (error) {
-        console.error("[Reflection] Failed to load:", error);
-      } finally {
-        setLoading(false);
-      }
+  const loadEnrollment = async () => {
+    if (!enrollmentId) {
+      setLoading(false);
+      return;
     }
-    load();
+
+    setLoading(true);
+    setLoadError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from("path_enrollments")
+        .select(
+          `id, current_day, status,
+           path:paths(id, total_days, seed:seeds(id, title, category_id, tags))`,
+        )
+        .eq("id", enrollmentId)
+        .single();
+
+      if (error) throw error;
+
+      const normalizedPath = Array.isArray(data?.path) ? data.path[0] : data?.path;
+      const normalizedSeed = Array.isArray(normalizedPath?.seed)
+        ? normalizedPath.seed[0]
+        : normalizedPath?.seed;
+      const normalizedEnrollment = data && normalizedPath
+        ? { ...data, path: { ...normalizedPath, seed: normalizedSeed } }
+        : null;
+
+      if (!normalizedEnrollment) {
+        setLoadError("Enrollment not found");
+        setLoading(false);
+        return;
+      }
+
+      setEnrollment(normalizedEnrollment as EnrollmentData | null);
+
+      if (normalizedPath?.id && data.current_day) {
+        const currentDay = await getPathDay(normalizedPath.id, data.current_day);
+        setDayTitle(currentDay?.title ?? null);
+      }
+    } catch (error) {
+      console.error("[Reflection] Failed to load:", error);
+      Sentry.captureException(error, {
+        tags: { screen: "Reflection", enrollmentId },
+      });
+      setLoadError(error instanceof Error ? error.message : "Failed to load enrollment data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEnrollment();
   }, [enrollmentId]);
 
   const handleSubmit = async (decision: PathReflectionDecision) => {
@@ -222,17 +243,35 @@ export default function ReflectionScreen() {
     return (
       <View style={[styles.center, { backgroundColor: PageBg.default }]}>
         <PathLabSkiaLoader size="large" />
+        <AppText style={{ color: ThemeText.secondary, marginTop: 16 }}>
+          Loading reflection...
+        </AppText>
       </View>
     );
   }
 
-  if (!enrollment?.path?.seed) {
+  if (loadError || !enrollment?.path?.seed) {
     return (
       <View style={[styles.center, { backgroundColor: PageBg.default }]}>
-        <AppText style={{ color: ThemeText.secondary, marginBottom: 16 }}>Something went wrong</AppText>
-        <GlassButton variant="secondary" onPress={() => router.back()}>
-          Go Back
-        </GlassButton>
+        <AppText style={styles.errorEmoji}>
+          {loadError ? "⚠️" : "🔍"}
+        </AppText>
+        <AppText variant="bold" style={styles.errorTitle}>
+          {loadError ? "Unable to Load" : "Not Found"}
+        </AppText>
+        <AppText style={styles.errorMessage}>
+          {loadError || "This enrollment could not be found. It may have been completed or removed."}
+        </AppText>
+        <View style={styles.errorButtonRow}>
+          {loadError && (
+            <GlassButton variant="primary" onPress={() => loadEnrollment()}>
+              Try Again
+            </GlassButton>
+          )}
+          <GlassButton variant="secondary" onPress={() => router.back()}>
+            Go Back
+          </GlassButton>
+        </View>
       </View>
     );
   }
@@ -477,6 +516,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 16,
+  },
+  errorEmoji: {
+    fontSize: 48,
+    marginBottom: 4,
+  },
+  errorTitle: {
+    fontSize: 20,
+    color: ThemeText.primary,
+    marginBottom: 4,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: ThemeText.secondary,
+    textAlign: "center",
+    paddingHorizontal: 32,
+    marginBottom: 8,
+  },
+  errorButtonRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
   },
   header: {
     paddingHorizontal: Space["2xl"],
