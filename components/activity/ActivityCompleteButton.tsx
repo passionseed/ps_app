@@ -1,6 +1,6 @@
 import { View, StyleSheet } from "react-native";
 import { GlassButton } from "../Glass/GlassButton";
-import { PageBg, Shadow } from "../../lib/theme";
+import { Accent, PageBg, Shadow } from "../../lib/theme";
 
 interface Props {
   canComplete: boolean;
@@ -22,7 +22,6 @@ export default function ActivityCompleteButton({
       <GlassButton
         variant="primary"
         fullWidth
-        textStyle={styles.glassButtonText}
         onPress={onPress}
         disabled={isSubmitting}
       >
@@ -43,8 +42,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(0,0,0,0.04)",
     ...Shadow.floating,
-  },
-  glassButtonText: {
-    fontFamily: "BaiJamjuree_700Bold",
   },
 });

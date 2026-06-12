@@ -2,6 +2,7 @@ import { View, StyleSheet } from "react-native";
 import { AppText } from "../AppText";
 import { GlassCard } from "../Glass/GlassCard";
 import {
+  Accent,
   Text as ThemeText,
   Space,
   Shadow,
@@ -10,11 +11,11 @@ import type { PathActivityWithContent, PathAssessment, PathQuizQuestion, PathAss
 
 interface Props {
   activity: PathActivityWithContent;
-  onComplete: () => void;
-  isSubmitting: boolean;
+  onComplete?: () => void;
+  isSubmitting?: boolean;
 }
 
-export default function QuizActivity({ activity, onComplete: _onComplete, isSubmitting: _isSubmitting }: Props) {
+export default function QuizActivity({ activity }: Props) {
   const assessment = activity.path_assessment as (PathAssessment & { quiz_questions?: PathQuizQuestion[] }) | null;
   const submission = activity.submission as PathAssessmentSubmission | null | undefined;
   const isCompleted = activity.progress?.status === "completed";
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
   },
   assessmentSubmittedLabel: {
     fontSize: 13,
-    color: "#9FE800",
+    color: Accent.yellowDark,
     fontWeight: "600",
     marginTop: 12,
   },

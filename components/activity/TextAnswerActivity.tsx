@@ -4,6 +4,7 @@ import { AppText } from "../AppText";
 import { GlassCard } from "../Glass/GlassCard";
 import { GlassButton } from "../Glass/GlassButton";
 import {
+  Accent,
   Text as ThemeText,
   Space,
   Radius,
@@ -60,7 +61,6 @@ export default function TextAnswerActivity({ activity, onComplete }: Props) {
         <GlassButton
           variant="primary"
           fullWidth
-          textStyle={styles.glassButtonText}
           style={{ marginTop: 12 }}
           disabled={textAnswer.trim().length === 0}
           onPress={() => {
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   assessmentSubmittedLabel: {
     fontSize: 13,
-    color: "#9FE800",
+    color: Accent.yellowDark,
     fontWeight: "600",
     marginTop: 12,
   },
@@ -122,8 +122,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: ThemeText.primary,
     lineHeight: 20,
-  },
-  glassButtonText: {
-    fontFamily: "BaiJamjuree_700Bold",
   },
 });

@@ -8,6 +8,7 @@ import Reanimated, {
 import { AppText } from "../AppText";
 import { SkiaBackButton } from "../navigation/SkiaBackButton";
 import {
+  Accent,
   PageBg,
   Text as ThemeText,
   Radius,
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
   },
   headerChipText: {
     fontSize: 12,
-    color: "#3B82F6",
+    color: Accent.blue,
     textAlign: "center",
     includeFontPadding: false,
   },

@@ -52,14 +52,13 @@ export default function FileUploadActivity({ activity, onComplete }: Props) {
         <GlassButton
           variant="secondary"
           style={styles.uploadButton}
-          textStyle={styles.glassButtonText}
           onPress={handlePickFile}
         >
-          📎 Choose File
+          📤 Choose File
         </GlassButton>
         {selectedFile && (
           <GlassCard style={styles.selectedFileCard}>
-            <AppText style={styles.selectedFileName}>📄 {selectedFile.name}</AppText>
+            <AppText style={styles.selectedFileName}>{selectedFile.name}</AppText>
           </GlassCard>
         )}
       </View>
@@ -82,9 +81,6 @@ const styles = StyleSheet.create({
   },
   uploadButton: {
     flex: 1,
-  },
-  glassButtonText: {
-    fontFamily: "BaiJamjuree_700Bold",
   },
   selectedFileCard: {
     flexDirection: "row",
