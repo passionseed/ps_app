@@ -14,7 +14,16 @@ import Constants from "expo-constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
-import { logDirectionFinderViewed } from "../../lib/eventLogger";
+import { logDirectionFinderViewed, logProfileExposed } from "../../lib/eventLogger";
+import {
+  getPublicProfile,
+  deriveIdentityStage,
+  fetchGrowthCount,
+  buildBecomingLine,
+} from '../../lib/publicProfile';
+import type { PublicProfile } from '../../types/publicProfile';
+import { PassionIdentityHero } from '../../components/PassionIdentityHero';
+import { GrowthBadge } from '../../components/GrowthBadge';
 import { supabase } from "../../lib/supabase";
 import { backfillMissingIkigaiReflections } from "../../lib/ikigaiBackfill";
 import {
@@ -286,6 +295,10 @@ export default function ProfileScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [backfillingScores, setBackfillingScores] = useState(false);
   const [profileRefreshNonce, setProfileRefreshNonce] = useState(0);
+  const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
+  const [publicProfileLoading, setPublicProfileLoading] = useState(true);
+  const [publicProfileError, setPublicProfileError] = useState(false);
+  const [growthCount, setGrowthCount] = useState(0);
 
   const applyProfileSnapshot = useCallback((snapshot: ProfileScreenSnapshot) => {
     setProfile(snapshot.profile);
@@ -354,6 +367,29 @@ export default function ProfileScreen() {
       cancelled = true;
     };
   }, [applyProfileSnapshot, user?.id, profileRefreshNonce]);
+
+  const loadIdentity = useCallback(async (uid: string) => {
+    setPublicProfileLoading(true);
+    setPublicProfileError(false);
+    try {
+      const [profile, count] = await Promise.all([
+        getPublicProfile(uid),
+        fetchGrowthCount(uid),
+      ]);
+      setPublicProfile(profile);
+      setGrowthCount(count);
+      // Fire measurement event — fail-silent
+      logProfileExposed(deriveIdentityStage(profile)).catch(() => {});
+    } catch {
+      setPublicProfileError(true);
+    } finally {
+      setPublicProfileLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user?.id) void loadIdentity(user.id);
+  }, [user?.id, loadIdentity]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -580,6 +616,19 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.mainContent}>
+          <PassionIdentityHero
+            stage={deriveIdentityStage(publicProfile)}
+            profile={publicProfile}
+            becomingLine={publicProfile ? buildBecomingLine(publicProfile) : null}
+            loading={publicProfileLoading}
+            error={publicProfileError}
+            userId={user?.id ?? ''}
+            onExplore={() => router.push('/(tabs)/')}
+            onRetry={() => { if (user?.id) void loadIdentity(user.id); }}
+            onShare={() => { /* ET4 will wire this */ }}
+            shareDisabled={false}
+          />
+          <GrowthBadge count={publicProfileError ? null : growthCount} />
           <LinearGradient
             colors={["#FFFFFF", "#F8F5FF", "#EEF4FF"]}
             style={styles.heroCard}
