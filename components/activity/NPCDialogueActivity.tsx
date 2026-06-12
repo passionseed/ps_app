@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   typingCursor: {
-    color: "#BFFF00",
+    color: Accent.yellow,
     fontWeight: "700",
   },
   timerBarBelowBubble: {

@@ -130,7 +130,7 @@ function autoLinkText(text: string): React.ReactNode {
       return (
         <AppText
           key={i}
-          style={{ color: "#1D4ED8", textDecorationLine: "underline" }}
+          style={{ color: Accent.blue, textDecorationLine: "underline" }}
           onPress={() => WebBrowser.openBrowserAsync(part)}
         >
           {part}

@@ -645,7 +645,6 @@ const styles = StyleSheet.create({
   messengerInput: {
     flex: 1,
     fontSize: 15,
-    fontFamily: "BaiJamjuree_400Regular",
     color: ThemeText.primary,
     maxHeight: 100,
     paddingVertical: 10,
