@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, StyleSheet, useWindowDimensions } from "react-native";
+import { View, StyleSheet, useWindowDimensions, ActivityIndicator } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { AppText } from "../AppText";
 import { GlassCard } from "../Glass/GlassCard";
@@ -19,6 +19,8 @@ interface Props {
 export default function ImageActivity({ content, onComplete: _onComplete }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const [imageHeight, setImageHeight] = useState<number>(windowWidth * 0.75);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   return (
     <>
@@ -44,6 +46,16 @@ export default function ImageActivity({ content, onComplete: _onComplete }: Prop
             { width: windowWidth, height: imageHeight },
           ]}
         >
+          {isLoading && !hasError && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={ThemeText.tertiary} />
+            </View>
+          )}
+          {hasError && (
+            <View style={styles.errorContainer}>
+              <AppText style={styles.errorText}>Failed to load image</AppText>
+            </View>
+          )}
           <ExpoImage
             source={{
               uri: content.content_url,
@@ -56,10 +68,15 @@ export default function ImageActivity({ content, onComplete: _onComplete }: Prop
             contentFit="contain"
             cachePolicy="memory-disk"
             onLoad={(e) => {
+              setIsLoading(false);
               const { width, height } = e.source;
               if (width && height) {
                 setImageHeight(windowWidth * (height / width));
               }
+            }}
+            onError={() => {
+              setIsLoading(false);
+              setHasError(true);
             }}
           />
         </View>
@@ -91,6 +108,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
     marginVertical: 12,
     marginHorizontal: -20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingContainer: {
+    position: "absolute",
+    zIndex: 1,
+  },
+  errorContainer: {
+    position: "absolute",
+    zIndex: 1,
+    padding: 16,
+    alignItems: "center",
+  },
+  errorText: {
+    color: ThemeText.muted,
+    fontSize: 14,
   },
   fullWidthContentImage: {
     backgroundColor: "#000000",
