@@ -11,19 +11,23 @@ import { AppText as Text } from "../../components/AppText";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect } from "expo-router";
 import Constants from "expo-constants";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
-import { logDirectionFinderViewed, logProfileExposed } from "../../lib/eventLogger";
 import {
-  getPublicProfile,
+  logDirectionFinderViewed,
+  logProfileExposed,
+  logShareGenerated,
+  logShareCompleted,
+} from "../../lib/eventLogger";
+import {
   deriveIdentityStage,
-  fetchGrowthCount,
   buildBecomingLine,
 } from '../../lib/publicProfile';
 import type { PublicProfile } from '../../types/publicProfile';
 import { PassionIdentityHero } from '../../components/PassionIdentityHero';
 import { GrowthBadge } from '../../components/GrowthBadge';
+import { PassionShareCard, type PassionShareCardRef } from '../../components/PassionShareCard';
 import { supabase } from "../../lib/supabase";
 import { backfillMissingIkigaiReflections } from "../../lib/ikigaiBackfill";
 import {
@@ -299,6 +303,8 @@ export default function ProfileScreen() {
   const [publicProfileLoading, setPublicProfileLoading] = useState(true);
   const [publicProfileError, setPublicProfileError] = useState(false);
   const [growthCount, setGrowthCount] = useState(0);
+  const [shareBusy, setShareBusy] = useState(false);
+  const shareCardRef = useRef<PassionShareCardRef>(null);
 
   const applyProfileSnapshot = useCallback((snapshot: ProfileScreenSnapshot) => {
     setProfile(snapshot.profile);
@@ -311,6 +317,11 @@ export default function ProfileScreen() {
     setPortfolioCount(snapshot.portfolioCount);
     setSavedProgramsCount(snapshot.savedProgramsCount);
     setIsAdmin(snapshot.isAdmin);
+    setPublicProfile(snapshot.publicProfile);
+    setGrowthCount(snapshot.growthCount);
+
+    // Fire measurement event — fail-silent
+    logProfileExposed(deriveIdentityStage(snapshot.publicProfile)).catch(() => {});
   }, []);
 
   useFocusEffect(
@@ -329,6 +340,9 @@ export default function ProfileScreen() {
     let cancelled = false;
 
     async function loadData() {
+      setPublicProfileLoading(true);
+      setPublicProfileError(false);
+
       let cachedSnapshot: ProfileScreenSnapshot | null = null;
       try {
         cachedSnapshot = await readCachedProfileScreenSnapshot(userId);
@@ -340,6 +354,7 @@ export default function ProfileScreen() {
 
       if (cachedSnapshot) {
         applyProfileSnapshot(cachedSnapshot);
+        setPublicProfileLoading(false);
       }
 
       const cacheStatus = getProfileScreenCacheStatus(cachedSnapshot);
@@ -347,6 +362,7 @@ export default function ProfileScreen() {
         profileRefreshNonce > 0 || cachedSnapshot?.isAdmin !== true;
 
       if (cacheStatus.isFresh && !shouldForceRefresh) {
+        setPublicProfileLoading(false);
         return;
       }
 
@@ -355,9 +371,14 @@ export default function ProfileScreen() {
         if (cancelled) return;
 
         applyProfileSnapshot(freshSnapshot);
+        setPublicProfileLoading(false);
         try { writeCachedProfileScreenSnapshot(freshSnapshot); } catch {}
       } catch (error) {
         console.warn("[ProfileScreen] Failed to refresh profile snapshot:", error);
+        if (!cachedSnapshot) {
+          setPublicProfileError(true);
+        }
+        setPublicProfileLoading(false);
       }
     }
 
@@ -367,29 +388,6 @@ export default function ProfileScreen() {
       cancelled = true;
     };
   }, [applyProfileSnapshot, user?.id, profileRefreshNonce]);
-
-  const loadIdentity = useCallback(async (uid: string) => {
-    setPublicProfileLoading(true);
-    setPublicProfileError(false);
-    try {
-      const [profile, count] = await Promise.all([
-        getPublicProfile(uid),
-        fetchGrowthCount(uid),
-      ]);
-      setPublicProfile(profile);
-      setGrowthCount(count);
-      // Fire measurement event — fail-silent
-      logProfileExposed(deriveIdentityStage(profile)).catch(() => {});
-    } catch {
-      setPublicProfileError(true);
-    } finally {
-      setPublicProfileLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user?.id) void loadIdentity(user.id);
-  }, [user?.id, loadIdentity]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -624,11 +622,24 @@ export default function ProfileScreen() {
             error={publicProfileError}
             userId={user?.id ?? ''}
             onExplore={() => router.push('/(tabs)/')}
-            onRetry={() => { if (user?.id) void loadIdentity(user.id); }}
-            onShare={() => { /* ET4 will wire this */ }}
-            shareDisabled={false}
+            onRetry={() => { if (user?.id) setProfileRefreshNonce(prev => prev + 1); }}
+            onShare={() => { void shareCardRef.current?.share(); }}
+            shareDisabled={shareBusy}
           />
           <GrowthBadge count={publicProfileError ? null : growthCount} />
+          <PassionShareCard
+            ref={shareCardRef}
+            profile={publicProfile}
+            growthCount={growthCount}
+            stage={deriveIdentityStage(publicProfile)}
+            onShareBusy={setShareBusy}
+            onShareGenerated={(success) => {
+              void logShareGenerated(deriveIdentityStage(publicProfile), success).catch(() => {});
+            }}
+            onShareCompleted={() => {
+              void logShareCompleted(deriveIdentityStage(publicProfile)).catch(() => {});
+            }}
+          />
           <LinearGradient
             colors={["#FFFFFF", "#F8F5FF", "#EEF4FF"]}
             style={styles.heroCard}

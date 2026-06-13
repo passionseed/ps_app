@@ -155,6 +155,10 @@ module.exports = {
       usesAppleSignIn: true,
       icon: "./assets/pseed-app.icon",
       bundleIdentifier: "com.passionseed.app",
+      associatedDomains: [
+        `applinks:${process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || 'app.passionseed.io'}`,
+        `webcredentials:${process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || 'app.passionseed.io'}`,
+      ],
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription:
@@ -181,6 +185,20 @@ module.exports = {
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
       ],
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
+      intentFilters: [
+        {
+          action: "VIEW",
+          autoVerify: true,
+          data: [
+            {
+              scheme: "https",
+              host: process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || "app.passionseed.io",
+              pathPrefix: "/u/",
+            },
+          ],
+          category: ["BROWSABLE", "DEFAULT"],
+        },
+      ],
     },
     web: {
       bundler: "metro",

@@ -10,6 +10,7 @@ import * as asyncStorage from "../lib/asyncStorage";
 import {
   PROFILE_SCREEN_CACHE_KEY_PREFIX,
   PROFILE_SCREEN_CACHE_TTL_MS,
+  PROFILE_SCREEN_CACHE_SCHEMA_VERSION,
   clearCachedProfileScreenSnapshot,
   getProfileScreenCacheStatus,
   readCachedProfileScreenSnapshot,
@@ -25,7 +26,7 @@ function buildSnapshot(
   overrides: Partial<ProfileScreenSnapshot> = {},
 ): ProfileScreenSnapshot {
   return {
-    version: 1,
+    version: PROFILE_SCREEN_CACHE_SCHEMA_VERSION,
     userId: "user-1",
     cachedAt: "2026-04-08T10:00:00.000Z",
     profile: null,
@@ -38,6 +39,8 @@ function buildSnapshot(
     portfolioCount: 0,
     savedProgramsCount: 0,
     isAdmin: false,
+    publicProfile: null,
+    growthCount: 0,
     ...overrides,
   };
 }
