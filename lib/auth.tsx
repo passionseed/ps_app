@@ -475,13 +475,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithApple = async () => {
     if (Platform.OS !== "ios" || !AppleAuthentication) {
-      await signInWithOAuth("apple", "passion-seed://apple-auth");
-      return;
+      // Apple Sign In on iOS must use the native SDK. The web/OAuth fallback
+      // does not provide a working UX on iOS, so we surface a clear error.
+      throw new Error(
+        "Sign in with Apple is not available. Please update to the latest version of the app."
+      );
+    }
+
+    // Validate the native module is fully linked (not just a stub).
+    if (
+      typeof AppleAuthentication.isAvailableAsync !== "function" ||
+      typeof AppleAuthentication.signInAsync !== "function" ||
+      !AppleAuthentication.AppleAuthenticationScope
+    ) {
+      throw new Error(
+        "Sign in with Apple is not configured correctly on this device."
+      );
     }
 
     const isAvailable = await AppleAuthentication.isAvailableAsync();
     if (!isAvailable) {
-      throw new Error("Apple Authentication is not available on this device.");
+      throw new Error("Sign in with Apple is not available on this device.");
     }
 
     try {

@@ -168,6 +168,12 @@ export default function LandingPage() {
         return;
       }
 
+      const message = e instanceof Error ? e.message : String(e ?? "");
+      Alert.alert(
+        provider === "apple" ? "Sign in with Apple failed" : "Sign in failed",
+        message || "Something went wrong. Please try again.",
+        [{ text: "OK" }]
+      );
       console.error("Sign in error:", e);
     } finally {
       setSigningInProvider(null);

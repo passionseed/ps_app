@@ -167,6 +167,7 @@ module.exports = {
       ],
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        UIBackgroundModes: [],
         NSPhotoLibraryUsageDescription:
           "Passion Seed uses your photo library so you can choose and upload images for your profile, team avatar, and submissions.",
         NSPhotoLibraryAddUsageDescription:
@@ -290,7 +291,7 @@ module.exports = {
       fbAppId: process.env.EXPO_PUBLIC_FB_APP_ID,
     },
     autolinking: {
-      exclude: ["expo-glass-effect", "expo-apple-authentication"],
+      exclude: ["expo-glass-effect"],
     },
     runtimeVersion: {
       policy: "appVersion",
