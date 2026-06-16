@@ -43,11 +43,13 @@ export function HackathonHeroCard({
         pressed && styles.containerPressed,
       ]}
     >
-      <Image
-        source={require("../../assets/HackLogo.png")}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      <View style={styles.logoWrap}>
+        <Image
+          source={require("../../assets/HackLogo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </View>
       <View style={styles.content}>
         <Text style={styles.title}>{title}</Text>
         {isLoading && !program ? (
@@ -65,23 +67,36 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
     marginHorizontal: 16,
     marginBottom: 16,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   containerPressed: {
-    opacity: 0.85,
+    opacity: 0.9,
     transform: [{ scale: 0.985 }],
   },
+  logoWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#0B1220",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   logo: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
   },
   content: {
     flex: 1,
@@ -94,12 +109,12 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 11,
-    color: "#9CA3AF",
+    color: "#6B7280",
     lineHeight: 16,
   },
   arrow: {
     fontSize: 20,
-    color: "#9CA3AF",
+    color: "#6B7280",
     marginLeft: 4,
   },
 });
