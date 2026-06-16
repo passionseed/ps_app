@@ -43,13 +43,11 @@ export function HackathonHeroCard({
         pressed && styles.containerPressed,
       ]}
     >
-      <View style={styles.logoWrap}>
-        <Image
-          source={require("../../assets/HackLogo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-      </View>
+      <Image
+        source={require("../../assets/HackLogo.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <View style={styles.content}>
         <Text style={styles.title}>{title}</Text>
         {isLoading && !program ? (
@@ -86,17 +84,9 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     transform: [{ scale: 0.985 }],
   },
-  logoWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: "#0B1220",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   logo: {
-    width: 36,
-    height: 36,
+    width: 56,
+    height: 56,
   },
   content: {
     flex: 1,
