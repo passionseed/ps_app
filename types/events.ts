@@ -39,6 +39,13 @@ export const EVENT_TYPES = {
   // Upload analytics
   UPLOAD_ATTEMPT: 'upload_attempt',
   UPLOAD_COMPLETE: 'upload_complete',
+
+  // Passion Identity Profile
+  PROFILE_EXPOSED: 'profile_exposed',
+  PRIVACY_CHANGED: 'privacy_changed',
+  SHARE_GENERATED: 'share_generated',
+  SHARE_COMPLETED: 'share_completed',
+  PUBLIC_PROFILE_OPENED: 'public_profile_opened',
 } as const;
 
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
@@ -96,6 +103,11 @@ export interface EventDataMap {
     file_size: number;
     uri_scheme: string;
   };
+  profile_exposed: { identity_stage: 'seedling' | 'revealed' };
+  privacy_changed: { is_public: boolean; sections: string[] };
+  share_generated: { identity_stage: 'seedling' | 'revealed'; success: boolean };
+  share_completed: { identity_stage: 'seedling' | 'revealed' };
+  public_profile_opened: { handle: string };
 }
 
 /**

@@ -1,4 +1,5 @@
-import { View, StyleSheet, useWindowDimensions } from "react-native";
+import { useState } from "react";
+import { View, StyleSheet, useWindowDimensions, ActivityIndicator } from "react-native";
 import { WebView } from "react-native-webview";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { AppText } from "../AppText";
@@ -35,6 +36,7 @@ function extractYouTubeId(url: string): string | null {
 
 export default function VideoActivity({ content, onComplete: _onComplete }: Props) {
   const { width: windowWidth } = useWindowDimensions();
+  const [isLoading, setIsLoading] = useState(true);
 
   const videoId = extractYouTubeId(content.content_url || "");
   const isYouTube = !!videoId;
@@ -59,11 +61,17 @@ export default function VideoActivity({ content, onComplete: _onComplete }: Prop
       <View style={[styles.fullWidthVideoBleed, { width: videoWidth }]}>
         {isYouTube ? (
           <View style={isShort ? styles.videoContainerShort : styles.videoContainer}>
+            {isLoading && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator color={ThemeText.tertiary} />
+              </View>
+            )}
             <YoutubePlayer
               height={playerHeight}
               width={videoWidth}
               videoId={videoId}
               play={false}
+              onReady={() => setIsLoading(false)}
               webViewStyle={{ opacity: 0.99 }}
               webViewProps={{
                 androidLayerType: "hardware",
@@ -72,6 +80,11 @@ export default function VideoActivity({ content, onComplete: _onComplete }: Prop
           </View>
         ) : content.content_url ? (
           <View style={isShort ? styles.videoContainerShort : styles.videoContainer}>
+            {isLoading && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator color={ThemeText.tertiary} />
+              </View>
+            )}
             <WebView
               source={{
                 html: `
@@ -98,6 +111,7 @@ export default function VideoActivity({ content, onComplete: _onComplete }: Prop
               mediaPlaybackRequiresUserAction={false}
               javaScriptEnabled
               domStorageEnabled
+              onLoadEnd={() => setIsLoading(false)}
             />
           </View>
         ) : null}
@@ -154,5 +168,12 @@ const styles = StyleSheet.create({
   uploadedVideo: {
     width: "100%",
     height: "100%",
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000000",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1,
   },
 });

@@ -5,6 +5,7 @@ import {
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { callOnboardingChat, saveInterests } from "../../lib/onboarding";
 import { logInterestSelected } from "../../lib/eventLogger";
+import { Text as ThemeText, Radius, Shadow, Space } from "../../lib/theme";
 import type { ChatMessage, InterestCategory } from "../../types/onboarding";
 
 type Props = {
@@ -288,12 +289,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontFamily: "LibreFranklin_400Regular",
-    color: "#6B7280",
+    color: ThemeText.secondary,
     fontSize: 15,
   },
   errorText: {
     fontFamily: "LibreFranklin_400Regular",
-    color: "#6B7280",
+    color: ThemeText.secondary,
     fontSize: 15,
     textAlign: "center",
     paddingHorizontal: 32,
@@ -304,6 +305,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 32,
     marginTop: 8,
+    ...Shadow.ctaGlow,
   },
   retryBtnText: {
     fontFamily: "LibreFranklin_400Regular",
@@ -315,14 +317,14 @@ const styles = StyleSheet.create({
   // Card view
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: Space["2xl"],
     paddingTop: 16,
   },
   header: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 16,
-    color: "#6B7280",
+    color: ThemeText.secondary,
     textAlign: "center",
     marginBottom: 12,
   },
@@ -337,7 +339,7 @@ const styles = StyleSheet.create({
   progressText: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 13,
-    color: "#9CA3AF",
+    color: ThemeText.tertiary,
     textAlign: "center",
     marginBottom: 8,
   },
@@ -362,18 +364,19 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.1)",
-    borderRadius: 24,
+    borderColor: "rgba(139, 92, 246, 0.12)",
+    borderRadius: Radius.xl,
     padding: 32,
     width: "100%",
     minHeight: 200,
     justifyContent: "center",
     alignItems: "center",
+    ...Shadow.neutral,
   },
   cardText: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 18,
-    color: "#111827",
+    color: ThemeText.primary,
     lineHeight: 28,
     textAlign: "center",
   },
@@ -386,7 +389,7 @@ const styles = StyleSheet.create({
   skipBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.2)",
+    borderColor: "rgba(139, 92, 246, 0.16)",
     borderRadius: 100,
     paddingVertical: 16,
     alignItems: "center",
@@ -396,7 +399,7 @@ const styles = StyleSheet.create({
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 16,
-    color: "#6B7280",
+    color: ThemeText.secondary,
   },
   selectBtn: {
     flex: 1,
@@ -404,6 +407,7 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     paddingVertical: 16,
     alignItems: "center",
+    ...Shadow.ctaGlow,
   },
   selectBtnText: {
     fontFamily: "LibreFranklin_400Regular",
@@ -420,13 +424,13 @@ const styles = StyleSheet.create({
   talkMoreText: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 14,
-    color: "#9CA3AF",
+    color: ThemeText.tertiary,
   },
 
   // Summary
   summaryContainer: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: Space["2xl"],
     paddingTop: 24,
     paddingBottom: 48,
   },
@@ -434,14 +438,14 @@ const styles = StyleSheet.create({
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 22,
-    color: "#111827",
+    color: ThemeText.primary,
     marginBottom: 24,
     textAlign: "center",
   },
   emptyText: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 16,
-    color: "#6B7280",
+    color: ThemeText.secondary,
     textAlign: "center",
     marginTop: 32,
     marginBottom: 32,
@@ -460,7 +464,7 @@ const styles = StyleSheet.create({
   summaryStatement: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 14,
-    color: "#4B5563",
+    color: ThemeText.secondary,
     lineHeight: 22,
     marginBottom: 4,
     paddingLeft: 8,
@@ -471,6 +475,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 24,
+    ...Shadow.ctaGlow,
   },
   btnDisabled: {
     opacity: 0.5,
@@ -483,7 +488,7 @@ const styles = StyleSheet.create({
   },
   ghostBtn: {
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.2)",
+    borderColor: "rgba(139, 92, 246, 0.16)",
     borderRadius: 100,
     paddingVertical: 14,
     alignItems: "center",
@@ -493,6 +498,6 @@ const styles = StyleSheet.create({
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 15,
-    color: "#6B7280",
+    color: ThemeText.secondary,
   },
 });

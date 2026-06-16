@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   messengerAvatarText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#fff",
+    color: PageBg.default,
   },
   messengerOnlineDot: {
     position: "absolute",
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   messengerBubbleTextUser: {
-    color: "#fff",
+    color: PageBg.default,
   },
   messengerTime: {
     fontSize: 11,
@@ -664,6 +664,6 @@ const styles = StyleSheet.create({
   },
   messengerSendIcon: {
     fontSize: 20,
-    color: "#fff",
+    color: PageBg.default,
   },
 });

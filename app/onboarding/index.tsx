@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
 import { getOnboardingState } from "../../lib/onboarding";
 import type { OnboardingStep, ChatMessage, CollectedData, InterestCategory } from "../../types/onboarding";
@@ -51,7 +52,7 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={["#FFFFFF", "#F9F5FF", "#F3EAFF"]} style={styles.container}>
       <StatusBar style="dark" />
 
       {/* Progress dots */}
@@ -116,14 +117,13 @@ export default function OnboardingScreen() {
       {currentStep === 'settings' && (
         <StepSettings userId={user!.id} />
       )}
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: PageBg.default,
   },
   loading: {
     flex: 1,

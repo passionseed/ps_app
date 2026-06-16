@@ -206,6 +206,50 @@ export default function DiscoverScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
+            {isThai ? "🛡️ สถานะอาชีพ" : "🛡️ Career Survival"}
+          </Text>
+          <View style={styles.quickLinks}>
+            <Pressable
+              style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}
+              onPress={() => router.push("/career/software-engineer")}
+            >
+              <Text style={styles.quickLinkIcon}>💻</Text>
+              <Text style={styles.quickLinkTitle}>
+                {isThai ? "Software Engineer" : "Software Engineer"}
+              </Text>
+              <Text style={styles.quickLinkSubtitle}>
+                {isThai ? "ดูสถานะอาชีพ" : "Check career status"}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}
+              onPress={() => router.push("/career/data-scientist")}
+            >
+              <Text style={styles.quickLinkIcon}>📊</Text>
+              <Text style={styles.quickLinkTitle}>
+                {isThai ? "Data Scientist" : "Data Scientist"}
+              </Text>
+              <Text style={styles.quickLinkSubtitle}>
+                {isThai ? "ดูสถานะอาชีพ" : "Check career status"}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.quickLinkCard, pressed && styles.quickLinkPressed]}
+              onPress={() => router.push("/career/ux-designer")}
+            >
+              <Text style={styles.quickLinkIcon}>🎨</Text>
+              <Text style={styles.quickLinkTitle}>
+                {isThai ? "UX Designer" : "UX Designer"}
+              </Text>
+              <Text style={styles.quickLinkSubtitle}>
+                {isThai ? "ดูสถานะอาชีพ" : "Check career status"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             {isThai ? "🎓 สาขา TCAS" : "🎓 TCAS Programs"}
           </Text>
           <View style={styles.quickLinks}>

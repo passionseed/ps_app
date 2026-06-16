@@ -7,6 +7,8 @@ import {
 import type { IkigaiScores, ScoreTimelineItem } from "./scoreEngine";
 import { getProfile } from "./onboarding";
 import { supabase } from "./supabase";
+import { getPublicProfile, fetchGrowthCount } from "./publicProfile";
+import { fetchExplorationStats } from "./explorationStats";
 
 const inFlightProfileScreenSnapshotRequests = new Map<
   string,
@@ -94,6 +96,9 @@ export async function fetchProfileScreenSnapshot(
       savedProgramsData,
       eventsData,
       adminRoleData,
+      publicProfileData,
+      growthCountData,
+      explorationStatsData,
     ] = await Promise.all([
       getProfile(userId),
       supabase.from("user_interests").select("*").eq("user_id", userId),
@@ -133,6 +138,9 @@ export async function fetchProfileScreenSnapshot(
         .eq("user_id", userId)
         .eq("role", "admin")
         .maybeSingle(),
+      getPublicProfile(userId).catch(() => null),
+      fetchGrowthCount(userId),
+      fetchExplorationStats(userId),
     ]);
 
     const scoreEvents = (scoreEventsData.data as any[]) || [];
@@ -155,6 +163,9 @@ export async function fetchProfileScreenSnapshot(
       portfolioCount: (portfolioData.data as any[])?.length ?? 0,
       savedProgramsCount: (savedProgramsData.data as any[])?.length ?? 0,
       isAdmin: Boolean(adminRoleData.data),
+      publicProfile: publicProfileData,
+      growthCount: growthCountData,
+      explorationStats: explorationStatsData,
     };
   })();
 

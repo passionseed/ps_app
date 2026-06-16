@@ -17,6 +17,8 @@ import {
   enablePushNotifications,
   isNotificationsAvailable,
 } from "../../lib/notifications";
+import { GlassCard } from "../../components/Glass/GlassCard";
+import { Text as ThemeText, Shadow, Space } from "../../lib/theme";
 import type { MobileSettings } from "../../types/onboarding";
 const THEMES = [
   { value: "light" as const, label: "☀️ Light" },
@@ -91,7 +93,7 @@ export default function StepSettings({ userId }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
-      <View style={styles.card}>
+      <GlassCard variant="master" size="large">
         <Text style={styles.title}>Almost there!</Text>
         <Text style={styles.subtitle}>Set up your preferences</Text>
 
@@ -99,14 +101,14 @@ export default function StepSettings({ userId }: Props) {
           <View>
             <Text style={styles.label}>Daily reminders</Text>
             <Text style={styles.labelSub}>
-              We'll nudge you to do your daily task
+              We&apos;ll nudge you to do your daily task
             </Text>
           </View>
           <Switch
             value={pushEnabled}
             onValueChange={handlePushToggle}
-            trackColor={{ false: "rgba(0,0,0,0.1)", true: "#BFFF00" }}
-            thumbColor="#fff"
+            trackColor={{ false: ThemeText.muted, true: "rgba(0, 230, 118, 0.4)" }}
+            thumbColor={pushEnabled ? "#00E676" : "#fff"}
           />
         </View>
 
@@ -166,32 +168,25 @@ export default function StepSettings({ userId }: Props) {
             {saving ? "Setting up..." : "Let's go 🌱"}
           </Text>
         </Pressable>
-      </View>
+      </GlassCard>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, justifyContent: "center", padding: 24 },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 32,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.08)",
-  },
+  scroll: { flexGrow: 1, justifyContent: "center", padding: Space["2xl"] },
   title: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 26,
-    color: "#111827",
+    color: ThemeText.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "300",
     fontSize: 15,
-    color: "#6B7280",
+    color: ThemeText.secondary,
     marginBottom: 32,
   },
   row: {
@@ -204,13 +199,13 @@ const styles = StyleSheet.create({
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 14,
-    color: "#374151",
+    color: ThemeText.primary,
     marginBottom: 12,
   },
   labelSub: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 12,
-    color: "#9CA3AF",
+    color: ThemeText.tertiary,
     marginTop: 2,
   },
   chipRow: {
@@ -224,15 +219,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.15)",
-    backgroundColor: "rgba(0,0,0,0.03)",
+    borderColor: "rgba(139, 92, 246, 0.16)",
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
   },
   chipActive: { backgroundColor: "#BFFF00", borderColor: "#BFFF00" },
   chipText: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "500",
     fontSize: 14,
-    color: "#4B5563",
+    color: ThemeText.secondary,
   },
   chipTextActive: { color: "#0a0514" },
   btn: {
@@ -241,6 +236,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 8,
+    ...Shadow.ctaGlow,
   },
   btnDisabled: { opacity: 0.5 },
   btnText: {

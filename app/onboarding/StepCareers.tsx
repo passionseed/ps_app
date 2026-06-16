@@ -12,6 +12,7 @@ import {
 import { callOnboardingChat, saveCareers } from "../../lib/onboarding";
 import { logCareerSelected } from "../../lib/eventLogger";
 import type { InterestCategory, CareerGoal } from "../../types/onboarding";
+import { Text as ThemeText, Radius, Shadow, Space } from "../../lib/theme";
 
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 
@@ -176,7 +177,7 @@ export default function StepCareers({
             value={customInput}
             onChangeText={setCustomInput}
             placeholder="Add your own..."
-            placeholderTextColor="rgba(0,0,0,0.4)"
+            placeholderTextColor={ThemeText.tertiary}
             returnKeyType="done"
             onSubmitEditing={addCustom}
           />
@@ -187,7 +188,7 @@ export default function StepCareers({
 
         <Text style={styles.hint}>
           {totalSelected === 0
-            ? "You can skip this — that's fine too"
+            ? "You can skip this \u2014 that\u2019s fine too"
             : `${totalSelected} selected`}
         </Text>
 
@@ -213,12 +214,12 @@ const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
   loadingText: {
     fontFamily: "LibreFranklin_400Regular",
-    color: "#6B7280",
+    color: ThemeText.secondary,
     fontSize: 15,
   },
   errorText: {
     fontFamily: "LibreFranklin_400Regular",
-    color: "#6B7280",
+    color: ThemeText.secondary,
     fontSize: 15,
     textAlign: "center",
     paddingHorizontal: 32,
@@ -229,6 +230,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 32,
     marginTop: 8,
+    ...Shadow.ctaGlow,
   },
   retryBtnText: {
     fontFamily: "LibreFranklin_400Regular",
@@ -236,19 +238,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#0a0514",
   },
-  scroll: { padding: 24, paddingBottom: 48 },
+  scroll: { padding: Space["2xl"], paddingBottom: 48 },
   title: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 24,
-    color: "#111827",
+    color: ThemeText.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "300",
     fontSize: 14,
-    color: "#6B7280",
+    color: ThemeText.secondary,
     marginBottom: 28,
   },
   chipsWrap: {
@@ -262,45 +264,45 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.15)",
-    backgroundColor: "rgba(0,0,0,0.03)",
+    borderColor: "rgba(139, 92, 246, 0.16)",
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
   },
   chipActive: { backgroundColor: "#BFFF00", borderColor: "#BFFF00" },
   chipText: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "500",
     fontSize: 14,
-    color: "#4B5563",
+    color: ThemeText.secondary,
   },
   chipTextActive: { color: "#0a0514" },
   customRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.15)",
-    borderRadius: 14,
+    borderColor: "rgba(139, 92, 246, 0.16)",
+    borderRadius: Radius.md,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: "#111827",
+    color: ThemeText.primary,
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 15,
-    backgroundColor: "rgba(0,0,0,0.03)",
+    backgroundColor: "rgba(139, 92, 246, 0.03)",
   },
   addBtn: {
-    backgroundColor: "rgba(0,0,0,0.05)",
+    backgroundColor: "rgba(139, 92, 246, 0.08)",
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.15)",
+    borderColor: "rgba(139, 92, 246, 0.16)",
   },
-  addBtnText: { color: "#111827", fontSize: 24 },
+  addBtnText: { color: ThemeText.primary, fontSize: 24 },
   hint: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 13,
-    color: "#9CA3AF",
+    color: ThemeText.tertiary,
     textAlign: "center",
     marginBottom: 24,
   },
@@ -309,6 +311,7 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     paddingVertical: 16,
     alignItems: "center",
+    ...Shadow.ctaGlow,
   },
   btnDisabled: { opacity: 0.5 },
   btnText: {

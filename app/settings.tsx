@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { getProfile } from "../lib/onboarding";
+import { RESET_TARGETS, runReset, inspectReset, type ResetTarget } from "../lib/devReset";
 import type { Profile, MobileSettings } from "../types/onboarding";
 import {
   DEFAULT_MOBILE_SETTINGS,
@@ -63,9 +64,11 @@ export default function SettingsScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showDevUserDataModal, setShowDevUserDataModal] = useState(false);
-  const [devUserData, setDevUserData] = useState<DevUserData | null>(null);
+  const [devUserData, setDevUserData] = useState<DevUserData | unknown | null>(null);
+  const [devDataTitle, setDevDataTitle] = useState<string>("");
   const [devUserDataError, setDevUserDataError] = useState<string | null>(null);
   const [devUserDataLoading, setDevUserDataLoading] = useState(false);
+  const [resettingTarget, setResettingTarget] = useState<ResetTarget | null>(null);
 
   const isDev = typeof __DEV__ !== "undefined" && __DEV__;
   const isThai = appLanguage === "th";
@@ -175,6 +178,7 @@ export default function SettingsScreen() {
   const handleShowDevUserData = async () => {
     if (!isDev || !user?.id) return;
 
+    setDevDataTitle(copy.userDataDebug);
     setShowDevUserDataModal(true);
     setDevUserDataLoading(true);
     setDevUserDataError(null);
@@ -241,6 +245,59 @@ export default function SettingsScreen() {
     } finally {
       setDevUserDataLoading(false);
     }
+  };
+
+  const handleInspectReset = async (target: ResetTarget) => {
+    if (!isDev || !user?.id) return;
+
+    const meta = RESET_TARGETS.find((t) => t.key === target);
+    setDevDataTitle(meta ? `${meta.label} Data` : "Data");
+    setShowDevUserDataModal(true);
+    setDevUserDataLoading(true);
+    setDevUserDataError(null);
+    setDevUserData(null);
+
+    try {
+      const data = await inspectReset(target, user.id);
+      setDevUserData(data);
+    } catch (error) {
+      setDevUserDataError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDevUserDataLoading(false);
+    }
+  };
+
+  const handleDevReset = (target: ResetTarget) => {
+    if (!isDev || !user?.id) return;
+
+    const meta = RESET_TARGETS.find((t) => t.key === target);
+    if (!meta) return;
+
+    Alert.alert(
+      `Reset ${meta.label}?`,
+      `${meta.description}.${meta.remote ? "\n\nThis deletes rows in the shared database and cannot be undone." : ""}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: async () => {
+            setResettingTarget(target);
+            try {
+              const message = await runReset(target, user.id);
+              Alert.alert("Done", message);
+            } catch (error) {
+              Alert.alert(
+                "Reset Failed",
+                error instanceof Error ? error.message : String(error),
+              );
+            } finally {
+              setResettingTarget(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const RadioButton = ({ selected }: { selected: boolean }) => {
@@ -432,7 +489,7 @@ export default function SettingsScreen() {
             <View style={styles.devModalHeader}>
               <View>
                 <Text style={styles.devEyebrow}>DEV ONLY</Text>
-                <Text style={styles.devModalTitle}>{copy.userDataDebug}</Text>
+                <Text style={styles.devModalTitle}>{devDataTitle}</Text>
               </View>
               <Pressable
                 style={styles.devCloseButton}
@@ -609,6 +666,42 @@ export default function SettingsScreen() {
                     </View>
                     <Text style={styles.chevron}>›</Text>
                   </Pressable>
+                </View>
+
+                <Text style={[styles.sectionTitle, styles.devResetHeading]}>
+                  Reset Data
+                </Text>
+                <View style={styles.card}>
+                  {RESET_TARGETS.map((target, index) => (
+                    <View key={target.key}>
+                      {index > 0 && <View style={styles.optionDivider} />}
+                      <View style={styles.optionRow}>
+                        <View style={styles.optionCopy}>
+                          <Text style={styles.devResetLabel}>{target.label}</Text>
+                          <Text style={styles.optionHint}>{target.description}</Text>
+                        </View>
+                        {resettingTarget === target.key ? (
+                          <ActivityIndicator size="small" color="#DC2626" />
+                        ) : (
+                          <View style={styles.devResetActions}>
+                            <Pressable
+                              hitSlop={8}
+                              onPress={() => handleInspectReset(target.key)}
+                            >
+                              <Text style={styles.devViewAction}>View</Text>
+                            </Pressable>
+                            <Pressable
+                              hitSlop={8}
+                              onPress={() => handleDevReset(target.key)}
+                              disabled={resettingTarget !== null}
+                            >
+                              <Text style={styles.devResetAction}>Reset</Text>
+                            </Pressable>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  ))}
                 </View>
               </View>
             )}
@@ -822,6 +915,29 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: ThemeText.tertiary,
     fontWeight: "300",
+  },
+  devResetHeading: {
+    marginTop: Space.md,
+  },
+  devResetLabel: {
+    fontSize: 15,
+    color: ThemeText.primary,
+    fontWeight: "500",
+  },
+  devResetActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.lg,
+  },
+  devViewAction: {
+    fontSize: 14,
+    color: "#8B5CF6",
+    fontWeight: "700",
+  },
+  devResetAction: {
+    fontSize: 14,
+    color: "#DC2626",
+    fontWeight: "700",
   },
   optionDivider: {
     height: 1,
