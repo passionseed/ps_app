@@ -16,6 +16,7 @@ import {
   callOnboardingChat,
   upsertOnboardingState,
 } from "../../lib/onboarding";
+import { Text as ThemeText, Radius, Shadow, Space } from "../../lib/theme";
 import type { ChatMessage } from "../../types/onboarding";
 
 type Props = {
@@ -198,7 +199,7 @@ export default function StepChat({
               cx={ringSize / 2}
               cy={ringSize / 2}
               r={radius}
-              stroke="#e5e7eb"
+              stroke="rgba(139, 92, 246, 0.12)"
               strokeWidth={strokeWidth}
               fill="none"
             />
@@ -258,7 +259,7 @@ export default function StepChat({
               value={input}
               onChangeText={setInput}
               placeholder="Type your answer..."
-              placeholderTextColor="rgba(0,0,0,0.35)"
+              placeholderTextColor={ThemeText.tertiary}
               multiline
               returnKeyType="send"
               onSubmitEditing={handleSend}
@@ -318,24 +319,20 @@ const styles = StyleSheet.create({
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 10,
     fontWeight: "700",
-    color: "#111",
+    color: ThemeText.primary,
   },
   dialogBox: {
-    marginHorizontal: 16,
+    marginHorizontal: Space.xl,
     marginBottom: Platform.OS === "ios" ? 32 : 24,
     zIndex: 10,
-    backgroundColor: "white",
-    borderWidth: 1.5,
-    borderColor: "#e5e7eb",
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.12)",
+    borderRadius: Radius.xl,
+    padding: Space.xl,
     gap: 10,
     minHeight: 170,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 3,
+    ...Shadow.neutral,
   },
   npcNamePill: {
     backgroundColor: "#111",
@@ -357,7 +354,7 @@ const styles = StyleSheet.create({
   npcText: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 13,
-    color: "#111",
+    color: ThemeText.primary,
     lineHeight: 20,
     minHeight: 42,
   },
@@ -384,15 +381,15 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: "#FDFFF5",
+    backgroundColor: "rgba(139, 92, 246, 0.03)",
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 10,
+    borderColor: "rgba(139, 92, 246, 0.12)",
+    borderRadius: Radius.md,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 12,
     fontFamily: "LibreFranklin_400Regular",
-    color: "#111",
+    color: ThemeText.primary,
     maxHeight: 80,
   },
   sendBtn: {

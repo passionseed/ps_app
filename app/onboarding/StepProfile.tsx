@@ -10,6 +10,8 @@ import {
   Platform,
 } from "react-native";
 import { saveProfileStep } from "../../lib/onboarding";
+import { GlassCard } from "../../components/Glass/GlassCard";
+import { Text as ThemeText, Radius, Shadow, Space } from "../../lib/theme";
 import type { CollectedData } from "../../types/onboarding";
 
 type Props = {
@@ -60,8 +62,8 @@ export default function StepProfile({ userId, onComplete }: Props) {
       keyboardVerticalOffset={0}
     >
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Let's get to know you</Text>
+        <GlassCard variant="master" size="large">
+          <Text style={styles.title}>Let&apos;s get to know you</Text>
           <Text style={styles.subtitle}>Just a few quick things first</Text>
 
           <Text style={styles.label}>Education level</Text>
@@ -96,7 +98,7 @@ export default function StepProfile({ userId, onComplete }: Props) {
             value={school}
             onChangeText={setSchool}
             placeholder="e.g. Chulalongkorn University"
-            placeholderTextColor="rgba(0,0,0,0.4)"
+            placeholderTextColor={ThemeText.tertiary}
           />
 
           <Text style={styles.label}>Preferred language</Text>
@@ -128,43 +130,36 @@ export default function StepProfile({ userId, onComplete }: Props) {
               {saving ? "Saving..." : "Continue →"}
             </Text>
           </Pressable>
-        </View>
+        </GlassCard>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, justifyContent: "center", padding: 24 },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 32,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.08)",
-  },
+  scroll: { flexGrow: 1, justifyContent: "center", padding: Space["2xl"] },
   title: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "700",
     fontSize: 26,
-    color: "#111827",
+    color: ThemeText.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "300",
     fontSize: 15,
-    color: "#6B7280",
+    color: ThemeText.secondary,
     marginBottom: 32,
   },
   label: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "600",
     fontSize: 14,
-    color: "#374151",
+    color: ThemeText.primary,
     marginBottom: 12,
   },
-  optional: { fontWeight: "300", color: "#9CA3AF" },
+  optional: { fontWeight: "300", color: ThemeText.tertiary },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -176,27 +171,27 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.15)",
-    backgroundColor: "rgba(0,0,0,0.03)",
+    borderColor: "rgba(139, 92, 246, 0.16)",
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
   },
   chipActive: { backgroundColor: "#BFFF00", borderColor: "#BFFF00" },
   chipText: {
     fontFamily: "LibreFranklin_400Regular",
     fontWeight: "500",
     fontSize: 14,
-    color: "#4B5563",
+    color: ThemeText.secondary,
   },
   chipTextActive: { color: "#0a0514" },
   input: {
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.15)",
-    borderRadius: 14,
+    borderColor: "rgba(139, 92, 246, 0.16)",
+    borderRadius: Radius.md,
     padding: 14,
-    color: "#111827",
+    color: ThemeText.primary,
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 15,
     marginBottom: 28,
-    backgroundColor: "rgba(0,0,0,0.03)",
+    backgroundColor: "rgba(139, 92, 246, 0.03)",
   },
   btn: {
     backgroundColor: "#BFFF00",
@@ -204,6 +199,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 8,
+    ...Shadow.ctaGlow,
   },
   btnDisabled: { opacity: 0.4 },
   btnText: {

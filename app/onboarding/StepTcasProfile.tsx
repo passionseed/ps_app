@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { PathLabSkiaLoader } from "../../components/PathLabSkiaLoader";
 import { saveTcasProfile } from "../../lib/onboarding";
+import { Text as ThemeText, Radius, Shadow, Space } from "../../lib/theme";
 
 const BUDGET_OPTIONS = [
   { label: "ไม่จำกัด", value: null },
@@ -177,37 +178,38 @@ export default function StepTcasProfile({ userId, onComplete }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FDFFF5" },
-  content: { padding: 24, paddingBottom: 48 },
+  container: { flex: 1 },
+  content: { padding: Space["2xl"], paddingBottom: 48 },
   title: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 24,
     fontWeight: "700",
-    color: "#111",
+    color: ThemeText.primary,
     marginBottom: 4,
   },
   subtitle: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 14,
-    color: "#666",
+    color: ThemeText.secondary,
     marginBottom: 24,
   },
   label: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 16,
     fontWeight: "600",
-    color: "#111",
+    color: ThemeText.primary,
     marginBottom: 8,
     marginTop: 16,
   },
   input: {
     fontFamily: "LibreFranklin_400Regular",
     borderWidth: 1,
-    borderColor: "#DDD",
-    borderRadius: 12,
+    borderColor: "rgba(139, 92, 246, 0.16)",
+    borderRadius: Radius.md,
     padding: 12,
     fontSize: 16,
-    backgroundColor: "#FFF",
+    color: ThemeText.primary,
+    backgroundColor: "rgba(139, 92, 246, 0.03)",
   },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
@@ -215,31 +217,32 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#DDD",
-    backgroundColor: "#FFF",
+    borderColor: "rgba(139, 92, 246, 0.16)",
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
   },
   chipSelected: {
     backgroundColor: "#BFFF00",
-    borderColor: "#9FE800",
+    borderColor: "#BFFF00",
   },
   chipText: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 14,
-    color: "#555",
+    color: ThemeText.secondary,
   },
-  chipTextSelected: { color: "#111", fontWeight: "600" },
+  chipTextSelected: { color: "#0a0514", fontWeight: "600" },
   saveBtn: {
     marginTop: 32,
     backgroundColor: "#BFFF00",
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: Radius.xl,
     alignItems: "center",
+    ...Shadow.ctaGlow,
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: {
     fontFamily: "LibreFranklin_400Regular",
     fontSize: 16,
     fontWeight: "700",
-    color: "#111",
+    color: "#0a0514",
   },
 });

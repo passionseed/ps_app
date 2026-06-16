@@ -16,7 +16,8 @@
     "build:ios-local": "SENTRY_DISABLE_PLUGIN=1 SENTRY_DISABLE_AUTO_UPLOAD=true SENTRY_ALLOW_FAILURE=true NODE_ENV=production eas build --local -p ios --profile production",
     "export:web": "npx expo export -p web",
     "deploy:cf": "npm run export:web && wrangler pages deploy dist --project-name=passion-seed",
-    "deploy:cf:preview": "npm run export:web && wrangler pages deploy dist --project-name=passion-seed --branch=preview"
+    "deploy:cf:preview": "npm run export:web && wrangler pages deploy dist --project-name=passion-seed --branch=preview",
+    "lint": "expo lint"
   },
   "dependencies": {
     "@expo-google-fonts/bai-jamjuree": "^0.4.1",
@@ -80,6 +81,8 @@
     "@google/generative-ai": "^0.24.1",
     "@types/react": "~19.2.14",
     "dotenv": "^17.3.1",
+    "eslint": "^9.39.4",
+    "eslint-config-expo": "~55.0.1",
     "pdf-parse": "^1.1.1",
     "pg": "^8.20.0",
     "playwright": "^1.50.0",
