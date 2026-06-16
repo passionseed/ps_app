@@ -9,18 +9,20 @@ import {
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { AppText as Text } from "../AppText";
-import { useCurrentHackathonProgram } from "../../lib/hooks/useCurrentHackathonProgram";
+import type { HackathonProgram } from "../../types/hackathon-program";
 import { HACKATHON_PROGRAM_ROUTE } from "../../lib/hackathonNavigation";
 
 export function HackathonHeroCard({
   isThai,
   href = HACKATHON_PROGRAM_ROUTE,
+  program,
+  isLoading,
 }: {
   isThai: boolean;
   href?: string;
+  program?: HackathonProgram | null;
+  isLoading?: boolean;
 }) {
-  const { data: program, isLoading } = useCurrentHackathonProgram();
-
   const onPress = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(href);

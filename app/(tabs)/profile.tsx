@@ -64,6 +64,7 @@ import { Accent, PageBg } from "../../lib/theme";
 import { HackathonHeroCard } from "../../components/discover/HackathonHeroCard";
 import { SeedCreatorPitch } from "../../components/SeedCreatorPitch";
 import { PROFILE_HACKATHON_HERO_ROUTE } from "../../lib/hackathonNavigation";
+import { useCurrentHackathonProgram } from "../../lib/hooks/useCurrentHackathonProgram";
 
 interface IkigaiPillar {
   score: number;
@@ -313,6 +314,8 @@ export default function ProfileScreen() {
   );
   const [shareBusy, setShareBusy] = useState(false);
   const shareCardRef = useRef<PassionShareCardRef>(null);
+  const { data: currentHackathonProgram, isLoading: currentHackathonProgramLoading } =
+    useCurrentHackathonProgram();
 
   const applyProfileSnapshot = useCallback((snapshot: ProfileScreenSnapshot) => {
     setProfile(snapshot.profile);
@@ -813,6 +816,8 @@ export default function ProfileScreen() {
           <HackathonHeroCard
             isThai={isThai}
             href={PROFILE_HACKATHON_HERO_ROUTE}
+            program={currentHackathonProgram}
+            isLoading={currentHackathonProgramLoading}
           />
 
           <View style={styles.sectionContainer}>
