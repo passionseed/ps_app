@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, InteractionManager, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { QueryClientProvider } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react-native";
 import { AnimatedSplash } from "../components/AnimatedSplash";
 import { isAllowedOnboardedAppSegment } from "../lib/hackathonNavigation";
+import { queryClient } from "../lib/queryClient";
 
 
 function ConfigErrorScreen({ message }: { message: string }) {
@@ -250,8 +252,6 @@ function RootLayout() {
   } = require("@expo-google-fonts/reenie-beanie") as typeof import("@expo-google-fonts/reenie-beanie");
   const SplashScreen = require("expo-splash-screen") as typeof import("expo-splash-screen");
   const { AuthProvider } = require("../lib/auth") as typeof import("../lib/auth");
-  const { QueryClientProvider } = require("@tanstack/react-query") as typeof import("@tanstack/react-query");
-  const { queryClient } = require("../lib/queryClient") as typeof import("../lib/queryClient");
   const {
     getSupabaseConfigErrorMessage,
   } = require("../lib/runtime-config") as typeof import("../lib/runtime-config");
@@ -304,10 +304,6 @@ function RootLayout() {
 
 
 
-  if (!fontsLoaded || !isReady) {
-    return <AnimatedSplash />;
-  }
-
   // Config error screen disabled - app will continue with fallback behavior
   // if (configError) {
   //   return <ConfigErrorScreen message={configError} />;
@@ -316,12 +312,16 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <View style={{ flex: 1 }}>
-            <StatusBar style="light" translucent />
-            <RootNavigator />
-          </View>
-        </AuthProvider>
+        {!fontsLoaded || !isReady ? (
+          <AnimatedSplash />
+        ) : (
+          <AuthProvider>
+            <View style={{ flex: 1 }}>
+              <StatusBar style="light" translucent />
+              <RootNavigator />
+            </View>
+          </AuthProvider>
+        )}
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
