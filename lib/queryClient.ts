@@ -46,6 +46,8 @@ export const queryKeys = {
   hackathon: {
     all: ["hackathon"] as const,
     home: () => [...queryKeys.hackathon.all, "home"] as const,
+    currentProgram: () =>
+      [...queryKeys.hackathon.all, "currentProgram"] as const,
     teamMembership: (participantId: string) =>
       [...queryKeys.hackathon.all, "teamMembership", participantId] as const,
     team: (teamId: string) =>

@@ -4,10 +4,12 @@ import {
   Pressable,
   Image,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { AppText as Text } from "../AppText";
+import { useCurrentHackathonProgram } from "../../lib/hooks/useCurrentHackathonProgram";
 import { HACKATHON_PROGRAM_ROUTE } from "../../lib/hackathonNavigation";
 
 export function HackathonHeroCard({
@@ -17,10 +19,19 @@ export function HackathonHeroCard({
   isThai: boolean;
   href?: string;
 }) {
+  const { data: program, isLoading } = useCurrentHackathonProgram();
+
   const onPress = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(href);
   }, [href]);
+
+  const title = program?.title ?? (isThai ? "แฮกกาธอน" : "Passion Seed Hackathon");
+  const subtitle =
+    program?.description ??
+    (isThai
+      ? "ร่วมแข่งขันและสร้างโปรเจกต์กับทีมของคุณ"
+      : "Compete and build projects with your team");
 
   return (
     <Pressable
@@ -36,14 +47,12 @@ export function HackathonHeroCard({
         resizeMode="contain"
       />
       <View style={styles.content}>
-        <Text style={styles.title}>
-          {isThai ? "แฮกกาธอน" : "Passion Seed Hackathon"}
-        </Text>
-        <Text style={styles.subtitle}>
-          {isThai
-            ? "ร่วมแข่งขันและสร้างโปรเจกต์กับทีมของคุณ"
-            : "Compete and build projects with your team"}
-        </Text>
+        <Text style={styles.title}>{title}</Text>
+        {isLoading && !program ? (
+          <ActivityIndicator size="small" color="#9CA3AF" />
+        ) : (
+          <Text style={styles.subtitle}>{subtitle}</Text>
+        )}
       </View>
       <Text style={styles.arrow}>›</Text>
     </Pressable>
