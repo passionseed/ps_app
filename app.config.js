@@ -1,6 +1,9 @@
 const fs = require("fs");
 const path = require("path");
-const { withDangerousMod, withGradleProperties } = require("@expo/config-plugins");
+const {
+  withDangerousMod,
+  withGradleProperties,
+} = require("@expo/config-plugins");
 
 const withHighMemoryGradle = (config) => {
   return withGradleProperties(config, (props) => {
@@ -87,7 +90,10 @@ const withStableIosBundleEntry = (config) =>
         );
       }
 
-      const shellScriptLines = lines.slice(shellScriptStart, shellScriptEnd + 1);
+      const shellScriptLines = lines.slice(
+        shellScriptStart,
+        shellScriptEnd + 1,
+      );
       let shellScriptBlock = shellScriptLines.join("\n");
       shellScriptBlock = shellScriptBlock
         .replace(/export ENTRY_FILE=\\\\\\"index\.js\\\\\\"\\n/g, "")
@@ -156,8 +162,8 @@ module.exports = {
       icon: "./assets/pseed-app.icon",
       bundleIdentifier: "com.passionseed.app",
       associatedDomains: [
-        `applinks:${process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || 'app.passionseed.io'}`,
-        `webcredentials:${process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || 'app.passionseed.io'}`,
+        `applinks:${process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || "app.passionseed.io"}`,
+        `webcredentials:${process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || "app.passionseed.io"}`,
       ],
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
@@ -184,7 +190,8 @@ module.exports = {
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
       ],
-      googleServicesFile: process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
+      googleServicesFile:
+        process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
       intentFilters: [
         {
           action: "VIEW",
@@ -192,7 +199,9 @@ module.exports = {
           data: [
             {
               scheme: "https",
-              host: process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || "app.passionseed.io",
+              host:
+                process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN ||
+                "app.passionseed.io",
               pathPrefix: "/u/",
             },
           ],
@@ -233,13 +242,21 @@ module.exports = {
       "expo-sharing",
       "expo-asset",
       [
+        "react-native-share",
+        {
+          ios: ["fb", "instagram", "instagram-stories"],
+          android: ["com.facebook.katana", "com.instagram.android"],
+          enableBase64ShareAndroid: true,
+        },
+      ],
+      [
         "expo-notifications",
         {
           color: "#6366F1",
           enableBadge: true,
           androidMode: "default",
-          androidCollapsedTitle: "#{unread} new notifications"
-        }
+          androidCollapsedTitle: "#{unread} new notifications",
+        },
       ],
       [
         "expo-build-properties",
@@ -268,6 +285,9 @@ module.exports = {
       b2BucketId: process.env.EXPO_PUBLIC_B2_BUCKET_ID,
       b2Endpoint: process.env.EXPO_PUBLIC_B2_ENDPOINT,
       cloudflareDomain: process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN,
+      // Facebook App ID — required by Instagram for Stories sharing.
+      // Without it the "Instagram Stories" button is hidden (generic sheet still works).
+      fbAppId: process.env.EXPO_PUBLIC_FB_APP_ID,
     },
     autolinking: {
       exclude: ["expo-glass-effect", "expo-apple-authentication"],

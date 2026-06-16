@@ -6,6 +6,8 @@ import {
   Image,
   FlatList,
   Alert,
+  Animated,
+  AccessibilityInfo,
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
 import { StatusBar } from "expo-status-bar";
@@ -25,8 +27,7 @@ import {
   buildBecomingLine,
 } from '../../lib/publicProfile';
 import type { PublicProfile } from '../../types/publicProfile';
-import { PassionIdentityHero } from '../../components/PassionIdentityHero';
-import { GrowthBadge } from '../../components/GrowthBadge';
+import { hasSeenReveal, markRevealSeen } from '../../lib/revealState';
 import { PassionShareCard, type PassionShareCardRef } from '../../components/PassionShareCard';
 import { supabase } from "../../lib/supabase";
 import { backfillMissingIkigaiReflections } from "../../lib/ikigaiBackfill";
@@ -42,6 +43,10 @@ import {
   type ProfileScreenSnapshot,
 } from "../../lib/profileScreenCache";
 import { fetchProfileScreenSnapshot } from "../../lib/profileScreenSnapshot";
+import {
+  EMPTY_EXPLORATION_STATS,
+  type ExplorationStats,
+} from "../../lib/explorationStats";
 import {
   buildFocusSections,
   buildProfileMetaPills,
@@ -303,6 +308,9 @@ export default function ProfileScreen() {
   const [publicProfileLoading, setPublicProfileLoading] = useState(true);
   const [publicProfileError, setPublicProfileError] = useState(false);
   const [growthCount, setGrowthCount] = useState(0);
+  const [explorationStats, setExplorationStats] = useState<ExplorationStats>(
+    EMPTY_EXPLORATION_STATS,
+  );
   const [shareBusy, setShareBusy] = useState(false);
   const shareCardRef = useRef<PassionShareCardRef>(null);
 
@@ -319,6 +327,7 @@ export default function ProfileScreen() {
     setIsAdmin(snapshot.isAdmin);
     setPublicProfile(snapshot.publicProfile);
     setGrowthCount(snapshot.growthCount);
+    setExplorationStats(snapshot.explorationStats ?? EMPTY_EXPLORATION_STATS);
 
     // Fire measurement event — fail-silent
     logProfileExposed(deriveIdentityStage(snapshot.publicProfile)).catch(() => {});
@@ -465,6 +474,50 @@ export default function ProfileScreen() {
   const primaryCareer = focusSections.find(
     (section) => section.kind === "career-goals",
   )?.items[0];
+
+  const identityStage = deriveIdentityStage(publicProfile);
+  const becomingLine = publicProfile ? buildBecomingLine(publicProfile) : null;
+  const classLabel = publicProfile?.class_slug
+    ? publicProfile.class_slug.charAt(0).toUpperCase() +
+      publicProfile.class_slug.slice(1)
+    : "";
+  // Reveal beat: fade identity in once per user when class first appears.
+  const revealOpacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (publicProfileLoading || publicProfileError) return;
+    if (identityStage !== "revealed") return;
+    const userId = user?.id;
+    if (!userId) return;
+
+    let cancelled = false;
+    (async () => {
+      const [seen, reducedMotion] = await Promise.all([
+        hasSeenReveal(userId),
+        AccessibilityInfo.isReduceMotionEnabled(),
+      ]);
+      if (cancelled) return;
+      if (seen || reducedMotion) {
+        revealOpacity.setValue(1);
+      } else {
+        revealOpacity.setValue(0);
+        Animated.timing(revealOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }).start();
+        markRevealSeen(userId);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    identityStage,
+    publicProfileLoading,
+    publicProfileError,
+    user?.id,
+    revealOpacity,
+  ]);
 
   const t = {
     heroSummary: {
@@ -614,30 +667,18 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.mainContent}>
-          <PassionIdentityHero
-            stage={deriveIdentityStage(publicProfile)}
-            profile={publicProfile}
-            becomingLine={publicProfile ? buildBecomingLine(publicProfile) : null}
-            loading={publicProfileLoading}
-            error={publicProfileError}
-            userId={user?.id ?? ''}
-            onExplore={() => router.push('/(tabs)/')}
-            onRetry={() => { if (user?.id) setProfileRefreshNonce(prev => prev + 1); }}
-            onShare={() => { void shareCardRef.current?.share(); }}
-            shareDisabled={shareBusy}
-          />
-          <GrowthBadge count={publicProfileError ? null : growthCount} />
           <PassionShareCard
             ref={shareCardRef}
             profile={publicProfile}
             growthCount={growthCount}
-            stage={deriveIdentityStage(publicProfile)}
+            stage={identityStage}
+            showButton={false}
             onShareBusy={setShareBusy}
             onShareGenerated={(success) => {
-              void logShareGenerated(deriveIdentityStage(publicProfile), success).catch(() => {});
+              void logShareGenerated(identityStage, success).catch(() => {});
             }}
             onShareCompleted={() => {
-              void logShareCompleted(deriveIdentityStage(publicProfile)).catch(() => {});
+              void logShareCompleted(identityStage).catch(() => {});
             }}
           />
           <LinearGradient
@@ -664,13 +705,74 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.headerInfo}>
-                <Text variant="bold" style={styles.name}>{displayName}</Text>
-                <Text style={styles.heroSummary}>
-                  {primaryCareer
-                    ? t.heroSummary.workingToward(primaryCareer)
-                    : t.heroSummary.addCareerGoal}
-                </Text>
+                <Animated.View
+                  style={[styles.nameRow, { opacity: revealOpacity }]}
+                >
+                  <Text variant="bold" style={styles.name}>{displayName}</Text>
+                  {!publicProfileLoading && !publicProfileError && identityStage === "revealed" && classLabel ? (
+                    <View
+                      style={styles.classChip}
+                      accessible
+                      accessibilityLabel={`Passion identity: ${classLabel}`}
+                    >
+                      <Text style={styles.classChipText}>{classLabel}</Text>
+                    </View>
+                  ) : !publicProfileLoading && !publicProfileError && identityStage === "seedling" ? (
+                    <View
+                      style={styles.seedlingChip}
+                      accessible
+                      accessibilityLabel="Passion identity: Seedling"
+                    >
+                      <Text style={styles.seedlingChipText}>
+                        {isThai ? "🌱 กำลังก่อตัว" : "🌱 Seedling"}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Animated.View>
+                <Animated.Text
+                  style={[styles.heroSummary, { opacity: revealOpacity }]}
+                  numberOfLines={2}
+                >
+                  {identityStage === "revealed" && becomingLine
+                    ? becomingLine
+                    : primaryCareer
+                      ? t.heroSummary.workingToward(primaryCareer)
+                      : t.heroSummary.addCareerGoal}
+                </Animated.Text>
               </View>
+            </View>
+
+            <View style={styles.identityRow}>
+              <View style={{ flex: 1 }} />
+              {publicProfileError ? (
+                <Pressable
+                  onPress={() => { if (user?.id) setProfileRefreshNonce((prev) => prev + 1); }}
+                  style={({ pressed }) => [styles.identityGhostBtn, pressed && styles.actionRowPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading profile"
+                >
+                  <Text style={styles.identityGhostBtnText}>
+                    {isThai ? "ลองอีกครั้ง" : "Try again"}
+                  </Text>
+                </Pressable>
+              ) : !publicProfileLoading ? (
+                <Pressable
+                  onPress={() => { void shareCardRef.current?.share(); }}
+                  disabled={shareBusy}
+                  style={({ pressed }) => [
+                    styles.identityShareBtn,
+                    shareBusy && styles.identityShareBtnDisabled,
+                    pressed && styles.actionRowPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Share your passion identity"
+                  accessibilityState={{ disabled: shareBusy }}
+                >
+                  <Text style={styles.identityShareBtnText}>
+                    {isThai ? "แชร์" : "Share"}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
 
             {metaPills.length > 0 && (
@@ -681,8 +783,23 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {focusSections.length > 0 ? (
-              <FocusSectionsCarousel sections={focusSections} />
+            {explorationStats.seedsExplored > 0 ? (
+              <View style={styles.statsRow}>
+                <StatCell
+                  value={explorationStats.seedsExplored}
+                  label={isThai ? "เมล็ดที่สำรวจ" : "seeds explored"}
+                />
+                <View style={styles.statDivider} />
+                <StatCell
+                  value={explorationStats.daysDeep}
+                  label={isThai ? "วันที่เจาะลึก" : "days deep"}
+                />
+                <View style={styles.statDivider} />
+                <StatCell
+                  value={explorationStats.reflections}
+                  label={isThai ? "บันทึกสะท้อนคิด" : "reflections"}
+                />
+              </View>
             ) : (
               <EmptyHeroState
                 onPress={() => router.push("/discover")}
@@ -980,6 +1097,15 @@ function LegendDot({ color, label }: { color: string; label: string }) {
     <View style={styles.timelineLegendItem}>
       <View style={[styles.timelineLegendDot, { backgroundColor: color }]} />
       <Text style={styles.timelineLegendText}>{label}</Text>
+    </View>
+  );
+}
+
+function StatCell({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={styles.statCell}>
+      <Text variant="bold" style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -1336,9 +1462,108 @@ const styles = StyleSheet.create({
   },
   heroSummary: {
     fontSize: 14,
-    
+
     color: "#4B5563",
     lineHeight: 20,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  classChip: {
+    backgroundColor: "rgba(139,92,246,0.10)",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.30)",
+  },
+  classChipText: {
+    color: "#7C3AED",
+    fontFamily: "LibreFranklin_700Bold",
+    fontSize: 13,
+  },
+  seedlingChip: {
+    backgroundColor: "rgba(16,185,129,0.10)",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.25)",
+  },
+  seedlingChipText: {
+    color: "#059669",
+    fontFamily: "LibreFranklin_700Bold",
+    fontSize: 13,
+  },
+  identityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(139,92,246,0.05)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.10)",
+    paddingVertical: 14,
+  },
+  statCell: {
+    flex: 1,
+    alignItems: "center",
+    gap: 2,
+  },
+  statValue: {
+    fontSize: 22,
+    color: "#111827",
+  },
+  statLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  statDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    marginVertical: 4,
+    backgroundColor: "rgba(139,92,246,0.12)",
+  },
+  identityShareBtn: {
+    backgroundColor: "#111827",
+    borderRadius: 14,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    minHeight: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  identityShareBtnDisabled: {
+    opacity: 0.4,
+  },
+  identityShareBtnText: {
+    color: "#FFFFFF",
+    fontFamily: "LibreFranklin_700Bold",
+    fontSize: 14,
+  },
+  identityGhostBtn: {
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    minHeight: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
+  identityGhostBtnText: {
+    color: "#4B5563",
+    fontFamily: "LibreFranklin_700Bold",
+    fontSize: 14,
   },
   metaPillsRow: {
     flexDirection: "row",

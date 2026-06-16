@@ -41,6 +41,7 @@ function buildSnapshot(
     isAdmin: false,
     publicProfile: null,
     growthCount: 0,
+    explorationStats: { seedsExplored: 0, daysDeep: 0, reflections: 0 },
     ...overrides,
   };
 }

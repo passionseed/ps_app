@@ -3,8 +3,9 @@ import type { UserEvent } from "../types/events";
 import type { CareerGoal, InterestCategory, Profile } from "../types/onboarding";
 import type { IkigaiScores, ScoreTimelineItem } from "./scoreEngine";
 import type { PublicProfile } from "../types/publicProfile";
+import type { ExplorationStats } from "./explorationStats";
 
-export const PROFILE_SCREEN_CACHE_SCHEMA_VERSION = 2;
+export const PROFILE_SCREEN_CACHE_SCHEMA_VERSION = 3;
 export const PROFILE_SCREEN_CACHE_KEY_PREFIX = "profile-screen-cache";
 export const PROFILE_SCREEN_CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -24,6 +25,7 @@ export type ProfileScreenSnapshot = {
   isAdmin: boolean;
   publicProfile: PublicProfile | null;
   growthCount: number;
+  explorationStats: ExplorationStats;
 };
 
 const profileScreenSnapshotMemoryCache = new Map<string, ProfileScreenSnapshot>();
@@ -50,6 +52,8 @@ function isProfileScreenSnapshot(value: unknown): value is ProfileScreenSnapshot
     typeof snapshot.savedProgramsCount === "number" &&
     typeof snapshot.isAdmin === "boolean" &&
     typeof snapshot.growthCount === "number" &&
+    typeof snapshot.explorationStats === "object" &&
+    snapshot.explorationStats !== null &&
     "publicProfile" in snapshot
   );
 }
