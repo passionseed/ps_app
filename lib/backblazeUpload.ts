@@ -67,6 +67,11 @@ export interface BackblazeUploadResult {
   fileName: string;
 }
 
+export interface BackblazeUploadOptions {
+  pathPrefix?: string;
+  filePrefix?: string;
+}
+
 function getExtensionFromMimeType(mimeType: string): string {
   const map: Record<string, string> = {
     "image/jpeg": "jpg",
@@ -85,19 +90,28 @@ function ensureExtension(fileName: string, mimeType: string): string {
   return hasExt ? fileName : `${fileName}.${ext}`;
 }
 
+function normalizePathPrefix(pathPrefix: string): string {
+  const clean = pathPrefix.replace(/^\/+/, "").replace(/\/+$/, "");
+  return clean ? `${clean}/` : "";
+}
+
 export async function uploadToBackblaze(
   uri: string,
   fileName: string,
   mimeType: string,
-  teamId?: string
+  teamId?: string,
+  options?: BackblazeUploadOptions,
 ): Promise<BackblazeUploadResult> {
   try {
     console.log("[backblazeUpload] Starting upload...", { uri: uri.substring(0, 50) + "...", fileName, mimeType, teamId });
     const bytes = await readFileBytes(uri);
     console.log("[backblazeUpload] Read file bytes:", bytes.length, "bytes");
     const safeFileName = ensureExtension(fileName, mimeType);
-    const pathPrefix = teamId ? `hackathon/phase-3/${teamId}/pretotype/` : "pretotype/";
-    const uniqueFileName = `${pathPrefix}pretotype-${Date.now()}-${safeFileName}`;
+    const pathPrefix = normalizePathPrefix(
+      options?.pathPrefix ?? (teamId ? `hackathon/phase-3/${teamId}/pretotype/` : "pretotype/"),
+    );
+    const filePrefix = options?.filePrefix ?? "pretotype";
+    const uniqueFileName = `${pathPrefix}${filePrefix}-${Date.now()}-${safeFileName}`;
     console.log("[backblazeUpload] Generated filename:", uniqueFileName);
 
     console.log("[backblazeUpload] Requesting upload URL from edge function...");

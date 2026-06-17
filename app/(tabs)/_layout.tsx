@@ -16,7 +16,7 @@ import { PageBg } from "../../lib/theme";
 import { useAuth } from "../../lib/auth";
 import { FloatingProgressButton } from "../../components/FloatingProgressButton";
 
-type TabRoute = "discover" | "my-paths" | "profile";
+type TabRoute = "discover" | "explore" | "my-paths" | "profile";
 
 type TabTheme = {
   label: string;
@@ -35,6 +35,14 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
     halo: "rgba(59, 130, 246, 0.12)",
     accent: "#3B82F6", // Experience blue
     glow: "rgba(59, 130, 246, 0.25)",
+  },
+  explore: {
+    label: "Explore",
+    icon: "🧭",
+    activeIcon: "🧭",
+    halo: "rgba(249, 115, 22, 0.12)",
+    accent: "#F97316", // Passion orange
+    glow: "rgba(249, 115, 22, 0.25)",
   },
   "my-paths": {
     label: "My Paths",
@@ -105,11 +113,13 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
     appLanguage === "th"
       ? {
           discover: "ค้นหา",
+          explore: "สำรวจ",
           "my-paths": "เส้นทาง",
           profile: "โปรไฟล์",
         }
       : {
           discover: "Discover",
+          explore: "Explore",
           "my-paths": "My Paths",
           profile: "Profile",
         };
@@ -302,6 +312,7 @@ export default function TabsLayout() {
         }}
       >
         <Tabs.Screen name="discover" />
+        <Tabs.Screen name="explore" />
         <Tabs.Screen name="my-paths" />
         <Tabs.Screen name="profile" />
       </Tabs>

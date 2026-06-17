@@ -48,21 +48,25 @@ export const AppText: React.FC<AppTextProps> = ({
       variant === "bold" ? "BaiJamjuree_700Bold" : "BaiJamjuree_400Regular";
   }
 
+  // Thai stacks vowel+tone marks (นี้ = น+ี+้); a too-tight lineHeight from the
+  // caller's `style` clips the top mark. Force enough headroom — take the max with
+  // whatever the caller asked for, and apply it AFTER `style` so it always wins.
+  const providedLine =
+    typeof resolvedStyle.lineHeight === "number" ? resolvedStyle.lineHeight : 0;
+  const thaiOverride = hasThai
+    ? {
+        lineHeight: Math.max(fontSize * 1.5, fontSize + 10, providedLine),
+        includeFontPadding: true,
+        paddingTop: 2,
+        ...(Platform.OS === "android"
+          ? { textAlignVertical: "center" as const }
+          : {}),
+      }
+    : null;
+
   return (
     <Text
-      style={[
-        styles.base,
-        { fontFamily },
-        hasThai && {
-          lineHeight: Math.max(fontSize * 1.45, fontSize + 8),
-          includeFontPadding: true,
-          paddingTop: 1,
-          ...(Platform.OS === "android"
-            ? { textAlignVertical: "center" as const }
-            : {}),
-        },
-        style,
-      ]}
+      style={[styles.base, { fontFamily }, style, thaiOverride]}
       {...props}
     >
       {children}

@@ -64,7 +64,56 @@ describe("uploadToBackblaze", () => {
         body: expect.any(ArrayBuffer),
       })
     );
-    expect(result.url).toMatch(/^https:\/\/cdn\.passionseed\.org\/file\/pseed-dev\/pretotype-/);
+    expect(result.url).toMatch(/^https:\/\/cdn\.passionseed\.org\/pretotype\/pretotype-/);
+  });
+
+  it("supports caller-provided B2 prefixes for user avatars", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(new Uint8Array([10, 11, 12]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            uploadUrl: "https://upload.example.com/b2",
+            authorizationToken: "upload-token",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ fileId: "file-id" }), { status: 200 }));
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("document", {});
+    const { Platform } = await import("react-native");
+    (Platform as { OS: string }).OS = "web";
+    vi.doMock("../lib/runtime-config", () => ({
+      getSupabaseRuntimeConfig: () => ({
+        url: "https://supabase.example.com",
+        anonKey: "anon-key",
+      }),
+    }));
+
+    const { uploadToBackblaze } = await import("../lib/backblazeUpload");
+
+    const result = await uploadToBackblaze(
+      "blob:http://localhost/avatar",
+      "avatar.jpg",
+      "image/jpeg",
+      undefined,
+      { pathPrefix: "/users/user-123/avatars/", filePrefix: "avatar" }
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "https://upload.example.com/b2",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Bz-File-Name": expect.stringMatching(/^users\/user-123\/avatars\/avatar-\d+-avatar\.jpg$/),
+        }),
+      })
+    );
+    expect(result.url).toMatch(/^https:\/\/cdn\.passionseed\.org\/users\/user-123\/avatars\/avatar-/);
   });
 
   it("uses fetch instead of expo-file-system in a web runtime even when Platform.OS is stale", async () => {

@@ -1,0 +1,105 @@
+{
+  "_note": "ILLUSTRATIVE SAMPLE — not real research. Replace with research_field.py output before publishing. Sources here are placeholders to test the seed pipeline.",
+  "slug": "ai-business",
+  "name": { "th": "AI x ธุรกิจ", "en": "AI x Business" },
+  "tagline": { "th": "คู่แข่งน้อย รายได้มั่นคง", "en": "Low competition, stable pay" },
+  "emoji": "🤖",
+  "color": "#1E1B4B",
+  "tags": ["high-pay", "ai-proof", "trending", "global"],
+  "tile_size": "lg",
+  "hero_image": {
+    "image_prompt": "Bold editorial poster, a young Thai professional confidently presenting an AI dashboard to a small business team, cinematic lighting, deep indigo palette, no text",
+    "image_source": { "url": "", "license": "", "credit": "" },
+    "alt": { "th": "คนรุ่นใหม่นำเสนอ AI ให้ทีมธุรกิจ", "en": "Young professional presenting AI to a business team" }
+  },
+  "summary": {
+    "th": "คนที่เชื่อมโลกธุรกิจกับ AI ได้ คือสกิลที่บริษัทไทยตามหาแต่หาแทบไม่เจอ คู่แข่งยังน้อย รายได้ดี และโตเร็ว",
+    "en": "People who bridge business and AI are scarce and in demand. Low competition, strong pay, fast growth."
+  },
+  "what_it_is": {
+    "th": "เธอไม่ต้องเขียนโค้ดเก่งที่สุด แต่รู้ว่าจะเอา AI ไปแก้ปัญหาธุรกิจตรงไหน ลดต้นทุน เพิ่มยอด ทำให้ทีมตัดสินใจเร็วขึ้น",
+    "en": "You don't need to be the best coder — you know where AI creates business value: cutting cost, growing sales, speeding decisions.",
+    "source_refs": [1],
+    "image_prompt": "Split scene: business strategy on one side, AI automation on the other, a person standing in the middle connecting them"
+  },
+  "fantasy_vs_reality": {
+    "fantasy": { "th": "นั่งสั่ง AI ทำงานแทนทุกอย่าง รวยเร็ว นอนอยู่บ้าน", "en": "Just prompt AI, get rich fast, work from bed" },
+    "reality": { "th": "เอา AI ไปแก้ปัญหาจริงของธุรกิจ ต้องเข้าใจลูกค้า ตัวเลข และทีม", "en": "Solve real business problems with AI — understand customers, numbers, and teams" },
+    "source_refs": [2]
+  },
+  "day_in_life": {
+    "steps": [
+      { "time": "09:00", "label": { "th": "ดูข้อมูลยอดขายเมื่อวาน หา insight", "en": "Review yesterday's sales data for insights" } },
+      { "time": "11:00", "label": { "th": "คุยกับทีมการตลาด ออกแบบ automation", "en": "Work with marketing to design an automation" } },
+      { "time": "14:00", "label": { "th": "ทดสอบ AI workflow กับงานจริง", "en": "Test an AI workflow on real tasks" } }
+    ],
+    "image_prompt": "A focused day at a modern Bangkok startup office, person moving between data screens and team conversations"
+  },
+  "jobs": [
+    { "title": "AI Product Manager", "salary_thb_month": { "min": 60000, "max": 150000 }, "salary_note": { "th": "จบใหม่เริ่ม ~40k", "en": "New grads start ~40k" }, "demand": "high", "source_refs": [3] },
+    { "title": "AI Business Analyst", "salary_thb_month": { "min": 35000, "max": 80000 }, "salary_note": { "th": "", "en": "" }, "demand": "high", "source_refs": [3] },
+    { "title": "Automation Consultant", "salary_thb_month": { "min": 40000, "max": 100000 }, "salary_note": { "th": "", "en": "" }, "demand": "medium", "source_refs": [4] }
+  ],
+  "salary_progression": {
+    "levels": [
+      { "level": "junior", "years": "0–2", "thb_month": { "min": 30000, "max": 45000 } },
+      { "level": "mid", "years": "3–5", "thb_month": { "min": 50000, "max": 90000 } },
+      { "level": "senior", "years": "6+", "thb_month": { "min": 90000, "max": 200000 } }
+    ],
+    "source_refs": [3]
+  },
+  "skills": [
+    { "skill": { "th": "เข้าใจปัญหาธุรกิจ ไม่ใช่แค่เทค", "en": "Understand business problems, not just tech" }, "why": { "th": "", "en": "" } },
+    { "skill": { "th": "ใช้ AI tools คล่อง (GPT, automation)", "en": "Fluent with AI tools (GPT, automation)" }, "why": { "th": "", "en": "" } },
+    { "skill": { "th": "อ่านข้อมูลและตัวเลขเป็น", "en": "Read data and numbers" }, "why": { "th": "", "en": "" } },
+    { "skill": { "th": "เล่าเรื่องให้คนตัดสินใจตาม", "en": "Tell a story that drives decisions" }, "why": { "th": "", "en": "" } }
+  ],
+  "ai_impact": {
+    "augmented": [{ "th": "วิเคราะห์ข้อมูลเร็วขึ้นมาก", "en": "Analyze data far faster" }],
+    "automated": [{ "th": "งานรายงานซ้ำๆ", "en": "Repetitive reporting" }],
+    "verdict": { "th": "งานออฟฟิศเดิมๆ AI แทนได้เยอะ แต่คนที่สั่ง AI เป็นยิ่งมีค่า ทางนี้ปลอดภัยขึ้นในยุค AI", "en": "AI replaces routine office work, but people who direct AI grow more valuable — this path gets safer, not riskier" },
+    "source_refs": [5, 6]
+  },
+  "market_thailand": {
+    "body": { "th": "บริษัทไทยอยากใช้ AI แต่หาคนเชื่อมธุรกิจกับ AI แทบไม่เจอ ความต้องการโตต่อเนื่อง", "en": "Thai companies want AI but can't find people who bridge it to business. Demand keeps rising." },
+    "hiring_companies": ["SCB", "Kasikorn (KBTG)", "Agoda", "Central Retail", "LINE MAN Wongnai"],
+    "openings_estimate": { "th": "หลายพันตำแหน่งบนเว็บหางานไทย", "en": "Thousands of openings on Thai job boards" },
+    "source_refs": [3, 7]
+  },
+  "market_global": {
+    "body": { "th": "สกิลนี้ทำงาน remote ให้บริษัททั่วโลกได้", "en": "This skill works remotely for global companies" },
+    "remote_friendly": true,
+    "source_refs": [8]
+  },
+  "proof_to_build": [
+    { "project": { "th": "เอา AI ไปช่วยร้าน/เพจจริง 1 ที่", "en": "Help one real shop or page with AI" }, "difficulty": "easy" },
+    { "project": { "th": "ทำ automation ลดงานซ้ำ 1 อย่าง แล้วเล่าเป็นเคส", "en": "Automate one repetitive task and write it up as a case" }, "difficulty": "medium" }
+  ],
+  "entry_routes": [
+    { "route": { "th": "ป.ตรี บริหาร/คอม + เรียน AI tools เพิ่ม", "en": "Business/CS degree + self-learn AI tools" }, "cost": "ปานกลาง", "time": "4 ปี" },
+    { "route": { "th": "เรียนออนไลน์ + ทำโปรเจกต์จริง", "en": "Online courses + real projects" }, "cost": "ต่ำ", "time": "6–12 เดือน" }
+  ],
+  "risks": [
+    { "th": "ต้องอัปเดตสกิลตลอด AI เปลี่ยนเร็วมาก", "en": "Constant upskilling — AI changes fast" },
+    { "th": "ช่วงแรกอาจต้องพิสูจน์ตัวเองเยอะ", "en": "Early on you must prove yourself a lot" },
+    { "th": "ถ้าไม่ชอบทั้งคนและตัวเลข อาจไม่เหมาะ", "en": "If you dislike both people and numbers, it may not fit" }
+  ],
+  "not_for_you_if": [
+    { "th": "อยากได้งานที่ทำเหมือนเดิมทุกวัน", "en": "You want a job that never changes" },
+    { "th": "ไม่ชอบคุยกับคนหรือเข้าใจธุรกิจ", "en": "You dislike talking to people or understanding business" }
+  ],
+  "real_people": [
+    { "role": "AI Product Lead, Bangkok fintech", "background": { "th": "เริ่มจากสาย business แล้วเรียน AI เพิ่ม", "en": "Started in business, then learned AI" }, "source_ref": 9 }
+  ],
+  "sources": [
+    { "ref": 1, "title": "Future of Jobs Report 2025", "publisher": "World Economic Forum", "url": "https://www.weforum.org/reports/the-future-of-jobs-report-2025", "published_at": "2025-01", "tier": "secondary", "quote": { "th": "ทักษะ AI เป็นที่ต้องการสูงสุด", "en": "AI skills among the most in-demand" } },
+    { "ref": 2, "title": "AI in the workplace", "publisher": "McKinsey", "url": "https://www.mckinsey.com", "published_at": "2025-01", "tier": "secondary", "quote": { "th": "", "en": "" } },
+    { "ref": 3, "title": "Thailand Salary Guide", "publisher": "JobsDB Thailand", "url": "https://th.jobsdb.com", "published_at": "2025-06", "tier": "primary", "quote": { "th": "", "en": "" } },
+    { "ref": 4, "title": "Tech consulting rates TH", "publisher": "Robert Walters Thailand", "url": "https://www.robertwalters.co.th", "published_at": "2025-03", "tier": "secondary", "quote": { "th": "", "en": "" } },
+    { "ref": 5, "title": "Generative AI and work", "publisher": "OECD", "url": "https://www.oecd.org", "published_at": "2024-11", "tier": "primary", "quote": { "th": "", "en": "" } },
+    { "ref": 6, "title": "AI augmentation vs automation", "publisher": "MIT Sloan", "url": "https://sloanreview.mit.edu", "published_at": "2025-02", "tier": "secondary", "quote": { "th": "", "en": "" } },
+    { "ref": 7, "title": "Thailand digital workforce demand", "publisher": "depa Thailand", "url": "https://www.depa.or.th", "published_at": "2025-04", "tier": "primary", "quote": { "th": "", "en": "" } },
+    { "ref": 8, "title": "Global remote hiring trends", "publisher": "LinkedIn Economic Graph", "url": "https://economicgraph.linkedin.com", "published_at": "2025-05", "tier": "secondary", "quote": { "th": "", "en": "" } },
+    { "ref": 9, "title": "Practitioner interview (sample)", "publisher": "Passion Seed", "url": "https://example.com", "published_at": "2025-06", "tier": "tertiary", "quote": { "th": "", "en": "" } }
+  ]
+}

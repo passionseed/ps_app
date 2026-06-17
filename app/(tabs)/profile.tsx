@@ -8,11 +8,17 @@ import {
   Alert,
   Animated,
   AccessibilityInfo,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  TextInput,
 } from "react-native";
 import { AppText as Text } from "../../components/AppText";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect } from "expo-router";
 import Constants from "expo-constants";
+import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth";
@@ -43,6 +49,11 @@ import {
   type ProfileScreenSnapshot,
 } from "../../lib/profileScreenCache";
 import { fetchProfileScreenSnapshot } from "../../lib/profileScreenSnapshot";
+import {
+  setPrimaryCareerGoal,
+  updateDisplayName,
+  uploadUserAvatar,
+} from "../../lib/profileEdit";
 import {
   EMPTY_EXPLORATION_STATS,
   type ExplorationStats,
@@ -313,6 +324,11 @@ export default function ProfileScreen() {
     EMPTY_EXPLORATION_STATS,
   );
   const [shareBusy, setShareBusy] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editGoal, setEditGoal] = useState("");
+  const [savingProfileEdit, setSavingProfileEdit] = useState(false);
   const shareCardRef = useRef<PassionShareCardRef>(null);
   const { data: currentHackathonProgram, isLoading: currentHackathonProgramLoading } =
     useCurrentHackathonProgram();
@@ -477,6 +493,15 @@ export default function ProfileScreen() {
   const primaryCareer = focusSections.find(
     (section) => section.kind === "career-goals",
   )?.items[0];
+  const refreshProfileAfterEdit = useCallback(async () => {
+    if (!user?.id) return;
+
+    try { clearCachedProfileScreenSnapshot(user.id); } catch {}
+    const freshSnapshot = await fetchProfileScreenSnapshot(user.id);
+    applyProfileSnapshot(freshSnapshot);
+    try { writeCachedProfileScreenSnapshot(freshSnapshot); } catch {}
+    setProfileRefreshNonce((value) => value + 1);
+  }, [applyProfileSnapshot, user?.id]);
 
   const identityStage = deriveIdentityStage(publicProfile);
   const becomingLine = publicProfile ? buildBecomingLine(publicProfile) : null;
@@ -591,6 +616,83 @@ export default function ProfileScreen() {
     signOut: isThai ? "ออกจากระบบ" : "Sign out",
   };
 
+  const openEditProfile = () => {
+    setEditName(displayName);
+    setEditGoal(primaryCareer ?? "");
+    setEditModalVisible(true);
+  };
+
+  const handleUploadAvatar = async () => {
+    if (!user?.id || uploadingAvatar) return;
+
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert(
+          isThai ? "ต้องการสิทธิ์เข้าถึงรูปภาพ" : "Permission required",
+          isThai
+            ? "กรุณาอนุญาตให้เข้าถึงคลังรูปภาพเพื่อเปลี่ยนรูปโปรไฟล์"
+            : "Please allow photo library access to change your profile picture.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images",
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) {
+        Alert.alert(
+          isThai ? "ไม่พบรูปภาพ" : "No image selected",
+          isThai ? "กรุณาเลือกรูปภาพอีกครั้ง" : "Please choose an image and try again.",
+        );
+        return;
+      }
+
+      setUploadingAvatar(true);
+      const avatarUrl = await uploadUserAvatar(user.id, {
+        uri: asset.uri,
+        mimeType: asset.mimeType,
+      });
+      setProfile((current) => current ? { ...current, avatar_url: avatarUrl } : current);
+      await refreshProfileAfterEdit();
+    } catch (error) {
+      console.error("[ProfileScreen] Failed to upload avatar:", error);
+      Alert.alert(
+        isThai ? "อัปโหลดรูปไม่สำเร็จ" : "Avatar upload failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveProfileEdit = async () => {
+    if (!user?.id || savingProfileEdit) return;
+
+    setSavingProfileEdit(true);
+    try {
+      await updateDisplayName(user.id, editName);
+      await setPrimaryCareerGoal(user.id, editGoal, careers);
+      await refreshProfileAfterEdit();
+      setEditModalVisible(false);
+    } catch (error) {
+      console.error("[ProfileScreen] Failed to save profile edit:", error);
+      Alert.alert(
+        isThai ? "บันทึกไม่สำเร็จ" : "Save failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setSavingProfileEdit(false);
+    }
+  };
+
   const guestCopy =
     appLanguage === "th"
       ? {
@@ -691,6 +793,18 @@ export default function ProfileScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.settingsBtn,
+                styles.editProfileBtn,
+                pressed && styles.settingsBtnPressed,
+              ]}
+              onPress={openEditProfile}
+              accessibilityRole="button"
+              accessibilityLabel={isThai ? "แก้ไขโปรไฟล์" : "Edit profile"}
+            >
+              <Text style={styles.settingsBtnText}>✏️</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.settingsBtn,
                 pressed && styles.settingsBtnPressed,
               ]}
               onPress={() => router.push("/settings")}
@@ -699,13 +813,30 @@ export default function ProfileScreen() {
             </Pressable>
 
             <View style={styles.headerRow}>
-              <View style={styles.avatarContainer}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.avatarContainer,
+                  pressed && styles.avatarContainerPressed,
+                ]}
+                onPress={handleUploadAvatar}
+                disabled={uploadingAvatar}
+                accessibilityRole="button"
+                accessibilityLabel={isThai ? "เปลี่ยนรูปโปรไฟล์" : "Change profile picture"}
+                accessibilityState={{ busy: uploadingAvatar, disabled: uploadingAvatar }}
+              >
                 <Image
                   source={avatarSource}
                   style={styles.avatar}
                   resizeMode="cover"
                 />
-              </View>
+                <View style={styles.avatarBadge}>
+                  {uploadingAvatar ? (
+                    <ActivityIndicator size="small" color="#111827" />
+                  ) : (
+                    <Text style={styles.avatarBadgeText}>📷</Text>
+                  )}
+                </View>
+              </Pressable>
 
               <View style={styles.headerInfo}>
                 <Animated.View
@@ -1021,6 +1152,92 @@ export default function ProfileScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!savingProfileEdit) setEditModalVisible(false);
+        }}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <Pressable
+            style={styles.modalScrim}
+            onPress={() => {
+              if (!savingProfileEdit) setEditModalVisible(false);
+            }}
+          />
+          <View style={styles.editSheet}>
+            <Text variant="bold" style={styles.editSheetTitle}>
+              {isThai ? "แก้ไขโปรไฟล์" : "Edit profile"}
+            </Text>
+
+            <View style={styles.editField}>
+              <Text style={styles.editLabel}>{isThai ? "ชื่อ" : "Name"}</Text>
+              <TextInput
+                value={editName}
+                onChangeText={setEditName}
+                placeholder={isThai ? "ชื่อที่ต้องการแสดง" : "Display name"}
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="words"
+                editable={!savingProfileEdit}
+                style={styles.editInput}
+              />
+            </View>
+
+            <View style={styles.editField}>
+              <Text style={styles.editLabel}>
+                {isThai ? "เป้าหมายอาชีพหลัก" : "Primary career goal"}
+              </Text>
+              <TextInput
+                value={editGoal}
+                onChangeText={setEditGoal}
+                placeholder={isThai ? "เช่น UX Designer" : "e.g. UX Designer"}
+                placeholderTextColor="#9CA3AF"
+                autoCapitalize="words"
+                editable={!savingProfileEdit}
+                style={styles.editInput}
+              />
+            </View>
+
+            <View style={styles.editActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.editCancelBtn,
+                  pressed && styles.actionRowPressed,
+                ]}
+                onPress={() => setEditModalVisible(false)}
+                disabled={savingProfileEdit}
+              >
+                <Text style={styles.editCancelText}>
+                  {isThai ? "ยกเลิก" : "Cancel"}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.editSaveBtn,
+                  savingProfileEdit && styles.editSaveBtnDisabled,
+                  pressed && styles.actionRowPressed,
+                ]}
+                onPress={handleSaveProfileEdit}
+                disabled={savingProfileEdit}
+              >
+                {savingProfileEdit ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text variant="bold" style={styles.editSaveText}>
+                    {isThai ? "บันทึก" : "Save"}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -1381,6 +1598,86 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     alignItems: "center",
   },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 18,
+  },
+  modalScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(17,24,39,0.38)",
+  },
+  editSheet: {
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.24)",
+    shadowColor: "#111827",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.18,
+    shadowRadius: 32,
+    elevation: 10,
+    gap: 16,
+  },
+  editSheetTitle: {
+    fontSize: 22,
+    color: "#111827",
+  },
+  editField: {
+    gap: 8,
+  },
+  editLabel: {
+    fontSize: 13,
+    color: "#4B5563",
+  },
+  editInput: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 14,
+    color: "#111827",
+    fontFamily: "LibreFranklin_400Regular",
+    fontSize: 16,
+  },
+  editActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 4,
+  },
+  editCancelBtn: {
+    minWidth: 96,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF",
+  },
+  editCancelText: {
+    color: "#4B5563",
+    fontFamily: "LibreFranklin_700Bold",
+    fontSize: 14,
+  },
+  editSaveBtn: {
+    minWidth: 96,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#111827",
+  },
+  editSaveBtnDisabled: {
+    opacity: 0.55,
+  },
+  editSaveText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+  },
   scroll: {
     flex: 1,
   },
@@ -1422,6 +1719,9 @@ const styles = StyleSheet.create({
     borderColor: "#EEE",
     zIndex: 10,
   },
+  editProfileBtn: {
+    right: 68,
+  },
   settingsBtnPressed: {
     backgroundColor: "#F5F5F5",
   },
@@ -1433,7 +1733,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
     width: "100%",
-    paddingRight: 52,
+    paddingRight: 100,
   },
   avatarContainer: {
     width: 72,
@@ -1450,10 +1750,30 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "rgba(139,92,246,0.15)",
   },
+  avatarContainerPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
   avatar: {
     width: 52,
     height: 52,
     borderRadius: 26,
+  },
+  avatarBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Accent.yellow,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  avatarBadgeText: {
+    fontSize: 13,
   },
   headerInfo: {
     flex: 1,
