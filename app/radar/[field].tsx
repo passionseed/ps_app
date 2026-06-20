@@ -322,9 +322,10 @@ export default function RadarCarousel() {
       <View
         style={[styles.pageControlWrap, { bottom: insets.bottom + 34 }]}
       >
-        <View style={styles.dots}>
+        <View style={styles.progressShell}>
           {cards.map((card, i) => {
             const locked = i > maxReachableIndex;
+            const completed = i < activeIndex;
             const reflectionAnswered =
               card.kind !== "reflection" ||
               answeredReflections.has(reflectionKey(card, i));
@@ -333,19 +334,21 @@ export default function RadarCarousel() {
                 key={i}
                 onPress={() => goToIndex(i)}
                 disabled={locked}
-                hitSlop={8}
+                hitSlop={6}
                 style={[
-                  styles.dotTap,
-                  i === activeIndex && styles.dotTapActive,
-                  locked && styles.dotTapLocked,
+                  styles.progressStep,
+                  locked && styles.progressStepLocked,
                 ]}
               >
                 <View
                   style={[
-                    styles.dot,
-                    i === activeIndex && styles.dotActive,
-                    card.kind === "reflection" && !reflectionAnswered && styles.dotReflection,
-                    locked && styles.dotLocked,
+                    styles.progressSegment,
+                    completed && styles.progressSegmentComplete,
+                    i === activeIndex && styles.progressSegmentActive,
+                    card.kind === "reflection" &&
+                      !reflectionAnswered &&
+                      styles.progressSegmentReflection,
+                    locked && styles.progressSegmentLocked,
                   ]}
                 />
               </Pressable>
@@ -1122,42 +1125,48 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  dots: {
+  progressShell: {
+    width: "64%",
+    maxWidth: 260,
+    minWidth: 168,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: "rgba(20,20,20,0.32)",
+    backgroundColor: "rgba(10,10,12,0.26)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.12)",
   },
-  dotTap: {
-    width: 14,
+  progressStep: {
+    flex: 1,
     height: 14,
-    borderRadius: 7,
     alignItems: "center",
     justifyContent: "center",
   },
-  dotTapActive: { width: 28 },
-  dotTapLocked: { opacity: 0.45 },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.42)",
+  progressStepLocked: { opacity: 0.75 },
+  progressSegment: {
+    width: "100%",
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.22)",
   },
-  dotActive: {
-    width: 22,
+  progressSegmentComplete: {
+    backgroundColor: "rgba(255,255,255,0.58)",
+  },
+  progressSegmentActive: {
+    height: 5,
     backgroundColor: "#FFFFFF",
   },
-  dotReflection: {
+  progressSegmentReflection: {
+    height: 5,
     backgroundColor: Accent.yellow,
   },
-  dotLocked: {
-    backgroundColor: "rgba(255,255,255,0.22)",
+  progressSegmentLocked: {
+    height: 3,
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
   unlockHint: {
     color: "#FFFFFF",
