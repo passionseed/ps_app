@@ -3,6 +3,7 @@
 // Live content comes from Supabase (radar_fields/radar_cards); the hardcoded
 // RADAR_FIELD_LIST below is the offline fallback.
 import { supabase } from "./supabase";
+import { getSessionId, formatSupabaseError, logEvent } from "./eventLogger";
 
 export type RadarLang = "th" | "en";
 
@@ -25,6 +26,18 @@ export type RadarCard = (
   | { kind: "risks"; eyebrow: string; title: string; risks: string[]; notForYou: string[] }
   | { kind: "realPeople"; eyebrow: string; title: string; people: { role: string; background: string; source_ref?: number; url?: string; publisher?: string }[] }
   | { kind: "sources"; eyebrow: string; title: string; items: { ref: number; title: string; publisher: string; url: string }[] }
+  // End-of-chapter reflection checkpoint. `rating` shows the emoji 1-5 scale;
+  // `chips` are tappable reasons; `allowText` adds an optional free-text box.
+  | {
+      kind: "reflection";
+      eyebrow: string;
+      title: string;
+      chapterKey: string;
+      rating?: boolean;
+      chips?: string[];
+      allowText?: boolean;
+      placeholder?: string;
+    }
 ) & { image?: string };
 
 export type TileSize = "sm" | "md" | "lg";
@@ -55,11 +68,12 @@ export const COLLECTIONS: { key: string; label: string }[] = [
 const AI_BUSINESS_CARDS: RadarCard[] = [
   {
     kind: "hook",
-    eyebrow: "เส้นทางที่คนมองข้าม",
+    eyebrow: "สาย Transforming ที่น่าจับตา",
     title: "AI x ธุรกิจ",
     body: "คู่แข่งน้อย รายได้มั่นคง ใช้ทั้งหัวคิดและความครีเอทีฟ\nนี่อาจเป็นทางของเธอ",
     stat: "30k–150k+",
     statLabel: "บาท/เดือน",
+    image: "https://cdn.passionseed.org/pretotype-1781659400219-radar-images/ai-business/hero-1781659399780.webp",
   },
   {
     kind: "fantasyReality",
@@ -73,6 +87,14 @@ const AI_BUSINESS_CARDS: RadarCard[] = [
     eyebrow: "มันคืออะไรกันแน่",
     title: "คนตรงกลางระหว่างธุรกิจกับ AI",
     body: "เธอไม่ต้องเขียนโค้ดเก่งที่สุดในห้อง แต่เธอรู้ว่าจะเอา AI ไปสร้างมูลค่าตรงไหน นั่นคือสกิลที่หายากและมีค่า",
+    image: "https://cdn.passionseed.org/pretotype-1781659432694-radar-images/ai-business/card-pos-2-1781659432204.webp",
+  },
+  {
+    kind: "reflection",
+    eyebrow: "ลองถามใจตัวเองดู",
+    title: "อยากลองทางนี้แค่ไหน?",
+    chapterKey: "what-it-is",
+    rating: true,
   },
   {
     kind: "jobs",
@@ -99,6 +121,14 @@ const AI_BUSINESS_CARDS: RadarCard[] = [
     ],
   },
   {
+    kind: "reflection",
+    eyebrow: "ลองถามใจตัวเองดู",
+    title: "อะไรที่ดึงดูดเธอในทางนี้?",
+    chapterKey: "money-jobs",
+    chips: ["เงินดี", "ดูสนุก", "ท้าทาย", "อิสระ", "ได้ช่วยคน", "มาแรง"],
+    allowText: true,
+  },
+  {
     kind: "text",
     eyebrow: "ทำไมต้องตอนนี้",
     title: "ช่องนี้เพิ่งเปิด",
@@ -115,6 +145,15 @@ const AI_BUSINESS_CARDS: RadarCard[] = [
     eyebrow: "พิสูจน์ตัวเองยังไง",
     title: "ไม่ต้องรอจบมหาลัย",
     body: "เอา AI ไปช่วยร้าน/เพจจริง 1 ที่ ทำ automation ลดงาน 1 อย่าง แล้วเล่าเป็นเคส นั่นคือพอร์ตของเธอตั้งแต่วันนี้",
+  },
+  {
+    kind: "reflection",
+    eyebrow: "ลองถามใจตัวเองดู",
+    title: "ทำไมเธอถึงสนใจทางนี้?",
+    chapterKey: "you-in-it",
+    chips: ["ตรงกับตัวฉัน", "อยากเก่งด้านนี้", "อนาคตดี", "ยังไม่แน่ใจ"],
+    allowText: true,
+    placeholder: "เขียนสั้นๆ ก็ได้...",
   },
   {
     kind: "cta",
@@ -137,6 +176,7 @@ export const RADAR_FIELD_LIST: RadarField[] = [
     size: "lg",
     ready: true,
     cards: AI_BUSINESS_CARDS,
+    heroImage: "https://cdn.passionseed.org/pretotype-1781659400219-radar-images/ai-business/hero-1781659399780.webp",
   },
   {
     slug: "ux-design",
@@ -147,6 +187,7 @@ export const RADAR_FIELD_LIST: RadarField[] = [
     tags: ["creative", "high-pay", "global"],
     size: "md",
     ready: false,
+    heroImage: "https://cdn.passionseed.org/pretotype-1781659499468-radar-images/ux-design/hero-1781659499058.webp",
   },
   {
     slug: "data-analyst",
@@ -220,6 +261,27 @@ export function getRadarField(slug: string): RadarField | undefined {
 
 // ── Supabase-backed fetches ──────────────────────────────────────────────────
 
+function isLocalizedObject(value: unknown): value is Record<RadarLang, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return "th" in record || "en" in record;
+}
+
+function localizeValue(value: unknown, lang: RadarLang): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => localizeValue(item, lang));
+  }
+  if (!value || typeof value !== "object") return value;
+
+  if (isLocalizedObject(value)) {
+    return localizeValue(value[lang] ?? value.th ?? value.en ?? "", lang);
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nested]) => [key, localizeValue(nested, lang)]),
+  );
+}
+
 function rowToField(row: any, lang: RadarLang): RadarField {
   return {
     slug: row.slug,
@@ -236,9 +298,10 @@ function rowToField(row: any, lang: RadarLang): RadarField {
 
 function rowToCard(row: any, lang: RadarLang): RadarCard {
   const content = (lang === "en" ? row.content_en : null) ?? row.content_th;
+  const localized = localizeValue(content, lang);
   return {
     kind: row.kind,
-    ...content,
+    ...(localized && typeof localized === "object" ? localized : {}),
     image: row.image_url ?? undefined,
   } as RadarCard;
 }
@@ -280,5 +343,69 @@ export async function fetchRadarField(
     };
   } catch {
     return getRadarField(slug) ?? null;
+  }
+}
+
+// ── Reflection capture ───────────────────────────────────────────────────────
+
+export interface ReflectionInput {
+  fieldSlug: string;
+  chapterKey: string;
+  lang: RadarLang;
+  wantToTry?: number; // 1-5; omitted on text-only chapters
+  tags?: string[]; // tapped reason chips
+  responseText?: string;
+}
+
+/**
+ * Persist a chapter-checkpoint reflection for logged-in users. Guest answers
+ * still unlock the carousel locally; this is a no-op without a Supabase user.
+ * Reuses the eventLogger session id + error formatting; fail-silent.
+ */
+export async function logReflection(input: ReflectionInput): Promise<void> {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return; // logged-in only
+
+    const sessionId = await getSessionId();
+
+    // Clamp score into 1-5; drop if out of range / absent.
+    const wantToTry =
+      typeof input.wantToTry === "number" && Number.isFinite(input.wantToTry)
+        ? Math.min(5, Math.max(1, Math.round(input.wantToTry)))
+        : null;
+
+    const responseText = input.responseText?.trim().slice(0, 500) || null;
+    const tags = (input.tags ?? []).filter((t) => !!t).slice(0, 12);
+
+    const { error } = await supabase.from("radar_reflections").insert({
+      user_id: user.id,
+      session_id: sessionId,
+      field_slug: input.fieldSlug,
+      chapter_key: input.chapterKey,
+      want_to_try: wantToTry,
+      tags,
+      response_text: responseText,
+      lang: input.lang,
+    });
+
+    if (error) {
+      console.warn("[radar] reflection insert failed:", formatSupabaseError(error));
+    }
+
+    // Mirror into the analytics pipeline (user_events) so reflections show up in
+    // funnels / journey alongside everything else. No free text — signal only.
+    await logEvent("radar_reflection_submitted", {
+      field_slug: input.fieldSlug,
+      chapter_key: input.chapterKey,
+      want_to_try: wantToTry,
+      tag_count: tags.length,
+      has_text: !!responseText,
+    });
+  } catch (e) {
+    console.warn("[radar] reflection unexpected error:", formatSupabaseError(e));
+    // Fail-silent: never block the carousel.
   }
 }

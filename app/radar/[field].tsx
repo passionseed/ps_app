@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   ViewToken,
+  TextInput,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { router, useLocalSearchParams } from "expo-router";
@@ -19,6 +20,7 @@ import { AppText } from "../../components/AppText";
 import { ViewShot, type ViewShotRef } from "../../lib/hooks/useWrappedShareImage";
 import {
   fetchRadarField,
+  logReflection,
   SQUAD_SIGNUP_URL,
   type RadarCard,
   type RadarField,
@@ -26,6 +28,7 @@ import {
 import { useAuth } from "../../lib/auth";
 import { Accent } from "../../lib/theme";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Dark poster backgrounds — each card a distinct screenshottable slide.
 const PALETTE = [
@@ -42,12 +45,53 @@ const PALETTE = [
 const LIME = Accent.yellow; // #BFFF00
 
 type CardTheme = { bg: string; fg: string; accent: string };
+type SourceItem = { ref: number; title: string; publisher: string; url: string };
+type SourceMap = Record<number, SourceItem>;
 
 function themeFor(card: RadarCard, index: number): CardTheme {
   if (card.kind === "cta") {
     return { bg: LIME, fg: "#111827", accent: "#111827" };
   }
   return { bg: PALETTE[index % PALETTE.length], fg: "#FFFFFF", accent: LIME };
+}
+
+function reflectionKey(card: RadarCard, index: number): string {
+  return card.kind === "reflection" ? `${index}:${card.chapterKey}` : `${index}`;
+}
+
+function uniqueRefs(refs: Array<number | undefined | null>): number[] {
+  return Array.from(
+    new Set(refs.filter((ref): ref is number => typeof ref === "number" && Number.isFinite(ref))),
+  );
+}
+
+function getCardSourceRefs(card: RadarCard): number[] {
+  const rootRefs = Array.isArray((card as any).source_refs) ? (card as any).source_refs : [];
+
+  if (card.kind === "jobs") {
+    return uniqueRefs([
+      ...rootRefs,
+      ...card.jobs.flatMap((job) => (Array.isArray(job.source_refs) ? job.source_refs : [])),
+    ]);
+  }
+
+  if (card.kind === "salaryProgression") {
+    return uniqueRefs([
+      ...rootRefs,
+      ...card.levels.flatMap((level) =>
+        Array.isArray(level.source_refs) ? level.source_refs : [],
+      ),
+    ]);
+  }
+
+  if (card.kind === "realPeople") {
+    return uniqueRefs([
+      ...rootRefs,
+      ...card.people.map((person) => person.source_ref),
+    ]);
+  }
+
+  return uniqueRefs(rootRefs);
 }
 
 export default function RadarCarousel() {
@@ -58,6 +102,8 @@ export default function RadarCarousel() {
   const lang = appLanguage === "th" ? "th" : "en";
   const [field, setField] = useState<RadarField | null | undefined>(undefined);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [answeredReflections, setAnsweredReflections] = useState<Set<string>>(() => new Set());
+  const listRef = useRef<FlatList<RadarCard>>(null);
   const shotRefs = useRef<Record<number, ViewShotRef | null>>({});
 
   useEffect(() => {
@@ -97,6 +143,18 @@ export default function RadarCarousel() {
     Linking.openURL(SQUAD_SIGNUP_URL).catch(() => {});
   }, []);
 
+  const onReflectionAnswered = useCallback((key: string, answered: boolean) => {
+    setAnsweredReflections((prev) => {
+      const next = new Set(prev);
+      if (answered) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  }, []);
+
   if (field === undefined) {
     return (
       <View style={[styles.fill, styles.center]}>
@@ -119,15 +177,41 @@ export default function RadarCarousel() {
   }
 
   const cards = field.cards;
+  const sourceMap: SourceMap = Object.fromEntries(
+    cards
+      .flatMap((card) => (card.kind === "sources" ? card.items : []))
+      .map((source) => [source.ref, source]),
+  );
+  const firstBlockingIndex = cards.findIndex(
+    (card, index) =>
+      card.kind === "reflection" &&
+      !answeredReflections.has(reflectionKey(card, index)),
+  );
+  const activeCard = cards[activeIndex];
+  const activeReflectionLocked =
+    activeCard?.kind === "reflection" &&
+    !answeredReflections.has(reflectionKey(activeCard, activeIndex));
+  const maxReachableIndex = firstBlockingIndex === -1 ? cards.length - 1 : firstBlockingIndex;
+
+  const goToIndex = (index: number) => {
+    if (index > maxReachableIndex) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
+    Haptics.selectionAsync();
+    listRef.current?.scrollToIndex({ index, animated: true });
+  };
 
   return (
     <View style={styles.fill}>
       <StatusBar style="light" />
       <FlatList
+        ref={listRef}
         data={cards}
         keyExtractor={(_, i) => `card-${i}`}
         horizontal
         pagingEnabled
+        scrollEnabled={!activeReflectionLocked}
         showsHorizontalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
@@ -141,7 +225,13 @@ export default function RadarCarousel() {
               options={{ format: "png", quality: 0.95, result: "tmpfile" }}
               style={{ width, height, backgroundColor: t.bg }}
             >
-              {item.image && (
+              <LinearGradient
+                colors={["rgba(255,255,255,0.12)", "rgba(0,0,0,0)", "rgba(0,0,0,0.45)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              {false && item.image && (
                 <>
                   <Image
                     source={{ uri: item.image }}
@@ -169,7 +259,15 @@ export default function RadarCarousel() {
                   },
                 ]}
               >
-                <CardBody card={item} theme={t} />
+                <CardBody
+                  card={item}
+                  index={index}
+                  theme={t}
+                  fieldSlug={slug ?? ""}
+                  lang={lang}
+                  sourceMap={sourceMap}
+                  onReflectionAnswered={onReflectionAnswered}
+                />
                 {item.kind === "cta" && (
                   <View style={{ gap: 12, marginTop: 8 }}>
                     <Pressable
@@ -222,22 +320,43 @@ export default function RadarCarousel() {
 
       {/* progress dots — bottom */}
       <View
-        style={[styles.dots, { bottom: insets.bottom + 44 }]}
-        pointerEvents="none"
+        style={[styles.pageControlWrap, { bottom: insets.bottom + 34 }]}
       >
-        {cards.map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              {
-                width: i === activeIndex ? 22 : 6,
-                backgroundColor:
-                  i === activeIndex ? "#FFFFFF" : "rgba(255,255,255,0.4)",
-              },
-            ]}
-          />
-        ))}
+        <View style={styles.dots}>
+          {cards.map((card, i) => {
+            const locked = i > maxReachableIndex;
+            const reflectionAnswered =
+              card.kind !== "reflection" ||
+              answeredReflections.has(reflectionKey(card, i));
+            return (
+              <Pressable
+                key={i}
+                onPress={() => goToIndex(i)}
+                disabled={locked}
+                hitSlop={8}
+                style={[
+                  styles.dotTap,
+                  i === activeIndex && styles.dotTapActive,
+                  locked && styles.dotTapLocked,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.dot,
+                    i === activeIndex && styles.dotActive,
+                    card.kind === "reflection" && !reflectionAnswered && styles.dotReflection,
+                    locked && styles.dotLocked,
+                  ]}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
+        {activeReflectionLocked && (
+          <AppText style={styles.unlockHint}>
+            {lang === "th" ? "ตอบ reflection ก่อน เพื่อไปต่อ" : "Answer this reflection to continue"}
+          </AppText>
+        )}
       </View>
     </View>
   );
@@ -245,7 +364,8 @@ export default function RadarCarousel() {
 
 // Cost level -> money icons; job demand -> fire badge. Bare "High"/"Low" read as
 // quality/ranking, so show icons instead.
-const norm = (s: string) => s.toLowerCase().replace(/[\s_-]/g, "");
+const norm = (s: any) => String(s || "").toLowerCase().replace(/[\s_-]/g, "");
+const renderStr = (val: any) => typeof val === "object" ? (val?.th || val?.en || "") : val;
 const COST_ICON: Record<string, string> = { low: "💰", medium: "💰💰", high: "💰💰💰" };
 const DEMAND: Record<string, { icon: string; th: string }> = {
   veryhigh: { icon: "🔥🔥🔥", th: "ต้องการสูงมาก" },
@@ -254,14 +374,215 @@ const DEMAND: Record<string, { icon: string; th: string }> = {
   low: { icon: "•", th: "ต้องการต่ำ" },
 };
 
-function CardBody({ card, theme }: { card: RadarCard; theme: CardTheme }) {
+// Emoji 1-5 want-to-try scale. Index 0 = least, 4 = most → stored as 1..5.
+const RATING_EMOJI = ["😴", "😐", "🙂", "😍", "🔥"];
+
+const REFLECT_COPY = {
+  th: { save: "บันทึก", saved: "บันทึกแล้ว แก้ไขได้", saving: "กำลังบันทึก...", more: "อยากบอกเพิ่ม?" },
+  en: { save: "Save", saved: "Saved. Editable.", saving: "Saving...", more: "Want to add more?" },
+};
+
+function ReflectionCard({
+  card,
+  index,
+  theme,
+  fieldSlug,
+  lang,
+  onAnsweredChange,
+}: {
+  card: Extract<RadarCard, { kind: "reflection" }>;
+  index: number;
+  theme: CardTheme;
+  fieldSlug: string;
+  lang: "th" | "en";
+  onAnsweredChange: (key: string, answered: boolean) => void;
+}) {
+  const { fg, accent, bg } = theme;
+  const copy = REFLECT_COPY[lang];
+  const [rating, setRating] = useState<number | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [text, setText] = useState("");
+  const [lastSavedSignature, setLastSavedSignature] = useState("");
+  const [saving, setSaving] = useState(false);
+  const hasAnswer =
+    (card.rating ? rating != null : false) ||
+    tags.length > 0 ||
+    text.trim().length > 0;
+  const answerSignature = JSON.stringify({ rating, tags, text: text.trim() });
+  const isSaved = hasAnswer && lastSavedSignature === answerSignature;
+
+  useEffect(() => {
+    onAnsweredChange(reflectionKey(card, index), hasAnswer);
+  }, [card, hasAnswer, index, onAnsweredChange]);
+
+  const toggleTag = (t: string) => {
+    Haptics.selectionAsync();
+    setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  };
+
+  const pickRating = (i: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setRating(i + 1);
+  };
+
+  const canSubmit = hasAnswer && !saving && !isSaved;
+
+  const onSubmit = async () => {
+    if (!canSubmit) return;
+    setSaving(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await logReflection({
+      fieldSlug,
+      chapterKey: card.chapterKey,
+      lang,
+      wantToTry: card.rating ? rating ?? undefined : undefined,
+      tags,
+      responseText: text,
+    });
+    setLastSavedSignature(answerSignature);
+    setSaving(false);
+  };
+
+  return (
+    <View style={{ marginTop: 12, gap: 18 }}>
+      {card.rating && (
+        <View style={styles.emojiRow}>
+          {RATING_EMOJI.map((e, i) => (
+            <Pressable key={i} onPress={() => pickRating(i)} hitSlop={6}>
+              <AppText
+                style={[
+                  styles.emojiFace,
+                  { opacity: rating == null || rating === i + 1 ? 1 : 0.35 },
+                  rating === i + 1 && styles.emojiFaceActive,
+                ]}
+              >
+                {e}
+              </AppText>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {!!card.chips?.length && (
+        <View style={styles.chipWrap}>
+          {card.chips.map((c) => {
+            const on = tags.includes(c);
+            return (
+              <Pressable
+                key={c}
+                onPress={() => toggleTag(c)}
+                style={[
+                  styles.reflectChip,
+                  { borderColor: on ? accent : "rgba(255,255,255,0.3)" },
+                  on && { backgroundColor: accent },
+                ]}
+              >
+                <AppText style={[styles.reflectChipText, { color: on ? bg : fg }]}>{c}</AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {card.allowText && (
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder={card.placeholder ?? copy.more}
+          placeholderTextColor="rgba(255,255,255,0.5)"
+          multiline
+          maxLength={500}
+          style={[styles.reflectInput, { color: fg, borderColor: "rgba(255,255,255,0.25)" }]}
+        />
+      )}
+
+      <Pressable
+        disabled={!canSubmit}
+        style={[styles.reflectBtn, { backgroundColor: fg, opacity: canSubmit ? 1 : 0.55 }]}
+        onPress={onSubmit}
+      >
+        <AppText style={[styles.reflectBtnText, { color: bg }]}>
+          {saving ? copy.saving : isSaved ? copy.saved : copy.save}
+        </AppText>
+      </Pressable>
+    </View>
+  );
+}
+
+function SourceRefChips({
+  refs,
+  sourceMap,
+  accent,
+  fg,
+  lang,
+}: {
+  refs: number[];
+  sourceMap: SourceMap;
+  accent: string;
+  fg: string;
+  lang: "th" | "en";
+}) {
+  const sources = refs.map((ref) => sourceMap[ref]).filter(Boolean);
+  if (!sources.length) return null;
+
+  return (
+    <View style={styles.sourceChipBlock}>
+      <AppText style={[styles.sourceChipLabel, { color: "rgba(255,255,255,0.55)" }]}>
+        {lang === "th" ? "อ้างอิง" : "Credits"}
+      </AppText>
+      <View style={styles.sourceChipRow}>
+        {sources.map((source) => (
+          <Pressable
+            key={source.ref}
+            onPress={() => Linking.openURL(source.url).catch(() => {})}
+            style={[styles.sourceChip, { borderColor: accent }]}
+          >
+            <AppText style={[styles.sourceChipText, { color: fg }]}>
+              Ref {source.ref} ↗
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function CardBody({
+  card,
+  index,
+  theme,
+  fieldSlug,
+  lang,
+  sourceMap,
+  onReflectionAnswered,
+}: {
+  card: RadarCard;
+  index: number;
+  theme: CardTheme;
+  fieldSlug: string;
+  lang: "th" | "en";
+  sourceMap: SourceMap;
+  onReflectionAnswered: (key: string, answered: boolean) => void;
+}) {
   const { fg, accent } = theme;
+  const sourceRefs = getCardSourceRefs(card);
   return (
     <View style={styles.body}>
       <AppText style={[styles.eyebrow, { color: accent }]}>
         {card.eyebrow}
       </AppText>
       <AppText style={[styles.title, { color: fg }]}>{card.title}</AppText>
+
+      {card.kind === "reflection" && (
+        <ReflectionCard
+          card={card}
+          index={index}
+          theme={theme}
+          fieldSlug={fieldSlug}
+          lang={lang}
+          onAnsweredChange={onReflectionAnswered}
+        />
+      )}
 
       {card.kind === "hook" && (
         <>
@@ -358,7 +679,6 @@ function CardBody({ card, theme }: { card: RadarCard; theme: CardTheme }) {
               {!!j.listingSource && (
                 <AppText style={[styles.miniLabel, { color: "rgba(255,255,255,0.45)" }]}>
                   📋 จาก {j.listingSource}
-                  {j.source_refs?.length ? `  ${j.source_refs.map((n) => `[${n}]`).join(" ")}` : ""}
                 </AppText>
               )}
               {!!j.jobsdbUrl && (
@@ -440,7 +760,6 @@ function CardBody({ card, theme }: { card: RadarCard; theme: CardTheme }) {
               {!!lv.note && (
                 <AppText style={[styles.miniLabel, { color: "rgba(255,255,255,0.55)", marginTop: 8 }]}>
                   💡 {lv.note}
-                  {lv.source_refs?.length ? `  ${lv.source_refs.map((n) => `[${n}]`).join(" ")}` : ""}
                 </AppText>
               )}
             </View>
@@ -555,18 +874,18 @@ function CardBody({ card, theme }: { card: RadarCard; theme: CardTheme }) {
                   )}
                 </View>
               </View>
-              <AppText style={[styles.frText, { color: fg, marginTop: 10 }]}>{rt.route}</AppText>
+              <AppText style={[styles.frText, { color: fg, marginTop: 10 }]}>{renderStr(rt.route)}</AppText>
               {(rt.cost || rt.time) && (
                 <View style={[styles.metaWrap, { marginTop: 10 }]}>
                   {!!rt.time && (
                     <View style={styles.metaChip}>
-                      <AppText style={styles.metaText}>⏱ {rt.time}</AppText>
+                      <AppText style={styles.metaText}>⏱ {renderStr(rt.time)}</AppText>
                     </View>
                   )}
                   {!!rt.cost && (
                     <View style={styles.metaChip}>
                       <AppText style={styles.metaText}>
-                        {COST_ICON[norm(rt.cost)] ? `${COST_ICON[norm(rt.cost)]} ค่าเรียน` : rt.cost}
+                        {COST_ICON[norm(renderStr(rt.cost))] ? `${COST_ICON[norm(renderStr(rt.cost))]} ค่าเรียน` : renderStr(rt.cost)}
                       </AppText>
                     </View>
                   )}
@@ -636,12 +955,13 @@ function CardBody({ card, theme }: { card: RadarCard; theme: CardTheme }) {
         </View>
       )}
 
-      {Array.isArray((card as any).source_refs) &&
-        (card as any).source_refs.length > 0 && (
-          <AppText style={[styles.srcRef, { color: "rgba(255,255,255,0.5)" }]}>
-            ที่มา {(card as any).source_refs.map((n: number) => `[${n}]`).join(" ")}
-          </AppText>
-        )}
+      <SourceRefChips
+        refs={sourceRefs}
+        sourceMap={sourceMap}
+        accent={accent}
+        fg={fg}
+        lang={lang}
+      />
     </View>
   );
 }
@@ -759,7 +1079,17 @@ const styles = StyleSheet.create({
   companyText: { fontSize: 14, fontWeight: "700" },
   sourceRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   sourceTitle: { fontSize: 15, fontWeight: "700", lineHeight: 21 },
-  srcRef: { fontSize: 12, fontWeight: "600", marginTop: 16 },
+  sourceChipBlock: { marginTop: 18, gap: 8 },
+  sourceChipLabel: { fontSize: 12, fontWeight: "700" },
+  sourceChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  sourceChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  sourceChipText: { fontSize: 12, fontWeight: "800" },
   joinBtn: {
     borderRadius: 999,
     paddingVertical: 18,
@@ -785,15 +1115,60 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   backIcon: { fontSize: 20, fontWeight: "800", color: "#FFFFFF" },
-  dots: {
+  pageControlWrap: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 6,
+    left: 20,
+    right: 20,
+    alignItems: "center",
+    gap: 8,
   },
-  dot: { height: 6, borderRadius: 3 },
+  dots: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(20,20,20,0.32)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  dotTap: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dotTapActive: { width: 28 },
+  dotTapLocked: { opacity: 0.45 },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.42)",
+  },
+  dotActive: {
+    width: 22,
+    backgroundColor: "#FFFFFF",
+  },
+  dotReflection: {
+    backgroundColor: Accent.yellow,
+  },
+  dotLocked: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  unlockHint: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    overflow: "hidden",
+  },
   rail: {
     position: "absolute",
     right: 12,
@@ -811,4 +1186,26 @@ const styles = StyleSheet.create({
   },
   railIcon: { fontSize: 24, fontWeight: "800", color: "#FFFFFF" },
   railLabel: { fontSize: 12, fontWeight: "700", color: "#FFFFFF" },
+  // reflection checkpoint
+  emojiRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
+  emojiFace: { fontSize: 40 },
+  emojiFaceActive: { transform: [{ scale: 1.25 }] },
+  reflectChip: {
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  reflectChipText: { fontSize: 16, fontWeight: "700" },
+  reflectInput: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 14,
+    fontSize: 17,
+    fontWeight: "500",
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  reflectBtn: { borderRadius: 999, paddingVertical: 16, alignItems: "center", marginTop: 4 },
+  reflectBtnText: { fontSize: 17, fontWeight: "800" },
 });
