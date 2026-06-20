@@ -94,6 +94,22 @@ function getCardSourceRefs(card: RadarCard): number[] {
   return uniqueRefs(rootRefs);
 }
 
+function progressIconFor(card: RadarCard): string {
+  switch (card.kind) {
+    case "reflection":
+      return "?";
+    case "jobs":
+    case "salaryProgression":
+      return "$";
+    case "sources":
+      return "i";
+    case "cta":
+      return "↗";
+    default:
+      return "•";
+  }
+}
+
 export default function RadarCarousel() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -322,10 +338,10 @@ export default function RadarCarousel() {
       <View
         style={[styles.pageControlWrap, { bottom: insets.bottom + 34 }]}
       >
-        <View style={styles.progressShell}>
+        <View style={styles.dots}>
           {cards.map((card, i) => {
             const locked = i > maxReachableIndex;
-            const completed = i < activeIndex;
+            const active = i === activeIndex;
             const reflectionAnswered =
               card.kind !== "reflection" ||
               answeredReflections.has(reflectionKey(card, i));
@@ -334,23 +350,31 @@ export default function RadarCarousel() {
                 key={i}
                 onPress={() => goToIndex(i)}
                 disabled={locked}
-                hitSlop={6}
+                hitSlop={8}
                 style={[
-                  styles.progressStep,
-                  locked && styles.progressStepLocked,
+                  styles.dotTap,
+                  active && styles.dotTapActive,
+                  locked && styles.dotTapLocked,
                 ]}
               >
                 <View
                   style={[
-                    styles.progressSegment,
-                    completed && styles.progressSegmentComplete,
-                    i === activeIndex && styles.progressSegmentActive,
+                    styles.dot,
+                    active && styles.dotActive,
                     card.kind === "reflection" &&
                       !reflectionAnswered &&
-                      styles.progressSegmentReflection,
-                    locked && styles.progressSegmentLocked,
+                      styles.dotReflection,
+                    locked && styles.dotLocked,
                   ]}
-                />
+                >
+                  {active && (
+                    <AppText
+                      style={styles.dotIcon}
+                    >
+                      {progressIconFor(card)}
+                    </AppText>
+                  )}
+                </View>
               </Pressable>
             );
           })}
@@ -1125,49 +1149,48 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  progressShell: {
-    width: "64%",
-    maxWidth: 260,
-    minWidth: 168,
+  dots: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(10,10,12,0.26)",
+    backgroundColor: "rgba(20,20,20,0.32)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.14)",
   },
-  progressStep: {
-    flex: 1,
+  dotTap: {
+    width: 14,
     height: 14,
+    borderRadius: 7,
     alignItems: "center",
     justifyContent: "center",
   },
-  progressStepLocked: { opacity: 0.75 },
-  progressSegment: {
-    width: "100%",
-    height: 3,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.22)",
+  dotTapActive: { width: 28, height: 20, borderRadius: 10 },
+  dotTapLocked: { opacity: 0.45 },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.42)",
   },
-  progressSegmentComplete: {
-    backgroundColor: "rgba(255,255,255,0.58)",
-  },
-  progressSegmentActive: {
-    height: 5,
+  dotActive: {
+    width: 24,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  progressSegmentReflection: {
-    height: 5,
+  dotReflection: {
     backgroundColor: Accent.yellow,
   },
-  progressSegmentLocked: {
-    height: 3,
-    backgroundColor: "rgba(255,255,255,0.12)",
+  dotLocked: {
+    backgroundColor: "rgba(255,255,255,0.22)",
   },
+  dotIcon: { fontSize: 10, fontWeight: "900", lineHeight: 12 },
   unlockHint: {
     color: "#FFFFFF",
     fontSize: 12,
