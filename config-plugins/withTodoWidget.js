@@ -23,6 +23,12 @@ const UUIDS = {
   releaseConfig:        "AA000001000000000000AA0C",
   configList:           "AA000001000000000000AA0D",
   widgetGroup:          "AA000001000000000000AA0E",
+  // Embed App Extensions phase on the main app target
+  embedExtensionsPhase: "AA000001000000000000AA0F",
+  embedExtensionsBuildFile: "AA000001000000000000AA10",
+  // Target dependency
+  targetDependency:     "AA000001000000000000AA11",
+  containerItemProxy:   "AA000001000000000000AA12",
 };
 
 /**
@@ -33,7 +39,7 @@ const withTodoWidgetFiles = (config) =>
     "ios",
     async (config) => {
       const platformRoot = config.modRequest.platformProjectRoot;
-      const srcDir = path.join(__dirname, "../widget-sources");
+      const srcDir = path.join(__dirname, "../app/widget-sources");
       const destDir = path.join(platformRoot, WIDGET_TARGET_NAME);
 
       if (!fs.existsSync(destDir)) {
@@ -152,9 +158,7 @@ const withTodoWidgetTarget = (config) =>
     pbxObjects["PBXResourcesBuildPhase"][UUIDS.resourcesPhase] = {
       isa: "PBXResourcesBuildPhase",
       buildActionMask: 2147483647,
-      files: [
-        { value: UUIDS.infoPlistBuildFile, comment: "Info.plist in Resources" },
-      ],
+      files: [],
       runOnlyForDeploymentPostprocessing: 0,
     };
 
@@ -243,6 +247,61 @@ const withTodoWidgetTarget = (config) =>
     if (productsGroupUUID && pbxObjects["PBXGroup"][productsGroupUUID]) {
       pbxObjects["PBXGroup"][productsGroupUUID].children.push(
         { value: UUIDS.targetProduct, comment: "TodoWidget.appex" }
+      );
+    }
+
+    // 9. Build file for embedding the extension in the main app
+    pbxObjects["PBXBuildFile"][UUIDS.embedExtensionsBuildFile] = {
+      isa: "PBXBuildFile",
+      fileRef: UUIDS.targetProduct,
+      settings: { ATTRIBUTES: ["RemoveHeadersOnCopy"] },
+    };
+
+    // 10. Embed App Extensions copy phase — added to the main PassionSeed target
+    pbxObjects["PBXCopyFilesBuildPhase"] = pbxObjects["PBXCopyFilesBuildPhase"] || {};
+    pbxObjects["PBXCopyFilesBuildPhase"][UUIDS.embedExtensionsPhase] = {
+      isa: "PBXCopyFilesBuildPhase",
+      buildActionMask: 2147483647,
+      dstPath: '""',
+      dstSubfolderSpec: 13, // PlugIns / App Extensions
+      files: [
+        { value: UUIDS.embedExtensionsBuildFile, comment: "TodoWidget.appex in Embed App Extensions" },
+      ],
+      name: '"Embed App Extensions"',
+      runOnlyForDeploymentPostprocessing: 0,
+    };
+
+    // 11. Container item proxy + target dependency for the main app
+    pbxObjects["PBXContainerItemProxy"] = pbxObjects["PBXContainerItemProxy"] || {};
+    pbxObjects["PBXContainerItemProxy"][UUIDS.containerItemProxy] = {
+      isa: "PBXContainerItemProxy",
+      containerPortal: project.getFirstProject().uuid,
+      proxyType: 1,
+      remoteGlobalIDString: UUIDS.nativeTarget,
+      remoteInfo: `"${WIDGET_TARGET_NAME}"`,
+    };
+
+    pbxObjects["PBXTargetDependency"] = pbxObjects["PBXTargetDependency"] || {};
+    pbxObjects["PBXTargetDependency"][UUIDS.targetDependency] = {
+      isa: "PBXTargetDependency",
+      target: UUIDS.nativeTarget,
+      targetProxy: UUIDS.containerItemProxy,
+    };
+
+    // 12. Add embed phase and dependency to the main PassionSeed native target
+    const mainTargetUUID = Object.keys(pbxObjects["PBXNativeTarget"]).find((key) => {
+      const t = pbxObjects["PBXNativeTarget"][key];
+      return t && t.name === "PassionSeed";
+    });
+    if (mainTargetUUID) {
+      const mainTarget = pbxObjects["PBXNativeTarget"][mainTargetUUID];
+      mainTarget.buildPhases = mainTarget.buildPhases || [];
+      mainTarget.buildPhases.push(
+        { value: UUIDS.embedExtensionsPhase, comment: "Embed App Extensions" }
+      );
+      mainTarget.dependencies = mainTarget.dependencies || [];
+      mainTarget.dependencies.push(
+        { value: UUIDS.targetDependency, comment: "PBXTargetDependency" }
       );
     }
 

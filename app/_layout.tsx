@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, InteractionManager, StyleSheet, Text, View } from "react-native";
+import { AppState, Animated, InteractionManager, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react-native";
@@ -148,6 +148,17 @@ function RootNavigator() {
       clearTimeout(profileTimeout);
     };
   }, [isGuest, isHackathon, loading, session, isNavReady]);
+
+  // Sync build todos to widget on foreground
+  useEffect(() => {
+    if (!session) return;
+    const { syncBuildTodos } = require("../lib/build-todos") as typeof import("../lib/build-todos");
+    syncBuildTodos(true);
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") syncBuildTodos(true);
+    });
+    return () => sub.remove();
+  }, [session]);
 
   // Show animated splash while auth is loading
   // This prevents showing the landing page to logged-in users

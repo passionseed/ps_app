@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Tabs, usePathname } from "expo-router";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,8 +15,9 @@ import * as Haptics from "expo-haptics";
 import { PageBg } from "../../lib/theme";
 import { useAuth } from "../../lib/auth";
 import { FloatingProgressButton } from "../../components/FloatingProgressButton";
+import { hasBuildAccess } from "../../lib/build-todos";
 
-type TabRoute = "discover" | "explore" | "my-paths" | "profile";
+type TabRoute = "discover" | "explore" | "my-paths" | "profile" | "build";
 
 type TabTheme = {
   label: string;
@@ -59,6 +60,14 @@ const TAB_THEMES: Record<TabRoute, TabTheme> = {
     halo: "rgba(139, 92, 246, 0.12)",
     accent: "#8B5CF6", // Education purple
     glow: "rgba(139, 92, 246, 0.25)",
+  },
+  build: {
+    label: "Build",
+    icon: "🛠️",
+    activeIcon: "⚡",
+    halo: "rgba(245, 158, 11, 0.12)",
+    accent: "#F59E0B",
+    glow: "rgba(245, 158, 11, 0.25)",
   },
 };
 
@@ -116,12 +125,14 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           explore: "สำรวจ",
           "my-paths": "เส้นทาง",
           profile: "โปรไฟล์",
+          build: "Build",
         }
       : {
           discover: "Discover",
           explore: "Explore",
           "my-paths": "My Paths",
           profile: "Profile",
+          build: "Build",
         };
 
   useEffect(() => {
@@ -297,8 +308,14 @@ function TabBarButton({
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const { session } = useAuth();
+  const [isBuildUser, setIsBuildUser] = useState(false);
   const tabBarHeight = Platform.OS === "ios" ? Math.max(insets.bottom, 24) + 44 + 24 : 24 + 44 + 24;
-  
+
+  useEffect(() => {
+    if (session) hasBuildAccess().then(setIsBuildUser);
+  }, [session]);
+
   // Only show on discover page
   const isDiscoverPage = pathname === "/discover" || pathname === "/(tabs)/discover";
 
@@ -315,6 +332,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="explore" />
         <Tabs.Screen name="my-paths" />
         <Tabs.Screen name="profile" />
+        <Tabs.Screen name="build" options={{ href: isBuildUser ? undefined : null }} />
       </Tabs>
       {isDiscoverPage && (
         <FloatingProgressButton 
