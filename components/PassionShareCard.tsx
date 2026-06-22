@@ -7,11 +7,19 @@ import { ViewShot, useWrappedShareImage } from '../lib/hooks/useWrappedShareImag
 import type { PublicProfile } from '../types/publicProfile';
 import { buildBecomingLine } from '../lib/publicProfile';
 
-// react-native-share is a native module — absent in Expo Go / web. Load defensively.
+// react-native-share is a native module — absent in Expo Go / web.
+// TurboModules throw non-catchable Invariant Violations on require(),
+// so we gate on the native module registry before attempting to load.
 let RNShare: any | null | undefined;
 function getRNShare(): any | null {
   if (RNShare !== undefined) return RNShare;
   try {
+    const { TurboModuleRegistry } = require('react-native');
+    // Probe the native binary without throwing — getEnforcing() would crash.
+    if (!TurboModuleRegistry.get('RNShare')) {
+      RNShare = null;
+      return RNShare;
+    }
     RNShare = require('react-native-share').default;
   } catch {
     RNShare = null;

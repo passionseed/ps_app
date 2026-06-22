@@ -53,6 +53,7 @@ export interface RadarField {
   ready: boolean; // has full carousel content
   cards?: RadarCard[];
   heroImage?: string;
+  careerSlug?: string; // maps to career_survival.slug for metrics
 }
 
 // Collection chips (Pinterest-style lists / IG filters).
@@ -177,6 +178,7 @@ export const RADAR_FIELD_LIST: RadarField[] = [
     ready: true,
     cards: AI_BUSINESS_CARDS,
     heroImage: "https://cdn.passionseed.org/pretotype-1781659400219-radar-images/ai-business/hero-1781659399780.webp",
+    careerSlug: "product-manager",
   },
   {
     slug: "ux-design",
@@ -188,6 +190,7 @@ export const RADAR_FIELD_LIST: RadarField[] = [
     size: "md",
     ready: false,
     heroImage: "https://cdn.passionseed.org/pretotype-1781659499468-radar-images/ux-design/hero-1781659499058.webp",
+    careerSlug: "ux-designer",
   },
   {
     slug: "data-analyst",
@@ -198,6 +201,7 @@ export const RADAR_FIELD_LIST: RadarField[] = [
     tags: ["high-pay", "ai-proof", "trending"],
     size: "sm",
     ready: false,
+    careerSlug: "data-scientist",
   },
   {
     slug: "fintech",
@@ -208,6 +212,7 @@ export const RADAR_FIELD_LIST: RadarField[] = [
     tags: ["high-pay", "trending", "global"],
     size: "md",
     ready: false,
+    careerSlug: "financial-analyst",
   },
   {
     slug: "cybersecurity",
@@ -218,6 +223,7 @@ export const RADAR_FIELD_LIST: RadarField[] = [
     tags: ["ai-proof", "high-pay", "global"],
     size: "lg",
     ready: false,
+    careerSlug: "software-engineer",
   },
   {
     slug: "content-creator",
@@ -228,6 +234,7 @@ export const RADAR_FIELD_LIST: RadarField[] = [
     tags: ["creative", "trending"],
     size: "sm",
     ready: false,
+    careerSlug: "content-writer",
   },
   {
     slug: "supply-chain",
@@ -282,6 +289,17 @@ function localizeValue(value: unknown, lang: RadarLang): unknown {
   );
 }
 
+// Maps radar field slugs to career_survival slugs for metrics lookup.
+const RADAR_TO_CAREER_SLUG: Record<string, string> = {
+  "ai-business": "product-manager",
+  "ux-design": "ux-designer",
+  "data-analyst": "data-scientist",
+  "fintech": "financial-analyst",
+  "cybersecurity": "software-engineer",
+  "content-creator": "content-writer",
+  "supply-chain": "truck-driver",
+};
+
 function rowToField(row: any, lang: RadarLang): RadarField {
   return {
     slug: row.slug,
@@ -293,6 +311,7 @@ function rowToField(row: any, lang: RadarLang): RadarField {
     size: (row.tile_size ?? "md") as TileSize,
     ready: !!row.has_content,
     heroImage: row.hero_image_url ?? undefined,
+    careerSlug: row.career_slug ?? RADAR_TO_CAREER_SLUG[row.slug],
   };
 }
 

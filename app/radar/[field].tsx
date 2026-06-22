@@ -27,6 +27,15 @@ import {
 } from "../../lib/radar";
 import { useAuth } from "../../lib/auth";
 import { Accent } from "../../lib/theme";
+import {
+  getCareerSurvival,
+  getCareerMetrics,
+  getMetricDetails,
+  type CareerSurvival,
+  type MarketRegion,
+} from "../../lib/careerSurvival";
+import { supabase } from "../../lib/supabase";
+import { CareerMetricsCard } from "../../components/CareerMetricsCard";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -119,13 +128,33 @@ export default function RadarCarousel() {
   const [field, setField] = useState<RadarField | null | undefined>(undefined);
   const [activeIndex, setActiveIndex] = useState(0);
   const [answeredReflections, setAnsweredReflections] = useState<Set<string>>(() => new Set());
+  const [careerData, setCareerData] = useState<CareerSurvival | null>(null);
+  const [market, setMarket] = useState<MarketRegion | null>(null);
   const listRef = useRef<FlatList<RadarCard>>(null);
   const shotRefs = useRef<Record<number, ViewShotRef | null>>({});
 
   useEffect(() => {
     let alive = true;
     fetchRadarField(slug ?? "", lang).then((f) => {
-      if (alive) setField(f);
+      if (alive) {
+        console.log("[radar] field:", f?.slug, "careerSlug:", f?.careerSlug, "cards:", f?.cards?.length);
+        setField(f);
+        if (f?.careerSlug) {
+          getCareerSurvival(supabase, f.careerSlug).then((cs) => {
+            console.log("[radar] careerData result:", cs ? `ok slug=${cs.slug} demand=${cs.demand_growth} global_demand=${cs.global_demand_growth}` : "null");
+            if (alive) {
+              setCareerData(cs);
+              // Default to whichever market has data
+              if (cs) {
+                const hasTh = cs.demand_growth != null || cs.salary_floor != null;
+                setMarket(hasTh ? "th" : "global");
+              }
+            }
+          });
+        } else {
+          console.log("[radar] NO careerSlug");
+        }
+      }
     });
     return () => {
       alive = false;
@@ -284,6 +313,18 @@ export default function RadarCarousel() {
                   sourceMap={sourceMap}
                   onReflectionAnswered={onReflectionAnswered}
                 />
+                {index === 0 && careerData && market && (
+                  <View style={{ marginTop: 24, marginRight: -52 }}>
+                    <CareerMetricsCard
+                      metrics={getCareerMetrics(careerData, market)}
+                      market={market}
+                      onToggleMarket={() => setMarket((m) => (m === "th" ? "global" : "th"))}
+                      lang={lang}
+                      dark
+                      metricDetails={getMetricDetails(careerData, market)}
+                    />
+                  </View>
+                )}
                 {item.kind === "cta" && (
                   <View style={{ gap: 12, marginTop: 8 }}>
                     <Pressable
