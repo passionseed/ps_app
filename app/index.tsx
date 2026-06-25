@@ -69,7 +69,6 @@ const COPY = {
     googleBtn: "Continue with Google",
     appleBtn: "Sign in with Apple",
     guestBtn: "Explore without signing in",
-    hackathonBtn: "HACKATHON LOGIN",
     footer: "Designed for students discovering their career path",
   },
 } as const;
@@ -94,7 +93,6 @@ export default function LandingPage() {
   const cardY = useState(new RNAnimated.Value(50))[0];
   const cardOpacity = useState(new RNAnimated.Value(0))[0];
   const backgroundY = useState(new RNAnimated.Value(0))[0];
-  const hackathonScaleAnim = useState(new RNAnimated.Value(1))[0];
   const waterTransitionY = useState(new RNAnimated.Value(height))[0];
 
   // Entrance animation
@@ -178,26 +176,6 @@ export default function LandingPage() {
     } finally {
       setSigningInProvider(null);
     }
-  };
-
-  const handleHackathonPressIn = () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    RNAnimated.spring(hackathonScaleAnim, {
-      toValue: 0.92,
-      useNativeDriver: true,
-      tension: 400,
-      friction: 5,
-    }).start();
-  };
-
-  const handleHackathonPressOut = () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    RNAnimated.spring(hackathonScaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 400,
-      friction: 5,
-    }).start();
   };
 
   const handleEnterAsGuest = useCallback(() => {
@@ -377,71 +355,6 @@ export default function LandingPage() {
               >
                 {c.guestBtn}
               </GlassButton>
-
-              <View style={styles.hackathonDivider}>
-                <AppText style={styles.hackathonDividerText}>or</AppText>
-              </View>
-
-              <RNAnimated.View style={{ transform: [{ scale: hackathonScaleAnim }], width: "100%" }}>
-                <Pressable
-                  onPress={() => {
-                    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    
-                    // Trigger water rising from bottom to top
-                    RNAnimated.timing(waterTransitionY, {
-                      toValue: 0,
-                      duration: 500,
-                      useNativeDriver: true,
-                    }).start(() => {
-                      router.push("/hackathon-login");
-                      // Reset the overlay silently half a second after the new screen has pushed over it
-                      setTimeout(() => waterTransitionY.setValue(height), 500);
-                    });
-                  }}
-                  onPressIn={handleHackathonPressIn}
-                  onPressOut={handleHackathonPressOut}
-                  style={({ pressed }) => [styles.hackathonButton, pressed && { opacity: 0.85 }]}
-                >
-                  <LinearGradient
-                    colors={["rgba(5, 8, 14, 0.95)", "rgba(0, 0, 0, 0.98)", "rgba(8, 12, 20, 0.9)"]}
-                    locations={[0, 0.5, 1]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  
-                  {/* Bioluminescent Left Glow */}
-                  <LinearGradient
-                    colors={["rgba(145, 196, 227, 0.3)", "transparent"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.hackathonGlowLeft}
-                    pointerEvents="none"
-                  />
-                  
-                  {/* Bioluminescent Bottom Glow */}
-                  <View style={styles.hackathonGlowBottom} pointerEvents="none" />
-
-                  {/* Bioluminescent Right Glow */}
-                  <LinearGradient
-                    colors={["rgba(165, 148, 186, 0.25)", "transparent"]}
-                    start={{ x: 1, y: 1 }}
-                    end={{ x: 0, y: 0 }}
-                    style={styles.hackathonGlowRight}
-                    pointerEvents="none"
-                  />
-                  
-                  <Image
-                    source={require("../assets/HackLogo.png")}
-                    style={styles.hackathonBtnLogo}
-                    resizeMode="contain"
-                  />
-                  <View style={styles.hackathonBtnTextWrapper}>
-                    <AppText style={styles.hackathonBtnText}>{c.hackathonBtn}</AppText>
-                  </View>
-                  <AppText style={styles.hackathonBtnArrow}>→</AppText>
-                </Pressable>
-              </RNAnimated.View>
             </View>
 
 
@@ -593,72 +506,6 @@ const styles = StyleSheet.create({
   hackathonDividerText: {
     fontSize: 12,
     color: ThemeText.muted,
-  },
-  hackathonButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: Radius.lg,
-    overflow: "hidden",
-    borderWidth: 1.5,
-    borderColor: "rgba(145, 196, 227, 0.65)", // increased contrast/brightness
-    paddingVertical: Space.md,
-    paddingHorizontal: Space.lg,
-    gap: Space.md,
-    shadowColor: "#91C4E3", // pure hack-cyan
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.45, // much higher glow
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  hackathonGlowLeft: {
-    position: "absolute",
-    left: -40,
-    top: -40,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  hackathonGlowBottom: {
-    position: "absolute",
-    bottom: -30,
-    alignSelf: "center",
-    width: "90%",
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(101, 171, 252, 0.12)", // hack-blue
-  },
-  hackathonGlowRight: {
-    position: "absolute",
-    right: -40,
-    top: -40,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  hackathonBtnLogo: {
-    width: 50,
-    height: 50,
-  },
-  hackathonBtnTextWrapper: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  hackathonBtnText: {
-    fontSize: 16,
-    color: "#FFFFFF",
-    fontFamily: "BaiJamjuree_700Bold",
-    letterSpacing: 1, // better tracking for high impact
-    textShadowColor: "rgba(145, 196, 227, 0.8)", // intense glow
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 12,
-  },
-  hackathonBtnArrow: {
-    fontSize: 20, // slightly larger
-    color: "#65ABFC", // hack-blue
-    textShadowColor: "rgba(101, 171, 252, 1)", // max glow
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 15,
-    fontFamily: "BaiJamjuree_700Bold",
   },
   webPage: {
     flex: 1,

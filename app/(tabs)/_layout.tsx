@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Tabs, usePathname } from "expo-router";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useAnimatedStyle,
@@ -188,6 +188,10 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               const label = tabLabels[routeName];
 
               const onPress = () => {
+                if (routeName === "discover" || routeName === "my-paths") {
+                  Alert.alert("Coming Soon", "This feature is coming soon!");
+                  return;
+                }
                 if (!isFocused) {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   navigation.navigate(route.name, route.params);

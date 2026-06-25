@@ -128,6 +128,37 @@ export interface PathDayBundle {
   loadedAt?: number;
 }
 
+export class NetworkError extends Error {
+  isOffline: boolean;
+  originalError: unknown;
+
+  constructor(message: string, originalError: unknown, isOffline = true) {
+    super(message);
+    this.name = "NetworkError";
+    this.isOffline = isOffline;
+    this.originalError = originalError;
+  }
+}
+
+function isNetworkError(error: unknown): boolean {
+  const message = stringifyError(error).toLowerCase();
+  return (
+    message.includes("network request failed") ||
+    message.includes("failed to fetch") ||
+    message.includes("network error") ||
+    message.includes("net::err") ||
+    message.includes("timeout") ||
+    message.includes("etimedout") ||
+    message.includes("econnrefused") ||
+    message.includes("enotfound") ||
+    message.includes("dns") ||
+    message.includes("no internet") ||
+    message.includes("offline") ||
+    message.includes("unable to resolve host") ||
+    message.includes("could not connect")
+  );
+}
+
 const RETRYABLE_STATUS_CODES = ["408", "425", "429", "500", "502", "503", "504", "520", "521", "522", "523", "524", "525", "526"];
 
 function sleep(ms: number) {
@@ -190,6 +221,15 @@ async function withSupabaseRetry<T>(
       return await task();
     } catch (error) {
       lastError = error;
+
+      // Detect network/offline errors and throw NetworkError immediately
+      if (isNetworkError(error)) {
+        throw new NetworkError(
+          toUserFacingPathlabError(error, fallback),
+          error,
+          true
+        );
+      }
 
       if (!isRetryableSupabaseError(error) || attempt === attempts) {
         throw new Error(toUserFacingPathlabError(error, fallback));
@@ -316,7 +356,7 @@ async function loadAvailableSeeds({
   const resolvedUserId = userId ?? sessionUserId;
 
   return withSupabaseRetry(async () => {
-    console.log("[getAvailableSeeds] Starting query...");
+    console.log("[loadAvailableSeeds] Step 1: Starting seeds query...", { resolvedUserId });
 
     const seedSelect = "*, paths(id, seed_id, total_days)";
     type SeedRow = Omit<Seed, "path"> & {
@@ -336,6 +376,7 @@ async function loadAvailableSeeds({
       };
     };
 
+    console.log("[loadAvailableSeeds] Step 2: Executing supabase.from('seeds').select()...");
     const { data: visibleRows, error: visibleError } = await supabase
       .from("seeds")
       .select(seedSelect)
@@ -343,8 +384,15 @@ async function loadAvailableSeeds({
       .in("visibility", ["visible", "featured"])
       .order("created_at", { ascending: false });
 
+    console.log("[loadAvailableSeeds] Step 3: Seeds query returned", {
+      rowCount: visibleRows?.length ?? 0,
+      hasError: !!visibleError,
+      errorCode: (visibleError as any)?.code,
+      errorMessage: (visibleError as any)?.message,
+    });
+
     if (visibleError) {
-      console.error("Error loading seeds:", visibleError);
+      console.error("[loadAvailableSeeds] Error loading seeds:", visibleError);
       throw visibleError;
     }
 
@@ -352,13 +400,13 @@ async function loadAvailableSeeds({
       mapSeedRow(row as Record<string, unknown>)
     );
 
-    console.log("[getAvailableSeeds] Query result:", {
+    console.log("[loadAvailableSeeds] Step 4: Mapped seeds:", {
       count: seeds.length,
       sampleSeed: seeds[0],
     });
 
     if (seeds.length === 0) {
-      console.log("[getAvailableSeeds] No PathLab seeds found in database");
+      console.log("[loadAvailableSeeds] No PathLab seeds found in database");
       return [];
     }
 
@@ -366,13 +414,23 @@ async function loadAvailableSeeds({
       .map((seed) => seed.path?.id)
       .filter((id): id is string => Boolean(id));
 
+    console.log("[loadAvailableSeeds] Step 5: Extracted pathIds:", { pathIdsCount: pathIds.length });
+
     if (resolvedUserId) {
       if (pathIds.length > 0) {
+        console.log("[loadAvailableSeeds] Step 6: Starting enrollments query...", { resolvedUserId, pathIdsCount: pathIds.length });
         const { data: enrollments, error: enrollmentsError } = await supabase
           .from("path_enrollments")
           .select("id, path_id, current_day, status")
           .eq("user_id", resolvedUserId)
           .in("path_id", pathIds);
+
+        console.log("[loadAvailableSeeds] Step 7: Enrollments query returned", {
+          rowCount: enrollments?.length ?? 0,
+          hasError: !!enrollmentsError,
+          errorCode: (enrollmentsError as any)?.code,
+          errorMessage: (enrollmentsError as any)?.message,
+        });
 
         if (enrollmentsError) throw enrollmentsError;
 
@@ -384,8 +442,35 @@ async function loadAvailableSeeds({
       }
     }
 
+    console.log("[loadAvailableSeeds] Step 8: No userId or no pathIds, returning seeds without enrollments");
     return seeds.map(s => ({ ...s, enrollment: null }));
   }, "Unable to load paths");
+}
+
+export async function getAvailableSeedsWithFallback(
+  options: GetAvailableSeedsOptions = {}
+): Promise<{ seeds: SeedWithEnrollment[]; fromCache: boolean }> {
+  const resolvedUserId =
+    options.userId === undefined
+      ? (await supabase.auth.getSession()).data.session?.user?.id ?? null
+      : options.userId;
+
+  try {
+    const seeds = await getAvailableSeeds({ ...options, userId: resolvedUserId });
+    return { seeds, fromCache: false };
+  } catch (error) {
+    console.log("[getAvailableSeedsWithFallback] Fresh fetch failed:", stringifyError(error));
+
+    // Check for cached data
+    const cached = readAvailableSeedsMemoryCache(resolvedUserId);
+    if (cached && cached.length > 0) {
+      console.log("[getAvailableSeedsWithFallback] Returning cached seeds:", cached.length);
+      return { seeds: cached, fromCache: true };
+    }
+
+    // No cache available — re-throw the error
+    throw error;
+  }
 }
 
 export async function getAvailableSeeds(
