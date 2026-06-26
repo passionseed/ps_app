@@ -16,9 +16,12 @@ import { SkiaBackButton } from "../../components/navigation/SkiaBackButton";
 import { useAuth } from "../../lib/auth";
 import {
   getCareerSurvival,
+  getCareerMetrics,
   normalizeCareerSlug,
   type CareerSurvival,
+  type MarketRegion,
 } from "../../lib/careerSurvival";
+import { CareerMetricsCard } from "../../components/CareerMetricsCard";
 import { supabase } from "../../lib/supabase";
 import { PageBg, Text as ThemeText, Radius, Shadow, Space } from "../../lib/theme";
 
@@ -309,6 +312,7 @@ export default function CareerSurvivalScreen() {
   const [survival, setSurvival] = useState<CareerSurvival | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [market, setMarket] = useState<MarketRegion>("th");
 
   const loadData = useCallback(async () => {
     if (!name) return;
@@ -440,6 +444,12 @@ export default function CareerSurvivalScreen() {
           entering={FadeInDown.springify().damping(22).stiffness(180).delay(40)}
         >
           <SurvivalHero data={survival} lang={lang} />
+          <CareerMetricsCard
+            metrics={getCareerMetrics(survival, market)}
+            market={market}
+            onToggleMarket={() => setMarket((m) => (m === "th" ? "global" : "th"))}
+            lang={lang}
+          />
         </Animated.View>
       </ScrollView>
     </View>

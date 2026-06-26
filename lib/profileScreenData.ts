@@ -146,6 +146,17 @@ function mapEventToActivityItem(event: UserEvent): ProfileActivityItem | null {
         detail: asString(event.event_data.job_title),
         created_at: event.created_at,
       };
+    case "radar_reflection_submitted": {
+      const want = event.event_data.want_to_try;
+      const keen = typeof want === "number" && want >= 4;
+      return {
+        id: event.id,
+        icon: keen ? "🔥" : "📡",
+        title: keen ? "Curious about a career path" : "Reflected on a career path",
+        detail: asString(event.event_data.field_slug).replace(/-/g, " "),
+        created_at: event.created_at,
+      };
+    }
     case "onboarding_step_completed":
       return {
         id: event.id,

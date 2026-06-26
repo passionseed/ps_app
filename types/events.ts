@@ -40,6 +40,9 @@ export const EVENT_TYPES = {
   UPLOAD_ATTEMPT: 'upload_attempt',
   UPLOAD_COMPLETE: 'upload_complete',
 
+  // Career Radar
+  RADAR_REFLECTION_SUBMITTED: 'radar_reflection_submitted',
+
   // Passion Identity Profile
   PROFILE_EXPOSED: 'profile_exposed',
   PRIVACY_CHANGED: 'privacy_changed',
@@ -102,6 +105,13 @@ export interface EventDataMap {
     duration_ms: number;
     file_size: number;
     uri_scheme: string;
+  };
+  radar_reflection_submitted: {
+    field_slug: string;
+    chapter_key: string;
+    want_to_try: number | null;
+    tag_count: number;
+    has_text: boolean;
   };
   profile_exposed: { identity_stage: 'seedling' | 'revealed' };
   privacy_changed: { is_public: boolean; sections: string[] };

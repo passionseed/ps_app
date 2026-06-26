@@ -9,7 +9,7 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "APP_NAME_SUFFIX": " (Development)"
+        "APP_VARIANT": "development"
       }
     },
     "simulator": {
@@ -17,7 +17,7 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "APP_NAME_SUFFIX": " (Development)"
+        "APP_VARIANT": "development"
       },
       "ios": {
         "simulator": true
@@ -31,7 +31,7 @@
       },
       "environment": "preview",
       "env": {
-        "APP_NAME_SUFFIX": " (Preview)",
+        "APP_VARIANT": "preview",
         "GOOGLE_SERVICES_JSON": "./google-services.json"
       }
     },
@@ -42,6 +42,7 @@
         "buildType": "apk"
       },
       "env": {
+        "APP_VARIANT": "production",
         "GOOGLE_SERVICES_JSON": "./google-services.json"
       }
     }

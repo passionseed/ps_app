@@ -129,6 +129,16 @@ function toDate(s: string | undefined): string | null {
 const T = (th: string, en: string, lang: Lang) => (lang === "th" ? th : en);
 const CTA_BTN = { th: "เข้าร่วม 7-Day Squad", en: "Join the 7-Day Squad" };
 
+function pathTypeLabel(r: any, lang: Lang): string {
+  const tags = new Set((r.tags ?? []).map((tag: string) => String(tag).toLowerCase()));
+  const growth = fieldGrowth(r);
+  if (tags.has("trending") || growth >= 20) return T("สาย Rising ที่กำลังมา", "Rising path", lang);
+  if (tags.has("ai-proof")) return T("สาย Transforming ในยุค AI", "Transforming path", lang);
+  if (tags.has("creative")) return T("สาย Mainstream ที่ยังมีช่องว่าง", "Mainstream path", lang);
+  if (tags.has("global")) return T("สาย Emerging ที่เปิดสู่โลก", "Emerging path", lang);
+  return T("สาย Underrated ที่น่าจับตา", "Underrated path", lang);
+}
+
 // Link a radar field to an existing PathLab seed (matched by seed title).
 // Edit here to point a field at its deep-dive PathLab. null = no pathlab.
 const PATHLAB_LINKS: Record<string, string> = {
@@ -148,6 +158,9 @@ interface CardOut {
   kind: string;
   content_th: any;
   content_en: any;
+  image_url?: string | null;
+  image_license?: string | null;
+  image_credit?: string | null;
 }
 
 type GrowthCmp = { self: number; others: { name_th: string; name_en: string; growth: number }[] };
@@ -170,7 +183,7 @@ function buildCards(r: any, growth?: GrowthCmp): CardOut[] {
   // 0 hook
   const topJob = r.jobs?.[0];
   push("hook", (lang) => ({
-    eyebrow: T("เส้นทางที่คนมองข้าม", "Underrated path", lang),
+    eyebrow: pathTypeLabel(r, lang),
     title: L(r.name, lang),
     body: L(r.summary ?? r.tagline, lang),
     ...(topJob?.salary_thb_month && {
@@ -311,7 +324,7 @@ function buildCards(r: any, growth?: GrowthCmp): CardOut[] {
   if (r.entry_routes?.length)
     push("entryRoutes", (lang) => ({
       eyebrow: T("เข้าสายนี้ยังไง", "How to get in", lang),
-      title: T("เลือกทางที่ใช่เธอ", "Pick your way in", lang),
+      title: T("เลือกทางที่เหมาะ", "Pick the path that fits", lang),
       routes: r.entry_routes.map((rt: any) => {
         const a = ROUTE_ARCHETYPE[routeArchetype(rt)];
         return {
@@ -338,7 +351,7 @@ function buildCards(r: any, growth?: GrowthCmp): CardOut[] {
   if (r.real_people?.length) {
     const srcOf = (ref: number) => (r.sources ?? []).find((s: any) => s.ref === ref);
     push("realPeople", (lang) => ({
-      eyebrow: T("คนจริงในสายนี้", "Real people", lang),
+      eyebrow: T("รุ่นพี่ที่เดินทางนี้จริง", "Real people in this path", lang),
       title: T("เขาเริ่มยังไง", "How they started", lang),
       people: r.real_people.map((p: any) => {
         const s = srcOf(p.source_ref);

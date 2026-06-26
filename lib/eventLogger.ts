@@ -22,7 +22,7 @@ const SESSION_TS_KEY = 'ps_session_timestamp';
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /** Postgrest errors sometimes omit message; avoid logging `{}`. */
-function formatSupabaseError(error: unknown): string {
+export function formatSupabaseError(error: unknown): string {
   if (error == null) return 'unknown error';
   if (typeof error === 'object') {
     const e = error as {
@@ -47,7 +47,7 @@ function formatSupabaseError(error: unknown): string {
  * Get or create a session ID with 24-hour expiry.
  * Uses MMKV for React Native storage.
  */
-async function getSessionId(): Promise<string> {
+export async function getSessionId(): Promise<string> {
   try {
     const [stored, ts] = await Promise.all([
       getItem(SESSION_KEY),

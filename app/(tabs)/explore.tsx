@@ -12,7 +12,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { AppText } from "../../components/AppText";
 import {
-  RADAR_FIELD_LIST,
   COLLECTIONS,
   fetchRadarFields,
   type RadarField,
@@ -32,8 +31,7 @@ export default function ExploreScreen() {
   const { appLanguage } = useAuth();
   const lang = appLanguage === "th" ? "th" : "en";
   const [collection, setCollection] = useState("all");
-  // Start with hardcoded fallback for instant render; replace with DB content.
-  const [fields, setFields] = useState<RadarField[]>(RADAR_FIELD_LIST);
+  const [fields, setFields] = useState<RadarField[] | null>(null);
 
   const tileWidth = (width - H_PAD * 2 - GAP) / 2;
 
@@ -48,6 +46,7 @@ export default function ExploreScreen() {
   }, [lang]);
 
   const filtered = useMemo(() => {
+    if (!fields) return [];
     if (collection === "all") return fields;
     return fields.filter((f) => f.tags.includes(collection));
   }, [collection, fields]);
@@ -113,21 +112,53 @@ export default function ExploreScreen() {
         </ScrollView>
 
         {/* masonry */}
-        <View style={styles.masonry}>
-          {columns.map((col, ci) => (
-            <View key={ci} style={{ width: tileWidth, gap: GAP }}>
-              {col.map((f) => (
-                <Tile
-                  key={f.slug}
-                  field={f}
-                  height={SIZE_H[f.size]}
-                  onPress={() => onOpen(f)}
-                />
-              ))}
+        {fields ? (
+          <View style={styles.masonry}>
+            {columns.map((col, ci) => (
+              <View key={ci} style={{ width: tileWidth, gap: GAP }}>
+                {col.map((f) => (
+                  <Tile
+                    key={f.slug}
+                    field={f}
+                    height={SIZE_H[f.size]}
+                    onPress={() => onOpen(f)}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <SkeletonMasonry tileWidth={tileWidth} />
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+function SkeletonMasonry({ tileWidth }: { tileWidth: number }) {
+  const heights: TileSize[][] = [
+    ["lg", "sm", "md"],
+    ["md", "lg", "sm"],
+  ];
+
+  return (
+    <View style={styles.masonry}>
+      {heights.map((col, ci) => (
+        <View key={ci} style={{ width: tileWidth, gap: GAP }}>
+          {col.map((size, i) => (
+            <View key={`${size}-${i}`} style={[styles.skeletonTile, { height: SIZE_H[size] }]}>
+              <View style={styles.skeletonTopRow}>
+                <View style={styles.skeletonCircle} />
+                <View style={styles.skeletonPill} />
+              </View>
+              <View style={styles.skeletonTextGroup}>
+                <View style={[styles.skeletonLine, { width: "74%" }]} />
+                <View style={[styles.skeletonLine, { width: "56%" }]} />
+              </View>
             </View>
           ))}
         </View>
-      </ScrollView>
+      ))}
     </View>
   );
 }
@@ -149,7 +180,7 @@ function Tile({
         { height, backgroundColor: field.color, opacity: pressed ? 0.85 : 1 },
       ]}
     >
-      {field.heroImage && (
+      {false && field.heroImage && (
         <>
           <Image
             source={{ uri: field.heroImage }}
@@ -215,6 +246,7 @@ const styles = StyleSheet.create({
   },
   tile: {
     borderRadius: 22,
+    overflow: "hidden",
     padding: 16,
     justifyContent: "space-between",
   },
@@ -249,5 +281,36 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "rgba(255,255,255,0.85)",
     lineHeight: 19,
+  },
+  skeletonTile: {
+    borderRadius: 22,
+    padding: 16,
+    justifyContent: "space-between",
+    backgroundColor: "#EEF1F5",
+    borderWidth: 1,
+    borderColor: "#E3E7EE",
+  },
+  skeletonTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  skeletonCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#DDE3EC",
+  },
+  skeletonPill: {
+    width: 58,
+    height: 18,
+    borderRadius: 999,
+    backgroundColor: "#DDE3EC",
+  },
+  skeletonTextGroup: { gap: 8 },
+  skeletonLine: {
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#DDE3EC",
   },
 });
