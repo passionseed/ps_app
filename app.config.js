@@ -141,11 +141,46 @@ const sentryPlugin = [
   },
 ];
 
+const appVariants = {
+  development: {
+    nameSuffix: " (Development)",
+    nativeIdSuffix: ".dev",
+    schemeSuffix: "-dev",
+  },
+  preview: {
+    nameSuffix: " (Preview)",
+    nativeIdSuffix: ".preview",
+    schemeSuffix: "-preview",
+  },
+  production: {
+    nameSuffix: "",
+    nativeIdSuffix: "",
+    schemeSuffix: "",
+  },
+};
+
+const getAppVariant = () => {
+  const requestedVariant =
+    process.env.APP_VARIANT || process.env.EAS_BUILD_PROFILE || "production";
+
+  if (requestedVariant === "simulator") {
+    return appVariants.development;
+  }
+
+  return appVariants[requestedVariant] || appVariants.production;
+};
+
+const appVariant = getAppVariant();
+const baseNativeId = "com.passionseed.app";
+const baseScheme = "passion-seed";
+const nativeId = `${baseNativeId}${appVariant.nativeIdSuffix}`;
+const urlScheme = `${baseScheme}${appVariant.schemeSuffix}`;
+
 module.exports = {
   expo: {
     owner: "passionseed",
-    name: `Passion Seed${process.env.APP_NAME_SUFFIX || ""}`,
-    scheme: "passion-seed",
+    name: `Passion Seed${appVariant.nameSuffix}`,
+    scheme: urlScheme,
     slug: "passion-seed",
     version: "1.3.1",
     orientation: "portrait",
@@ -160,7 +195,7 @@ module.exports = {
       supportsTablet: true,
       usesAppleSignIn: true,
       icon: "./assets/pseed-app.icon",
-      bundleIdentifier: "com.passionseed.app",
+      bundleIdentifier: nativeId,
       associatedDomains: [
         `applinks:${process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || "app.passionseed.io"}`,
         `webcredentials:${process.env.EXPO_PUBLIC_CLOUDFLARE_DOMAIN || "app.passionseed.io"}`,
@@ -177,7 +212,7 @@ module.exports = {
       },
     },
     android: {
-      package: "com.passionseed.app",
+      package: nativeId,
       adaptiveIcon: {
         foregroundImage: "./assets/passionseed-logo-1024.png",
         monochromeImage: "./assets/passionseed-logo-monochrome.png",
