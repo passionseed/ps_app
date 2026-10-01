@@ -100,10 +100,12 @@ export function isAppleAccountSetupError(error: unknown): boolean {
     return true;
   }
 
-  return (
-    code === "ERR_REQUEST_UNKNOWN" &&
-    message.includes("authorization attempt failed for an unknown reason")
-  );
+  // Simulator / missing Apple ID commonly returns this opaque ASAuthorization error.
+  if (message.includes("authorization attempt failed for an unknown reason")) {
+    return true;
+  }
+
+  return code === "ERR_REQUEST_UNKNOWN" && message.includes("authorization");
 }
 
 type AuthContext = {
@@ -499,17 +501,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
+      // Present the system sheet first. Callers must avoid React state updates
+      // that remount AppleAuthenticationButton before this resolves — that
+      // freezes ASAuthorizationController (common on Simulator).
+      console.log("[Auth] Presenting Sign in with Apple sheet…");
+      const credential = await Promise.race([
+        AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        }),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(
+              new Error(
+                "Sign in with Apple timed out. On the iOS Simulator this often hangs after password — use a physical iPhone/iPad to test."
+              )
+            );
+          }, 45_000);
+        }),
+      ]);
 
       if (!credential.identityToken) {
         throw new Error("No identityToken returned from Apple.");
       }
 
+      console.log("[Auth] Apple credential received, exchanging with Supabase…");
       const { error } = await supabase.auth.signInWithIdToken({
         provider: "apple",
         token: credential.identityToken,
@@ -537,9 +555,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: unknown) {
       if (isAuthCancellationError(error)) {
+        console.log("[Auth] Sign in with Apple cancelled by user");
         return;
       }
 
+      if (isAppleAccountSetupError(error)) {
+        console.warn("[Auth] Sign in with Apple setup/simulator error:", getErrorMessage(error));
+        throw error;
+      }
+
+      console.error("[Auth] Sign in with Apple failed:", error);
       throw error;
     }
   };

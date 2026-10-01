@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -10,9 +10,10 @@ import {
   Animated as RNAnimated,
   Dimensions,
   Pressable,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import * as Haptics from "expo-haptics";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -32,7 +33,18 @@ import {
   Space,
 } from "../lib/theme";
 
-const { width, height } = Dimensions.get("window");
+// Native Apple button — required for reliable Sign in with Apple on device/iPad.
+let AppleAuthentication: typeof import("expo-apple-authentication") | null =
+  null;
+if (Platform.OS === "ios") {
+  try {
+    AppleAuthentication = require("expo-apple-authentication");
+  } catch {
+    AppleAuthentication = null;
+  }
+}
+
+const { height } = Dimensions.get("window");
 
 const waitForAlertDismissal = async () => {
   if (Platform.OS !== "ios") return;
@@ -85,6 +97,8 @@ export default function LandingPage() {
   const [signingInProvider, setSigningInProvider] = useState<
     "google" | "apple" | null
   >(null);
+  const appleSignInInFlight = useRef(false);
+  const appleLoadingOpacity = useState(new RNAnimated.Value(0))[0];
   const [isEntering, setIsEntering] = useState(false);
   const lang = guestLanguage;
   const c = COPY[lang];
@@ -131,13 +145,19 @@ export default function LandingPage() {
   }, []);
 
   const handleSignIn = async (provider: "google" | "apple") => {
-    if (signingInProvider !== null || authLoading) return;
+    // Do not gate Apple on authLoading — a stuck loading flag looks like a
+    // dead button to App Review ("no action took place").
+    if (signingInProvider !== null || appleSignInInFlight.current) return;
+    if (provider === "google" && authLoading) return;
 
-    setSigningInProvider(provider);
     try {
       if (provider === "google") {
+        setSigningInProvider("google");
         await signInWithGoogle();
       } else {
+        // Show progress without a React re-render that could disturb the native sheet.
+        appleSignInInFlight.current = true;
+        appleLoadingOpacity.setValue(1);
         await signInWithApple();
       }
     } catch (e) {
@@ -147,17 +167,20 @@ export default function LandingPage() {
 
       if (provider === "apple" && isAppleAccountSetupError(e)) {
         Alert.alert(
-          "Apple ID Required",
-          "Please sign in to your Apple ID in iOS Settings before using Sign in with Apple.",
+          "Sign in with Apple unavailable",
+          "On the iOS Simulator this often fails unless an Apple ID is signed in under Settings → Apple ID.\n\nFor a reliable test (and App Review), use a physical iPhone or iPad.",
           [
             { text: "Close", style: "cancel" },
             {
-              text: "Settings",
+              text: "Open Settings",
               onPress: async () => {
                 try {
                   await openSystemSettings();
                 } catch {
-                  Alert.alert("Unable to Open Settings", "Please open your device Settings app manually to manage permissions.");
+                  Alert.alert(
+                    "Unable to Open Settings",
+                    "Open the Simulator Settings app and sign in with an Apple ID.",
+                  );
                 }
               },
             },
@@ -170,16 +193,21 @@ export default function LandingPage() {
       Alert.alert(
         provider === "apple" ? "Sign in with Apple failed" : "Sign in failed",
         message || "Something went wrong. Please try again.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
       console.error("Sign in error:", e);
     } finally {
-      setSigningInProvider(null);
+      if (provider === "apple") {
+        appleSignInInFlight.current = false;
+        appleLoadingOpacity.setValue(0);
+      } else {
+        setSigningInProvider(null);
+      }
     }
   };
 
   const handleEnterAsGuest = useCallback(() => {
-    if (isEntering) return;
+    if (isEntering || appleSignInInFlight.current) return;
     setIsEntering(true);
 
     // Simple fade transition
@@ -230,6 +258,14 @@ export default function LandingPage() {
     );
   }
 
+  const nativeAppleAuth =
+    Platform.OS === "ios" &&
+    AppleAuthentication?.AppleAuthenticationButton != null &&
+    AppleAuthentication?.AppleAuthenticationButtonType != null &&
+    AppleAuthentication?.AppleAuthenticationButtonStyle != null
+      ? AppleAuthentication
+      : null;
+
   return (
     <View style={styles.page}>
       <StatusBar style="dark" />
@@ -237,6 +273,7 @@ export default function LandingPage() {
       {/* Animated background with soft gradients */}
       <RNAnimated.View
         style={[styles.backgroundContainer, backgroundAnimatedStyle]}
+        pointerEvents="none"
       >
         <LinearGradient
           colors={["#F3F4F6", "#E5E7EB", "#F3F4F6"]}
@@ -246,7 +283,12 @@ export default function LandingPage() {
         />
       </RNAnimated.View>
 
-      <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
         <RNAnimated.View style={[styles.contentWrapper, cardAnimatedStyle]}>
           {/* Logo */}
           <View style={styles.logoContainer}>
@@ -325,45 +367,66 @@ export default function LandingPage() {
                 variant="primary"
                 size="large"
                 fullWidth
-                loading={signingInProvider === "google" || authLoading}
-                disabled={signingInProvider !== null || authLoading}
+                loading={signingInProvider === "google"}
+                disabled={signingInProvider !== null}
                 icon={<FontAwesome name="google" size={20} color="#111" />}
               >
                 {c.googleBtn}
               </GlassButton>
 
-              {Platform.OS === "ios" && (
+              {nativeAppleAuth ? (
+                <View style={styles.appleButtonWrap}>
+                  <nativeAppleAuth.AppleAuthenticationButton
+                    buttonType={
+                      nativeAppleAuth.AppleAuthenticationButtonType.SIGN_IN
+                    }
+                    buttonStyle={
+                      nativeAppleAuth.AppleAuthenticationButtonStyle.WHITE_OUTLINE
+                    }
+                    cornerRadius={Radius.full}
+                    style={styles.appleNativeButton}
+                    onPress={() => {
+                      void handleSignIn("apple");
+                    }}
+                  />
+                  <RNAnimated.View
+                    pointerEvents="none"
+                    style={[styles.appleLoadingIndicator, { opacity: appleLoadingOpacity }]}
+                  >
+                    <ActivityIndicator size="small" color={ThemeText.primary} />
+                  </RNAnimated.View>
+                </View>
+              ) : Platform.OS === "ios" ? (
                 <GlassButton
                   onPress={() => handleSignIn("apple")}
                   variant="secondary"
                   size="large"
                   fullWidth
                   loading={signingInProvider === "apple"}
-                  disabled={signingInProvider !== null || authLoading}
+                  disabled={signingInProvider !== null}
                   icon={<FontAwesome name="apple" size={22} color="#111" />}
                 >
                   {c.appleBtn}
                 </GlassButton>
-              )}
+              ) : null}
 
               <GlassButton
                 onPress={handleEnterAsGuest}
                 variant="ghost"
                 size="medium"
                 fullWidth
-                disabled={isEntering}
+                disabled={isEntering || signingInProvider !== null}
               >
                 {c.guestBtn}
               </GlassButton>
             </View>
-
-
           </GlassCard>
         </RNAnimated.View>
-      </View>
+      </ScrollView>
 
-      {/* Cinematic Water Transition Overlay */}
+      {/* Cinematic Water Transition Overlay — never intercept taps while parked off-screen */}
       <RNAnimated.View
+        pointerEvents="none"
         style={[
           StyleSheet.absoluteFill,
           {
@@ -404,11 +467,28 @@ const styles = StyleSheet.create({
     bottom: -100,
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: Space["2xl"],
     paddingTop: Space["5xl"] + 96,
+    paddingBottom: Space["3xl"],
+  },
+  appleButtonWrap: {
+    width: "100%",
+    height: 56,
+    position: "relative",
+  },
+  appleNativeButton: {
+    width: "100%",
+    height: 56,
+  },
+  appleLoadingIndicator: {
+    position: "absolute",
+    top: 0,
+    right: 16,
+    bottom: 0,
+    justifyContent: "center",
   },
   contentWrapper: {
     width: "100%",

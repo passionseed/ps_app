@@ -52,6 +52,13 @@ PRINCIPLES
 4. Honest. Include downsides and who this path is NOT for.
 5. Bilingual. Every student-facing string has `th` and `en`. Thai must read naturally
    for a teenager, not stiff translation.
+5b. Money de-heroed. This profile is the "what the world needs + what it pays" leg of a
+   bigger compass — not a salary flyer. Never let a big number stand alone: every salary
+   must carry what it TAKES to earn it (experience + skill bar). A 15-year-old must not read
+   "100k+/mo" and think it's a fresh-grad number.
+5c. Trajectory over snapshot. Jobs/salary/day-in-life are today's photo and they decay.
+   The durable thing is judgment/framing/decisions, NOT tool mastery (tools churn). Where it
+   matters, note where the role is heading — AI is the main force bending the curve.
 6. Image direction. Hero + each major section gets an `image_prompt`; add `image_source`
    (url + license) only when a strong real/licensed image exists.
 
@@ -61,8 +68,17 @@ SOURCING
 - Salary & demand sources must be <= 24 months old; record the date.
 - Per job: openings = rough # of live listings (e.g. "120+ ตำแหน่งเปิดรับ"), growth_pct =
   YoY demand growth as a number (e.g. 18), listing_source = where counted (JobsDB/LinkedIn).
-  All three need source_refs. salary_progression levels: note = what the band is made of
-  (e.g. "ฐานเงินเดือน + โบนัส") + per-level source_refs.
+  All three need source_refs. salary_progression levels: note = what it TAKES to reach this
+  level (concrete skill + experience bar — "ต้องเคยทำ X / คุม Y ได้") AND the durable skill
+  underneath that survives the AI shift (judgment/framing/deciding, not a tool) — NOT just
+  income structure. + per-level source_refs.
+- ai_impact.verdict must name how the role is shifting (what it was -> is -> is becoming) and
+  the durable human skill that survives, not just "it's AI-proof".
+- real_people: real, CITED practitioners (prefer relatable mid-career people over famous
+  execs). Capture their TRAJECTORY: path = started -> pivots -> now (each a short label, with
+  year if known); now_doing = what they do day-to-day + with whom; where_heading = where they
+  think the role is going; advice = one thing they wish they'd known. Include `salary` ONLY if
+  the cited source actually discloses it — NEVER invent a salary, quote, or detail.
 - Per job listings[] = 1-3 EXACT real postings (company + exact title + url + source like
   JobsDB/LinkedIn/JobThai). Real openings only — never invent a company or url. Omit if none found.
 - salary_global = same role's pay abroad in USD/month equivalent (currency:"USD"), so Thai
@@ -94,7 +110,7 @@ Return ONLY the JSON object, no surrounding prose, matching this shape (keys exa
   "entry_routes":[{{"route":{{"th","en"}},"cost","time","archetype"}}],
   "risks":[{{"th","en"}}],
   "not_for_you_if":[{{"th","en"}}],
-  "real_people":[{{"role","background":{{"th","en"}},"source_ref"}}],
+  "real_people":[{{"name","role","background":{{"th","en"}},"path":[{{"year","label":{{"th","en"}}}}],"now_doing":{{"th","en"}},"where_heading":{{"th","en"}},"advice":{{"th","en"}},"salary","source_ref"}}],
   "sources":[{{"ref","title","publisher","url","published_at","tier","quote":{{"th","en"}}}}]
 }}
 GATES: risks>=3, not_for_you_if>=2, sources 8-15, color is a dark hex, every salary/demand

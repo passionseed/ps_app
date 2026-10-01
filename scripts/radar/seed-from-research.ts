@@ -180,15 +180,22 @@ function buildCards(r: any, growth?: GrowthCmp): CardOut[] {
       image_credit: imgSource?.credit || null,
     });
 
-  // 0 hook
+  // 0 hook — anchor the salary so a big number never reads as a fresh-grad number.
+  // Prefer the full career ladder (entry-min → senior-max) over the top job's pay,
+  // and label it as a span across experience (editorial spine: money de-heroed).
   const topJob = r.jobs?.[0];
+  const ladder = r.salary_progression?.levels;
+  const hookPay =
+    ladder?.length && ladder[0]?.thb_month && ladder[ladder.length - 1]?.thb_month
+      ? { min: ladder[0].thb_month.min, max: ladder[ladder.length - 1].thb_month.max }
+      : topJob?.salary_thb_month;
   push("hook", (lang) => ({
     eyebrow: pathTypeLabel(r, lang),
     title: L(r.name, lang),
     body: L(r.summary ?? r.tagline, lang),
-    ...(topJob?.salary_thb_month && {
-      stat: `${k(topJob.salary_thb_month.min)}–${k(topJob.salary_thb_month.max)}+`,
-      statLabel: T("บาท/เดือน", "THB/mo", lang),
+    ...(hookPay && {
+      stat: `${k(hookPay.min)}–${k(hookPay.max)}`,
+      statLabel: T("บาท/เดือน · เริ่มต้น→ระดับสูง", "THB/mo · entry→senior", lang),
     }),
   }), r.hero_image?.image_source);
 
@@ -356,8 +363,18 @@ function buildCards(r: any, growth?: GrowthCmp): CardOut[] {
       people: r.real_people.map((p: any) => {
         const s = srcOf(p.source_ref);
         return {
-          role: p.role,
+          name: asText(p.name, lang) || undefined,
+          role: typeof p.role === "object" ? L(p.role, lang) : p.role,
           background: L(p.background, lang),
+          // trajectory: started → pivots → now (the story IS the shift)
+          path: Array.isArray(p.path)
+            ? p.path.map((step: any) => ({ year: step.year ?? "", label: L(step.label, lang) }))
+            : undefined,
+          nowDoing: L(p.now_doing, lang) || undefined,
+          whereHeading: L(p.where_heading, lang) || undefined,
+          advice: L(p.advice, lang) || undefined,
+          // salary only if the person actually disclosed it — never fabricated
+          salary: asText(p.salary, lang) || undefined,
           source_ref: p.source_ref,
           url: s?.url ?? "",
           publisher: s?.publisher ?? "",
@@ -409,6 +426,17 @@ function validate(r: any) {
   const n = r.sources?.length ?? 0;
   if (n < 8 || n > 15) warn(`sources = ${n} (want 8–15)`);
   if (!/^#[0-9a-fA-F]{6}$/.test(r.color ?? "")) warn(`color not a hex: ${r.color}`);
+
+  // HARD GATE: never push mangled text to prod. Mojibake (Thai UTF-8 decoded as
+  // Latin-1/CP1252 — "à¸"/"à¹") or lossy replacement chars (U+FFFD) mean the JSON
+  // was saved through a wrong-encoding step. Block it — the data is unrecoverable.
+  const blob = JSON.stringify(r);
+  if (/Ã |à¸|à¹|�/.test(blob)) {
+    throw new Error(
+      "encoding corruption detected (mojibake or U+FFFD). The research JSON was " +
+        "saved through a non-UTF-8 step. Re-export it as UTF-8; do not seed this file.",
+    );
+  }
 }
 
 async function main() {

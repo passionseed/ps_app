@@ -316,13 +316,86 @@ function rowToField(row: any, lang: RadarLang): RadarField {
 }
 
 function rowToCard(row: any, lang: RadarLang): RadarCard {
-  const content = (lang === "en" ? row.content_en : null) ?? row.content_th;
-  const localized = localizeValue(content, lang);
+  const primary = (lang === "en" ? row.content_en : null) ?? row.content_th;
+  const fallback = row.content_th;
+  const localized = localizeValue(primary, lang);
+  const fallbackLocalized =
+    fallback && fallback !== primary ? localizeValue(fallback, lang) : null;
+
+  const merged =
+    localized && typeof localized === "object"
+      ? {
+          ...(fallbackLocalized && typeof fallbackLocalized === "object"
+            ? fallbackLocalized
+            : {}),
+          ...localized,
+        }
+      : localized;
+
+  // Older / partial rows sometimes use snake_case or omit array bodies.
+  const normalized = normalizeCardContent(row.kind, merged);
+
   return {
     kind: row.kind,
-    ...(localized && typeof localized === "object" ? localized : {}),
+    ...(normalized && typeof normalized === "object" ? normalized : {}),
     image: row.image_url ?? undefined,
   } as RadarCard;
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeCardContent(kind: string, content: any): any {
+  if (!content || typeof content !== "object") return content;
+
+  switch (kind) {
+    case "entryRoutes":
+      return {
+        ...content,
+        routes: asArray(content.routes ?? content.entry_routes),
+      };
+    case "dayInLife":
+      return {
+        ...content,
+        steps: asArray(content.steps ?? content.day_in_life?.steps),
+      };
+    case "risks":
+      return {
+        ...content,
+        risks: asArray(content.risks),
+        notForYou: asArray(content.notForYou ?? content.not_for_you),
+      };
+    case "realPeople":
+      return {
+        ...content,
+        people: asArray(content.people ?? content.real_people),
+      };
+    case "jobs":
+      return { ...content, jobs: asArray(content.jobs) };
+    case "list":
+    case "sources":
+    case "growthCompare":
+      return { ...content, items: asArray(content.items) };
+    case "salaryProgression":
+      return { ...content, levels: asArray(content.levels) };
+    case "aiImpact":
+      return {
+        ...content,
+        augmented: asArray(content.augmented),
+        automated: asArray(content.automated),
+      };
+    case "marketThailand":
+      return {
+        ...content,
+        companies: asArray(content.companies),
+        openings: content.openings ?? "",
+      };
+    case "reflection":
+      return { ...content, chips: asArray(content.chips) };
+    default:
+      return content;
+  }
 }
 
 // Feed tiles. Falls back to the hardcoded list on any error/empty.

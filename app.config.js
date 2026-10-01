@@ -182,7 +182,7 @@ module.exports = {
     name: `Passion Seed${appVariant.nameSuffix}`,
     scheme: urlScheme,
     slug: "passion-seed",
-    version: "1.3.1",
+    version: "1.3.2",
     orientation: "portrait",
     icon: "./assets/passionseed-logo-1024.png",
     userInterfaceStyle: "light",
@@ -202,7 +202,6 @@ module.exports = {
       ],
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
-        UIBackgroundModes: [],
         NSPhotoLibraryUsageDescription:
           "Passion Seed uses your photo library so you can choose and upload images for your profile, team avatar, and submissions.",
         NSPhotoLibraryAddUsageDescription:
@@ -220,12 +219,6 @@ module.exports = {
       },
       icon: "./assets/passionseed-logo-1024.png",
       predictiveBackGestureEnabled: false,
-      permissions: [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-      ],
       googleServicesFile:
         process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
       intentFilters: [
@@ -274,7 +267,18 @@ module.exports = {
           experimentalLauncherActivity: false,
         },
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          // Short in-app SFX only — do not declare UIBackgroundModes audio
+          // (App Store Guideline 2.5.4). Default enableBackgroundPlayback=true
+          // would re-add the audio background mode on every prebuild.
+          enableBackgroundPlayback: false,
+          enableBackgroundRecording: false,
+          recordAudioAndroid: false,
+          microphonePermission: false,
+        },
+      ],
       "expo-image",
       "expo-sharing",
       "expo-asset",

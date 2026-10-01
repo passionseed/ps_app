@@ -80,14 +80,14 @@ function getCardSourceRefs(card: RadarCard): number[] {
   if (card.kind === "jobs") {
     return uniqueRefs([
       ...rootRefs,
-      ...card.jobs.flatMap((job) => (Array.isArray(job.source_refs) ? job.source_refs : [])),
+      ...(card.jobs ?? []).flatMap((job) => (Array.isArray(job.source_refs) ? job.source_refs : [])),
     ]);
   }
 
   if (card.kind === "salaryProgression") {
     return uniqueRefs([
       ...rootRefs,
-      ...card.levels.flatMap((level) =>
+      ...(card.levels ?? []).flatMap((level) =>
         Array.isArray(level.source_refs) ? level.source_refs : [],
       ),
     ]);
@@ -96,7 +96,7 @@ function getCardSourceRefs(card: RadarCard): number[] {
   if (card.kind === "realPeople") {
     return uniqueRefs([
       ...rootRefs,
-      ...card.people.map((person) => person.source_ref),
+      ...(card.people ?? []).map((person) => person.source_ref),
     ]);
   }
 
@@ -532,7 +532,7 @@ function ReflectionCard({
 
       {!!card.chips?.length && (
         <View style={styles.chipWrap}>
-          {card.chips.map((c) => {
+          {(card.chips ?? []).map((c) => {
             const on = tags.includes(c);
             return (
               <Pressable
@@ -698,7 +698,7 @@ function CardBody({
 
       {card.kind === "jobs" && (
         <View style={{ gap: 14, marginTop: 8 }}>
-          {card.jobs.map((j, i) => (
+          {(card.jobs ?? []).map((j, i) => (
             <View key={i} style={styles.jobCard}>
               <AppText style={[styles.jobTitle, { color: fg }]}>{j.title}</AppText>
               {/* 🇹🇭 Thai vs 🌏 global pay side by side */}
@@ -796,7 +796,7 @@ function CardBody({
 
       {card.kind === "list" && (
         <View style={{ gap: 14, marginTop: 8 }}>
-          {card.items.map((item, i) => (
+          {(card.items ?? []).map((item, i) => (
             <View key={i} style={styles.listRow}>
               <AppText style={[styles.listNum, { color: accent }]}>
                 {i + 1}
@@ -809,7 +809,7 @@ function CardBody({
 
       {card.kind === "salaryProgression" && (
         <View style={{ gap: 12, marginTop: 8 }}>
-          {card.levels.map((lv, i) => (
+          {(card.levels ?? []).map((lv, i) => (
             <View key={i} style={styles.salaryCard}>
               <View style={styles.jobRow}>
                 <View style={{ flex: 1 }}>
@@ -835,10 +835,11 @@ function CardBody({
       )}
 
       {card.kind === "growthCompare" && (() => {
-        const max = Math.max(...card.items.map((x) => x.growth), 1);
+        const items = card.items ?? [];
+        const max = Math.max(...items.map((x) => x.growth), 1);
         return (
           <View style={{ gap: 14, marginTop: 8 }}>
-            {card.items.map((x, i) => (
+            {items.map((x, i) => (
               <View key={i} style={{ gap: 6 }}>
                 <View style={styles.growthHead}>
                   <AppText
@@ -878,13 +879,13 @@ function CardBody({
         <View style={{ gap: 14, marginTop: 8 }}>
           <View style={[styles.frBox, { borderColor: accent }]}>
             <AppText style={[styles.frLabel, { color: accent }]}>AI ช่วยให้เก่งขึ้น</AppText>
-            {card.augmented.map((x, i) => (
+            {(card.augmented ?? []).map((x, i) => (
               <AppText key={i} style={[styles.frText, { color: fg }]}>• {x}</AppText>
             ))}
           </View>
           <View style={[styles.frBox, { borderColor: "rgba(255,255,255,0.25)" }]}>
             <AppText style={[styles.frLabel, { color: "rgba(255,255,255,0.6)" }]}>AI แทนที่</AppText>
-            {card.automated.map((x, i) => (
+            {(card.automated ?? []).map((x, i) => (
               <AppText key={i} style={[styles.frText, { color: fg }]}>• {x}</AppText>
             ))}
           </View>
@@ -914,7 +915,7 @@ function CardBody({
 
       {card.kind === "dayInLife" && (
         <View style={{ gap: 14, marginTop: 8 }}>
-          {card.steps.map((s, i) => (
+          {(card.steps ?? []).map((s, i) => (
             <View key={i} style={styles.listRow}>
               <AppText style={[styles.timeTag, { color: accent }]}>{s.time}</AppText>
               <AppText style={[styles.listText, { color: fg }]}>{s.label}</AppText>
@@ -925,7 +926,7 @@ function CardBody({
 
       {card.kind === "entryRoutes" && (
         <View style={{ gap: 14, marginTop: 8 }}>
-          {card.routes.map((rt, i) => (
+          {(card.routes ?? []).map((rt, i) => (
             <View key={i} style={[styles.routeCard, { borderColor: "rgba(255,255,255,0.22)" }]}>
               {/* archetype header: icon + Gen Z tag → instant hierarchy */}
               <View style={styles.routeHead}>
@@ -965,15 +966,15 @@ function CardBody({
 
       {card.kind === "risks" && (
         <View style={{ gap: 14, marginTop: 8 }}>
-          {card.risks.map((x, i) => (
+          {(card.risks ?? []).map((x, i) => (
             <AppText key={`r${i}`} style={[styles.frText, { color: fg }]}>⚠️ {x}</AppText>
           ))}
-          {card.notForYou.length > 0 && (
+          {(card.notForYou ?? []).length > 0 && (
             <View style={[styles.frBox, { borderColor: "rgba(255,255,255,0.25)", marginTop: 4 }]}>
               <AppText style={[styles.frLabel, { color: "rgba(255,255,255,0.6)" }]}>
                 อาจไม่เหมาะ ถ้า
               </AppText>
-              {card.notForYou.map((x, i) => (
+              {(card.notForYou ?? []).map((x, i) => (
                 <AppText key={`n${i}`} style={[styles.frText, { color: fg }]}>• {x}</AppText>
               ))}
             </View>
@@ -983,7 +984,7 @@ function CardBody({
 
       {card.kind === "realPeople" && (
         <View style={{ gap: 14, marginTop: 8 }}>
-          {card.people.map((p, i) => (
+          {(card.people ?? []).map((p, i) => (
             <Pressable
               key={i}
               disabled={!p.url}
@@ -1004,7 +1005,7 @@ function CardBody({
 
       {card.kind === "sources" && (
         <View style={{ gap: 10, marginTop: 8 }}>
-          {card.items.map((s) => (
+          {(card.items ?? []).map((s) => (
             <Pressable
               key={s.ref}
               onPress={() => s.url && Linking.openURL(s.url).catch(() => {})}
