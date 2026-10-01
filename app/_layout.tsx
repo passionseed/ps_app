@@ -263,6 +263,7 @@ function RootLayout() {
   } = require("@expo-google-fonts/reenie-beanie") as typeof import("@expo-google-fonts/reenie-beanie");
   const SplashScreen = require("expo-splash-screen") as typeof import("expo-splash-screen");
   const { AuthProvider } = require("../lib/auth") as typeof import("../lib/auth");
+  const { ShiftProvider } = require("../lib/shift-context") as typeof import("../lib/shift-context");
   const {
     getSupabaseConfigErrorMessage,
   } = require("../lib/runtime-config") as typeof import("../lib/runtime-config");
@@ -327,10 +328,12 @@ function RootLayout() {
           <AnimatedSplash />
         ) : (
           <AuthProvider>
-            <View style={{ flex: 1 }}>
-              <StatusBar style="light" translucent />
-              <RootNavigator />
-            </View>
+            <ShiftProvider>
+              <View style={{ flex: 1 }}>
+                <StatusBar style="light" translucent />
+                <RootNavigator />
+              </View>
+            </ShiftProvider>
           </AuthProvider>
         )}
       </QueryClientProvider>

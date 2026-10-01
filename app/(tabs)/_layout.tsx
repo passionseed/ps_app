@@ -16,8 +16,9 @@ import { PageBg } from "../../lib/theme";
 import { useAuth } from "../../lib/auth";
 import { FloatingProgressButton } from "../../components/FloatingProgressButton";
 import { hasBuildAccess } from "../../lib/build-todos";
+import { useShift } from "../../lib/shift-context";
 
-type TabRoute = "discover" | "explore" | "my-paths" | "profile" | "build";
+type TabRoute = "discover" | "explore" | "my-paths" | "profile" | "build" | "today" | "projects" | "group";
 
 type TabTheme = {
   label: string;
@@ -29,6 +30,30 @@ type TabTheme = {
 };
 
 const TAB_THEMES: Record<TabRoute, TabTheme> = {
+  today: {
+    label: "Today",
+    icon: "☀️",
+    activeIcon: "☀️",
+    halo: "rgba(16, 185, 129, 0.12)",
+    accent: "#10B981",
+    glow: "rgba(16, 185, 129, 0.25)",
+  },
+  projects: {
+    label: "Projects",
+    icon: "🛠️",
+    activeIcon: "🛠️",
+    halo: "rgba(59, 130, 246, 0.12)",
+    accent: "#3B82F6",
+    glow: "rgba(59, 130, 246, 0.25)",
+  },
+  group: {
+    label: "My group",
+    icon: "👥",
+    activeIcon: "👥",
+    halo: "rgba(139, 92, 246, 0.12)",
+    accent: "#8B5CF6",
+    glow: "rgba(139, 92, 246, 0.25)",
+  },
   discover: {
     label: "Discover",
     icon: "🔍",
@@ -113,9 +138,16 @@ function ActivePill({
   );
 }
 
-function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+function CustomTabBar({
+  state,
+  navigation,
+  visibleTabs,
+  isCamp,
+}: BottomTabBarProps & { visibleTabs: TabRoute[]; isCamp: boolean }) {
   const insets = useSafeAreaInsets();
-  const animatedIndex = useSharedValue(state.index);
+  const routes = state.routes.filter((route) => visibleTabs.includes(route.name as TabRoute));
+  const selectedIndex = Math.max(0, routes.findIndex((route) => route.key === state.routes[state.index]?.key));
+  const animatedIndex = useSharedValue(selectedIndex);
   const { appLanguage } = useAuth();
 
   const tabLabels =
@@ -126,6 +158,9 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           "my-paths": "เส้นทาง",
           profile: "โปรไฟล์",
           build: "Build",
+          today: "วันนี้",
+          projects: "โปรเจกต์",
+          group: "กลุ่มของฉัน",
         }
       : {
           discover: "Discover",
@@ -133,19 +168,22 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           "my-paths": "My Paths",
           profile: "Profile",
           build: "Build",
+          today: "Today",
+          projects: "Projects",
+          group: "My group",
         };
 
   useEffect(() => {
-    animatedIndex.value = withSpring(state.index, {
+    animatedIndex.value = withSpring(selectedIndex, {
       damping: 25,
       stiffness: 120,
       mass: 0.8,
     });
-  }, [state.index]);
+  }, [animatedIndex, selectedIndex]);
 
   const slidingIndicatorStyle = useAnimatedStyle(() => {
     return {
-      left: `${(animatedIndex.value * 100) / state.routes.length}%` as any,
+      left: `${(animatedIndex.value * 100) / routes.length}%` as any,
     };
   });
 
@@ -173,10 +211,10 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               style={[
                 styles.slidingIndicatorContainer,
                 slidingIndicatorStyle,
-                { width: `${100 / state.routes.length}%` },
+                { width: `${100 / routes.length}%` },
               ]}
             >
-              {state.routes.map((route: { key: string; name: string; params?: object }, i: number) => {
+              {routes.map((route: { key: string; name: string; params?: object }, i: number) => {
                 const theme =
                   TAB_THEMES[route.name as TabRoute] || TAB_THEMES["my-paths"];
                 return (
@@ -192,14 +230,14 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               })}
             </Animated.View>
 
-            {state.routes.map((route: { key: string; name: string; params?: object }, index: number) => {
-              const isFocused = state.index === index;
+            {routes.map((route: { key: string; name: string; params?: object }, index: number) => {
+              const isFocused = state.routes[state.index]?.key === route.key;
               const routeName = route.name as TabRoute;
               const theme = TAB_THEMES[routeName] || TAB_THEMES["my-paths"];
               const label = tabLabels[routeName];
 
               const onPress = () => {
-                if (routeName === "discover" || routeName === "my-paths") {
+                if (!isCamp && (routeName === "discover" || routeName === "my-paths")) {
                   Alert.alert("Coming Soon", "This feature is coming soon!");
                   return;
                 }
@@ -313,7 +351,13 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { session } = useAuth();
+  const { cohorts } = useShift();
+  const isCamp = cohorts.length > 0;
   const [isBuildUser, setIsBuildUser] = useState(false);
+  const visibleTabs: TabRoute[] = isCamp
+    ? ["discover", "today", "projects", "group", "profile"]
+    : ["discover", "explore", "my-paths", "profile"];
+  if (isBuildUser) visibleTabs.push("build");
   const tabBarHeight = Platform.OS === "ios" ? Math.max(insets.bottom, 24) + 44 + 24 : 24 + 44 + 24;
 
   useEffect(() => {
@@ -326,7 +370,7 @@ export default function TabsLayout() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
-        tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} />}
+        tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} visibleTabs={visibleTabs} isCamp={isCamp} />}
         screenOptions={{
           headerShown: false,
           sceneStyle: { backgroundColor: PageBg.default },
@@ -337,6 +381,9 @@ export default function TabsLayout() {
         <Tabs.Screen name="my-paths" />
         <Tabs.Screen name="profile" />
         <Tabs.Screen name="build" options={{ href: isBuildUser ? undefined : null }} />
+        <Tabs.Screen name="today" options={{ href: isCamp ? undefined : null }} />
+        <Tabs.Screen name="projects" options={{ href: isCamp ? undefined : null }} />
+        <Tabs.Screen name="group" options={{ href: isCamp ? undefined : null }} />
       </Tabs>
       {isDiscoverPage && (
         <FloatingProgressButton 

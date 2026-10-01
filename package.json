@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck:app": "tsc --noEmit -p tsconfig.app.json",
     "generate:pathlab": "npx tsx scripts/generate-pathlab/index.ts",
     "generate:pathlab:batch": "npx tsx scripts/generate-pathlab/batch.ts",
     "build:android-local": "eas build --local -p android --profile preview",

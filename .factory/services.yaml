@@ -1,0 +1,15 @@
+commands:
+  install: pnpm install
+  typecheck: npx tsc --noEmit
+  test: npx vitest run
+  dev: pnpm web
+  deploy-function: cd /Users/bunyasit/dev/pseed && npx supabase functions deploy portfolio-fit --no-verify-jwt
+  push-migration: cd /Users/bunyasit/dev/pseed && npx supabase db push
+
+services:
+  expo-web:
+    start: cd /Users/bunyasit/dev/ps_app && pnpm web
+    stop: lsof -ti :8081 | xargs kill 2>/dev/null
+    healthcheck: curl -sf http://localhost:8081
+    port: 8081
+    depends_on: []

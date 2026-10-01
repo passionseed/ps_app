@@ -1,0 +1,201 @@
+{
+  "total": 85,
+  "backlog": 65,
+  "groups": [
+    [
+      "expert",
+      [
+        {
+          "id": "4d417352-f93a-492d-bf43-7a912cfb4aca",
+          "title": "[Expert] Build expert conversation layer",
+          "desc": "Let students \"talk\" to experts:\n\n* Expert profile + interview archive\n* AI-powered Q&A based on expert content\n* Contextual suggestions during seeds\n\nConsolidates: PS-42, PS-38, PS-36"
+        },
+        {
+          "id": "9d806955-d056-452b-ab81-ead6d1075444",
+          "title": "[PathLab] Build expert interview \u2192 seed generation pipeline",
+          "desc": "AI-assisted PathLab content creation:\n\n* Expert interview capture form\n* AI transcription + seed extraction\n* Human review workflow\n* Publish to seed queue\n\nGoal: Expert interview \u2192 seed in 1 hour\nCon"
+        },
+        {
+          "id": "c097c382-0614-47ac-b208-c8d6683d31cb",
+          "title": "Build expert interview \u2192 PathLab pipeline",
+          "desc": "## Goal\n\nAI-assisted PathLab generation from expert interviews.\n\n## Acceptance Criteria\n\n- [ ] Expert interview transcript ingestion (YouTube, podcast, written)\n- [ ] LLM extracts: career_path, key_de"
+        },
+        {
+          "id": "e4a96dfb-0ba2-43ae-afee-0083ed1dbf7a",
+          "title": "Build expert conversation layer",
+          "desc": "## Goal\n\nLet students \"talk\" to experts via AI-powered chat.\n\n## Acceptance Criteria\n\n- [ ] RAG system indexed on expert interviews/Paths\n- [ ] Chat interface per Path/expert\n- [ ] AI responds in expe"
+        },
+        {
+          "id": "925a3886-b535-4276-b7b6-a7c422efccd3",
+          "title": "[Feature] Build expert conversation layer (talk to experts)",
+          "desc": "Migrated from BIG-19. See original for full details."
+        },
+        {
+          "id": "366b0e86-793e-4587-93c4-1c991914e7a7",
+          "title": "[Feature] Build expert conversation layer (talk to experts)",
+          "desc": "Migrated from BIG-35. See original for full details."
+        },
+        {
+          "id": "7283ab00-5ca6-4b1e-885b-17b1b6bf4097",
+          "title": "[AI] Build expert interview to PathLab generation pipeline",
+          "desc": "## Problem\n\nCreating PathLab seeds takes days of manual work. Experts have insights but no efficient way to convert them into structured learning paths.\n\n## Current State\n\n* `scripts/generate-pathlab/"
+        }
+      ]
+    ],
+    [
+      "localization",
+      [
+        {
+          "id": "18d3555d-91bb-4c49-8819-3c1efb1ef9cf",
+          "title": "[i18n] Thai/English localization system",
+          "desc": "Full localization for all seed content:\n\n* Content management for bilingual seeds\n* User language preference\n* UI translation\n\nConsolidates: PS-43, PS-27, PS-15"
+        },
+        {
+          "id": "b4754ccc-c4c3-4bc4-8765-4cf769625b61",
+          "title": "Implement Thai/English localization system",
+          "desc": "## Goal\n\nFully localized app experience for Thai and English users.\n\n## Acceptance Criteria\n\n- [ ] i18n framework setup (react-i18next or similar)\n- [ ] All UI strings externalized to translation file"
+        },
+        {
+          "id": "0c434697-c423-4491-957d-5005ffc2246f",
+          "title": "[i18n] Implement Thai/English localization system",
+          "desc": "## Problem\n\nContent is not fully localized. Thai students need Thai-first experience with English option.\n\n## Goal\n\nFull i18n support across the mobile app.\n\n## Scope\n\n### i18n Infrastructure\n\n**Frame"
+        },
+        {
+          "id": "9dca9c5b-0aae-4df7-9f00-74a663f84d85",
+          "title": "[i18n] Implement Thai/English localization system",
+          "desc": "## Problem\n\nApp is English-only. Thai students (primary audience) need Thai language support.\n\n## Current State\n\n* No i18n infrastructure\n* All strings hardcoded in English\n* Thai users may struggle w"
+        }
+      ]
+    ],
+    [
+      "path",
+      [
+        {
+          "id": "2f758f38-2e43-42c6-afbf-62d9f258da1f",
+          "title": "[Social] Add 'N students tried this path' counter to seed cards",
+          "desc": "Display social proof on seed cards showing how many users have started/completed each seed. Query path_enrollments aggregated by seed_id. Show badges like '12 students exploring' or '45 completed'."
+        },
+        {
+          "id": "9d806955-d056-452b-ab81-ead6d1075444",
+          "title": "[PathLab] Build expert interview \u2192 seed generation pipeline",
+          "desc": "AI-assisted PathLab content creation:\n\n* Expert interview capture form\n* AI transcription + seed extraction\n* Human review workflow\n* Publish to seed queue\n\nGoal: Expert interview \u2192 seed in 1 hour\nCon"
+        },
+        {
+          "id": "c097c382-0614-47ac-b208-c8d6683d31cb",
+          "title": "Build expert interview \u2192 PathLab pipeline",
+          "desc": "## Goal\n\nAI-assisted PathLab generation from expert interviews.\n\n## Acceptance Criteria\n\n- [ ] Expert interview transcript ingestion (YouTube, podcast, written)\n- [ ] LLM extracts: career_path, key_de"
+        },
+        {
+          "id": "19efbffc-7fea-4e04-9c00-28b9ad2ddf28",
+          "title": "Request path for Pathlab",
+          "desc": "Need to set up/request path configuration for Pathlab integration"
+        },
+        {
+          "id": "7283ab00-5ca6-4b1e-885b-17b1b6bf4097",
+          "title": "[AI] Build expert interview to PathLab generation pipeline",
+          "desc": "## Problem\n\nCreating PathLab seeds takes days of manual work. Experts have insights but no efficient way to convert them into structured learning paths.\n\n## Current State\n\n* `scripts/generate-pathlab/"
+        },
+        {
+          "id": "643c5be4-280a-4fa7-84a6-4d763ea8f4b3",
+          "title": "Request path for Pathlab",
+          "desc": "Need to set up/request path configuration for Pathlab integration"
+        },
+        {
+          "id": "d5e25888-3302-4fde-a102-cfbc645dfec5",
+          "title": "Build Path Lab for Business Innovation Path",
+          "desc": "Create the Path Lab feature for business innovation career paths. Part of Project Passionseed app."
+        },
+        {
+          "id": "3ff9b7ec-4364-4be7-88ab-8e782a746292",
+          "title": "Request path for Pathlab",
+          "desc": "Need to set up/request path configuration for Pathlab integration"
+        }
+      ]
+    ],
+    [
+      "reflection",
+      [
+        {
+          "id": "e4e63a50-e4cc-44c2-885d-5a57946adcd0",
+          "title": "Build post-activity reflection system",
+          "desc": "Create a system that lets teams reflect after completing all activities and capture what they learned and how their thinking changed."
+        },
+        {
+          "id": "d5b61cce-5a17-4006-8a26-92792236578b",
+          "title": "[Data Pipeline] Build reflection \u2192 ikigai \u2192 Direction Finder flow",
+          "desc": "End-to-end data pipeline for career insights:\n\n* Reflection aggregation pipeline (PS-47, PS-23)\n* Ikigai calculation engine (PS-46, PS-28)\n* Connect reflection trends to Direction Finder (PS-45, PS-25"
+        },
+        {
+          "id": "a4e7993e-48fb-4285-ac45-0e09a1adf4a0",
+          "title": "Build reflection aggregation pipeline",
+          "desc": "## Goal\n\nBuild pipeline to aggregate reflection data into trends and patterns.\n\n## Acceptance Criteria\n\n- [ ] Edge function: `aggregate-reflections` runs daily per user\n- [ ] Computes: energy_trend, c"
+        },
+        {
+          "id": "aa3b0f5e-3875-4b7e-a71b-fc570176f6d0",
+          "title": "Connect reflection trends to Direction Finder",
+          "desc": "## Goal\n\nUse reflection trend data to power Direction Finder recommendations.\n\n## Acceptance Criteria\n\n- [ ] Direction Finder queries reflection_aggregates table for user trends\n- [ ] Recommendations "
+        },
+        {
+          "id": "10a95fb6-34c1-4a2a-b3e6-6aa03ecd2d0c",
+          "title": "[Data] Implement ikigai calculation from reflection data",
+          "desc": "## Problem\n\nProfile screen shows mock ikigai scores. Need real calculation from user's reflection data across completed seeds.\n\n## Current State\n\n* `profile.tsx` uses `MOCK_IKIGAI` hardcoded data\n* Re"
+        },
+        {
+          "id": "6751c9b0-358f-483a-bf70-ff9a0b201689",
+          "title": "[Feature] Reflection trends to Direction Finder integration",
+          "desc": "## Objective\n\nIntegrate reflection trends into Direction Finder for university roadmap matching.\n\n## Acceptance Criteria\n\n- [ ] Direction Finder screen displays trend summary\n- [ ] Shows: energy trend"
+        },
+        {
+          "id": "3c1a96f9-dbc4-41a5-9816-ee81c040d149",
+          "title": "[Data] Build reflection aggregation pipeline for trend analysis",
+          "desc": "## Problem\n\nReflections are stored but not aggregated. Can't show trends, patterns, or insights to students.\n\n## Current State\n\n* `path_reflections` table stores daily reflections\n* No aggregation or "
+        }
+      ]
+    ],
+    [
+      "analytics",
+      [
+        {
+          "id": "1826dd4a-625c-43f8-9063-aca00a7263c4",
+          "title": "Seed velocity analytics dashboard",
+          "desc": "## Goal\n\nTrack and visualize seed completion velocity.\n\n## Acceptance Criteria\n\n- [ ] Dashboard shows: seeds/week, streak, avg completion time\n- [ ] Trends over time (weekly/monthly)\n- [ ] Comparison "
+        },
+        {
+          "id": "249c9242-d2f9-4989-bc77-81f9dd00732d",
+          "title": "[Analytics] Track seed velocity and Direction Finder readiness",
+          "desc": "## Objective\n\nTrack seed velocity analytics to understand how many seeds students need before Direction Finder becomes useful.\n\n## Acceptance Criteria\n\n- [ ] Track events: seed_started, seed_completed"
+        },
+        {
+          "id": "9d77dd8e-2375-42b1-a5a2-c0655260ed51",
+          "title": "[Analytics] Track seed velocity and Direction Finder readiness",
+          "desc": "## Problem\n\nNo visibility into user progression toward Direction Finder milestone.\n\n## Current State\n\n* Direction Finder mentioned in profile as \"coming soon\"\n* No tracking of readiness signals\n* Unkn"
+        }
+      ]
+    ],
+    [
+      "test",
+      [
+        {
+          "id": "d61262d5-89c0-4609-ae3b-e78ddc5a2344",
+          "title": "[Testing] Set up E2E testing with Detox",
+          "desc": "Configure Detox for React Native E2E testing. Create test suite for critical user flows: onboarding, seed completion, reflection capture, Direction Finder. Target: 80% coverage of core flows."
+        },
+        {
+          "id": "fe1f63cc-e4e5-4286-837d-6e687215fdf6",
+          "title": "Validate parent willingness to pay for career exploration (CS test drive)",
+          "desc": "Migrated from BIG-12. See original for full details."
+        },
+        {
+          "id": "4f020da1-85c1-461b-9aff-6e46a147deef",
+          "title": "Validate parent willingness to pay for career exploration (CS test drive)",
+          "desc": "Migrated from BIG-32. See original for full details."
+        },
+        {
+          "id": "d21c4d7f-944c-47ec-9a5e-6eaa40362bac",
+          "title": "Validate parent willingness to pay for career exploration (CS test drive)",
+          "desc": "## Problem\n\nStudents never test if they actually like their chosen major before committing 200k+ tuition. TCAS = gambling, not fit.\n\n## Current Status\n\n* 349 hackathon registrations, 29 beta sign-ups\n"
+        }
+      ]
+    ]
+  ]
+}
