@@ -120,6 +120,7 @@ See [`docs/DESIGN.md`](docs/DESIGN.md) for the full design system including colo
 
 ## Documentation
 
+- [App roadmap: SHIFT first, useful for everyone](docs/plans/2026-10-01-app-roadmap.md)
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — Product overview and design principles
 - [`docs/OPTIMIZATION_GUIDE.md`](docs/OPTIMIZATION_GUIDE.md) — Performance guidelines
 - [`docs/EAS_HOSTING_ENV_SETUP.md`](docs/EAS_HOSTING_ENV_SETUP.md) — Environment setup
