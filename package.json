@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck:app": "tsc --noEmit -p tsconfig.app.json",
     "postinstall": "npx @shopify/react-native-skia postinstall",
     "generate:pathlab": "npx tsx scripts/generate-pathlab/index.ts"
   },
@@ -33,6 +34,7 @@
     "expo-glass-effect": "~55.0.8",
     "expo-haptics": "~55.0.8",
     "expo-image": "~55.0.6",
+    "expo-image-picker": "~55.0.24",
     "expo-linear-gradient": "~55.0.8",
     "expo-linking": "~55.0.7",
     "expo-notifications": "^55.0.11",

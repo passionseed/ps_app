@@ -4,7 +4,7 @@ module.exports = {
     name: `Passion Seed${process.env.APP_NAME_SUFFIX || ""}`,
     scheme: "passion-seed",
     slug: "passion-seed",
-    version: "1.0.1",
+    version: "1.0.2",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -64,6 +64,14 @@ module.exports = {
       ],
       "expo-audio",
       "expo-image",
+      [
+        "expo-image-picker",
+        {
+          photosPermission:
+            "Choose project screenshots to share with your SHIFT cohort.",
+          cameraPermission: false,
+        },
+      ],
       "expo-sharing",
       "expo-asset",
     ],

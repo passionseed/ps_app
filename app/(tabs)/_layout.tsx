@@ -1,315 +1,112 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Tabs } from "expo-router";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import Animated, {
-  useAnimatedStyle,
-  withSpring,
-  useSharedValue,
-  interpolate,
-  SharedValue,
-} from "react-native-reanimated";
-import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import Svg, { Circle, Path } from "react-native-svg";
+import { useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Haptics from "expo-haptics";
-import { PageBg } from "../../lib/theme";
-
-type TabRoute = "discover" | "my-paths" | "profile";
-
-type TabTheme = {
-  label: string;
-  icon: string;
-  activeIcon: string;
-  halo: string;
-  accent: string;
-  glow: string;
-};
-
-const TAB_THEMES: Record<TabRoute, TabTheme> = {
-  discover: {
-    label: "Discover",
-    icon: "🔍",
-    activeIcon: "🔎",
-    halo: "rgba(59, 130, 246, 0.12)",
-    accent: "#3B82F6", // Experience blue
-    glow: "rgba(59, 130, 246, 0.25)",
-  },
-  "my-paths": {
-    label: "My Paths",
-    icon: "📚",
-    activeIcon: "📖",
-    halo: "rgba(16, 185, 129, 0.12)",
-    accent: "#10B981", // Destination green
-    glow: "rgba(16, 185, 129, 0.25)",
-  },
-  profile: {
-    label: "Profile",
-    icon: "👤",
-    activeIcon: "🧠",
-    halo: "rgba(139, 92, 246, 0.12)",
-    accent: "#8B5CF6", // Education purple
-    glow: "rgba(139, 92, 246, 0.25)",
-  },
-};
-
-function CustomTabBar({ state, navigation }: BottomTabBarProps) {
-  const insets = useSafeAreaInsets();
-  const animatedIndex = useSharedValue(state.index);
-
-  useEffect(() => {
-    animatedIndex.value = withSpring(state.index, {
-      damping: 25,
-      stiffness: 120,
-      mass: 0.8,
-    });
-  }, [state.index]);
-
-  const slidingIndicatorStyle = useAnimatedStyle(() => {
-    return {
-      left: `${(animatedIndex.value * 100) / state.routes.length}%` as any,
-    };
-  });
-
-  return (
-    <View
-      style={[
-        styles.tabBarContainer,
-        {
-          bottom: Platform.OS === "ios" ? Math.max(insets.bottom, 24) : 24,
-        },
-      ]}
-    >
-      <LinearGradient
-        colors={[
-          "#FFFFFF",
-          "#F9F5FF",
-          "#EEF2FF",
-        ]}
-        locations={[0, 0.5, 1]}
-        style={styles.tabBarGradient}
-      >
-        <View style={styles.tabBarInner}>
-          <View style={styles.tabsWrapper}>
-            <Animated.View
-              style={[
-                styles.slidingIndicatorContainer,
-                slidingIndicatorStyle,
-                { width: `${100 / state.routes.length}%` },
-              ]}
-            >
-              {state.routes.map((route, i) => {
-                const theme =
-                  TAB_THEMES[route.name as TabRoute] || TAB_THEMES["my-paths"];
-                const activeOpacityStyle = useAnimatedStyle(() => {
-                  const opacity = interpolate(
-                    animatedIndex.value,
-                    [i - 1, i, i + 1],
-                    [0, 1, 0],
-                    "clamp",
-                  );
-                  return { opacity };
-                });
-
-                return (
-                  <Animated.View
-                    key={`pill-${route.key}`}
-                    style={[StyleSheet.absoluteFill, activeOpacityStyle]}
-                  >
-                    <View
-                      style={[
-                        styles.activePill,
-                        {
-                          backgroundColor: theme.halo,
-                          borderColor: theme.glow,
-                          shadowColor: theme.accent,
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.2,
-                          shadowRadius: 8,
-                        },
-                      ]}
-                    />
-                  </Animated.View>
-                );
-              })}
-            </Animated.View>
-
-            {state.routes.map((route, index) => {
-              const isFocused = state.index === index;
-              const routeName = route.name as TabRoute;
-              const theme = TAB_THEMES[routeName] || TAB_THEMES["my-paths"];
-
-              const onPress = () => {
-                if (!isFocused) {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  navigation.navigate(route.name, route.params);
-                }
-              };
-
-              return (
-                <TabBarButton
-                  key={route.key}
-                  isFocused={isFocused}
-                  index={index}
-                  animatedIndex={animatedIndex}
-                  theme={theme}
-                  onPress={onPress}
-                />
-              );
-            })}
-          </View>
-        </View>
-      </LinearGradient>
-    </View>
-  );
-}
-
-function TabBarButton({
-  isFocused,
-  index,
-  animatedIndex,
-  theme,
-  onPress,
-}: {
-  isFocused: boolean;
-  index: number;
-  animatedIndex: SharedValue<number>;
-  theme: TabTheme;
-  onPress: () => void;
-}) {
-  const animatedIconStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      animatedIndex.value,
-      [index - 1, index, index + 1],
-      [1, 1.05, 1],
-      "clamp",
-    );
-    return {
-      transform: [{ scale }],
-    };
-  });
-
-  const animatedTextStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      animatedIndex.value,
-      [index - 0.8, index, index + 0.8],
-      [0.5, 1, 0.5],
-      "clamp",
-    );
-    return {
-      opacity,
-    };
-  });
-
-  const colorStyle = useAnimatedStyle(() => {
-    const isActive = Math.abs(animatedIndex.value - index) < 0.5;
-    return {
-      color: isActive ? theme.accent : "#4B5563", // Secondary text for inactive
-    };
-  });
-
-  return (
-    <Pressable onPress={onPress} style={styles.tabButton}>
-      <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
-        <Animated.Text style={styles.iconText}>
-          {isFocused ? theme.activeIcon : theme.icon}
-        </Animated.Text>
-      </Animated.View>
-
-      <Animated.Text
-        style={[styles.labelText, animatedTextStyle, colorStyle]}
-        numberOfLines={1}
-      >
-        {theme.label}
-      </Animated.Text>
-    </Pressable>
-  );
-}
+import { useShift } from "../../lib/shift-context";
+import { Accent, PageBg, Text as Colors } from "../../lib/theme";
 
 export default function TabsLayout() {
+  const { snapshot } = useShift();
+  const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
+  const camp = !!snapshot;
+  const thai = snapshot?.introduction?.language === "th";
+  const icon =
+    (name: "sun" | "project" | "people") =>
+    ({ color }: { color: string }) => (
+      <Svg
+        width={24}
+        height={24}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {name === "sun" ? (
+          <>
+            <Circle cx={12} cy={12} r={4} />
+            <Path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5" />
+          </>
+        ) : name === "project" ? (
+          <>
+            <Path d="M4 5h6l2 3h8v12H4z" />
+            <Path d="m8 14 2 2 5-5" />
+          </>
+        ) : (
+          <>
+            <Circle cx={9} cy={8} r={3} />
+            <Path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v2" />
+          </>
+        )}
+      </Svg>
+    );
   return (
     <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: PageBg.default },
+        tabBarActiveTintColor: Accent.green,
+        tabBarInactiveTintColor: Colors.tertiary,
+        tabBarStyle: {
+          backgroundColor: "#fff",
+          height: 64 + 20 * (fontScale - 1) + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: insets.bottom + 6,
+        },
+        tabBarLabelStyle: { fontSize: 12, lineHeight: 18 },
       }}
     >
-      <Tabs.Screen name="discover" />
-      <Tabs.Screen name="my-paths" />
-      <Tabs.Screen name="profile" />
+      <Tabs.Screen
+        name="today"
+        options={{
+          title: thai ? "วันนี้" : "Today",
+          href: camp ? undefined : null,
+          tabBarIcon: icon("sun"),
+        }}
+      />
+      <Tabs.Screen
+        name="projects"
+        options={{
+          title: thai ? "โปรเจกต์" : "Projects",
+          href: camp ? undefined : null,
+          tabBarIcon: icon("project"),
+        }}
+      />
+      <Tabs.Screen
+        name="group"
+        options={{
+          title: thai ? "กลุ่มของฉัน" : "My Group",
+          href: camp ? undefined : null,
+          tabBarIcon: icon("people"),
+        }}
+      />
+      <Tabs.Screen
+        name="discover"
+        options={{
+          title: "Discover",
+          href: camp ? null : undefined,
+          tabBarIcon: icon("sun"),
+        }}
+      />
+      <Tabs.Screen
+        name="my-paths"
+        options={{
+          title: "My Paths",
+          href: camp ? null : undefined,
+          tabBarIcon: icon("project"),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          href: camp ? null : undefined,
+          tabBarIcon: icon("people"),
+        }}
+      />
     </Tabs>
   );
 }
-
-// Design System Colors
-const PREMIUM_SHADOW = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.06,
-  shadowRadius: 4,
-  elevation: 2,
-};
-
-const TAB_BAR_RADIUS = 32;
-const PILL_RADIUS = 16;
-
-const styles = StyleSheet.create({
-  tabBarContainer: {
-    position: "absolute",
-    left: 24,
-    right: 24,
-    borderRadius: TAB_BAR_RADIUS,
-    ...PREMIUM_SHADOW,
-  },
-  tabBarGradient: {
-    borderRadius: TAB_BAR_RADIUS,
-    borderWidth: 1,
-    borderColor: "rgb(206, 206, 206)",
-    overflow: "hidden",
-  },
-  tabBarInner: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  tabsWrapper: {
-    flexDirection: "row",
-    position: "relative",
-  },
-  slidingIndicatorContainer: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    zIndex: 0,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    position: "relative",
-    zIndex: 1,
-  },
-  activePill: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 2,
-    right: 2,
-    borderRadius: PILL_RADIUS,
-    borderWidth: 1,
-  },
-  iconContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  iconText: {
-    fontSize: 24,
-  },
-  labelText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#6B7280", // Tertiary text
-    textAlign: "center",
-    overflow: "hidden",
-  },
-});

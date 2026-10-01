@@ -195,7 +195,7 @@ export async function getPathDay(pathId: string, dayNumber: number): Promise<Pat
   return data;
 }
 
-export async function getPathDays(pathId: string): Promise<PathDay[]> {
+export async function getPathDays(pathId: string): Promise<Pick<PathDay, 'day_number' | 'title'>[]> {
   const { data, error } = await supabase
     .from("path_days")
     .select("day_number, title")

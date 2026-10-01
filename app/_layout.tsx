@@ -19,6 +19,7 @@ import {
 import { AuthProvider, useAuth } from "../lib/auth";
 import { getProfile } from "../lib/onboarding";
 import type { Profile } from "../types/onboarding";
+import { ShiftProvider, useShift } from "../lib/shift-context";
 
 SplashScreen.setOptions({
   duration: 900,
@@ -94,10 +95,11 @@ function AppLaunchScreen() {
 
 function RootNavigator() {
   const { session, loading, isGuest } = useAuth();
+  const camp = useShift();
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || camp.loading) return;
 
     if (!session && !isGuest) {
       setProfile(null);
@@ -111,7 +113,14 @@ function RootNavigator() {
       return;
     }
 
+    if (camp.snapshot) {
+      router.replace(camp.snapshot.introduced_at || camp.snapshot.is_staff ? "/(tabs)/today" : "/shift/intro");
+      return;
+    }
+
+    let cancelled = false;
     getProfile(session!.user.id).then((p) => {
+      if (cancelled) return;
       setProfile(p);
       if (!p || !p.is_onboarded) {
         router.replace("/onboarding");
@@ -119,7 +128,8 @@ function RootNavigator() {
         router.replace("/(tabs)/discover");
       }
     });
-  }, [session, loading, isGuest]);
+    return () => { cancelled = true; };
+  }, [session, loading, isGuest, camp.loading, camp.snapshot?.cohort.id, camp.snapshot?.introduced_at]);
 
   return (
     <Stack
@@ -196,10 +206,12 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <View style={{ flex: 1 }}>
-        <StatusBar style="light" translucent />
-        <RootNavigator />
-      </View>
+      <ShiftProvider>
+        <View style={{ flex: 1 }}>
+          <StatusBar style="dark" translucent />
+          <RootNavigator />
+        </View>
+      </ShiftProvider>
     </AuthProvider>
   );
 }

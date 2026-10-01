@@ -1,130 +1,113 @@
-import { useEffect, useState } from "react";
-import { View, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useState } from "react";
+import { Linking, ScrollView, View } from "react-native";
+import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppText as Text } from "../../components/AppText";
+import {
+  Button,
+  Card,
+  ErrorMessage,
+  styles,
+} from "../../components/shift/CampUI";
+import { completeOnboarding } from "../../lib/onboarding";
+import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
-import { getOnboardingState } from "../../lib/onboarding";
-import type { OnboardingStep, ChatMessage, CollectedData, InterestCategory } from "../../types/onboarding";
-import StepProfile from "./StepProfile";
-import StepChat from "./StepChat";
-import StepInterests from "./StepInterests";
-import StepCareers from "./StepCareers";
-import StepTcasProfile from "./StepTcasProfile";
-import StepSettings from "./StepSettings";
 
-const BASE_STEPS: OnboardingStep[] = ['profile', 'chat', 'interests', 'careers', 'settings'];
-const HIGH_SCHOOL_STEPS: OnboardingStep[] = ['profile', 'chat', 'interests', 'careers', 'tcas_profile', 'settings'];
-
-export default function OnboardingScreen() {
+export default function Welcome() {
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>('profile');
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [collectedData, setCollectedData] = useState<Partial<CollectedData>>({});
-  const [interests, setInterests] = useState<InterestCategory[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Resume from saved state
-  useEffect(() => {
-    if (!user) return;
-    getOnboardingState(user.id).then((state) => {
-      if (state) {
-        setCurrentStep(state.current_step as OnboardingStep);
-        setChatHistory(state.chat_history ?? []);
-        setCollectedData(state.collected_data ?? {});
-      }
-      setLoading(false);
-    });
-  }, [user]);
-
-  const isHighSchool = collectedData.education_level === 'high_school';
-  const STEPS = isHighSchool ? HIGH_SCHOOL_STEPS : BASE_STEPS;
-  const stepIndex = STEPS.indexOf(currentStep);
-
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color="#BFFF00" size="large" />
-      </View>
-    );
-  }
-
+  const insets = useSafeAreaInsets();
+  const [language, setLanguage] = useState<"en" | "th">(
+    Intl.DateTimeFormat().resolvedOptions().locale.startsWith("th")
+      ? "th"
+      : "en",
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const t = (en: string, th: string) => (language === "th" ? th : en);
+  const finish = async () => {
+    if (!user || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ preferred_language: language })
+        .eq("id", user.id)
+        .select("id")
+        .single();
+      if (profileError) throw profileError;
+      await completeOnboarding(user.id, {
+        push_enabled: false,
+        reminder_time: "09:00",
+        theme: "light",
+      });
+      router.replace("/(tabs)/discover");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <View style={styles.container}>
-      {/* Progress dots */}
-      <View style={styles.progress}>
-        {STEPS.map((s, i) => (
-          <View
-            key={s}
-            style={[styles.dot, i <= stepIndex ? styles.dotActive : styles.dotInactive]}
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={[
+        styles.scroll,
+        { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 },
+      ]}
+    >
+      <Text variant="bold" style={styles.title}>
+        {t("Start with curiosity", "เริ่มจากความอยากลอง")}
+      </Text>
+      <Card>
+        <Text style={styles.body}>
+          {t(
+            "You do not need to know your future yet. Try something small, learn from it, and find people to grow with.",
+            "ยังไม่ต้องรู้อนาคตของตัวเอง ลองสิ่งเล็กๆ เรียนรู้จากมัน และพบเพื่อนที่เติบโตไปด้วยกัน",
+          )}
+        </Text>
+        <View style={styles.wrap}>
+          <Button
+            secondary
+            selected={language === "en"}
+            label="English"
+            onPress={() => setLanguage("en")}
           />
-        ))}
-      </View>
-
-      {currentStep === 'profile' && (
-        <StepProfile
-          userId={user!.id}
-          onComplete={(data) => {
-            setCollectedData(data);
-            setCurrentStep('chat');
-          }}
-        />
-      )}
-      {currentStep === 'chat' && (
-        <StepChat
-          userId={user!.id}
-          userName={user?.user_metadata?.full_name?.split(' ')[0] ?? 'there'}
-          educationLevel={collectedData.education_level ?? 'high_school'}
-          chatHistory={chatHistory}
-          onChatHistoryUpdate={setChatHistory}
-          onComplete={() => setCurrentStep('interests')}
-        />
-      )}
-      {currentStep === 'interests' && (
-        <StepInterests
-          userId={user!.id}
-          userName={user?.user_metadata?.full_name?.split(' ')[0] ?? 'there'}
-          educationLevel={collectedData.education_level ?? 'high_school'}
-          chatHistory={chatHistory}
-          onComplete={(cats) => {
-            setInterests(cats);
-            setCurrentStep('careers');
-          }}
-          onGoBack={() => setCurrentStep('chat')}
-        />
-      )}
-      {currentStep === 'careers' && (
-        <StepCareers
-          userId={user!.id}
-          userName={user?.user_metadata?.full_name?.split(' ')[0] ?? 'there'}
-          educationLevel={collectedData.education_level ?? 'high_school'}
-          interests={interests}
-          onComplete={() =>
-            setCurrentStep(isHighSchool ? 'tcas_profile' : 'settings')
+          <Button
+            secondary
+            selected={language === "th"}
+            label="ภาษาไทย"
+            onPress={() => setLanguage("th")}
+          />
+        </View>
+        <Text style={styles.body}>
+          {t(
+            "Enrolled in SHIFT? Staff will connect your account to your camp. Your project and peer group will appear when you sign in.",
+            "สมัคร SHIFT แล้ว? ทีมงานจะเชื่อมบัญชีกับค่าย โปรเจกต์และกลุ่มเพื่อนจะปรากฏเมื่อลงชื่อเข้าใช้",
+          )}
+        </Text>
+        <ErrorMessage message={error} />
+        <Button
+          disabled={busy || !user}
+          label={
+            busy
+              ? t("Saving…", "กำลังบันทึก…")
+              : t("Explore something", "ลองดูสิ่งที่สนใจ")
           }
+          onPress={finish}
         />
-      )}
-      {currentStep === 'tcas_profile' && (
-        <StepTcasProfile
-          userId={user!.id}
-          onComplete={() => setCurrentStep('settings')}
+        <Button
+          secondary
+          label={t("See SHIFT camps", "ดูค่าย SHIFT")}
+          onPress={() => {
+            void Linking.openURL("https://passionseed.org/shift").catch(() =>
+              setError(
+                t("Could not open the camp page.", "เปิดหน้าค่ายไม่ได้"),
+              ),
+            );
+          }}
         />
-      )}
-      {currentStep === 'settings' && (
-        <StepSettings userId={user!.id} />
-      )}
-    </View>
+      </Card>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0514' },
-  loading: { flex: 1, backgroundColor: '#0a0514', justifyContent: 'center', alignItems: 'center' },
-  progress: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    paddingTop: 60,
-    paddingBottom: 16,
-  },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dotActive: { backgroundColor: '#BFFF00' },
-  dotInactive: { backgroundColor: 'rgba(255,255,255,0.2)' },
-});

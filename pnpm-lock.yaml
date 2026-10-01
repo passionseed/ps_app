@@ -60,14 +60,17 @@ importers:
         specifier: ~55.0.4
         version: 55.0.4(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       expo-glass-effect:
-        specifier: ^55.0.7
-        version: 55.0.7(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
+        specifier: ~55.0.8
+        version: 55.0.11(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       expo-haptics:
         specifier: ~55.0.8
         version: 55.0.8(expo@55.0.5)
       expo-image:
         specifier: ~55.0.6
         version: 55.0.6(expo@55.0.5)(react-native-web@0.21.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
+      expo-image-picker:
+        specifier: ~55.0.24
+        version: 55.0.24(expo@55.0.5)
       expo-linear-gradient:
         specifier: ~55.0.8
         version: 55.0.8(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
@@ -1533,6 +1536,7 @@ packages:
   '@xmldom/xmldom@0.8.11':
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   abort-controller@3.0.0:
     resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
@@ -2120,8 +2124,8 @@ packages:
       react: '*'
       react-native: '*'
 
-  expo-glass-effect@55.0.7:
-    resolution: {integrity: sha512-G7Q9rUaEY0YC36fGE6irDljfsfvzz/y49zagARAKvSJSyQMUSrhR25WOr5LK5Cw7gQNNBEy9U1ctlr7yCay/fQ==}
+  expo-glass-effect@55.0.11:
+    resolution: {integrity: sha512-wqq7GUOqSkfoFJzreZvBG0jzjsq5c582m3glhWSjcmIuByxXXWp6j6GY6hyFuYKzpOXhbuvusVxGCQi0yWnp3g==}
     peerDependencies:
       expo: '*'
       react: '*'
@@ -2129,6 +2133,16 @@ packages:
 
   expo-haptics@55.0.8:
     resolution: {integrity: sha512-yVR6EsQwl1WuhFITc0PpfI/7dsBdjK/F2YA8xB80UUW9iTa+Tqz21FpH4n/vtbargpzFxkhl5WNYMa419+QWFQ==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-loader@55.0.1:
+    resolution: {integrity: sha512-o8gCo1j59XpXDh0/llgNYPcnfecYQhafQAO0yw5pb+kukPizvNoEqea8tFQIIQmNYqxd6Ljgs7lLXed0gXpOdQ==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-picker@55.0.24:
+    resolution: {integrity: sha512-scbtvQIgiqiOxQx/lFEocJkWPzYANHjwFLnzfKjdZNWh3RJjjMmtHaEoeu7lM9RzqE3EwF+JQecgy+FATXNfiQ==}
     peerDependencies:
       expo: '*'
 
@@ -3740,6 +3754,7 @@ packages:
 
   uuid@7.0.3:
     resolution: {integrity: sha512-DPSke0pXhTZgoF/d+WSt2QaKMCFSfx7QegxEWT+JOuHF5aWrKEn0G+ztjuJg/gG8/ItK+rbPCD/yNv8yyih6Cg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   validate-npm-package-name@5.0.1:
@@ -6310,7 +6325,7 @@ snapshots:
       react: 19.2.0
       react-native: 0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0)
 
-  expo-glass-effect@55.0.7(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0):
+  expo-glass-effect@55.0.11(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0):
     dependencies:
       expo: 55.0.5(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.4)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
       react: 19.2.0
@@ -6319,6 +6334,15 @@ snapshots:
   expo-haptics@55.0.8(expo@55.0.5):
     dependencies:
       expo: 55.0.5(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.4)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+
+  expo-image-loader@55.0.1(expo@55.0.5):
+    dependencies:
+      expo: 55.0.5(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.4)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+
+  expo-image-picker@55.0.24(expo@55.0.5):
+    dependencies:
+      expo: 55.0.5(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.4)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      expo-image-loader: 55.0.1(expo@55.0.5)
 
   expo-image@55.0.6(expo@55.0.5)(react-native-web@0.21.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0):
     dependencies:
@@ -6407,7 +6431,7 @@ snapshots:
       escape-string-regexp: 4.0.0
       expo: 55.0.5(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.4)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
       expo-constants: 55.0.7(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(typescript@5.9.3)
-      expo-glass-effect: 55.0.7(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
+      expo-glass-effect: 55.0.11(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       expo-image: 55.0.6(expo@55.0.5)(react-native-web@0.21.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       expo-linking: 55.0.7(expo@55.0.5)(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
       expo-server: 55.0.6

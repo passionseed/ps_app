@@ -94,13 +94,16 @@ export async function saveCareers(userId: string, careers: CareerGoal[]) {
 }
 
 export async function completeOnboarding(userId: string, settings: MobileSettings) {
-  await supabase.from('profiles').update({
+  const { error } = await supabase.from('profiles').update({
     mobile_settings: settings,
     is_onboarded: true,
     onboarded_at: new Date().toISOString(),
-  }).eq('id', userId)
+  }).eq('id', userId).select('id').single()
 
-  await supabase.from('onboarding_state').delete().eq('user_id', userId)
+  if (error) throw error
+
+  const { error: stateError } = await supabase.from('onboarding_state').delete().eq('user_id', userId)
+  if (stateError) throw stateError
 }
 
 // ── Edge Function call ────────────────────────────────────────────────────────
