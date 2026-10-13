@@ -16,6 +16,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { t as roundCopy } from "../lib/round/copy";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   isAppleAccountSetupError,
@@ -85,8 +86,9 @@ const COPY = {
   },
 } as const;
 
-export default function LandingPage() {
+export function LandingPage() {
   const {
+    session,
     signInWithGoogle,
     signInWithApple,
     loading: authLoading,
@@ -231,6 +233,9 @@ export default function LandingPage() {
   };
 
   if (Platform.OS === "web") {
+    if (session || authLoading) {
+      return <View style={styles.webPage} />;
+    }
     return (
       <View style={styles.webPage}>
         <View style={styles.webCard}>
@@ -242,15 +247,21 @@ export default function LandingPage() {
           <AppText variant="bold" style={styles.webTitle}>
             Passion Seed
           </AppText>
-          <AppText style={styles.webMessage}>
-            Please download our app to get the full experience.
-          </AppText>
           <Pressable
             style={({ pressed }) => [styles.webBtn, pressed && { opacity: 0.8 }]}
-            onPress={() => Linking.openURL("https://www.passionseed.org/download")}
+            onPress={() => void handleSignIn("google")}
           >
             <AppText variant="bold" style={styles.webBtnText}>
-              Download the App
+              {signingInProvider === "google" ? "…" : c.googleBtn}
+            </AppText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/sign-in")}
+            style={{ minHeight: 48, alignItems: "center", justifyContent: "center" }}
+          >
+            <AppText style={{ color: ThemeText.primary, fontSize: 16 }}>
+              {roundCopy(lang === "en" ? "en" : "th", "home.guest")}
             </AppText>
           </Pressable>
         </View>
@@ -410,15 +421,17 @@ export default function LandingPage() {
                 </GlassButton>
               ) : null}
 
-              <GlassButton
-                onPress={handleEnterAsGuest}
-                variant="ghost"
-                size="medium"
-                fullWidth
-                disabled={isEntering || signingInProvider !== null}
+              <GlassButton onPress={handleEnterAsGuest} variant="ghost" size="medium" fullWidth
+                disabled={isEntering || signingInProvider !== null}>{c.guestBtn}</GlassButton>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push("/sign-in")}
+                style={{ minHeight: 48, alignItems: "center", justifyContent: "center" }}
               >
-                {c.guestBtn}
-              </GlassButton>
+                <AppText style={{ color: ThemeText.primary, fontSize: 16 }}>
+                  {roundCopy(lang === "en" ? "en" : "th", "home.guest")}
+                </AppText>
+              </Pressable>
             </View>
           </GlassCard>
         </RNAnimated.View>
@@ -589,7 +602,7 @@ const styles = StyleSheet.create({
   },
   webPage: {
     flex: 1,
-    backgroundColor: PageBg,
+    backgroundColor: PageBg.default,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -607,7 +620,7 @@ const styles = StyleSheet.create({
   },
   webTitle: {
     fontSize: 28,
-    color: "#FFFFFF",
+    color: ThemeText.primary,
     fontFamily: "BaiJamjuree_700Bold",
   },
   webMessage: {
@@ -617,14 +630,21 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   webBtn: {
-    backgroundColor: Accent,
+    backgroundColor: Accent.yellow,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 32,
     marginTop: 8,
   },
   webBtnText: {
-    color: "#FFFFFF",
+    color: ThemeText.primary,
     fontSize: 16,
   },
 });
+
+export default function Entry() {
+  const { session, loading } = useAuth();
+  // RootNavigator (lib/round/navigation.ts decideRoute) routes an existing session.
+  if (session || loading) return <View style={{ flex: 1, backgroundColor: PageBg.default }} />;
+  return <LandingPage />;
+}

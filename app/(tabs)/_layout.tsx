@@ -17,8 +17,10 @@ import { useAuth } from "../../lib/auth";
 import { FloatingProgressButton } from "../../components/FloatingProgressButton";
 import { hasBuildAccess } from "../../lib/build-todos";
 import { useShift } from "../../lib/shift-context";
+import { ShiftTabBar, type ShiftTab } from "../../components/round/ShiftTabBar";
+import { useRoundLang, useShiftMode } from "../../lib/round/hooks";
 
-type TabRoute = "discover" | "explore" | "my-paths" | "profile" | "build" | "today" | "projects" | "group";
+type TabRoute = "discover" | "explore" | "my-paths" | "profile" | "build" | "today" | "projects" | "group" | "shift" | "squad";
 
 type TabTheme = {
   label: string;
@@ -30,6 +32,9 @@ type TabTheme = {
 };
 
 const TAB_THEMES: Record<TabRoute, TabTheme> = {
+  // SHIFT tabs render with ShiftTabBar (line pictograms); these entries only satisfy the type.
+  shift: { label: "Shift", icon: "", activeIcon: "", halo: "transparent", accent: "#5B2FD6", glow: "transparent" },
+  squad: { label: "Squad", icon: "", activeIcon: "", halo: "transparent", accent: "#5B2FD6", glow: "transparent" },
   today: {
     label: "Today",
     icon: "☀️",
@@ -161,6 +166,8 @@ function CustomTabBar({
           today: "วันนี้",
           projects: "โปรเจกต์",
           group: "กลุ่มของฉัน",
+          shift: "Shift",
+          squad: "สควอด",
         }
       : {
           discover: "Discover",
@@ -171,6 +178,8 @@ function CustomTabBar({
           today: "Today",
           projects: "Projects",
           group: "My group",
+          shift: "Shift",
+          squad: "Squad",
         };
 
   useEffect(() => {
@@ -347,43 +356,92 @@ function TabBarButton({
   );
 }
 
+const SHIFT_ICONS: Partial<Record<TabRoute, ShiftTab["icon"]>> = {
+  shift: "house",
+  squad: "people",
+  profile: "person",
+  discover: "search",
+  explore: "compass",
+  "my-paths": "book",
+};
+
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const { session } = useAuth();
+  const { session, isGuest } = useAuth();
   const { cohorts } = useShift();
-  const isCamp = cohorts.length > 0;
+  const { shiftMode } = useShiftMode();
+  const { t } = useRoundLang();
+  const isCamp = cohorts.length > 0 && !shiftMode;
   const [isBuildUser, setIsBuildUser] = useState(false);
-  const visibleTabs: TabRoute[] = isCamp
-    ? ["discover", "today", "projects", "group", "profile"]
-    : ["discover", "explore", "my-paths", "profile"];
-  if (isBuildUser) visibleTabs.push("build");
+  // 5.2: SHIFT users get Shift / Squad / Profile; guests get the Shift teaser plus legacy tabs.
+  const useShiftBar = shiftMode || isGuest;
+  const visibleTabs: TabRoute[] = shiftMode
+    ? ["shift", "squad", "profile"]
+    : isGuest
+      ? ["shift", "discover", "explore", "my-paths", "profile"]
+      : isCamp
+        ? ["discover", "today", "projects", "group", "profile"]
+        : ["discover", "explore", "my-paths", "profile"];
+  if (isBuildUser && !shiftMode) visibleTabs.push("build");
   const tabBarHeight = Platform.OS === "ios" ? Math.max(insets.bottom, 24) + 44 + 24 : 24 + 44 + 24;
+  const shown = (name: TabRoute) => (visibleTabs.includes(name) ? undefined : null);
 
   useEffect(() => {
     if (session) hasBuildAccess().then(setIsBuildUser);
   }, [session]);
 
   // Only show on discover page
-  const isDiscoverPage = pathname === "/discover" || pathname === "/(tabs)/discover";
+  const isDiscoverPage = !shiftMode && (pathname === "/discover" || pathname === "/(tabs)/discover");
+
+  const legacyLabels: Partial<Record<TabRoute, string>> = {
+    discover: t("ui.legacy.discover"),
+    explore: TAB_THEMES.explore.label,
+    "my-paths": t("ui.legacy.my_paths"),
+  };
 
   return (
     <View style={{ flex: 1 }}>
       <Tabs
-        tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} visibleTabs={visibleTabs} isCamp={isCamp} />}
+        tabBar={(props: BottomTabBarProps) =>
+          useShiftBar ? (
+            <ShiftTabBar
+              tabs={visibleTabs
+                .filter((name) => SHIFT_ICONS[name])
+                .map((name) => ({
+                  name,
+                  icon: SHIFT_ICONS[name]!,
+                  label:
+                    name === "shift"
+                      ? t("tab.shift")
+                      : name === "squad"
+                        ? t("tab.squad")
+                        : name === "profile"
+                          ? t("tab.profile")
+                          : legacyLabels[name] ?? name,
+                }))}
+              activeName={props.state.routes[props.state.index]?.name}
+              onSelect={(name) => props.navigation.navigate(name)}
+            />
+          ) : (
+            <CustomTabBar {...props} visibleTabs={visibleTabs} isCamp={isCamp} />
+          )
+        }
         screenOptions={{
           headerShown: false,
           sceneStyle: { backgroundColor: PageBg.default },
         }}
       >
-        <Tabs.Screen name="discover" />
-        <Tabs.Screen name="explore" />
-        <Tabs.Screen name="my-paths" />
+        <Tabs.Screen name="shift" options={{ href: shown("shift") }} />
+        <Tabs.Screen name="squad" options={{ href: shown("squad") }} />
+        <Tabs.Screen name="discover" options={{ href: shown("discover") }} />
+        <Tabs.Screen name="explore" options={{ href: shown("explore") }} />
+        <Tabs.Screen name="my-paths" options={{ href: shown("my-paths") }} />
         <Tabs.Screen name="profile" />
-        <Tabs.Screen name="build" options={{ href: isBuildUser ? undefined : null }} />
-        <Tabs.Screen name="today" options={{ href: isCamp ? undefined : null }} />
-        <Tabs.Screen name="projects" options={{ href: isCamp ? undefined : null }} />
-        <Tabs.Screen name="group" options={{ href: isCamp ? undefined : null }} />
+        <Tabs.Screen name="build" options={{ href: shown("build") }} />
+        <Tabs.Screen name="today" options={{ href: shown("today") }} />
+        <Tabs.Screen name="projects" options={{ href: shown("projects") }} />
+        <Tabs.Screen name="group" options={{ href: shown("group") }} />
       </Tabs>
       {isDiscoverPage && (
         <FloatingProgressButton 

@@ -76,6 +76,8 @@ import { HackathonHeroCard } from "../../components/discover/HackathonHeroCard";
 import { SeedCreatorPitch } from "../../components/SeedCreatorPitch";
 import { PROFILE_HACKATHON_HERO_ROUTE } from "../../lib/hackathonNavigation";
 import { useCurrentHackathonProgram } from "../../lib/hooks/useCurrentHackathonProgram";
+import { ProfileShiftSection } from "../../components/round/ProfileShiftSection";
+import { useShiftMode } from "../../lib/round/hooks";
 
 interface IkigaiPillar {
   score: number;
@@ -304,6 +306,7 @@ function pluralize(count: number, singular: string, plural = `${singular}s`, isT
 
 export default function ProfileScreen() {
   const { appLanguage, user, isGuest, loading: authLoading } = useAuth();
+  const { shiftMode } = useShiftMode();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [interests, setInterests] = useState<InterestCategory[]>([]);
   const [careers, setCareers] = useState<CareerGoal[]>([]);
@@ -772,6 +775,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.mainContent}>
+          {shiftMode ? <ProfileShiftSection /> : null}
           <PassionShareCard
             ref={shareCardRef}
             profile={publicProfile}

@@ -35,6 +35,16 @@ if (Notifications) {
   }
 }
 
+// E16: while the user has an upcoming/active SHIFT round entry, the server sends the
+// evening nudge, so the legacy local daily reminder must not be scheduled.
+let _legacyReminderSuppressed = false;
+export function setLegacyReminderSuppressed(suppressed: boolean): void {
+  _legacyReminderSuppressed = suppressed;
+}
+export function isLegacyReminderSuppressed(): boolean {
+  return _legacyReminderSuppressed;
+}
+
 /** Check if push notifications are available on this device. */
 export function isNotificationsAvailable(): boolean {
   return _notificationsAvailable;
@@ -211,6 +221,9 @@ export async function scheduleDailyReminder(
   body: string = "Continue your daily learning path.",
 ): Promise<string | null> {
   if (!_notificationsAvailable || !Notifications) {
+    return null;
+  }
+  if (_legacyReminderSuppressed) {
     return null;
   }
 

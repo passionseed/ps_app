@@ -27,6 +27,7 @@ import { EnableNotificationsModal } from "../../components/Hackathon/EnableNotif
 import { WrappedCTA } from "../../components/Wrapped/WrappedCTA";
 import { WrappedModal } from "../../components/Wrapped/WrappedModal";
 import type { InboxPreview } from "../../types/hackathon-inbox";
+import { HackathonShiftCard } from "../../components/round/HackathonShiftCard";
 
 type MentorPreview = { id: string; full_name: string; photo_url?: string };
 
@@ -278,6 +279,7 @@ export default function HackathonHomeScreen() {
           <AppText variant="bold" style={styles.placeholderBadgeCyan}>Book Now →</AppText>
         </Pressable>
 
+        <HackathonShiftCard />
       </ScrollView>
 
       {/* Score Breakdown Modal */}

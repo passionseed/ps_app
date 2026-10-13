@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./auth";
 import { campAction, listCampCohorts } from "./shift";
 import { queryKeys, staleTimes } from "./queryClient";
@@ -74,29 +74,17 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
     queryClient.setQueryData(queryKeys.shift.selection(userId), id);
     await shiftStorage.setItem(`shift-cohort:${userId}`, id).catch(() => {});
   };
-  const mutation = useMutation({
-    mutationFn: (request: {
-      action: ShiftAction;
-      payload: Record<string, unknown>;
-      userId: string;
-      cohortId: string;
-    }) => campAction(request.action, request.cohortId, request.payload),
-    retry: false,
-    onSuccess: async (next, request) => {
-      if (activeUser.current !== request.userId) return;
-      const queryKey = queryKeys.shift.snapshot(request.userId, request.cohortId);
-      await queryClient.cancelQueries({ queryKey });
-      if (activeUser.current !== request.userId) return;
-      queryClient.setQueryData(queryKey, next);
-      await queryClient.invalidateQueries({ queryKey, refetchType: "none" });
-    },
-  });
+  // E15/A51: the interactive camp is legacy and read-only. No write action of
+  // `shift_camp_action` is called from the app any more; only `list` and `snapshot` remain.
   const act = async (
-    action: ShiftAction,
-    payload: Record<string, unknown> = {},
-  ) => {
-    if (!snapshot) throw new Error("Choose a camp first.");
-    return mutation.mutateAsync({ action, payload, userId, cohortId });
+    _action: ShiftAction,
+    _payload: Record<string, unknown> = {},
+  ): Promise<ShiftSnapshot> => {
+    throw new Error(
+      snapshot?.introduction?.language === "th"
+        ? "แคมป์นี้ปิดแล้ว ดูได้อย่างเดียว"
+        : "This camp has ended and is read-only.",
+    );
   };
   return (
     <Context.Provider
