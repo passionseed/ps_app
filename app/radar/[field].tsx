@@ -51,7 +51,9 @@ const PALETTE = [
   "#831843", // proof — magenta
 ];
 
-const LIME = Accent.yellow; // #BFFF00
+// Violet[200] (legacy Accent.yellow). Only used as a fill under dark text (CTA tile) or as an
+// accent on the dark palette tiles above, where it keeps strong contrast.
+const LIME = Accent.yellow;
 
 type CardTheme = { bg: string; fg: string; accent: string };
 type SourceItem = { ref: number; title: string; publisher: string; url: string };

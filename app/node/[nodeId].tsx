@@ -1199,7 +1199,7 @@ const styles = StyleSheet.create({
   deliverableBullet: {
     fontSize: 16,
     fontFamily: "LibreFranklin_400Regular",
-    color: Accent.yellow,
+    color: Accent.purple,
     marginRight: 8,
   },
   deliverableText: {
