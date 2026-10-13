@@ -305,7 +305,7 @@ function pluralize(count: number, singular: string, plural = `${singular}s`, isT
 }
 
 export default function ProfileScreen() {
-  const { appLanguage, user, isGuest, loading: authLoading } = useAuth();
+  const { appLanguage, user, isGuest, loading: authLoading, signOut } = useAuth();
   const { shiftMode } = useShiftMode();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [interests, setInterests] = useState<InterestCategory[]>([]);
@@ -421,7 +421,7 @@ export default function ProfileScreen() {
   }, [applyProfileSnapshot, user?.id, profileRefreshNonce]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     router.replace("/");
   };
 

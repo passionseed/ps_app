@@ -9,16 +9,35 @@ import { supabase } from "../../lib/supabase";
 import { Ink, Status, Violet } from "../../lib/theme";
 import { errorCopy, type CopyKey } from "../../lib/round/copy";
 import { useRoundHome, useRoundLang, useRoundUser } from "../../lib/round/hooks";
-import { canEdit, editDraft, makeDraft, restoreDraftMedia, roundDrafts, type RoundDraft } from "../../lib/round/drafts";
+import {
+  applyAudioResult,
+  canEdit,
+  editDraft,
+  makeDraft,
+  restoreDraftMedia,
+  roundDrafts,
+  shouldDiscardOnClose,
+  type DraftAudio,
+  type RoundDraft,
+} from "../../lib/round/drafts";
 import { DraftWriter } from "../../lib/drafts/store";
-import { fileExists, mediaPath, persistDraftAudio, prepareDraftPhoto, removeUploaded, uploadMedia } from "../../lib/round/media";
+import {
+  fileExists,
+  mediaPath,
+  migrateDraftMedia,
+  persistDraftAudio,
+  prepareDraftPhoto,
+  removeUploaded,
+  resolveDraftUri,
+  syncDraftMedia,
+} from "../../lib/round/media";
 import { MISSION_NUMBER, missionTitleKey, orderedMissions, TYPE_MISSION, typeKey } from "../../lib/round/missions";
 import { changeSources, lastHours, recentLabels } from "../../lib/round/next";
 import { acceptPushPrompt, declinePushPrompt, shouldOfferPushPrompt } from "../../lib/round/push";
 import { roundKeys } from "../../lib/round/queryCore";
 import { whoKey } from "../../lib/round/schema";
 import { sendDraft } from "../../lib/round/sender";
-import { prepareSend } from "../../lib/round/submission";
+import { defaultSendDeps, prepareSend } from "../../lib/round/submission";
 import { addDays, formatIsoDate, ictDate } from "../../lib/round/time";
 import { keyPointFrom, toggleSegment, transcribe } from "../../lib/round/transcribe";
 import { evidenceSummary } from "../../lib/round/evidence";
@@ -87,6 +106,10 @@ export default function CaptureScreen() {
   const [transcribeState, setTranscribeState] = useState<TranscribeState>("idle");
   const [pushPrompt, setPushPrompt] = useState(false);
   const writer = useRef<DraftWriter<RoundDraft> | null>(null);
+  /** True when this screen made the draft (not opened from storage); only such drafts are discarded on close. */
+  const createdHere = useRef(false);
+  /** The recording the draft currently holds; late transcription results for older ones are ignored. */
+  const currentAudio = useRef<string | null>(null);
   const inputs = useRef<Record<string, TextInput | null>>({});
 
   // ---- Load or create the draft ----
@@ -95,8 +118,10 @@ export default function CaptureScreen() {
     let cancelled = false;
     (async () => {
       let d: RoundDraft | null = null;
+      let created = false;
       if (params.draftId) d = await roundDrafts.get(userId, params.draftId).catch(() => null);
       if (!d && isEvidenceType(params.type)) {
+        created = true;
         const source = params.sourceId ? bundle?.evidence.find((e) => e.id === params.sourceId) : null;
         d = makeDraft({
           userId,
@@ -117,11 +142,14 @@ export default function CaptureScreen() {
         if (params.replaces) setDirty(true);
       }
       if (d) {
-        const restored = await restoreDraftMedia(d, fileExists);
+        const draftId = d.draft_id;
+        const restored = await restoreDraftMedia(migrateDraftMedia(d), (uri) => fileExists(resolveDraftUri(draftId, uri)));
         d = restored.draft;
         if (restored.photoLost) setPhotoLost(true);
       }
       if (cancelled) return;
+      createdHere.current = created;
+      currentAudio.current = d?.audio?.local_uri ?? null;
       setDraft(d);
       setLoaded(true);
       if (d && d.attempt && d.attempt.state !== "failed") {
@@ -139,6 +167,8 @@ export default function CaptureScreen() {
   const restart = (next: Params) => {
     writer.current?.dispose();
     writer.current = null;
+    createdHere.current = false;
+    currentAudio.current = null;
     setReceipt(null);
     setSent(null);
     setDraft(null);
@@ -229,41 +259,64 @@ export default function CaptureScreen() {
     update({ photo: { local_uri: prepared.local_uri, consent: false, width: prepared.width, height: prepared.height, uploaded_path: draft.photo?.uploaded_path, uploaded_uri: draft.photo?.uploaded_uri } });
   };
 
+  /** Applies a late result for the recording `localUri`, unless a newer recording replaced it. */
+  const applyAudio = (localUri: string, patch: Partial<DraftAudio>) => {
+    setDraft((current) => {
+      const next = applyAudioResult(current, localUri, patch);
+      if (!next) return current;
+      writer.current?.schedule(next);
+      return next;
+    });
+  };
+
   const runTranscription = async (d: RoundDraft) => {
     if (!d.audio || !flags?.transcription_enabled) return;
+    const localUri = d.audio.local_uri;
+    const isCurrent = () => currentAudio.current === localUri;
     setTranscribeState("working");
     const path = mediaPath(d.round_id, d.user_id, d.draft_id, "audio");
-    let audio = d.audio;
-    if (audio.uploaded_uri !== audio.local_uri) {
-      if (audio.uploaded_path) await removeUploaded(audio.uploaded_path);
-      const up = await uploadMedia(path, audio.local_uri, "audio");
-      if (!up.ok) {
-        setTranscribeState("failed");
-        return;
-      }
-      audio = { ...audio, uploaded_path: path, uploaded_uri: audio.local_uri, bytes: up.bytes };
+    const synced = await syncDraftMedia(d.draft_id, d.audio, path, "audio", defaultSendDeps, (recorded) =>
+      applyAudio(localUri, { uploaded_path: recorded.uploaded_path, uploaded_uri: recorded.uploaded_uri, bytes: recorded.bytes }),
+    );
+    if (!synced.ok) {
+      if (isCurrent()) setTranscribeState("failed");
+      return;
     }
+    const uploaded = { uploaded_path: synced.item.uploaded_path, uploaded_uri: synced.item.uploaded_uri, bytes: synced.item.bytes };
     const token = session?.access_token ?? (await supabase.auth.getSession()).data.session?.access_token ?? "";
     const result = await transcribe({ webBaseUrl: flags.web_base_url, path, lang, accessToken: token });
+    if (!isCurrent()) return; // a newer recording replaced this one while we waited
     if (!result.ok) {
-      update({ audio });
+      applyAudio(localUri, uploaded);
       setTranscribeState("failed");
       return;
     }
-    update({ audio: { ...audio, transcript: result.data.text, segments: result.data.segments, selected: [] } });
+    applyAudio(localUri, { ...uploaded, transcript: result.data.text, segments: result.data.segments, selected: [] });
     setTranscribeState("idle");
   };
 
   const onRecorded = async (uri: string, durationMs: number) => {
-    if (!draft) return;
-    const local = await persistDraftAudio(draft.draft_id, uri);
-    const audio = { local_uri: local, duration_ms: durationMs, consent: false, uploaded_path: draft.audio?.uploaded_path, uploaded_uri: draft.audio?.uploaded_uri };
-    const next = editDraft(draft, { audio });
-    if (!next) return;
-    setDraft(next);
-    writer.current?.schedule(next);
+    if (!draft || !canEdit(draft)) return;
+    const draftId = draft.draft_id;
+    const local = await persistDraftAudio(draftId, uri);
+    const fresh = (prev: DraftAudio | null | undefined): DraftAudio => ({
+      local_uri: local,
+      duration_ms: durationMs,
+      consent: false,
+      uploaded_path: prev?.uploaded_path,
+      uploaded_uri: prev?.uploaded_uri,
+    });
+    currentAudio.current = local;
+    setDraft((current) => {
+      if (!current || current.draft_id !== draftId) return current;
+      const next = editDraft(current, { audio: fresh(current.audio) });
+      if (!next) return current;
+      writer.current?.schedule(next);
+      return next;
+    });
     setDirty(true);
-    void runTranscription(next);
+    setTranscribeState("idle");
+    void runTranscription({ ...draft, audio: fresh(draft.audio) });
   };
 
   const onToggleSegment = (index: number) => {
@@ -340,7 +393,9 @@ export default function CaptureScreen() {
 
   const close = () => {
     void writer.current?.flush();
-    if (!dirty && draft && !draft.attempt && userId) void roundDrafts.remove(userId, draft.draft_id).catch(() => {});
+    if (userId && draft && shouldDiscardOnClose(draft, { createdInSession: createdHere.current, dirty })) {
+      void roundDrafts.remove(userId, draft.draft_id).catch(() => {});
+    }
     if (router.canGoBack()) router.back();
     else router.replace("/(tabs)/shift");
   };
@@ -530,8 +585,16 @@ export default function CaptureScreen() {
       {draft.photo ? (
         <View style={{ gap: 8 }}>
           <View style={styles.row}>
-            <Image source={{ uri: draft.photo.local_uri }} style={styles.thumb} accessibilityIgnoresInvertColors />
-            <TextButton label={t("ui.photo.remove")} icon="trash" disabled={ro} onPress={() => update({ photo: null })} />
+            <Image source={{ uri: resolveDraftUri(draft.draft_id, draft.photo.local_uri) }} style={styles.thumb} accessibilityIgnoresInvertColors />
+            <TextButton
+              label={t("ui.photo.remove")}
+              icon="trash"
+              disabled={ro}
+              onPress={() => {
+                if (draft.photo?.uploaded_path) void removeUploaded(draft.photo.uploaded_path);
+                update({ photo: null });
+              }}
+            />
           </View>
           <Checkbox
             checked={draft.photo.consent}
@@ -592,11 +655,12 @@ export default function CaptureScreen() {
         <>
           {voiceOn ? (
             <VoiceRecorder
-              audio={draft.audio ?? null}
+              audio={draft.audio ? { ...draft.audio, local_uri: resolveDraftUri(draft.draft_id, draft.audio.local_uri) } : null}
               disabled={ro}
               onRecorded={(uri, ms) => void onRecorded(uri, ms)}
               onRemove={() => {
                 if (draft.audio?.uploaded_path) void removeUploaded(draft.audio.uploaded_path);
+                currentAudio.current = null;
                 update({ audio: null });
                 setTranscribeState("idle");
               }}

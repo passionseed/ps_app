@@ -6,19 +6,20 @@
 import { roundApi } from "./api";
 import {
   freezeAttempt,
+  roundDrafts,
   withAttemptError,
   type RoundDraft,
 } from "./drafts";
-import { buildMediaArg, mediaPath, removeUploaded, uploadMedia, type UploadResult } from "./media";
+import { buildMediaArg, mediaPath, removeUploaded, syncDraftMedia, uploadMedia, type MediaDeps } from "./media";
 import { validateEvidence, type ValidationIssue } from "./schema";
 import type { ErrorCategory, MediaArg, Receipt, RoundResult } from "./types";
 
-export type SendDeps = {
-  upload: (path: string, localUri: string, kind: "photo" | "audio") => Promise<UploadResult>;
-  remove: (path: string) => Promise<void>;
+export type SendDeps = MediaDeps & {
   submit: typeof roundApi.submitEvidence;
   now: () => Date;
   newId?: () => string;
+  /** Persists the draft mid-send (records an upload before it starts). */
+  save?: (draft: RoundDraft) => Promise<void>;
 };
 
 export const defaultSendDeps: SendDeps = {
@@ -26,6 +27,7 @@ export const defaultSendDeps: SendDeps = {
   remove: removeUploaded,
   submit: roundApi.submitEvidence,
   now: () => new Date(),
+  save: (draft) => roundDrafts.save(draft).catch(() => {}),
 };
 
 /** Payload sent to the server for a draft (type-specific shaping of form fields). */
@@ -110,16 +112,17 @@ export async function sendAttempt(draft: RoundDraft, deps: SendDeps = defaultSen
     const item = current[kind];
     const frozen = attempt.frozen_media.find((m) => m.kind === kind);
     if (!item || !frozen) continue;
-    if (item.uploaded_path === frozen.path && item.uploaded_uri === item.local_uri && item.bytes) continue;
-    if (item.uploaded_path && item.uploaded_uri !== item.local_uri) await deps.remove(item.uploaded_path);
-    const result = await deps.upload(frozen.path, item.local_uri, kind);
+    const result = await syncDraftMedia(current.draft_id, item, frozen.path, kind, deps, async (recorded) => {
+      current = { ...current, [kind]: recorded };
+      await deps.save?.(current);
+    });
     if (!result.ok) {
       if (result.code === "offline") return failure(current, "offline", "offline");
       if (result.code === "media_missing") return failure(current, "media_missing", "validation", { field: kind });
       if (result.code === "media_too_large") return failure(current, "invalid_field", "validation", { field: kind });
       return failure(current, "retryable", "retryable");
     }
-    current = { ...current, [kind]: { ...item, uploaded_path: frozen.path, uploaded_uri: item.local_uri, bytes: result.bytes } };
+    current = { ...current, [kind]: result.item };
   }
 
   const media: MediaArg[] = attempt.frozen_media.map((m) => ({ ...m, bytes: current[m.kind]?.bytes ?? m.bytes }));

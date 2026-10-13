@@ -3,7 +3,7 @@
  * replay (duplicate-send guard: one in-flight send per draft).
  */
 import { pendingReplays, roundDrafts, type RoundDraft } from "./drafts";
-import { deleteDraftMedia } from "./media";
+import { deleteAllDraftMedia, deleteDraftMedia } from "./media";
 import { defaultSendDeps, sendAttempt, type SendDeps, type SendResult } from "./submission";
 
 const inflight = new Map<string, Promise<SendResult>>();
@@ -39,4 +39,16 @@ export async function replayPending(userId: string, deps: SendDeps = defaultSend
     results.push(await sendDraft(draft, deps));
   }
   return results;
+}
+
+/**
+ * E10: removes a user's SHIFT drafts and their media folders from this device (account switch,
+ * account deletion). Media folders of the listed drafts are removed even if the store fails.
+ */
+export async function clearLocalRoundDrafts(userId: string, options: { allMedia?: boolean } = {}): Promise<void> {
+  if (!userId) return;
+  const drafts = await roundDrafts.list(userId).catch(() => [] as RoundDraft[]);
+  await roundDrafts.clearUser(userId).catch(() => 0);
+  if (options.allMedia) await deleteAllDraftMedia();
+  else await Promise.all(drafts.map((d) => deleteDraftMedia(d.draft_id)));
 }

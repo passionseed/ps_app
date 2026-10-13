@@ -114,3 +114,28 @@ export function linkToPath(url: string | null | undefined): string | null {
   if (["certificate", "summary", "log", "checkin"].includes(screen ?? "")) return `/round/${screen}`;
   return "/(tabs)/shift";
 }
+
+/**
+ * `usePathname()` drops the query string, so deep links like `/round/join?r=<id>` would lose
+ * the round. Rebuilds the current path from the pathname plus `useGlobalSearchParams()`,
+ * skipping params that are dynamic route segments (already part of the pathname).
+ */
+export function currentPathWithQuery(
+  pathname: string,
+  segments: readonly string[],
+  params: Record<string, string | string[] | undefined>,
+): string {
+  const dynamic = new Set(
+    segments
+      .map((s) => s.match(/^\[(?:\.\.\.)?([^\]]+)\]$/)?.[1])
+      .filter((s): s is string => !!s),
+  );
+  const query: string[] = [];
+  for (const key of Object.keys(params)) {
+    if (dynamic.has(key)) continue;
+    const value = params[key];
+    const values = Array.isArray(value) ? value : value === undefined ? [] : [value];
+    for (const v of values) query.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`);
+  }
+  return query.length ? `${pathname}?${query.join("&")}` : pathname;
+}

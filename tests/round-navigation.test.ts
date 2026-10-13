@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideRoute, isSafeNext, isShiftMode, linkToPath, type NavInput } from "../lib/round/navigation";
+import { currentPathWithQuery, decideRoute, isSafeNext, isShiftMode, linkToPath, type NavInput } from "../lib/round/navigation";
 
 const base: NavInput = {
   loading: false,
@@ -103,5 +103,34 @@ describe("links", () => {
     expect(linkToPath("passion-seed://round")).toBe("/(tabs)/shift");
     expect(linkToPath("passion-seed://round/join?r=abc")).toBe("/round/join?r=abc");
     expect(linkToPath("passion-seed://hackathon/home")).toBeNull();
+  });
+});
+
+describe("current path keeps the query (deep links)", () => {
+  const R = "11111111-1111-4111-8111-111111111111";
+
+  it("adds search params to the pathname", () => {
+    expect(currentPathWithQuery("/round/join", ["round", "join"], { r: R })).toBe(`/round/join?r=${R}`);
+    expect(currentPathWithQuery("/round/log", ["round", "log"], {})).toBe("/round/log");
+    expect(currentPathWithQuery("/round/x", ["round", "x"], { a: ["1", "2"], b: undefined })).toBe("/round/x?a=1&a=2");
+  });
+
+  it("skips dynamic route params already in the pathname", () => {
+    expect(currentPathWithQuery("/round/evidence/abc", ["round", "evidence", "[id]"], { id: "abc" })).toBe("/round/evidence/abc");
+    expect(currentPathWithQuery("/round/evidence/abc", ["round", "evidence", "[id]"], { id: "abc", from: "push" })).toBe(
+      "/round/evidence/abc?from=push",
+    );
+  });
+
+  it("a signed-out join link keeps the round through sign-in", () => {
+    const currentPath = currentPathWithQuery("/round/join", ["round", "join"], { r: R });
+    expect(isSafeNext(currentPath)).toBe(true);
+    const d = nav({ signedIn: false, segments: ["round", "join"], currentPath });
+    expect(d).toEqual({
+      kind: "redirect",
+      to: `/sign-in?next=${encodeURIComponent(`/round/join?r=${R}`)}`,
+      storePendingLink: `/round/join?r=${R}`,
+    });
+    expect(nav({ pendingLink: `/round/join?r=${R}` })).toEqual({ kind: "redirect", to: `/round/join?r=${R}`, clearPendingLink: true });
   });
 });

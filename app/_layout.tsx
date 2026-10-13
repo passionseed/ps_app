@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { AppState, Animated, StyleSheet, Text, View, Pressable } from "react-native";
+import { AppState, Animated, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { onlineManager, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react-native";
 import { AnimatedSplash } from "../components/AnimatedSplash";
 import { shiftStorage } from "../lib/shiftStorage";
 import { queryClient, queryKeys, staleTimes } from "../lib/queryClient";
-import { decideRoute, isCompanionRoute } from "../lib/round/navigation";
+import { currentPathWithQuery, decideRoute, isCompanionRoute } from "../lib/round/navigation";
 import { useRoundBackground, useShiftMode } from "../lib/round/hooks";
 import { clearPendingLink, setPendingLink, usePendingLink } from "../lib/round/pendingLink";
 import { consumeExplicitSignOut } from "../lib/round/session";
 import { roundDrafts } from "../lib/round/drafts";
 import { clearRoundUser, roundKeys, wireQueryManagers } from "../lib/round/queryCore";
+import { clearLocalRoundDrafts } from "../lib/round/sender";
 import { useRoundPushRouting } from "../lib/round/pushRouting";
 
 
@@ -38,8 +39,28 @@ function ConfigErrorScreen({ message }: { message: string }) {
   );
 }
 
+/** Legacy profile fetch gives up after this long and falls back to Discover (offline). */
+const PROFILE_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("profile_timeout")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 function RootNavigator() {
-  const { router, useSegments, usePathname, Stack } = require("expo-router") as typeof import("expo-router");
+  const { router, useSegments, usePathname, useGlobalSearchParams, useRootNavigationState, Stack } =
+    require("expo-router") as typeof import("expo-router");
   const { useAuth } = require("../lib/auth") as typeof import("../lib/auth");
   const { getProfile } = require("../lib/onboarding") as typeof import("../lib/onboarding");
   const { logAppOpened } = require("../lib/eventLogger") as typeof import("../lib/eventLogger");
@@ -47,6 +68,8 @@ function RootNavigator() {
   const { session, loading, isGuest, isHackathon } = useAuth();
   const segments = useSegments() as readonly string[];
   const pathname = usePathname();
+  const globalParams = useGlobalSearchParams<Record<string, string | string[]>>();
+  const navReady = !!useRootNavigationState()?.key;
   const userId = !isGuest && !isHackathon ? session?.user.id ?? "" : "";
   const shift = useShiftMode();
   const pendingLink = usePendingLink();
@@ -55,10 +78,19 @@ function RootNavigator() {
   // Legacy onboarding is only needed for non-SHIFT users (5.2: SHIFT users never need it).
   const profileQuery = useQuery({
     queryKey: queryKeys.profile.detail(userId),
-    queryFn: () => getProfile(userId),
+    queryFn: async () => {
+      const profile = await withTimeout(getProfile(userId), PROFILE_TIMEOUT_MS);
+      // getProfile swallows request errors as null; offline that is "unknown", not "not onboarded".
+      if (!profile && !onlineManager.isOnline()) throw new Error("profile_offline");
+      return profile;
+    },
     enabled: !!userId && needsEntry && !shift.shiftMode && !shift.pending,
     staleTime: staleTimes.userContent,
+    networkMode: "offlineFirst",
+    retry: false,
   });
+  // Offline/timeout: legacy users fall back to Discover rather than onboarding (previous behaviour).
+  const onboarded = !userId || !needsEntry ? null : profileQuery.isError ? true : profileQuery.isPending ? null : !!profileQuery.data?.is_onboarded;
 
   // E14: SIGNED_OUT without an explicit sign-out while drafts exist = expired session.
   const previousUser = useRef(userId);
@@ -72,7 +104,7 @@ function RootNavigator() {
       // E10: a different account on this device clears the previous account's round data.
       void shiftStorage.getItem("round:last-user").then(async (lastUser) => {
         if (lastUser && lastUser !== userId) {
-          await roundDrafts.clearUser(lastUser).catch(() => 0);
+          await clearLocalRoundDrafts(lastUser);
           await clearRoundUser(queryClient, lastUser);
         }
         await shiftStorage.setItem("round:last-user", userId).catch(() => {});
@@ -97,28 +129,29 @@ function RootNavigator() {
     signedIn: !!session,
     sessionExpired: expired,
     segments,
-    currentPath: pathname,
+    currentPath: currentPathWithQuery(pathname, segments, globalParams),
     pendingLink: pendingLink.data ?? null,
     tabEnabled: shift.tabEnabled,
     hasEntry: shift.hasEntry,
     shiftPending: shift.pending,
-    onboarded: !userId || !needsEntry ? null : profileQuery.isPending ? null : !!profileQuery.data?.is_onboarded,
+    onboarded,
   });
   const redirectTo = decision.kind === "redirect" ? decision.to : null;
 
   useEffect(() => { logAppOpened().catch(() => {}); }, [userId, logAppOpened]);
   useEffect(() => {
-    if (decision.kind !== "redirect") return;
+    // Never navigate before the root Stack is mounted (expo-router drops or throws on it).
+    if (decision.kind !== "redirect" || !navReady) return;
     if (decision.storePendingLink) void setPendingLink(queryClient, decision.storePendingLink);
     if (decision.clearPendingLink) void clearPendingLink(queryClient);
     if (decision.to.startsWith("/sign-in")) setExpired(false);
     router.replace(decision.to as never);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [redirectTo]);
+  }, [redirectTo, navReady]);
 
   // Frozen-attempt replay + legacy reminder guard (5.7, E16) and push taps (5.8).
   useRoundBackground();
-  useRoundPushRouting((path) => router.push(path as never));
+  useRoundPushRouting((path) => router.push(path as never), navReady && decision.kind !== "splash");
 
   // Sync build todos to widget on foreground
   useEffect(() => {
@@ -136,12 +169,6 @@ function RootNavigator() {
     return <AnimatedSplash />;
   }
 
-  if (profileQuery.isError && needsEntry && userId && !shift.shiftMode) {
-    return <View style={{ flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#F8F9FA", gap: 16 }}>
-      <Text style={{ color: "#111827", fontSize: 16 }}>{"Couldn't connect. Try again when you're online."}</Text>
-      <Pressable accessibilityRole="button" onPress={() => void profileQuery.refetch()} style={{ minHeight: 48, justifyContent: "center" }}><Text>Try again</Text></Pressable>
-    </View>;
-  }
   return (
     <Stack
       screenOptions={{

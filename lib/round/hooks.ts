@@ -8,7 +8,7 @@ import { roundDrafts } from "./drafts";
 import { DEFAULT_FLAGS, fetchFlags, readCachedFlags } from "./flags";
 import { isShiftMode } from "./navigation";
 import { applyLegacyReminderGuard, readShiftLanguage } from "./push";
-import { loadHome, loadSquad, readCachedHasEntry, ROUND_QUERY_OPTIONS, roundKeys } from "./queryCore";
+import { LOCAL_QUERY_OPTIONS, loadHome, loadSquad, readCachedHasEntry, ROUND_QUERY_OPTIONS, roundKeys } from "./queryCore";
 import { hasActiveEntry } from "./next";
 import { replayPending } from "./sender";
 import type { Lang } from "./types";
@@ -78,6 +78,7 @@ export function useRoundDrafts() {
     queryFn: () => roundDrafts.list(userId),
     enabled: !!userId,
     staleTime: 0,
+    ...LOCAL_QUERY_OPTIONS,
   });
 }
 
@@ -105,7 +106,7 @@ export function useRoundBackground() {
   });
   const active = hasActiveEntry(home.data?.bundle);
   useEffect(() => {
-    if (userId && home.data) void applyLegacyReminderGuard(active);
+    if (userId && home.data) void applyLegacyReminderGuard(userId, active);
   }, [active, userId, home.data]);
 
   const running = useRef(false);
@@ -137,6 +138,23 @@ export function useRoundBackground() {
   }, [replay]);
 }
 
+/**
+ * Whether the SHIFT entry decision must still wait (spec 5.2, X5). Flags alone do not settle
+ * it: without a cached "has entry" bit we wait for home, or a SHIFT entrant whose flag is off
+ * would be routed away from the SHIFT tabs.
+ */
+export function shiftModePending(input: {
+  userId: string;
+  homePending: boolean;
+  cachePending: boolean;
+  cachedHasEntry: boolean | null;
+  flagsPending: boolean;
+}): boolean {
+  if (!input.userId || !input.homePending) return false;
+  if (input.cachePending || input.cachedHasEntry === null) return true;
+  return input.flagsPending;
+}
+
 /** Memoized round title in the current language. */
 export function useRoundTitle(round: { title_th: string; title_en: string } | null | undefined) {
   const { lang } = useRoundLang();
@@ -156,11 +174,18 @@ export function useShiftMode() {
     queryFn: async () => ({ hasEntry: await readCachedHasEntry(userId), flags: await readCachedFlags() }),
     enabled: !!userId,
     staleTime: Infinity,
+    ...LOCAL_QUERY_OPTIONS,
   });
   const hasEntry: boolean | null = home.data ? !!home.data.bundle.entry : cached.data?.hasEntry ?? null;
   const tabEnabled: boolean | null =
     home.data?.bundle.flags?.tab_enabled ?? flags.data?.flags?.tab_enabled ?? cached.data?.flags?.tab_enabled ?? null;
-  const pending = !!userId && home.isPending && (flags.isPending || cached.isPending);
+  const pending = shiftModePending({
+    userId,
+    homePending: home.isPending,
+    cachePending: cached.isPending,
+    cachedHasEntry: cached.data?.hasEntry ?? null,
+    flagsPending: flags.isPending,
+  });
   return {
     hasEntry,
     tabEnabled,

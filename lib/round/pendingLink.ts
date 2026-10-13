@@ -2,19 +2,22 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { shiftStorage } from "../shiftStorage";
 import { isSafeNext } from "./navigation";
-import { PENDING_LINK_KEY } from "./queryCore";
+import { LOCAL_QUERY_OPTIONS, PENDING_LINK_KEY } from "./queryCore";
 
 const KEY = ["round", "pending-link"] as const;
 
+export const pendingLinkQuery = {
+  queryKey: KEY,
+  queryFn: async () => {
+    const value = await shiftStorage.getItem(PENDING_LINK_KEY).catch(() => null);
+    return isSafeNext(value) ? value : null;
+  },
+  staleTime: Infinity,
+  ...LOCAL_QUERY_OPTIONS,
+};
+
 export function usePendingLink() {
-  return useQuery({
-    queryKey: KEY,
-    queryFn: async () => {
-      const value = await shiftStorage.getItem(PENDING_LINK_KEY).catch(() => null);
-      return isSafeNext(value) ? value : null;
-    },
-    staleTime: Infinity,
-  });
+  return useQuery(pendingLinkQuery);
 }
 
 export async function setPendingLink(queryClient: QueryClient, link: string | null | undefined): Promise<void> {

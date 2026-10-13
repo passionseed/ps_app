@@ -19,6 +19,9 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../lib/auth";
+import { queryClient } from "../lib/queryClient";
+import { clearRoundUser } from "../lib/round/queryCore";
+import { clearLocalRoundDrafts } from "../lib/round/sender";
 import { supabase } from "../lib/supabase";
 import { getProfile } from "../lib/onboarding";
 import { RESET_TARGETS, runReset, inspectReset, type ResetTarget } from "../lib/devReset";
@@ -147,7 +150,13 @@ export default function SettingsScreen() {
         throw new Error(errorData.error || "Failed to delete account");
       }
 
+      // E10: drop this account's SHIFT drafts, their media and cached round data, then sign out
+      // explicitly (not treated as an expired session).
+      const deletedUserId = user.id;
+      await clearLocalRoundDrafts(deletedUserId, { allMedia: true }).catch(() => {});
+      await clearRoundUser(queryClient, deletedUserId).catch(() => {});
       setShowDeleteModal(false);
+      await signOut().catch(() => {});
       Alert.alert(
         isThai ? "บัญชีถูกลบแล้ว" : "Account Deleted",
         isThai

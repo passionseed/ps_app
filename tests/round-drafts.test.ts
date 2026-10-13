@@ -12,7 +12,18 @@ vi.mock("../lib/shiftStorage", () => ({
 }));
 
 import { createDraftStore, DraftWriter, newDraftId } from "../lib/drafts/store";
-import { canEdit, editDraft, freezeAttempt, isRoundDraft, makeDraft, restoreDraftMedia, roundDrafts, type RoundDraft } from "../lib/round/drafts";
+import {
+  applyAudioResult,
+  canEdit,
+  editDraft,
+  freezeAttempt,
+  isRoundDraft,
+  makeDraft,
+  restoreDraftMedia,
+  roundDrafts,
+  shouldDiscardOnClose,
+  type RoundDraft,
+} from "../lib/round/drafts";
 import { ENTRY_ID, ROUND_ID, USER_ID } from "./fixtures/round";
 
 const OTHER_USER = "55555555-5555-4555-8555-555555555555";
@@ -193,5 +204,39 @@ describe("edits and frozen attempts on drafts (E5)", () => {
     const edited = editDraft(failed, { fields: { key_point: "edit" } });
     expect(edited?.attempt).toBeNull();
     expect(freezeAttempt(edited!, { key_point: "edit" }, [], new Date(), () => "sub-2").attempt?.submission_id).toBe("sub-2");
+  });
+});
+
+describe("closing the composer (capture.tsx)", () => {
+  const draft = () => makeDraft({ userId: USER_ID, roundId: ROUND_ID, entryId: ENTRY_ID, type: "contact" });
+
+  it("keeps a saved draft that was only opened and closed", () => {
+    expect(shouldDiscardOnClose(draft(), { createdInSession: false, dirty: false })).toBe(false);
+  });
+
+  it("discards only an untouched draft created in this session", () => {
+    expect(shouldDiscardOnClose(draft(), { createdInSession: true, dirty: false })).toBe(true);
+    expect(shouldDiscardOnClose(draft(), { createdInSession: true, dirty: true })).toBe(false);
+    const sent = freezeAttempt(draft(), {}, [], new Date(), () => "sub-1");
+    expect(shouldDiscardOnClose(sent, { createdInSession: true, dirty: false })).toBe(false);
+    expect(shouldDiscardOnClose(null, { createdInSession: true, dirty: false })).toBe(false);
+  });
+});
+
+describe("late transcription results (capture.tsx)", () => {
+  const withAudio = (local: string): RoundDraft => ({
+    ...makeDraft({ userId: USER_ID, roundId: ROUND_ID, entryId: ENTRY_ID, type: "interview" }),
+    audio: { local_uri: local, duration_ms: 5000, consent: true },
+  });
+
+  it("applies a result to the recording it belongs to, keeping newer edits like consent", () => {
+    const next = applyAudioResult(withAudio("audio-1.m4a"), "audio-1.m4a", { transcript: "hello", segments: [], selected: [] });
+    expect(next?.audio).toMatchObject({ local_uri: "audio-1.m4a", consent: true, transcript: "hello" });
+  });
+
+  it("ignores a result for a recording that was replaced or removed", () => {
+    expect(applyAudioResult(withAudio("audio-2.m4a"), "audio-1.m4a", { transcript: "old" })).toBeNull();
+    expect(applyAudioResult({ ...withAudio("x"), audio: null }, "audio-1.m4a", { transcript: "old" })).toBeNull();
+    expect(applyAudioResult(null, "audio-1.m4a", { transcript: "old" })).toBeNull();
   });
 });

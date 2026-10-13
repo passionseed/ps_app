@@ -12,13 +12,12 @@ import {
 } from "../../components/shift/CampUI";
 import { useShift } from "../../lib/shift-context";
 import { useAuth } from "../../lib/auth";
-import { supabase } from "../../lib/supabase";
 import { myProject } from "../../lib/shift-curriculum";
 
 export default function CampProfile() {
   const { snapshot: s } = useShift();
   const t = useCampCopy();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const project = s ? myProject(s) : undefined;
   return (
     <CampShell title={t("My work and learning", "ผลงานและการเรียนรู้")}>
@@ -93,7 +92,7 @@ export default function CampProfile() {
         secondary
         label={t("Sign out", "ออกจากระบบ")}
         onPress={() => {
-          void supabase.auth.signOut();
+          void signOut();
         }}
       />
       <Text style={styles.meta}>

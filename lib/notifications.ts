@@ -64,6 +64,9 @@ export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   theme: "light",
 };
 
+const LEGACY_REMINDER_TITLE = "Time to grow! 🌱";
+const LEGACY_REMINDER_BODY = "Continue your daily learning path.";
+
 export const REMINDER_TIME_OPTIONS = [
   { value: "07:00", label: "7 AM" },
   { value: "09:00", label: "9 AM" },
@@ -217,8 +220,8 @@ export async function removePushToken(userId: string): Promise<void> {
 export async function scheduleDailyReminder(
   hour: number,
   minute: number,
-  title: string = "Time to grow! 🌱",
-  body: string = "Continue your daily learning path.",
+  title: string = LEGACY_REMINDER_TITLE,
+  body: string = LEGACY_REMINDER_BODY,
 ): Promise<string | null> {
   if (!_notificationsAvailable || !Notifications) {
     return null;
@@ -248,6 +251,25 @@ export async function scheduleDailyReminder(
     console.warn("[notifications] Schedule daily reminder failed:", error);
     _notificationsAvailable = false;
     return null;
+  }
+}
+
+/**
+ * Cancels only the legacy daily learning reminder (E16), leaving any other scheduled
+ * notification alone. Returns how many were cancelled.
+ */
+export async function cancelLegacyReminder(): Promise<number> {
+  if (!_notificationsAvailable || !Notifications) return 0;
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const legacy = scheduled.filter(
+      (n) => n.content?.title === LEGACY_REMINDER_TITLE && n.content?.body === LEGACY_REMINDER_BODY,
+    );
+    await Promise.all(legacy.map((n) => Notifications!.cancelScheduledNotificationAsync(n.identifier)));
+    return legacy.length;
+  } catch (error) {
+    console.warn("[notifications] Cancel legacy reminder failed:", error);
+    return 0;
   }
 }
 

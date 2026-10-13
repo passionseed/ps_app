@@ -18,7 +18,17 @@ const rpc = vi.hoisted(() => vi.fn());
 vi.mock("../lib/supabase", () => ({ supabase: { rpc } }));
 
 import { RoundApiError } from "../lib/round/api";
-import { loadHome, loadSquad, readCachedHasEntry, ROUND_QUERY_OPTIONS, roundKeys, wireQueryManagers } from "../lib/round/queryCore";
+import {
+  LOCAL_QUERY_OPTIONS,
+  loadHome,
+  loadSquad,
+  PENDING_LINK_KEY,
+  readCachedHasEntry,
+  ROUND_QUERY_OPTIONS,
+  roundKeys,
+  wireQueryManagers,
+} from "../lib/round/queryCore";
+import { pendingLinkQuery } from "../lib/round/pendingLink";
 import { bundle } from "./fixtures/round";
 
 beforeEach(() => {
@@ -94,5 +104,44 @@ describe("round queries (E18)", () => {
       status: 200,
     });
     expect((await loadSquad("u", "e")).bundle.state).toBe("waiting");
+  });
+});
+
+describe("offline does not pause local-only queries (expo-network wiring)", () => {
+  async function runOffline(options: Record<string, unknown>, fn: () => Promise<unknown>) {
+    onlineManager.setOnline(false);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.mount();
+    const { QueryObserver } = await import("@tanstack/react-query");
+    const observer = new QueryObserver(client, { queryKey: ["probe", Math.random()], queryFn: fn, ...options });
+    const unsubscribe = observer.subscribe(() => {});
+    await new Promise((r) => setTimeout(r, 10));
+    const result = observer.getCurrentResult();
+    unsubscribe();
+    client.unmount();
+    client.clear();
+    onlineManager.setOnline(true);
+    return result;
+  }
+
+  it("a default-mode query pauses offline (the bug) while local queries still resolve", async () => {
+    const paused = await runOffline({}, async () => 1);
+    expect(paused.fetchStatus).toBe("paused");
+    expect(paused.isPending).toBe(true);
+    const local = await runOffline({ ...LOCAL_QUERY_OPTIONS }, async () => 1);
+    expect(local).toMatchObject({ isPending: false, data: 1 });
+  });
+
+  it("the pending deep link resolves offline so the splash is not held", async () => {
+    storage.set(PENDING_LINK_KEY, "/round/join?r=abc");
+    const result = await runOffline({ ...pendingLinkQuery, queryKey: ["probe-link"] }, pendingLinkQuery.queryFn);
+    expect(result).toMatchObject({ isPending: false, data: "/round/join?r=abc" });
+  });
+
+  it("round network queries still run once offline so they can fall back to their cache", async () => {
+    const fn = vi.fn(async () => "cached");
+    const result = await runOffline({ ...ROUND_QUERY_OPTIONS }, fn);
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(result.data).toBe("cached");
   });
 });

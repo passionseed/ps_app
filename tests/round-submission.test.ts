@@ -41,7 +41,7 @@ function deps(results: RoundResult<Receipt>[]): SendDeps & { submit: ReturnType<
   return {
     submit,
     upload: vi.fn().mockResolvedValue({ ok: true, bytes: 1234 }),
-    remove: vi.fn().mockResolvedValue(undefined),
+    remove: vi.fn().mockResolvedValue("ok"),
     now: () => new Date("2026-11-12T05:00:00Z"),
   } as never;
 }
@@ -115,12 +115,42 @@ describe("frozen submission attempts (E5, X7)", () => {
     if (!frozen.ok) throw new Error("expected ok");
     const d = deps([retryable, { ok: true, data: receipt(), request_id: null }]);
     const first = await sendAttempt(frozen.draft, d);
-    expect(d.upload).toHaveBeenCalledWith(`${ROUND_ID}/${USER_ID}/66666666-6666-4666-8666-666666666666/photo.jpg`, "file:///docs/p.jpg", "photo");
+    expect(d.upload).toHaveBeenCalledWith(`${ROUND_ID}/${USER_ID}/66666666-6666-4666-8666-666666666666/photo.jpg`, "file:///docs/p.jpg", "photo", { landed: false });
     await sendAttempt(first.draft, d);
     expect(d.upload).toHaveBeenCalledTimes(1);
     expect(d.submit.mock.calls[1][0].media).toEqual([
       { kind: "photo", path: `${ROUND_ID}/${USER_ID}/66666666-6666-4666-8666-666666666666/photo.jpg`, bytes: 1234, consent: true, duration_ms: null },
     ]);
+  });
+
+  it("never submits a replaced photo as the old one", async () => {
+    const path = `${ROUND_ID}/${USER_ID}/66666666-6666-4666-8666-666666666666/photo.jpg`;
+    // The old photo was uploaded (e.g. a failed attempt); the student then picked a new one.
+    const replaced: RoundDraft = {
+      ...contactDraft(),
+      photo: { local_uri: "photo-2.jpg", consent: true, uploaded_path: path, uploaded_uri: "photo-1.jpg", bytes: 10 },
+    };
+    const frozen = prepareSend(replaced, {}, new Date(), () => "sub-1");
+    if (!frozen.ok) throw new Error("expected ok");
+
+    const blocked = deps([{ ok: true, data: receipt(), request_id: null }]);
+    blocked.remove = vi.fn().mockResolvedValue("failed");
+    const failed = await sendAttempt(frozen.draft, blocked);
+    expect(failed.kind).toBe("error");
+    expect(blocked.upload).not.toHaveBeenCalled();
+    expect(blocked.submit).not.toHaveBeenCalled();
+
+    const d = deps([{ ok: true, data: receipt(), request_id: null }]);
+    const saved: RoundDraft[] = [];
+    d.save = async (draft) => void saved.push(draft);
+    d.upload.mockResolvedValueOnce({ ok: true, bytes: 99 });
+    const ok = await sendAttempt(frozen.draft, d);
+    expect(d.remove).toHaveBeenCalledWith(path);
+    expect(d.upload).toHaveBeenCalledWith(path, "/mock/documents/round-drafts/66666666-6666-4666-8666-666666666666/photo-2.jpg", "photo", { landed: false });
+    // The upload intent is saved before uploading, so a lost response is recognised on replay.
+    expect(saved[0].photo).toMatchObject({ uploaded_path: path, uploaded_uri: "photo-2.jpg" });
+    expect(ok.kind).toBe("receipt");
+    expect(ok.draft.photo).toMatchObject({ uploaded_uri: "photo-2.jpg", bytes: 99 });
   });
 
   it("deletes the draft after a confirmed receipt and keeps it otherwise; one send per draft at a time", async () => {

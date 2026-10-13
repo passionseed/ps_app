@@ -18,8 +18,13 @@ export const roundKeys = {
   drafts: (userId: string) => ["round", userId, "drafts"] as const,
 };
 
-/** E18: round queries refetch on focus and reconnect, and are fresh for 30 s. */
+/**
+ * E18: round queries refetch on focus and reconnect, and are fresh for 30 s. `offlineFirst`
+ * runs the first fetch even when offline so loaders can fall back to their local cache instead
+ * of pausing (a paused query would keep the splash up).
+ */
 export const ROUND_QUERY_OPTIONS = {
+  networkMode: "offlineFirst",
   refetchOnWindowFocus: true,
   refetchOnReconnect: true,
   staleTime: 30_000,
@@ -28,6 +33,9 @@ export const ROUND_QUERY_OPTIONS = {
     return category === "retryable" && failureCount < 2;
   },
 } as const;
+
+/** Queries that only read local storage (pending link, nav cache, drafts) never wait for the network. */
+export const LOCAL_QUERY_OPTIONS = { networkMode: "always" } as const;
 
 export const homeCacheKey = (userId: string) => `round:home:${userId}`;
 export const hasEntryKey = (userId: string) => `round:has-entry:${userId}`;
@@ -112,6 +120,7 @@ type NetworkLike = {
 /**
  * Wires `focusManager` to AppState and `onlineManager` to expo-network (E18). Only queries
  * that opt in (round queries) refetch; the global default keeps `refetchOnWindowFocus: false`.
+ * While offline, default-mode queries pause: local-only queries must use `LOCAL_QUERY_OPTIONS`.
  */
 export function wireQueryManagers(appState: AppStateLike, network: NetworkLike | null): () => void {
   const cleanups: (() => void)[] = [];

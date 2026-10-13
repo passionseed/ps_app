@@ -222,3 +222,20 @@ export async function restoreDraftMedia(
   }
   return { draft: next, photoLost, audioLost };
 }
+
+/**
+ * Closing the composer discards a draft only when this session created it and nothing was
+ * edited (an opened saved draft is never deleted by just closing it).
+ */
+export function shouldDiscardOnClose(draft: RoundDraft | null, state: { createdInSession: boolean; dirty: boolean }): boolean {
+  return !!draft && state.createdInSession && !state.dirty && !draft.attempt;
+}
+
+/**
+ * Applies a late result for a recording (upload record, transcript). Returns null when the draft
+ * now holds a different recording (a newer one replaced it), so stale results are dropped.
+ */
+export function applyAudioResult(current: RoundDraft | null, localUri: string, patch: Partial<DraftAudio>): RoundDraft | null {
+  if (!current?.audio || current.audio.local_uri !== localUri) return null;
+  return editDraft(current, { audio: { ...current.audio, ...patch } });
+}
