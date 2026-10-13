@@ -244,7 +244,6 @@ module.exports = {
       favicon: "./assets/favicon.png",
     },
     plugins: [
-      "./config-plugins/withTodoWidget",
       withHighMemoryGradle,
       withStableIosBundleEntry,
       [
