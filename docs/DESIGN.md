@@ -1,143 +1,169 @@
 ---
 name: Passion Seed
-description: AI-driven career path simulation and exploration platform
+description: SHIFT app. Students run real-world projects in rounds (SHIFT) made of Missions, with a squad and a mentor.
+version: 3
+updated: 2026-10-12
 colors:
-  primary: "#BFFF00"
-  secondary: "#8B5CF6"
-  tertiary: "#3B82F6"
-  neutral-bg: "#F8F9FA"
+  canvas: "#F4F2FB"
+  wash: "#ECE6FF"
   surface: "#FFFFFF"
-  text-primary: "#111827"
+  ink: "#14112A"
+  ink-2: "#45405E"
+  ink-3: "#625C7D"
+  violet-50: "#F1ECFF"
+  violet-100: "#E4DEF7"
+  violet-200: "#D9CCFF"
+  violet-400: "#8B6BFF"
+  violet-600: "#6D3FF0"
+  violet-700: "#5B2FD6"
+  line: "#E7E2F4"
+  control: "#8E86AE"
+  success: "#0F7A4D"
+  success-bg: "#E8F6EF"
+  warning: "#8A4B00"
+  warning-bg: "#FFF3E0"
+  error: "#B91C1C"
 typography:
   display:
-    fontFamily: "Charm, Chonburi, serif"
-    fontSize: "28pt"
-    fontWeight: "normal"
+    fontFamily: "Bai Jamjuree"
+    fontSize: "30pt"
+    fontWeight: "500"
+    lineHeight: 1.25
   title:
-    fontFamily: "Bai Jamjuree, sans-serif"
-    fontSize: "20pt"
-    fontWeight: "bold"
+    fontFamily: "Bai Jamjuree"
+    fontSize: "22pt"
+    fontWeight: "700"
   body:
-    fontFamily: "Bai Jamjuree, sans-serif"
-    fontSize: "16pt"
-    fontWeight: "normal"
-  label:
-    fontFamily: "Bai Jamjuree, sans-serif"
-    fontSize: "12pt"
-    fontWeight: "bold"
+    fontFamily: "Bai Jamjuree"
+    fontSize: "15pt"
+    fontWeight: "400"
+    lineHeight: 1.55
+  meta:
+    fontFamily: "Bai Jamjuree"
+    fontSize: "13pt"
+    fontWeight: "500"
+  latin-and-numbers:
+    fontFamily: "Libre Franklin"
+    note: "Latin words, tags and numerals (tabular figures)"
 rounded:
-  sm: "12px"
-  md: "16px"
-  lg: "20px"
-  xl: "24px"
+  tag: "8px"
+  control: "14px"
+  card: "24px"
+  sheet: "32px"
   full: "999px"
 spacing:
-  sm: "4px"
-  md: "8px"
+  xs: "4px"
+  sm: "8px"
+  md: "12px"
   lg: "16px"
-  xl: "24px"
+  xl: "20px"
+  2xl: "24px"
 components:
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.text-primary}"
+  button-pillow:
+    background: "linear-gradient(#FFFFFF, {colors.violet-50})"
+    textColor: "{colors.violet-700}"
+    border: "1px #D9CFFF"
     rounded: "{rounded.full}"
-    padding: "16px 24px"
-  card-standard:
-    backgroundColor: "{colors.surface}"
-    rounded: "{rounded.xl}"
-    padding: "24px"
+    height: "58px"
+    icon: "gem: 32px circle, gradient {colors.violet-400} -> {colors.violet-600}, white icon"
+    shadow: "0 10px 24px rgba(109,63,240,.18), inner highlight"
+    pressed: "sinks 2px, shadow tightens, light haptic"
+  card:
+    background: "{colors.surface}"
+    rounded: "{rounded.card}"
+    border: "none"
+    shadow: "0 1px 2px rgba(20,17,42,.05), 0 8px 24px rgba(20,17,42,.06)"
+  tag:
+    background: "{colors.violet-50}"
+    textColor: "{colors.violet-700}"
+    rounded: "{rounded.tag}"
 ---
 
-# Design System: Passion Seed
+# Design System: Passion Seed (v3)
 
-## 1. Overview
+Code: `lib/theme.ts` (`Violet`, `Ink`, `Surface`, `Status`, plus legacy aliases).
+Reference mockups: `~/.gstack/projects/passionseed-ps_app/designs/season-home-20261012/design-system-v3.html`.
 
-**Creative North Star: "The Clear Path Accelerator"**
+## 1. Principles
 
-The system balances a clean, innovative, and data-grounded aesthetic with subtle tactile interactions. It provides a bright, high-contrast default environment designed to make career simulations feel accessible and actionable. For specialized contexts, like the Hackathon, the platform shifts to a deeply immersive, bioluminescent dual-theme. The system explicitly rejects rigid enterprise UI patterns.
+1. **One accent, one job.** Violet means "act" and "progress". Blue, green and orange are
+   only for legacy semantic meaning on career screens, never decoration. Colour is never
+   the only signal: every state also has an icon or a word.
+2. **Thai-first contrast.** Thai strokes are thin. Body text at least 7:1, secondary at
+   least 4.5:1, nothing readable below 4.5:1. Never grey on lavender.
+3. **Depth by tone.** Lavender canvas, white surfaces, one soft shadow. Never a border and a
+   shadow on the same card. Borders only on inputs and controls (at least 3:1).
+4. **One hero per screen.** Only the Pillow button is fun and tactile. Everything else stays
+   quiet so the button reads as the next step.
+5. **Readable rhythm.** Body 15pt, line-height 1.55 for Thai, metadata at least 13pt,
+   weights 400/500/700. Touch targets at least 44pt.
+6. **Warm, not childish.** Glossy and tactile only where you press. Flat, calm surfaces
+   everywhere else. No emoji as icons or navigation.
 
-**Key Characteristics:**
-- High-contrast, clean surfaces prioritizing legibility.
-- Semantic, vibrant accents that guide the user.
-- Tonal layering over heavy shadows.
-- Distinct immersive sub-themes for special experiences.
+## 2. Colour
 
-## 2. Colors
+Measured WCAG contrast:
 
-The palette uses bright, clear semantic accents against deep obsidian text and off-white backgrounds to guide attention efficiently.
+| Token | Use | Contrast |
+|---|---|---|
+| ink `#14112A` | titles, body | 16.6:1 on canvas |
+| ink-2 `#45405E` | secondary text | 9.8:1 on white, 8.8:1 on canvas |
+| ink-3 `#625C7D` | metadata, placeholders | 6.3:1 on white, 5.7:1 on canvas |
+| violet-700 `#5B2FD6` | tags, links, accent text | 7.4:1 on white, 6.4:1 on violet-50 |
+| violet-600 `#6D3FF0` | progress, selected chip, current node | white text 5.8:1 |
+| violet-200 `#D9CCFF` | legacy CTA fill | ink text 12.3:1 |
+| control `#8E86AE` | input and control borders | 3.4:1 on white |
+| success `#0F7A4D` on `#E8F6EF` | done, success | 4.8:1 |
+| warning `#8A4B00` on `#FFF3E0` | rejected, attention | 6.2:1 |
 
-### Primary
-- **Passion Neon** (#BFFF00): The main action color, driving the primary CTAs and active states. It demands attention and signals progress.
+Canvas: `#F4F2FB` with a soft radial wash of `#ECE6FF` from the top right. Surfaces fade
+from white to `#FAF8FF` at most; gradients stay subtle.
 
-### Secondary
-- **Amethyst Glimpse** (#8B5CF6): Used semantically for education and academic progression markers.
-
-### Tertiary
-- **Experience Blue** (#3B82F6): Used semantically for internship steps, work history, and day timeline nodes.
-
-### Neutral
-- **Obsidian Slate** (#111827): The deep, grounded color for primary text and high-contrast action pills.
-- **Off-White Canvas** (#F8F9FA): Provides subtle contrast behind pure white cards to make content pop without heaviness.
-
-### Named Rules
-**The Dual-Thematic Rule.** The primary app remains bright and clean. Deep, dark backgrounds (#03050a) and glowing borders are reserved exclusively for immersive experiences like the Hackathon.
+The dark immersive hackathon theme (`lib/hackathonTheme.ts`) stays separate and is only
+for hackathon screens.
 
 ## 3. Typography
 
-**Display Font:** Charm or Chonburi (with serif fallbacks)
-**Body Font:** Bai Jamjuree (with sans-serif fallbacks)
+- Thai and UI: **Bai Jamjuree**. Latin words, tags and numbers: **Libre Franklin** with
+  tabular figures.
+- Large Thai titles use weight 500, not 300: thin Thai at small sizes breaks up.
+- Break long Thai titles by hand at phrase boundaries; Thai has no spaces.
+- Tags in English may be uppercase with 0.06em tracking; never uppercase-track Thai.
 
-**Character:** A modern, clean Thai sans-serif for high utility, contrasted with elegant, expressive serifs for major section headers to add a premium feel.
+## 4. Components
 
-### Hierarchy
-- **Display** (normal, 24-28pt): Premium editorial headers (e.g., "ไทม์ไลน์ของคุณ").
-- **Headline** (bold, 18-20pt): Main entity names and card titles.
-- **Title** (bold, 16-18pt): Emphasized text and CTA button text.
-- **Body** (normal, 14-16pt): Subtitles, company names, and timeline descriptions.
-- **Label** (bold, 10-12pt, uppercase): Tags and badges inside cards.
+- **Pillow button** (primary action, one per screen): white to violet-50 pill, violet-700
+  text, a glossy violet "gem" holding the icon, violet-tinted shadow, sinks 2pt on press
+  with a light haptic.
+- **Secondary actions:** text buttons in violet-700, or a 44pt icon button on violet-50.
+- **Cards:** white, 24pt radius, one soft shadow, no border.
+- **Tags:** violet-700 on violet-50, 8pt radius, 12pt bold.
+- **Chips:** 40pt+ tall; unselected white with a `#CFC8E6` border; selected solid
+  violet-600 with white text.
+- **Inputs:** white, 1pt control border, 14pt radius, 48pt tall.
+- **Progress:** violet-100 track, violet-600 fill.
+- **Mission trail:** done = violet-50 circle with a violet-700 check; current = solid
+  violet-600 with a ring; not yet = hollow with the control border. Each also says
+  "เสร็จแล้ว" / count / "ยังไม่ถึง" in words.
+- **Tab bar:** white, line pictogram icons with labels; active = violet-700 plus a 3pt
+  top indicator.
 
-## 4. Elevation
+## 5. Do's and Don'ts
 
-The system relies heavily on tonal layering. Surfaces are completely flat by default, with depth and hierarchy established through subtle background contrast (pure white on off-white) rather than heavy shadows.
+- **Do** keep one Pillow button per screen.
+- **Do** pair every colour state with an icon or word.
+- **Don't** use `#9CA3AF`-style light grey for any readable text.
+- **Don't** put coloured text on a tint of the same colour below 4.5:1 (the old 10%-tint
+  tags failed at 3.3 to 3.8:1).
+- **Don't** add borders to cards that already have a shadow.
+- **Don't** use emoji as icons, bullets or tab icons.
+- **Don't** use side-stripe borders as coloured accents.
 
-### Shadow Vocabulary
-- **Subtle Lift** (`elevation: 2`, `opacity: 0.05`): Used very sparingly to separate main content cards from the background canvas.
+## 6. Migration notes (v2 neon -> v3 lavender)
 
-### Named Rules
-**The Tonal Layering Rule.** Avoid heavy or layered shadows. Distinct cards should be recognizable through color contrast and generous internal padding.
-
-## 5. Components
-
-Components feel clean, innovative, and subtly tactile, relying on large touch targets and subtle inflation/lift.
-
-### Buttons
-- **Shape:** Fully rounded pill (999px).
-- **Primary:** Passion Neon with Obsidian Slate text. High visibility, large full-width touch areas.
-- **Action Pills:** Obsidian Slate with pure white text, used for secondary top-level actions.
-
-### Cards / Containers
-- **Corner Style:** Large rounded corners (24px to 32px).
-- **Background:** Pure white (#FFFFFF).
-- **Shadow Strategy:** Flat by default, subtle lift if required.
-- **Border:** Transparent or none.
-- **Internal Padding:** Generous (16px to 24px).
-
-### Tags / Badges
-- **Style:** Soft tinted background of the semantic color (e.g., 10% opacity) with fully saturated text. Fully rounded corners.
-- **State:** Bold, uppercase typography with heavy tracking.
-
-### Navigation / Timelines
-- Vertical connecting lines are thin (1-2px). Active nodes are circular, filled with semantic colors (Amethyst Glimpse or Experience Blue).
-
-## 6. Do's and Don'ts
-
-### Do:
-- **Do** use large, generous touch targets and padding.
-- **Do** leverage pure white cards on off-white backgrounds to create structure.
-- **Do** use Passion Neon (#BFFF00) for primary, forward-moving actions.
-
-### Don't:
-- **Don't** use Microsoft-style corporate, dry, or rigid enterprise UI patterns.
-- **Don't** use heavy drop shadows or glassmorphism as a default outside of immersive hackathon contexts.
-- **Don't** use side-stripe borders (border-left or border-right greater than 1px) as colored accents.
-- **Don't** use modal dialogs as the first thought; rely on inline or progressive alternatives.
+- `Accent.yellow` / `yellowDark` / `yellowLight` are legacy aliases now mapped to violet
+  (CTA fill violet-200, pressed violet-300). Existing CTAs keep dark text, which stays
+  readable at 12.3:1. Replace them with the Pillow button screen by screen.
+- `Text.tertiary` moved from `#9CA3AF` (2.5:1) to ink-3 (6.3:1); every screen using it got
+  more readable.
+- Remaining hardcoded `#BFFF00` values in screens are not migrated yet.

@@ -782,7 +782,7 @@ export default function ActivityDetailScreen() {
                 </AppText>
               )}
               {item.content_url && (
-                <AppText style={{ fontSize: 12, color: Accent.yellowDark }}>{item.content_url}</AppText>
+                <AppText style={{ fontSize: 12, color: Accent.purple }}>{item.content_url}</AppText>
               )}
             </View>
           );
