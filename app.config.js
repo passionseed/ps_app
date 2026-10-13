@@ -182,7 +182,7 @@ module.exports = {
     name: `Passion Seed${appVariant.nameSuffix}`,
     scheme: urlScheme,
     slug: "passion-seed",
-    version: "1.3.3",
+    version: "1.4.0",
     orientation: "portrait",
     icon: "./assets/passionseed-logo-1024.png",
     userInterfaceStyle: "light",
