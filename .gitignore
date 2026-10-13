@@ -47,6 +47,8 @@ yarn-error.*
 
 build-*.ipa
 build-*
+# Source file, not a build artifact
+!lib/build-todos.ts
 /PassionSeedDevelopment.app
 
 .env.local
