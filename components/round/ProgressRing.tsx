@@ -31,7 +31,7 @@ export function ProgressRing({ value, total, size = 46 }: { value: number; total
           </LinearGradient>
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={size / 2} fill="#FFFFFF" />
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(109,63,240,0.13)" strokeWidth={stroke} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(114,92,191,0.13)" strokeWidth={stroke} fill="none" />
         {ratio > 0 ? (
           <Circle
             cx={size / 2}

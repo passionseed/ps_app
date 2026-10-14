@@ -1,41 +1,43 @@
 ---
 name: Passion Seed
 description: SHIFT app. Students run real-world projects in 7-day shifts (SHIFT[N]) with a squad and a mentor.
-version: 4.1
-codename: Depth (keys)
+version: 4.2
+codename: Depth (keys, calm palette)
 updated: 2026-10-15
 colors:
-  canvas-top: "#F1ECFF"
+  canvas-top: "#F1EFFE"
   canvas: "#F4F2FB"
   canvas-bottom: "#F7F5FC"
-  wash: "#E0D3FF"
-  wash-left: "#F7EAFF"
-  orb-violet: "#DCCBFF"
-  orb-pink: "#FBE3FF"
+  wash: "#E3E0FD"
+  wash-left: "#FBECFB"
+  orb-violet: "#DFDBFC"
+  orb-pink: "#F9E8FA"
   glass: "rgba(255,255,255,0.66)"
   glass-rim: "rgba(255,255,255,0.95)"
   surface: "#FFFFFF"
-  ink: "#14112A"
-  ink-2: "#45405E"
-  ink-3: "#5B5576"
-  violet-50: "#F1ECFF"
-  violet-100: "#E4DEF7"
-  violet-200: "#D9CCFF"
-  violet-300: "#C4B3FF"
-  violet-400: "#8B6BFF"
-  violet-600: "#6D3FF0"
-  violet-700: "#5B2FD6"
-  gem-face: "linear #7E5CFA -> #5F31E3"
-  gem-tile: "linear #8B6BFF -> #5B2FD6"
-  gem-orb: "radial at 35% 30%: #C9B8FF 0%, #8B6BFF 40%, #5B2FD6 100%"
-  glow: "linear 90deg #A48BFF -> #6D3FF0"
-  line: "#E7E2F4"
-  control: "#8E86AE"
+  ink: "#2A2838"
+  ink-2: "#474558"
+  ink-3: "#646275"
+  violet-50: "#EFEDFF"
+  violet-100: "#E7E5FB"
+  violet-200: "#D4CFF7"
+  violet-300: "#BDB5EE"
+  violet-400: "#9384D5"
+  violet-600: "#725CBF"
+  violet-700: "#634EA8"
+  violet-800: "#493A7D"
+  gem-face: "linear #8473CC -> #6A55B2"
+  gem-tile: "linear #9384D5 -> #6752AD"
+  gem-orb: "radial at 35% 30%: #D4CFF7 0%, #9384D5 40%, #6752AD 100%"
+  glow: "linear 90deg #ABA1E0 -> #725CBF"
+  shadow-tint: "rgb(78,64,132)"
+  line: "#E6E5F0"
+  control: "#8C89A0"
   success: "#0F7A4D"
   success-bg: "#E8F6EF"
   warning: "#8A4B00"
   warning-bg: "#FFF3E0"
-  error: "#B91C1C"
+  error: "#AF302B"
 typography:
   display:
     fontFamily: "Bai Jamjuree"
@@ -75,32 +77,32 @@ spacing:
   2xl: "24px"
 components:
   key-shift:
-    face: "dish 180deg #7B55FA 0%, #6338EC 34%, #6A41F0 70%, #7550F6 100%"
-    bevel: "1px top rgba(255,255,255,.55), 1px sides rgba(42,14,140,.28), 1.5px front lip rgba(205,190,255,.55)"
-    wall: "5px, #4626BE -> #2E1484 (last 16%)"
-    contact: "1px rgba(26,8,84,.4) under the wall"
-    ambient: "0 12px 16px -10px rgba(52,22,160,.6), fades while pressed"
-    legend: "white Bai Jamjuree 700 17pt, 0 1px 0 rgba(36,10,120,.4); white 2.4 icon"
+    face: "dish 180deg #826FCA 0%, #7059BC 34%, #735DBF 70%, #7C68C7 100%"
+    bevel: "1px top rgba(255,255,255,.5), 1px sides rgba(60,44,120,.22), 1.5px front lip rgba(222,216,250,.55)"
+    wall: "5px, #5A4897 -> #493B7B (last 16%)"
+    contact: "1px rgba(45,34,90,.3) under the wall"
+    ambient: "0 10px 16px -10px rgba(78,64,132,.42), fades while pressed"
+    legend: "white Bai Jamjuree 700 17pt, 0 1px 0 rgba(50,36,100,.32); white 2.4 icon"
     rounded: "14px continuous"
     height: "53px face + 5px wall"
     pressed: "face travels 4px in 55ms, rigid haptic; springs back (mass .5, stiffness 520, damping 18: ~0.5px overshoot, settled ~200ms)"
   key-porcelain:
-    face: "dish #FFFFFF, #F2EEFD, #F7F5FE, #FFFFFF"
-    bevel: "#FFFFFF top, #DCD4F3 sides, #FFFFFF lip"
-    wall: "#D9D0F4 -> #BFB2E6"
+    face: "dish #FFFFFF, #F1F0FA, #F5F5FC, #FFFFFF"
+    bevel: "#FFFFFF top, #DFDDEE sides, #FFFFFF lip"
+    wall: "#DCDAED -> #CCC9E3"
     legend: "{colors.ink}, violet-700 icon"
   glass-card:
     background: "{colors.glass}"
     border: "1px {colors.glass-rim}"
     rounded: "{rounded.card}"
-    shadow: "0 10px 26px -14px rgba(109,63,240,.35)"
+    shadow: "0 10px 26px -14px rgba(78,64,132,.26)"
   hero-card:
-    background: "linear-gradient(160deg, #FFFFFF 0%, #FBF9FF 55%, #F1EBFF 100%)"
+    background: "linear-gradient(160deg, #FFFFFF 0%, #FAF9FE 55%, #F0EEFC 100%)"
     rounded: "{rounded.hero}"
-    shadow: "inset 0 1px 0 #FFF, 0 18px 40px -12px rgba(109,63,240,.28), 0 2px 6px rgba(20,17,42,.05)"
-    watermark: "Libre Franklin 700 128pt numeral, rgba(139,107,255,.2) -> transparent"
+    shadow: "inset 0 1px 0 #FFF, 0 18px 40px -12px rgba(78,64,132,.22), 0 2px 6px rgba(42,40,56,.05)"
+    watermark: "Libre Franklin 700 128pt numeral, rgba(147,132,213,.2) -> transparent"
   tag:
-    background: "rgba(255,255,255,.72) glass pill, 1px rim, 0 2px 8px rgba(109,63,240,.10)"
+    background: "rgba(255,255,255,.72) glass pill, 1px rim, 0 2px 8px rgba(78,64,132,.08)"
     textColor: "{colors.violet-700}"
     rounded: "{rounded.tag}"
 ---
@@ -116,6 +118,16 @@ depth language) and `shift-app-v5.html` (home states, steps, guide).
 Why v4: the v3 screens were built exactly as v3 said ("flat, calm surfaces everywhere else") and
 read as flat white boxes on flat lavender. v4 keeps the v3 palette, type and contrast rules and
 adds depth: a layered canvas, glass, one raised hero, glowing progress.
+
+Why v4.2 (calm palette): the keys landed, but the colours were "harsh on the eyes", and the
+numbers agreed. The accent sat at OKLCH chroma 0.25 (the most saturated sRGB allows at that
+hue; UI violets like Radix's sit near 0.18) and leaned blue (hue 286). Ink was near-black
+(16.6:1). Every key had a navy wall (12:1 against the canvas), and shadows were bright violet
+glows at 45-60% opacity. Saturated blue-violet is the hardest colour for the eye to focus
+(it lands in front of the retina), so its edges against white seem to shimmer, and big
+saturated areas leave afterimages. v4.2 keeps every structure and lowers the noise. On the
+same screens, measured colourfulness fell 36-43%. Pixels above chroma 0.15 fell from about 7%
+to 0, and near-black pixels from about 1.8% to 0.
 
 Why v4.1 (keys): the v4 Pillow was a white-to-lavender pill with a violet glow. It was made of the
 same soft material as the cards and tab bar (about 1.0:1 against the canvas, a 1.3:1 rim, a 26pt
@@ -145,29 +157,41 @@ are now keycaps: the one hard, engineered object in a soft world (section 6). SH
 
 ## 2. Colour and contrast
 
-Measured WCAG contrast (unchanged rules; ink-3 darkened in v4 so it holds on the wash):
+**Calm rules (v4.2).** The palette is designed in OKLCH (perceptual lightness, chroma, hue), and
+`tests/round-palette.test.ts` enforces it:
+- Accent chroma is at most 0.15 (fills, key faces, gems, progress). Tints and washes stay at
+  0.06 or below. Hue is 291, a little warmer than the old 286.
+- Legibility comes from lightness contrast, not saturation. Thresholds are unchanged (body
+  7:1, secondary 4.5:1, controls 3:1, on every canvas layer).
+- No near-black: ink sits at 12-14:1, not 16+.
+- Shadows are a deep muted violet `rgb(78,64,132)`, never a bright glow. No halo above 0.45
+  opacity; most are 0.25-0.4.
+- One saturated area per screen: the Shift key. Everything else is tinted or glass.
+
+Measured WCAG contrast:
 
 | Token | Use | Contrast |
 |---|---|---|
-| ink `#14112A` | titles, body | 16.6:1 on canvas, 13.1:1 on the wash |
-| ink-2 `#45405E` | secondary text | 9.8:1 on white, 8.8:1 on canvas, 6.9:1 on the wash |
-| ink-3 `#5B5576` | metadata, placeholders | 7.0:1 on white, 6.3:1 on canvas, 5.0:1 on the wash |
-| violet-700 `#5B2FD6` | tags, links, accent text | 7.4:1 on white, 6.4:1 on violet-50, 5.3:1 on the wash |
-| violet-600 `#6D3FF0` | progress, focus | white text 5.8:1 |
-| gem-face `#7E5CFA -> #5F31E3` | selected chip, today cell, gem numbers | white text 5.0:1 at 30%, 5.5:1 at the middle |
-| control `#8E86AE` | input and control borders | 3.4:1 on white |
+| ink `#2A2838` | titles, body | 13.0:1 on canvas, 11.2:1 on the wash, 14.4:1 on white |
+| ink-2 `#474558` | secondary text | 9.3:1 on white, 8.4:1 on canvas, 7.2:1 on the wash |
+| ink-3 `#646275` | metadata, placeholders | 5.9:1 on white, 5.3:1 on canvas, 4.6:1 on the wash |
+| violet-700 `#634EA8` | tags, links, accent text | 6.6:1 on white, 5.7:1 on violet-50, 5.1:1 on the wash |
+| violet-600 `#725CBF` | progress, focus | white text 5.3:1 |
+| gem-face `#8473CC -> #6A55B2` | today cell, gem numbers | white text 4.5:1 at 30%, 4.8:1 at the middle |
+| key-shift face | the Shift key legend | white 5.5:1 at 34%, 5.2:1 at 70% |
+| control `#8C89A0` | input and control borders | 3.4:1 on white |
 | success `#0F7A4D` on `#E8F6EF` | done, success | 4.8:1 |
 | warning `#8A4B00` on `#FFF3E0` | rejected, attention | 6.2:1 |
-| `#F1ECFF` on dark `#2A2540` | DM card, dark button | 12.6:1 |
+| error `#AF302B` | errors | 6.4:1 on white, 5.6:1 on `#FDECEC` |
+| `#F4F3FF` on dark `#3A3850` | DM card, dark button | 10.3:1 |
 
 - Glass over the canvas composites to `#F4F0FF`-`#FBFBFE`, so text on glass measures as on
   white: ink-3 6.2-6.7:1, ink-2 8.7-9.3:1, violet-700 6.6-7.1:1 (lowest values over the wash).
-- v4 moved ink-3 from `#625C7D` (4.46:1 on the wash, a fail) to `#5B5576`. Legacy
-  `Text.tertiary` follows.
-- White on the light end of a gem (`#8B6BFF`, 3.7:1) is for icons only (graphics need 3:1).
+- Legacy `Text.tertiary` follows ink-3.
+- White on the light end of a gem (`#9384D5`, 3.2:1) is for icons only (graphics need 3:1).
   Text on a gem uses gem-face and sits mid-gradient.
-- The SHIFT wordmark on the orb is a logo (white with a violet glow); the subtitle under it is
-  deep violet `#3D1FA8` (7.1:1 or more on the sphere).
+- The SHIFT wordmark on the orb is a logo (white with a soft violet shadow); the subtitle
+  under it is violet-800 `#493A7D` (5.4:1 or more on the sphere).
 
 The dark immersive hackathon theme (`lib/hackathonTheme.ts`) stays separate and is only for
 hackathon screens.
@@ -176,16 +200,16 @@ hackathon screens.
 
 | Token | Value | Where |
 |---|---|---|
-| Canvas | vertical `#F1ECFF -> #F4F2FB (42%) -> #F7F5FC` | every SHIFT screen (`RoundShell`) |
-| Wash (top right) | `#E0D3FF`, ellipse 120% x 55% at the top-right corner, gone at 62% | canvas |
-| Wash (left) | `#F7EAFF`, ellipse 70% x 40% at the left edge 34% down, gone at 72% | canvas |
-| Orbs | `#DCCBFF` off the top-right, `#FBE3FF` on the left; 75% opacity | canvas (`orbs`, default on) |
+| Canvas | vertical `#F1EFFE -> #F4F2FB (42%) -> #F7F5FC` | every SHIFT screen (`RoundShell`) |
+| Wash (top right) | `#E3E0FD`, ellipse 120% x 55% at the top-right corner, gone at 62% | canvas |
+| Wash (left) | `#FBECFB`, ellipse 70% x 40% at the left edge 34% down, gone at 72% | canvas |
+| Orbs | `#DFDBFC` off the top-right, `#F9E8FA` on the left; 60% opacity | canvas (`orbs`, default on) |
 | Glass | `rgba(255,255,255,.66)` + 1pt `rgba(255,255,255,.95)` rim, radius 22 | cards, rows, chips |
-| Hero | `#FFFFFF -> #FBF9FF -> #F1EBFF` at 160deg, top highlight, radius 26, faded numeral | one per screen |
+| Hero | `#FFFFFF -> #FAF9FE -> #F0EEFC` at 160deg, top highlight, radius 26, faded numeral | one per screen |
 | Gem | face / tile / radial orb gradients + white top highlight | icons, numbers, selections |
-| Glow | `#A48BFF -> #6D3FF0` fill, `0 0 12px rgba(109,63,240,.55)`, recessed track `rgba(109,63,240,.12)` | progress |
+| Glow | `#ABA1E0 -> #725CBF` fill, `0 0 12px rgba(114,92,191,.35)`, recessed track `rgba(114,92,191,.12)` | progress |
 | Keycap | dished face, bevels, a wall, contact + ambient shadow (section 6, `Keycap` / `KeySize`) | every action |
-| Dark | `#2A2540 -> #14112A` with a faint top highlight | Apple button, DM card |
+| Dark | `#3A3850 -> #2A2838` with a faint top highlight | Apple button, DM card |
 
 Shadows (`Depth` in `lib/theme.ts`): CSS `boxShadow` on iOS and web (exact mockup values,
 negative spread, drawn only outside the card so translucent glass never shows a shadow through
@@ -193,17 +217,21 @@ it); plain `elevation` on Android (cheap, violet-tinted on API 28+).
 
 | Depth | iOS / web | Android |
 |---|---|---|
-| glass | `0 10px 26px -14px rgba(109,63,240,.35)` | 3 |
-| row | `0 6px 16px -12px rgba(109,63,240,.45)` | 2 |
-| raised (current step) | `0 12px 26px -12px rgba(109,63,240,.55)` | 6 |
-| hero | `0 18px 40px -12px rgba(109,63,240,.28), 0 2px 6px rgba(20,17,42,.05)` | 8 |
-| nav (back, close) | `0 1px 2px rgba(20,17,42,.08), 0 6px 14px -8px rgba(76,40,200,.4)` | 2 |
-| gem / tile | `0 3px 8px rgba(91,47,214,.5)` / `0 8px 16px -6px rgba(91,47,214,.6)` | 4 / 5 |
-| glow (today, selected, done slot) | `0 8px 18px -6px rgba(109,63,240,.6)` | 5 |
-| pill (tags) | `0 2px 8px rgba(109,63,240,.10)` | 1 |
-| float (orb chips, toast) | `0 10px 24px -10px rgba(109,63,240,.45)` | 4 |
-| tab bar | `0 10px 30px -10px rgba(20,17,42,.25)` | 10 |
-| orb | `0 30px 60px -20px rgba(109,63,240,.6)` | 12 |
+All shadows use the muted tint `rgb(78,64,132)` (v4.2; it was bright violet `rgb(109,63,240)`).
+
+| Depth | iOS / web | Android |
+|---|---|---|
+| glass | `0 10px 26px -14px rgba(78,64,132,.26)` | 3 |
+| row | `0 6px 16px -12px rgba(78,64,132,.32)` | 2 |
+| raised (current step) | `0 12px 26px -12px rgba(78,64,132,.4)` | 6 |
+| hero | `0 18px 40px -12px rgba(78,64,132,.22), 0 2px 6px rgba(42,40,56,.05)` | 8 |
+| nav (back, close) | `0 1px 2px rgba(42,40,56,.08), 0 6px 14px -8px rgba(78,64,132,.3)` | 2 |
+| gem / tile | `0 3px 8px rgba(78,64,132,.35)` / `0 8px 16px -6px rgba(78,64,132,.4)` | 4 / 5 |
+| glow (today, selected, done slot) | `0 8px 18px -6px rgba(78,64,132,.38)` | 5 |
+| pill (tags) | `0 2px 8px rgba(78,64,132,.08)` | 1 |
+| float (orb chips, toast) | `0 10px 24px -10px rgba(78,64,132,.32)` | 4 |
+| tab bar | `0 10px 30px -10px rgba(42,40,56,.2)` | 10 |
+| orb | `0 30px 60px -20px rgba(78,64,132,.45)` | 12 |
 
 Inner highlights and glows are real views (a 1-2pt white top rim, a bottom gradient), not inset
 shadows, so they look the same on every platform.
@@ -259,18 +287,18 @@ engineered object with a face, a wall, travel and a click. Code: `components/rou
 
 | Part | What it does | Shift key values |
 |---|---|---|
-| Face | Dished, not domed: bright top bevel, a shaded band under it, lighter toward the front. A pillow pushes back; a key takes your finger. | `#7B55FA` 0%, `#6338EC` 34%, `#6A41F0` 70%, `#7550F6` 100% |
-| Bevels | Crisp edges. The top catches light, the sides turn away, the front lip catches light again and splits face from wall. | top 1pt white 55%, sides 1pt `rgba(42,14,140,.28)`, lip 1.5pt `rgba(205,190,255,.55)` |
-| Wall | The travel you can see. Darkens near the surface. | 5pt, `#4626BE` -> `#2E1484` |
-| Contact | A 1pt line right under the wall: what makes it sit instead of float. | `rgba(26,8,84,.4)` (a plain view, all platforms) |
-| Ambient | A tight pool under the key, never a halo. Fades out while pressed. | `0 12px 16px -10px rgba(52,22,160,.6)` (iOS, web) |
+| Face | Dished, not domed: bright top bevel, a shaded band under it, lighter toward the front. A pillow pushes back; a key takes your finger. | `#826FCA` 0%, `#7059BC` 34%, `#735DBF` 70%, `#7C68C7` 100% |
+| Bevels | Crisp edges. The top catches light, the sides turn away, the front lip catches light again and splits face from wall. | top 1pt white 50%, sides 1pt `rgba(60,44,120,.22)`, lip 1.5pt `rgba(222,216,250,.55)` |
+| Wall | The travel you can see. Darkens near the surface (8.6:1 against the canvas, not a navy 12:1). | 5pt, `#5A4897` -> `#493B7B` |
+| Contact | A 1pt line right under the wall: what makes it sit instead of float. | `rgba(45,34,90,.3)` (a plain view, all platforms) |
+| Ambient | A tight pool under the key, never a halo. Fades out while pressed. | `0 10px 16px -10px rgba(78,64,132,.42)` (iOS, web) |
 | Legend | Printed on the face. Directional glyphs (arrow, chevron, external) follow the label; others lead. | white 700, 1pt legend shadow |
 
-**Tones** (`Keycap`): `shift` violet, the one primary per screen (white legend 6.3:1 where it
-sits); `porcelain` white keycap, ink legend, violet icon, for secondary actions and options;
-`ink` dark keycap (Apple fallback); `danger` ruby for destructive commits (5.1:1); `off` (any
-disabled key): unlit, wall kept, no ambient, ink-3 legend 5.6:1. `tests/round-keys.test.ts`
-checks every legend at the 34% and 70% stops.
+**Tones** (`Keycap`): `shift` calm violet, the one primary per screen (white legend 5.2:1 or
+more where it sits); `porcelain` white keycap, ink legend, violet icon, for secondary actions
+and options; `ink` dark keycap (Apple fallback); `danger` muted brick red for destructive
+commits (4.8:1); `off` (any disabled key): unlit, wall kept, no ambient, ink-3 legend 4.7:1.
+`tests/round-keys.test.ts` checks every legend at the 34% and 70% stops.
 
 **Sizes** (`KeySize`, face + wall, radius about a quarter of the face, continuous corners):
 `lg` 53 + 5, r14, 17pt (Shift key, sign-in); `md` 44 + 4, r13, 16pt (secondary); `sm` 36 + 3, r11,
@@ -336,6 +364,12 @@ Apple uses the native black button with key-shaped corners (`KeySize.lg`).
 - **Don't** give keys halos or pill radii; keep the shadow a tight pool and the radius key-like.
 
 ## 10. Migration notes
+
+- v4.1 -> v4.2 (calm palette): same token names, new values (`Violet`, `Ink`, `Surface`,
+  `Canvas`, `Wash`, `Orb`, `Hero`, `Gem`, `Glow`, `Keycap`, `Depth`, `Dark`, `Status.error`).
+  `Violet[800]` is new. Hard-coded violets in components moved to the calm values. Keep new
+  colours inside the calm rules (section 2); `tests/round-palette.test.ts` fails on chroma
+  above 0.15 or near-black ink.
 
 - v4 -> v4.1 (keys): `PillowButton` is now `ShiftKey` (same props); `SoftButton` is `Key`
   (`tone="porcelain"`, or `tone="ink"` for dark); `PillAction` is `Key size="sm"`; icon actions

@@ -1044,6 +1044,6 @@ const styles = StyleSheet.create({
     padding: 14,
     minHeight: 64,
   },
-  source: { borderRadius: 14, borderWidth: 1.5, borderColor: "#CFC8E6", backgroundColor: "#FFFFFF", padding: 12, minHeight: 48 },
+  source: { borderRadius: 14, borderWidth: 1.5, borderColor: "#D4D2E2", backgroundColor: "#FFFFFF", padding: 12, minHeight: 48 },
   sourceOn: { backgroundColor: Violet[600], borderColor: Violet[600] },
 });

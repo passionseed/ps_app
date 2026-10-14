@@ -15,7 +15,7 @@ export function StepChip({ label, state }: { label: string; state: StepChipState
     state === "done"
       ? { bg: Status.successBg, border: "#CFEBDD", fg: Status.success }
       : state === "progress"
-        ? { bg: Violet[50], border: "#DCD0FF", fg: Violet[700] }
+        ? { bg: Violet[50], border: "#D4CFF7", fg: Violet[700] }
         : { bg: "#FFFFFF", border: Surface.line, fg: Ink.secondary };
   return (
     <View style={[styles.chip, { backgroundColor: palette.bg, borderColor: palette.border }]}>

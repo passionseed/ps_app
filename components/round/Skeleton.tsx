@@ -31,7 +31,7 @@ export function SkeletonBlock({ height, width = "100%", radius = 16 }: { height:
       style={[styles.block, { height, width, borderRadius: radius }]}
       onLayout={(e) => setW(e.nativeEvent.layout.width)}
     >
-      <LinearGradient colors={["#EEE8FF", "#E6DEFB"]} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={["#EEEDF9", "#E6E4F4"]} style={StyleSheet.absoluteFill} />
       {!reduced && w ? (
         <Animated.View style={[StyleSheet.absoluteFill, { width: w }, sweep]}>
           <LinearGradient

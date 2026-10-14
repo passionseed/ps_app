@@ -18,8 +18,8 @@ import { useSvgId } from "./svgId";
 
 const WORDMARK_SHADOW: TextStyle =
   Platform.OS === "web"
-    ? ({ textShadow: "0px 2px 10px rgba(91,47,214,0.55)" } as TextStyle)
-    : { textShadowColor: "rgba(91,47,214,0.55)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 };
+    ? ({ textShadow: "0px 2px 10px rgba(78,64,132,0.45)" } as TextStyle)
+    : { textShadowColor: "rgba(78,64,132,0.45)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 };
 
 /** Where the floating chips sit around the orb (fractions of the orb size, mockup depth-v4). */
 const CHIP_SPOTS = [
@@ -77,18 +77,18 @@ export function ShiftOrb({
       <View style={[StyleSheet.absoluteFill, { borderRadius: r }, styles.shadowBase, Depth.orb]} />
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Defs>
-          {/* radial-gradient(circle at 35% 30%, #FFF 0%, #EDE4FF 35%, #C9B6FF 70%, #9C7BFF 100%) */}
+          {/* radial-gradient(circle at 35% 30%, #FFF 0%, #E7E4FE 35%, #C4BDEC 70%, #9F92DE 100%) */}
           <RadialGradient id={`${id}b`} cx="35%" cy="30%" fx="35%" fy="30%" r="95.5%">
             <Stop offset={0} stopColor="#FFFFFF" />
-            <Stop offset={0.35} stopColor="#EDE4FF" />
-            <Stop offset={0.7} stopColor="#C9B6FF" />
-            <Stop offset={1} stopColor="#9C7BFF" />
+            <Stop offset={0.35} stopColor="#E7E4FE" />
+            <Stop offset={0.7} stopColor="#C4BDEC" />
+            <Stop offset={1} stopColor="#9F92DE" />
           </RadialGradient>
-          {/* inset 0 -14px 30px rgba(91,47,214,.35): shade along the lower rim */}
+          {/* inset 0 -14px 30px rgba(78,64,132,.3): shade along the lower rim */}
           <RadialGradient id={`${id}s`} cx="50%" cy="30%" r="78%">
-            <Stop offset={0.62} stopColor="#5B2FD6" stopOpacity={0} />
-            <Stop offset={0.9} stopColor="#5B2FD6" stopOpacity={0.3} />
-            <Stop offset={1} stopColor="#5B2FD6" stopOpacity={0.42} />
+            <Stop offset={0.62} stopColor="#634EA8" stopOpacity={0} />
+            <Stop offset={0.9} stopColor="#634EA8" stopOpacity={0.3} />
+            <Stop offset={1} stopColor="#634EA8" stopOpacity={0.42} />
           </RadialGradient>
           {/* inset 0 10px 20px rgba(255,255,255,.9): light along the upper rim */}
           <RadialGradient id={`${id}h`} cx="50%" cy="72%" r="76%">
@@ -112,7 +112,7 @@ export function ShiftOrb({
           {wordmark}
         </RText>
         {subtitle ? (
-          <RText variant="meta" weight="700" color="#3D1FA8" style={styles.subtitle} numberOfLines={1}>
+          <RText variant="meta" weight="700" color="#493A7D" style={styles.subtitle} numberOfLines={1}>
             {subtitle}
           </RText>
         ) : null}
@@ -126,7 +126,7 @@ export function ShiftOrb({
 
 const styles = StyleSheet.create({
   wrap: { alignSelf: "center" },
-  shadowBase: { backgroundColor: Platform.OS === "android" ? "#C9B6FF" : undefined },
+  shadowBase: { backgroundColor: Platform.OS === "android" ? "#C4BDEC" : undefined },
   words: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: 2 },
   subtitle: { fontSize: 13, lineHeight: 20, opacity: 0.92 },
   chip: {

@@ -16,7 +16,7 @@ const VARIANTS: Record<RTextVariant, { fontSize: number; weight: "400" | "500" |
   body: { fontSize: 15, weight: "400", color: Ink.secondary, lineHeight: 23 },
   meta: { fontSize: 13, weight: "500", color: Ink.tertiary, lineHeight: 20 },
   label: { fontSize: 15, weight: "700", color: Ink.primary, lineHeight: 22 },
-  tag: { fontSize: 12, weight: "700", color: "#5B2FD6", lineHeight: 16 },
+  tag: { fontSize: 12, weight: "700", color: "#634EA8", lineHeight: 16 },
   small: { fontSize: 13, weight: "400", color: Ink.secondary, lineHeight: 19 },
 };
 

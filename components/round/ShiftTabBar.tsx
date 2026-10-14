@@ -53,7 +53,7 @@ export function ShiftTabBar({
           <View style={styles.row} accessibilityRole="tablist" onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
             {tabWidth > 0 ? (
               <Animated.View style={[styles.pill, { width: tabWidth - 8 }, pillStyle]}>
-                <LinearGradient colors={["#F6F2FF", "#ECE4FF"]} style={[StyleSheet.absoluteFill, styles.pillRadius]} />
+                <LinearGradient colors={["#F5F4FF", "#E9E7FB"]} style={[StyleSheet.absoluteFill, styles.pillRadius]} />
                 <View style={styles.pillHighlight} />
               </Animated.View>
             ) : null}

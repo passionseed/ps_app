@@ -35,7 +35,7 @@ if (Platform.OS === "ios") {
 export function signInOrbs(width: number): OrbSpec[] {
   const k = Math.min(width, 520) / 300;
   return [
-    { color: "#D9C9FF", cx: width - 30 * k, cy: 150 * k, r: 90 * k },
+    { color: "#D9D5F5", cx: width - 30 * k, cy: 150 * k, r: 90 * k },
     { color: Orb.pink, cx: 20 * k, cy: 370 * k, r: 70 * k },
   ];
 }

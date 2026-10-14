@@ -5,6 +5,10 @@
  * accent. See docs/DESIGN.md.
  * Contrast is WCAG-measured: body >= 7:1, secondary >= 4.5:1, controls >= 3:1, and it holds on
  * every canvas layer (wash and orbs included); text on glass measures as on white.
+ * v4.2 "calm" (2026-10-15): the same structure in a calmer palette, designed in OKLCH. Accent
+ * chroma is capped at 0.15 (it was 0.25, the most saturated sRGB allows at this hue), the hue
+ * moved 5 degrees warmer (291, less blue), ink is no longer near-black (13:1, was 16.6:1), and
+ * shadows are a deep muted violet instead of bright violet glows. See DESIGN.md section 2.
  * Legacy names (Accent.yellow, StepThemes, Gradient) are kept as aliases so
  * existing screens keep compiling; new code should use Violet / Ink / Surface and the
  * v4 tokens at the end of this file (Canvas, Wash, Orb, Glass, Hero, Gem, Glow, Keycap, Depth).
@@ -12,29 +16,31 @@
 import { Platform } from "react-native";
 
 // Core palette
+// v4.2 calm violet, OKLCH hue 291, chroma <= 0.15 (was up to 0.25).
 export const Violet = {
-  50: "#F1ECFF", // tag + selected backgrounds
-  100: "#E4DEF7", // progress tracks, quiet fills
-  200: "#D9CCFF", // legacy CTA fill (dark text 12.3:1)
-  300: "#C4B3FF", // pressed fill (dark text 9.8:1)
-  400: "#8B6BFF", // gem gradient top
-  600: "#6D3FF0", // accent: progress, selected, white text 5.8:1
-  700: "#5B2FD6", // accent text, links, tags (7.4:1 on white)
+  50: "#EFEDFF", // tag + selected backgrounds
+  100: "#E7E5FB", // progress tracks, quiet fills
+  200: "#D4CFF7", // legacy CTA fill (dark text 10.9:1)
+  300: "#BDB5EE", // pressed fill (dark text 8.4:1)
+  400: "#9384D5", // gem gradient top (white icons 3.2:1)
+  600: "#725CBF", // accent: progress, selected, white text 5.3:1
+  700: "#634EA8", // accent text, links, tags (6.6:1 on white, 5.1:1 on the wash)
+  800: "#493A7D", // deep accent text on light violet (9.6:1 on white)
 };
 
+// v4.2: soft ink instead of near-black (#14112A was 16.6:1 and harsh in bold Thai).
 export const Ink = {
-  primary: "#14112A", // 16.6:1 on canvas
-  secondary: "#45405E", // 9.8:1 on white
-  // v4: #625C7D -> #5B5576 so metadata stays >= 4.5:1 on the top-right wash (was 4.46:1 there).
-  tertiary: "#5B5576", // 7.0:1 on white, 6.3:1 on canvas, 5.0:1 on the wash
+  primary: "#2A2838", // 13.0:1 on canvas, 14.4:1 on white
+  secondary: "#474558", // 9.3:1 on white, 8.4:1 on canvas, 7.2:1 on the wash
+  tertiary: "#646275", // 5.9:1 on white, 5.3:1 on canvas, 4.6:1 on the wash
 };
 
 export const Surface = {
   canvas: "#F4F2FB",
-  wash: "#ECE6FF", // top-right radial wash on canvas
+  wash: "#E3E0FD", // top-right radial wash on canvas
   card: "#FFFFFF",
-  line: "#E7E2F4", // dividers only, never card borders
-  control: "#8E86AE", // input/control borders, 3.4:1
+  line: "#E6E5F0", // dividers only, never card borders
+  control: "#8C89A0", // input/control borders, 3.4:1 on white
 };
 
 export const Status = {
@@ -42,7 +48,7 @@ export const Status = {
   successBg: "#E8F6EF",
   warning: "#8A4B00",
   warningBg: "#FFF3E0",
-  error: "#B91C1C",
+  error: "#AF302B", // 6.4:1 on white, 5.6:1 on errorBg (calmer red than #B91C1C)
   errorBg: "#FDECEC",
 };
 
@@ -260,25 +266,25 @@ export const CompanionSurface = { field: Surface.card, line: Surface.line };
 
 /** Page canvas: vertical lavender gradient (top -> mid -> bottom). */
 export const Canvas = {
-  top: "#F1ECFF",
+  top: "#F1EFFE",
   mid: "#F4F2FB",
   bottom: "#F7F5FC",
-  colors: ["#F1ECFF", "#F4F2FB", "#F7F5FC"] as const,
+  colors: ["#F1EFFE", "#F4F2FB", "#F7F5FC"] as const,
   locations: [0, 0.42, 1] as const,
 };
 
 /** Soft radial washes laid over the canvas (top-right violet, left pink-lilac). */
 export const Wash = {
-  topRight: "#E0D3FF", // ellipse 120% x 55% at the top-right corner, fades out at 62%
-  left: "#F7EAFF", // ellipse 70% x 40% at the left edge, 34% down, fades out at 72%
+  topRight: "#E3E0FD", // ellipse 120% x 55% at the top-right corner, fades out at 62%
+  left: "#FBECFB", // ellipse 70% x 40% at the left edge, 34% down, fades out at 72%
 };
 
 /** Orbs: blurred circles behind content (drawn as radial-gradient discs, never a blur filter). */
 export const Orb = {
-  violet: "#DCCBFF",
-  pink: "#FBE3FF",
-  lilac: "#E6DAFF",
-  opacity: 0.75,
+  violet: "#DFDBFC",
+  pink: "#F9E8FA",
+  lilac: "#E2DFFC",
+  opacity: 0.6,
 };
 
 /** Glass: translucent white surfaces with a bright rim. Text on glass measures as on white. */
@@ -294,13 +300,13 @@ export const Glass = {
 
 /** Hero card: the one raised surface per screen. */
 export const Hero = {
-  colors: ["#FFFFFF", "#FBF9FF", "#F1EBFF"] as const,
+  colors: ["#FFFFFF", "#FAF9FE", "#F0EEFC"] as const,
   locations: [0, 0.55, 1] as const,
   /** 160deg in CSS: from top-left-ish to bottom-right-ish. */
   start: { x: 0.33, y: 0 },
   end: { x: 0.67, y: 1 },
   radius: 26,
-  numeral: ["rgba(139,107,255,0.18)", "rgba(139,107,255,0)"] as const,
+  numeral: ["rgba(147,132,213,0.2)", "rgba(147,132,213,0)"] as const,
 };
 
 /**
@@ -308,26 +314,26 @@ export const Hero = {
  * only, `orb` is the radial gem behind GemIcon icons (centre 35% / 30%).
  */
 export const Gem = {
-  face: ["#7E5CFA", "#5F31E3"] as const,
-  tile: ["#8B6BFF", "#5B2FD6"] as const,
-  orb: ["#C9B8FF", "#8B6BFF", "#5B2FD6"] as const,
+  face: ["#8473CC", "#6A55B2"] as const,
+  tile: ["#9384D5", "#6752AD"] as const,
+  orb: ["#D4CFF7", "#9384D5", "#6752AD"] as const,
   orbLocations: [0, 0.4, 1] as const,
   highlight: "rgba(255,255,255,0.35)",
-  ring: "rgba(139,107,255,0.16)",
-  /** Avatar gems; white initials stay >= 4.9:1 at the middle of each gradient. */
+  ring: "rgba(147,132,213,0.18)",
+  /** Avatar gems; white initials stay >= 4.6:1 at the middle of each gradient. */
   avatars: [
-    ["#8A6AFF", "#5B2FD6"],
-    ["#7E5CFA", "#5F31E3"],
-    ["#9478FF", "#5B2FD6"],
+    ["#8D7ECF", "#6752AD"],
+    ["#7C77CB", "#5B51A9"],
+    ["#937DCA", "#6D50AA"],
   ] as const,
-  ink: ["#3A3357", "#14112A"] as const,
+  ink: ["#434153", "#2A2838"] as const,
 };
 
 /** Glowing progress: violet gradient fill with a soft glow on a recessed track. */
 export const Glow = {
-  fill: ["#A48BFF", "#6D3FF0"] as const,
-  track: "rgba(109,63,240,0.12)",
-  color: "rgba(109,63,240,0.55)",
+  fill: ["#ABA1E0", "#725CBF"] as const,
+  track: "rgba(114,92,191,0.12)",
+  color: "rgba(114,92,191,0.35)",
 };
 
 /**
@@ -361,67 +367,67 @@ export type KeyPalette = {
 };
 
 export const Keycap: Record<KeyTone | "off", KeyPalette> = {
-  /** The Shift key: violet, white legend 6.3:1 where it sits. One per screen. */
+  /** The Shift key: calm violet (chroma <= 0.15), white legend 5.2:1 where it sits. One per screen. */
   shift: {
-    dish: ["#7B55FA", "#6338EC", "#6A41F0", "#7550F6"],
-    bevel: { top: "rgba(255,255,255,0.55)", side: "rgba(42,14,140,0.28)", lip: "rgba(205,190,255,0.55)" },
-    wall: ["#4626BE", "#2E1484"],
+    dish: ["#826FCA", "#7059BC", "#735DBF", "#7C68C7"],
+    bevel: { top: "rgba(255,255,255,0.5)", side: "rgba(60,44,120,0.22)", lip: "rgba(222,216,250,0.55)" },
+    wall: ["#5A4897", "#493B7B"],
     label: "#FFFFFF",
     icon: "#FFFFFF",
-    legendShadow: "rgba(36,10,120,0.4)",
-    contact: "rgba(26,8,84,0.4)",
-    ambient: "0px 12px 16px -10px rgba(52,22,160,0.6)",
-    shade: "rgba(20,6,80,0.10)",
+    legendShadow: "rgba(50,36,100,0.32)",
+    contact: "rgba(45,34,90,0.3)",
+    ambient: "0px 10px 16px -10px rgba(78,64,132,0.42)",
+    shade: "rgba(40,28,90,0.1)",
     ledOff: "rgba(255,255,255,0.55)",
   },
-  /** Secondary: white keycap, ink legend (16:1), violet icon. */
+  /** Secondary: white keycap, ink legend (12.7:1), violet icon. */
   porcelain: {
-    dish: ["#FFFFFF", "#F2EEFD", "#F7F5FE", "#FFFFFF"],
-    bevel: { top: "#FFFFFF", side: "#DCD4F3", lip: "#FFFFFF" },
-    wall: ["#D9D0F4", "#BFB2E6"],
+    dish: ["#FFFFFF", "#F1F0FA", "#F5F5FC", "#FFFFFF"],
+    bevel: { top: "#FFFFFF", side: "#DFDDEE", lip: "#FFFFFF" },
+    wall: ["#DCDAED", "#CCC9E3"],
     label: Ink.primary,
     icon: Violet[700],
-    contact: "rgba(40,20,120,0.18)",
-    ambient: "0px 10px 14px -10px rgba(76,40,200,0.42)",
-    shade: "rgba(76,40,200,0.05)",
-    ledOff: "#B9B0D9",
+    contact: "rgba(45,40,90,0.14)",
+    ambient: "0px 10px 14px -10px rgba(78,64,132,0.3)",
+    shade: "rgba(78,64,132,0.05)",
+    ledOff: "#B1AEC6",
   },
   /** Dark keycap (Apple fallback). */
   ink: {
-    dish: ["#3A3358", "#221D38", "#272140", "#302A4C"],
-    bevel: { top: "rgba(255,255,255,0.28)", side: "rgba(0,0,0,0.3)", lip: "rgba(255,255,255,0.14)" },
-    wall: ["#13101F", "#05040C"],
-    label: "#F1ECFF",
-    icon: "#F1ECFF",
-    contact: "rgba(0,0,0,0.45)",
-    ambient: "0px 12px 16px -10px rgba(20,17,42,0.6)",
-    shade: "rgba(0,0,0,0.12)",
-    ledOff: "rgba(241,236,255,0.5)",
+    dish: ["#45425A", "#2E2C3E", "#333144", "#3B394D"],
+    bevel: { top: "rgba(255,255,255,0.24)", side: "rgba(0,0,0,0.25)", lip: "rgba(255,255,255,0.12)" },
+    wall: ["#1D1B29", "#13121C"],
+    label: "#F4F3FF",
+    icon: "#F4F3FF",
+    contact: "rgba(0,0,0,0.35)",
+    ambient: "0px 10px 16px -10px rgba(42,40,56,0.5)",
+    shade: "rgba(0,0,0,0.1)",
+    ledOff: "rgba(244,243,255,0.5)",
   },
-  /** Destructive commits: ruby keycap, white legend 5.1:1 where it sits. */
+  /** Destructive commits: a muted brick red, white legend 4.8:1 where it sits. */
   danger: {
-    dish: ["#E8494F", "#CB2F35", "#D0353B", "#DA4046"],
-    bevel: { top: "rgba(255,255,255,0.5)", side: "rgba(110,10,16,0.3)", lip: "rgba(255,200,202,0.55)" },
-    wall: ["#9A1B21", "#6E1015"],
+    dish: ["#D8625E", "#C24240", "#C54744", "#CC5351"],
+    bevel: { top: "rgba(255,255,255,0.45)", side: "rgba(100,20,20,0.25)", lip: "rgba(255,210,208,0.5)" },
+    wall: ["#963633", "#782A28"],
     label: "#FFFFFF",
     icon: "#FFFFFF",
-    legendShadow: "rgba(100,10,14,0.4)",
-    contact: "rgba(80,8,12,0.4)",
-    ambient: "0px 12px 16px -10px rgba(140,20,26,0.5)",
-    shade: "rgba(60,0,0,0.10)",
+    legendShadow: "rgba(90,20,18,0.32)",
+    contact: "rgba(70,16,14,0.3)",
+    ambient: "0px 10px 16px -10px rgba(120,40,36,0.4)",
+    shade: "rgba(60,0,0,0.08)",
     ledOff: "rgba(255,255,255,0.55)",
   },
-  /** Disabled: an unlit key (wall kept, no ambient), ink-3 legend 5.6:1. */
+  /** Disabled: an unlit key (wall kept, no ambient), ink-3 legend 4.7:1. */
   off: {
-    dish: ["#EEEBF7", "#E8E4F4", "#E8E4F4", "#E6E2F3"],
+    dish: ["#EEEDF5", "#E8E7F0", "#E6E5EE", "#E6E5EE"],
     bevel: { top: "rgba(255,255,255,0.7)", side: "rgba(255,255,255,0)", lip: "rgba(255,255,255,0.5)" },
-    wall: ["#D6D0E8", "#CCC5E0"],
+    wall: ["#D7D6E2", "#CCCAD9"],
     label: Ink.tertiary,
     icon: Ink.tertiary,
-    contact: "rgba(40,20,120,0.08)",
+    contact: "rgba(45,40,90,0.07)",
     ambient: "",
     shade: "rgba(0,0,0,0)",
-    ledOff: "#B9B0D9",
+    ledOff: "#B1AEC6",
   },
 };
 
@@ -442,8 +448,8 @@ export type KeySizeName = keyof typeof KeySize;
 
 /** Dark surfaces (Apple button, DM card): ink gradient with a soft top highlight. */
 export const Dark = {
-  colors: ["#2A2540", "#14112A"] as const,
-  text: "#F1ECFF", // 12.6:1 on #2A2540
+  colors: ["#3A3850", "#2A2838"] as const,
+  text: "#F4F3FF", // 10.3:1 on #3A3850
 };
 
 type DepthStyle = { boxShadow: string } | { elevation: number; shadowColor: string };
@@ -458,37 +464,37 @@ export function depth(css: string, elevation: number, androidColor: string = Vio
 
 export const Depth = {
   /** Glass cards. */
-  glass: depth("0px 10px 26px -14px rgba(109,63,240,0.35)", 3),
+  glass: depth("0px 10px 26px -14px rgba(78,64,132,0.26)", 3),
   /** Glass list rows (steps, feed, evidence). */
-  row: depth("0px 6px 16px -12px rgba(109,63,240,0.45)", 2),
+  row: depth("0px 6px 16px -12px rgba(78,64,132,0.32)", 2),
   /** Raised row (current step) and pressed hero. */
-  raised: depth("0px 12px 26px -12px rgba(109,63,240,0.55)", 6),
+  raised: depth("0px 12px 26px -12px rgba(78,64,132,0.4)", 6),
   /** Hero card. */
-  hero: depth("0px 18px 40px -12px rgba(109,63,240,0.28), 0px 2px 6px rgba(20,17,42,0.05)", 8),
+  hero: depth("0px 18px 40px -12px rgba(78,64,132,0.22), 0px 2px 6px rgba(42,40,56,0.05)", 8),
   /** Round gem icons. */
-  gem: depth("0px 3px 8px rgba(91,47,214,0.5)", 4, Violet[700]),
+  gem: depth("0px 3px 8px rgba(78,64,132,0.35)", 4, Violet[700]),
   /** Square gem tiles (session, calendar). */
-  tile: depth("0px 8px 16px -6px rgba(91,47,214,0.6)", 5, Violet[700]),
+  tile: depth("0px 8px 16px -6px rgba(78,64,132,0.4)", 5, Violet[700]),
   /** Selected and done gem surfaces (today cell, selected chip, done slot). */
-  glow: depth("0px 8px 18px -6px rgba(109,63,240,0.6)", 5),
+  glow: depth("0px 8px 18px -6px rgba(78,64,132,0.38)", 5),
   /** Progress ring halo. */
-  ring: depth("0px 6px 14px -6px rgba(109,63,240,0.6)", 4),
+  ring: depth("0px 6px 14px -6px rgba(78,64,132,0.36)", 4),
   /** Glass pills (tags). */
-  pill: depth("0px 2px 8px rgba(109,63,240,0.10)", 1),
+  pill: depth("0px 2px 8px rgba(78,64,132,0.08)", 1),
   /** Floating glass chips (sign-in orb). */
-  float: depth("0px 10px 24px -10px rgba(109,63,240,0.45)", 4),
+  float: depth("0px 10px 24px -10px rgba(78,64,132,0.32)", 4),
   /** Small glossy controls (icon buttons, pill actions). */
-  control: depth("0px 4px 10px rgba(109,63,240,0.2)", 3),
+  control: depth("0px 4px 10px rgba(78,64,132,0.14)", 3),
   /** Glass navigation buttons (back, close): a contact line plus a tight pool, no halo. */
-  nav: depth("0px 1px 2px rgba(20,17,42,0.08), 0px 6px 14px -8px rgba(76,40,200,0.4)", 2),
+  nav: depth("0px 1px 2px rgba(42,40,56,0.08), 0px 6px 14px -8px rgba(78,64,132,0.3)", 2),
   /** Avatar gems. */
-  avatar: depth("0px 3px 8px rgba(20,17,42,0.15)", 2, Ink.primary),
+  avatar: depth("0px 3px 8px rgba(42,40,56,0.14)", 2, Ink.primary),
   /** Floating tab bar. */
-  tab: depth("0px 10px 30px -10px rgba(20,17,42,0.25)", 10, Ink.primary),
+  tab: depth("0px 10px 30px -10px rgba(42,40,56,0.2)", 10, Ink.primary),
   /** Dark buttons and the DM card. */
   dark: depth("0px 8px 18px -8px rgba(20,17,42,0.6)", 6, Ink.primary),
   /** The big SHIFT orb. */
-  orb: depth("0px 30px 60px -20px rgba(109,63,240,0.6)", 12),
+  orb: depth("0px 30px 60px -20px rgba(78,64,132,0.45)", 12),
   /** Focus ring for inputs (outline glow, no offset). */
-  focus: depth("0px 0px 0px 4px rgba(139,107,255,0.18)", 0),
+  focus: depth("0px 0px 0px 4px rgba(147,132,213,0.25)", 0),
 };

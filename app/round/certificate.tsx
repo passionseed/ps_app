@@ -229,6 +229,6 @@ const styles = StyleSheet.create({
   image: { width: "100%", height: "100%" },
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: 8, padding: 16 },
   row: { gap: 10 },
-  preview: { backgroundColor: "rgba(241,236,255,0.8)", borderRadius: 16, padding: 12, gap: 4 },
+  preview: { backgroundColor: "rgba(239,237,255,0.8)", borderRadius: 16, padding: 12, gap: 4 },
   revoked: { gap: 10, alignItems: "flex-start" },
 });

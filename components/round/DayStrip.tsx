@@ -82,8 +82,8 @@ const styles = StyleSheet.create({
   },
   cellRadius: { borderRadius: 14 },
   future: { backgroundColor: "rgba(255,255,255,0.6)", borderColor: "rgba(255,255,255,0.9)" },
-  missed: { backgroundColor: "rgba(255,255,255,0.45)", borderColor: "#CFC8E6", borderStyle: "dashed" },
-  done: { backgroundColor: Violet[50], borderColor: "#E4DAFF" },
+  missed: { backgroundColor: "rgba(255,255,255,0.45)", borderColor: "#D4D2E2", borderStyle: "dashed" },
+  done: { backgroundColor: Violet[50], borderColor: "#E7E5FB" },
   today: {
     borderColor: "transparent",
     // Android elevation needs a background to cast from; the gradient covers it.

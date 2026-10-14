@@ -63,7 +63,7 @@ const HIDDEN =
 export function Icon({
   name,
   size = 24,
-  color = "#14112A",
+  color = "#2A2838",
   strokeWidth = 1.9,
 }: {
   name: IconName;

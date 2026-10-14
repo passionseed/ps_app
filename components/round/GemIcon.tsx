@@ -37,7 +37,7 @@ export function GemIcon({
       style={[
         { width: size, height: size, borderRadius: radius },
         // Android elevation needs a background to cast from; the gem face covers it.
-        Platform.OS === "android" && { backgroundColor: muted ? "#8E86AE" : Gem.tile[1] },
+        Platform.OS === "android" && { backgroundColor: muted ? "#8C89A0" : Gem.tile[1] },
         !muted && (shape === "circle" ? Depth.gem : Depth.tile),
         style,
       ]}
@@ -46,16 +46,16 @@ export function GemIcon({
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Defs>
           {shape === "circle" ? (
-            // radial-gradient(circle at 35% 30%, #C9B8FF 0%, #8B6BFF 40%, #5B2FD6 100%), farthest-corner
+            // radial-gradient(circle at 35% 30%, Gem.orb stops), farthest-corner
             <RadialGradient id={`${id}f`} cx="35%" cy="30%" fx="35%" fy="30%" r="95.5%">
               {Gem.orb.map((c, i) => (
-                <Stop key={c} offset={Gem.orbLocations[i]} stopColor={muted ? "#A7A1BF" : c} />
+                <Stop key={c} offset={Gem.orbLocations[i]} stopColor={muted ? "#A4A2B7" : c} />
               ))}
             </RadialGradient>
           ) : (
             <LinearGradient id={`${id}f`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset={0} stopColor={muted ? "#A7A1BF" : Gem.tile[0]} />
-              <Stop offset={1} stopColor={muted ? "#8E86AE" : Gem.tile[1]} />
+              <Stop offset={0} stopColor={muted ? "#A4A2B7" : Gem.tile[0]} />
+              <Stop offset={1} stopColor={muted ? "#8C89A0" : Gem.tile[1]} />
             </LinearGradient>
           )}
           <LinearGradient id={`${id}h`} x1="0" y1="0" x2="0" y2="1">

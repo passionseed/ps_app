@@ -26,13 +26,13 @@ export function NeedsAttention({
   const warm = tone === "warning";
   const fg = warm ? Status.warning : Violet[700];
   return (
-    <View style={[styles.card, { borderColor: warm ? "#FBE1BC" : "#E4DAFF" }, Depth.row]} accessibilityRole="summary">
+    <View style={[styles.card, { borderColor: warm ? "#FBE1BC" : "#E7E5FB" }, Depth.row]} accessibilityRole="summary">
       <LinearGradient
         colors={warm ? ["#FFF7EC", Status.warningBg] : ["#FFFFFF", Violet[50]]}
         style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
       />
       <View style={styles.row}>
-        <View style={[styles.icon, { backgroundColor: warm ? "#FFE7C7" : "#E9E0FF" }]}>
+        <View style={[styles.icon, { backgroundColor: warm ? "#FFE7C7" : "#EBE8FD" }]}>
           <Icon name="alert" size={18} color={fg} />
         </View>
         <RText variant="label" color={warm ? fg : Ink.primary} style={{ flex: 1 }}>

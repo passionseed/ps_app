@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   section: { marginTop: 6, marginLeft: 4 },
   member: { flexDirection: "row", gap: 12, alignItems: "flex-start", padding: 10 },
   memberText: { flex: 1, minWidth: 0, gap: 3 },
-  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#E7E2F4" },
+  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#E6E5F0" },
   answerCard: { gap: 10 },
   answerFoot: { flexDirection: "row", alignItems: "center", gap: 8 },
   feed: { gap: 8 },

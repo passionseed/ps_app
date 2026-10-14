@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1.5,
     borderColor: Violet[300],
-    ...(Platform.OS === "android" ? null : { boxShadow: "0px 0px 0px 4px rgba(139,107,255,0.12)" }),
+    ...(Platform.OS === "android" ? null : { boxShadow: "0px 0px 0px 4px rgba(147,132,213,0.12)" }),
   },
-  slotEmpty: { backgroundColor: "rgba(255,255,255,0.6)", borderWidth: 1.5, borderStyle: "dashed", borderColor: "#CFC8E6" },
+  slotEmpty: { backgroundColor: "rgba(255,255,255,0.6)", borderWidth: 1.5, borderStyle: "dashed", borderColor: "#D4D2E2" },
 });

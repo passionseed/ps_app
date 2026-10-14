@@ -16,8 +16,8 @@ function Watermark({ text }: { text: string }) {
       <Svg width={width} height={size}>
         <Defs>
           <SvgGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset={0} stopColor="#8B6BFF" stopOpacity={0.2} />
-            <Stop offset={0.85} stopColor="#8B6BFF" stopOpacity={0} />
+            <Stop offset={0} stopColor="#9384D5" stopOpacity={0.2} />
+            <Stop offset={0.85} stopColor="#9384D5" stopOpacity={0} />
           </SvgGradient>
         </Defs>
         <SvgText
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderTopColor: "#FFFFFF",
-    borderBottomColor: "rgba(109,63,240,0.06)",
+    borderBottomColor: "rgba(114,92,191,0.06)",
   },
   watermark: { position: "absolute", right: -6, top: -26 },
   none: { pointerEvents: "none" },

@@ -45,8 +45,8 @@ export default function GuideScreen() {
 
       {guide.dm ? (
         <View style={[styles.dm, Depth.dark]}>
-          <LinearGradient colors={["#2A2540", "#14112A"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[StyleSheet.absoluteFill, styles.dmRadius]} />
-          <RText variant="body" color="#F1ECFF" style={styles.dmText} selectable>
+          <LinearGradient colors={["#3A3850", "#2A2838"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[StyleSheet.absoluteFill, styles.dmRadius]} />
+          <RText variant="body" color="#F4F3FF" style={styles.dmText} selectable>
             {`“${guide.dm}”`}
           </RText>
           <Pressable
@@ -56,7 +56,7 @@ export default function GuideScreen() {
             hitSlop={{ top: 6, bottom: 6 }}
             style={({ pressed }) => [styles.copy, pressed && styles.pressed]}
           >
-            <LinearGradient colors={["#FFFFFF", "#E9E1FF"]} style={[StyleSheet.absoluteFill, styles.copyRadius]} />
+            <LinearGradient colors={["#FFFFFF", "#EBE8FD"]} style={[StyleSheet.absoluteFill, styles.copyRadius]} />
             <Icon name="copy" size={16} color={Ink.primary} strokeWidth={2.1} />
             <RText variant="label" color={Ink.primary} style={styles.copyText}>
               {t("guide.copy")}
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     gap: 12,
-    backgroundColor: Platform.OS === "android" ? "#14112A" : undefined,
+    backgroundColor: Platform.OS === "android" ? "#2A2838" : undefined,
   },
   dmRadius: { borderRadius: 20 },
   dmText: { fontSize: 15, lineHeight: 24 },

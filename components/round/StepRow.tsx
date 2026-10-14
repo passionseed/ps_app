@@ -57,7 +57,7 @@ export function StepRow({
     <>
       {current ? (
         <LinearGradient
-          colors={["#FFFFFF", "#F3EEFF"]}
+          colors={["#FFFFFF", "#F3F2FD"]}
           start={{ x: 0.33, y: 0 }}
           end={{ x: 0.67, y: 1 }}
           style={[StyleSheet.absoluteFill, styles.radius]}
@@ -111,11 +111,11 @@ const styles = StyleSheet.create({
     backgroundColor: Platform.OS === "android" ? Glass.fillAndroid : "rgba(255,255,255,0.7)",
     borderColor: Glass.border,
   },
-  current: { borderColor: "#E3D9FF", backgroundColor: "#FFFFFF" },
+  current: { borderColor: "#E7E5FB", backgroundColor: "#FFFFFF" },
   badge: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   badgeRadius: { borderRadius: 15 },
-  badgeRing: { borderWidth: 3, borderColor: "rgba(139,107,255,0.18)", width: 36, height: 36, borderRadius: 18, marginHorizontal: -3 },
-  badgeTodo: { backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#CFC8E6" },
+  badgeRing: { borderWidth: 3, borderColor: "rgba(147,132,213,0.18)", width: 36, height: 36, borderRadius: 18, marginHorizontal: -3 },
+  badgeTodo: { backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#D4D2E2" },
   badgeText: { fontSize: 13, lineHeight: 17 },
   title: { flex: 1, minWidth: 0, fontSize: 15 },
   trailing: { fontSize: 13, flexShrink: 0, maxWidth: "40%", textAlign: "right" },

@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   wrap: { gap: 10 },
   list: { gap: 10 },
   row: { gap: 8 },
-  rowPicked: { borderColor: "#CBB8FF", borderWidth: 1.5 },
+  rowPicked: { borderColor: "#BDB5EE", borderWidth: 1.5 },
   head: { flexDirection: "row", alignItems: "center", gap: 8 },
   flex: { flex: 1, minWidth: 0 },
   error: { flexDirection: "row", gap: 6, alignItems: "flex-start" },

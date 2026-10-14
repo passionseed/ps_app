@@ -55,7 +55,7 @@ export function MissionTrail({ items, onPress }: { items: TrailItem[]; onPress?:
     <View style={vertical ? styles.vertical : styles.horizontal} accessibilityRole="list">
       {!vertical ? (
         <LinearGradient
-          colors={["rgba(139,107,255,0.10)", "rgba(139,107,255,0.28)", "rgba(139,107,255,0.10)"]}
+          colors={["rgba(147,132,213,0.10)", "rgba(147,132,213,0.28)", "rgba(147,132,213,0.10)"]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.line}
@@ -105,14 +105,14 @@ const styles = StyleSheet.create({
   vertical: { gap: 4 },
   rowV: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52 },
   node: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 6 },
-  nodeDone: { backgroundColor: Violet[50], borderWidth: 1, borderColor: "#E4DAFF" },
-  nodeTodo: { backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#CFC8E6" },
+  nodeDone: { backgroundColor: Violet[50], borderWidth: 1, borderColor: "#E7E5FB" },
+  nodeTodo: { backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#D4D2E2" },
   ring: {
     width: 40,
     height: 40,
     borderRadius: 20,
     borderWidth: 5,
-    borderColor: "rgba(139,107,255,0.16)",
+    borderColor: "rgba(147,132,213,0.16)",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 1,

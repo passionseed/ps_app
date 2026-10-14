@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
   section: { marginTop: 6, marginHorizontal: 2 },
   outcomes: { paddingHorizontal: 14 },
   outcome: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 10 },
-  outcomeLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(109,63,240,0.12)" },
+  outcomeLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(114,92,191,0.12)" },
   num: { width: 26, height: 26, borderRadius: 9, backgroundColor: Violet[50], alignItems: "center", justifyContent: "center" },
   numText: { fontSize: 12, lineHeight: 16 },
   alumni: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
