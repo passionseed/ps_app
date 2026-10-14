@@ -126,7 +126,7 @@ hue; UI violets like Radix's sit near 0.18) and leaned blue (hue 286). Ink was n
 glows at 45-60% opacity. Saturated blue-violet is the hardest colour for the eye to focus
 (it lands in front of the retina), so its edges against white seem to shimmer, and big
 saturated areas leave afterimages. v4.2 keeps every structure and lowers the noise. On the
-same screens, measured colourfulness fell 36-43%. Pixels above chroma 0.15 fell from about 7%
+same screens, measured colourfulness fell 36-44%. Pixels above chroma 0.15 fell from about 7%
 to 0, and near-black pixels from about 1.8% to 0.
 
 Why v4.1 (keys): the v4 Pillow was a white-to-lavender pill with a violet glow. It was made of the
