@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { AppState, Animated, InteractionManager, StyleSheet, Text, View } from "react-native";
+import { AppState, Animated, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react-native";
 import { AnimatedSplash } from "../components/AnimatedSplash";
-import { isAllowedOnboardedAppSegment } from "../lib/hackathonNavigation";
+import { Canvas } from "../lib/theme";
+import { shiftStorage } from "../lib/shiftStorage";
 import { queryClient } from "../lib/queryClient";
+import { currentPathWithQuery, decideRoute } from "../lib/round/navigation";
+import { useRoundBackground } from "../lib/round/hooks";
+import { clearPendingLink, setPendingLink, usePendingLink } from "../lib/round/pendingLink";
+import { consumeExplicitSignOut } from "../lib/round/session";
+import { roundDrafts } from "../lib/round/drafts";
+import { clearRoundUser, roundKeys, wireQueryManagers } from "../lib/round/queryCore";
+import { clearLocalRoundDrafts } from "../lib/round/sender";
+import { useRoundPushRouting } from "../lib/round/pushRouting";
 
 
 function ConfigErrorScreen({ message }: { message: string }) {
@@ -32,137 +41,79 @@ function ConfigErrorScreen({ message }: { message: string }) {
 }
 
 function RootNavigator() {
-  const { router, useSegments, Stack } = require("expo-router") as typeof import("expo-router");
+  const { router, useSegments, usePathname, useGlobalSearchParams, useRootNavigationState, Stack } =
+    require("expo-router") as typeof import("expo-router");
   const { useAuth } = require("../lib/auth") as typeof import("../lib/auth");
-  const { getProfile } = require("../lib/onboarding") as typeof import("../lib/onboarding");
   const { logAppOpened } = require("../lib/eventLogger") as typeof import("../lib/eventLogger");
 
   const { session, loading, isGuest, isHackathon } = useAuth();
-  const [profile, setProfile] = useState<
-    import("../types/onboarding").Profile | null | undefined
-  >(undefined);
-  const [isNavReady, setIsNavReady] = useState(false);
-  const segments = useSegments();
+  const segments = useSegments() as readonly string[];
+  const pathname = usePathname();
+  const globalParams = useGlobalSearchParams<Record<string, string | string[]>>();
+  const navReady = !!useRootNavigationState()?.key;
+  const userId = !isGuest && !isHackathon ? session?.user.id ?? "" : "";
+  const pendingLink = usePendingLink();
 
+  // E14: SIGNED_OUT without an explicit sign-out while drafts exist = expired session.
+  const previousUser = useRef(userId);
+  const [expired, setExpired] = useState(false);
   useEffect(() => {
-    console.log("[RootNavigator] Effect running:", { loading, hasSession: !!session, isGuest, isHackathon, segments });
     if (loading) return;
-
-    // Log app opened event
-    logAppOpened().catch(() => {});
-
-    // Helper to check if we are already in a valid section
-    const isInHackathonArea =
-      segments[0] === "(hackathon)" ||
-      segments[0] === "admin" ||
-      segments[0] === "hackathon" ||
-      segments[0] === "hackathon-program";
-    const isInTabs = segments[0] === "(tabs)";
-    const isInAllowedOnboardedArea = isAllowedOnboardedAppSegment(segments[0]);
-    const isInOnboarding = segments[0] === "onboarding";
-
-    if (!session && !isGuest && !isHackathon) {
-      // Not logged in - go to landing page
-      console.log("[RootNavigator] Not logged in, checking if redirect needed");
-      setProfile(null);
-      if (isNavReady && segments.length > 0 && segments[0] !== "index" && segments[0] !== "hackathon-login") {
-        router.replace("/");
-      }
-      setIsNavReady(true);
-      return;
-    }
-
-    if (isHackathon) {
-      console.log("[RootNavigator] Hackathon mode, checking if redirect needed");
-      setProfile(null);
-      if (!isInHackathonArea) {
-        router.replace("/(hackathon)/home");
-      }
-      setIsNavReady(true);
-      return;
-    }
-
-    if (isGuest) {
-      // Guest user - go to discover
-      console.log("[RootNavigator] Guest mode, checking if redirect needed");
-      setProfile(null);
-      if (!isInTabs) {
-        router.replace("/(tabs)/discover");
-      }
-      setIsNavReady(true);
-      return;
-    }
-
-    // Logged in user - check onboarding status
-    if (profile !== undefined) {
-      // We already have a profile state (or at least we are in the process)
-      // If we are already in a valid area (tabs or onboarding), don't force redirect
-      if (profile?.is_onboarded && isInAllowedOnboardedArea) {
-        setIsNavReady(true);
-        return;
-      }
-      if (!profile?.is_onboarded && isInOnboarding) {
-        setIsNavReady(true);
-        return;
-      }
-    }
-
-    console.log("[RootNavigator] Logged in, fetching profile...", { userId: session!.user.id });
-    const profileStart = Date.now();
-
-    // Safety: cancelled flag prevents stale async updates if effect re-runs
-    let cancelled = false;
-    // Hard timeout: if getProfile hangs >10s, unblock navigation
-    const profileTimeout = setTimeout(() => {
-      if (cancelled) return;
-      console.warn("[RootNavigator] ⚠️ getProfile timed out after 10s — possible RLS timeout or network hang");
-      router.replace("/onboarding");
-      setIsNavReady(true);
-    }, 10000);
-
-    getProfile(session!.user.id)
-      .then((p: any) => {
-        if (cancelled) return;
-        clearTimeout(profileTimeout);
-        console.log("[RootNavigator] Profile fetched in", Date.now() - profileStart, "ms:", { hasProfile: !!p, isOnboarded: p?.is_onboarded });
-        setProfile(p);
-        if (!p || !p.is_onboarded) {
-           if (!isInOnboarding) router.replace("/onboarding");
-        } else {
-           if (!isInAllowedOnboardedArea) router.replace("/(tabs)/discover");
+    if (userId) {
+      const last = previousUser.current;
+      previousUser.current = userId;
+      setExpired(false);
+      // E10: a different account on this device clears the previous account's round data.
+      void shiftStorage.getItem("round:last-user").then(async (lastUser) => {
+        if (lastUser && lastUser !== userId) {
+          await clearLocalRoundDrafts(lastUser);
+          await clearRoundUser(queryClient, lastUser);
         }
-        setIsNavReady(true);
-      })
-      .catch((err: any) => {
-        if (cancelled) return;
-        clearTimeout(profileTimeout);
-        console.error("[RootNavigator] ❌ getProfile threw after", Date.now() - profileStart, "ms:", err);
-        // Proceed without profile — go to discover as fallback
-        setProfile(null);
-        if (!isInTabs) router.replace("/(tabs)/discover");
-        setIsNavReady(true);
+        await shiftStorage.setItem("round:last-user", userId).catch(() => {});
       });
-
-    return () => {
-      cancelled = true;
-      clearTimeout(profileTimeout);
-    };
-  }, [isGuest, isHackathon, loading, session, isNavReady]);
-
-  // Sync build todos to widget on foreground
-  useEffect(() => {
-    if (!session) return;
-    const { syncBuildTodos } = require("../lib/build-todos") as typeof import("../lib/build-todos");
-    syncBuildTodos(true);
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") syncBuildTodos(true);
+      void last;
+      return;
+    }
+    const was = previousUser.current;
+    previousUser.current = "";
+    if (!was) return;
+    queryClient.removeQueries({ queryKey: roundKeys.user(was) });
+    if (consumeExplicitSignOut()) return;
+    void roundDrafts.list(was).then((drafts) => {
+      if (drafts.length) setExpired(true);
     });
-    return () => sub.remove();
-  }, [session]);
+  }, [userId, loading]);
 
-  // Show animated splash while auth is loading
-  // This prevents showing the landing page to logged-in users
-  if (!isNavReady) {
+  // D1: every signed-in user goes to Home; nothing waits on flags or the home bundle.
+  const decision = decideRoute({
+    loading: loading || (!!userId && pendingLink.isPending),
+    isHackathon,
+    isGuest,
+    signedIn: !!session,
+    sessionExpired: expired,
+    segments,
+    currentPath: currentPathWithQuery(pathname, segments, globalParams),
+    pendingLink: pendingLink.data ?? null,
+  });
+  const redirectTo = decision.kind === "redirect" ? decision.to : null;
+
+  useEffect(() => { logAppOpened().catch(() => {}); }, [userId, logAppOpened]);
+  useEffect(() => {
+    // Never navigate before the root Stack is mounted (expo-router drops or throws on it).
+    if (decision.kind !== "redirect" || !navReady) return;
+    if (decision.storePendingLink) void setPendingLink(queryClient, decision.storePendingLink);
+    if (decision.clearPendingLink) void clearPendingLink(queryClient);
+    if (decision.to.startsWith("/sign-in")) setExpired(false);
+    router.replace(decision.to as never);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [redirectTo, navReady]);
+
+  // Frozen-attempt replay + legacy reminder guard (5.7, E16) and push taps (5.8).
+  useRoundBackground();
+  useRoundPushRouting((path) => router.push(path as never), navReady && decision.kind !== "splash");
+
+  // Show animated splash while auth or the entry decision is loading
+  if (decision.kind === "splash") {
     return <AnimatedSplash />;
   }
 
@@ -172,12 +123,27 @@ function RootNavigator() {
         headerShown: false,
         animation: "fade",
         animationDuration: 400,
+        // v4 canvas behind every screen so transitions never flash grey.
         contentStyle: {
-          backgroundColor: "#F3F4F6",
+          backgroundColor: Canvas.mid,
         },
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="sign-in" options={{ animation: "slide_from_bottom" }} />
+      <Stack.Screen name="round/capture" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom", gestureEnabled: false }} />
+      <Stack.Screen name="round/join" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/log" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/steps" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/guide" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/day/[day]" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/mission/[key]" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/evidence/[id]" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/checkin" options={{ presentation: "modal" }} />
+      <Stack.Screen name="round/certificate" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/summary" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/delete-data" options={{ presentation: "card" }} />
+      <Stack.Screen name="delete-account" options={{ presentation: "card" }} />
       <Stack.Screen name="hackathon-login" options={{ gestureEnabled: false }} />
       <Stack.Screen name="(hackathon)" options={{ gestureEnabled: false }} />
       <Stack.Screen name="hackathon/challenges" options={{ presentation: "card" }} />
@@ -263,6 +229,7 @@ function RootLayout() {
   } = require("@expo-google-fonts/reenie-beanie") as typeof import("@expo-google-fonts/reenie-beanie");
   const SplashScreen = require("expo-splash-screen") as typeof import("expo-splash-screen");
   const { AuthProvider } = require("../lib/auth") as typeof import("../lib/auth");
+  const { ShiftProvider } = require("../lib/shift-context") as typeof import("../lib/shift-context");
   const {
     getSupabaseConfigErrorMessage,
   } = require("../lib/runtime-config") as typeof import("../lib/runtime-config");
@@ -282,6 +249,17 @@ function RootLayout() {
     ReenieBeanie_400Regular,
   });
   const [isReady, setIsReady] = useState(false);
+
+  // E18: round queries refetch on foreground and reconnect.
+  useEffect(() => {
+    let network: Parameters<typeof wireQueryManagers>[1] = null;
+    try {
+      network = require("expo-network") as typeof import("expo-network");
+    } catch {
+      network = null;
+    }
+    return wireQueryManagers(AppState, network);
+  }, []);
 
   const configError = getSupabaseConfigErrorMessage();
 
@@ -327,10 +305,12 @@ function RootLayout() {
           <AnimatedSplash />
         ) : (
           <AuthProvider>
-            <View style={{ flex: 1 }}>
-              <StatusBar style="light" translucent />
-              <RootNavigator />
-            </View>
+            <ShiftProvider>
+              <View style={{ flex: 1 }}>
+                <StatusBar style="light" translucent />
+                <RootNavigator />
+              </View>
+            </ShiftProvider>
           </AuthProvider>
         )}
       </QueryClientProvider>

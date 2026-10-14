@@ -42,6 +42,22 @@ export const queryClient = new QueryClient({
  * Organized by feature/domain for easy invalidation.
  */
 export const queryKeys = {
+  shift: {
+    user: (userId: string) => ["shift", userId] as const,
+    resume: (userId: string) => [...queryKeys.shift.user(userId), "resume"] as const,
+    companion: (userId: string) => [...queryKeys.shift.user(userId), "companion"] as const,
+    daily: (userId: string, cohortId: string) => [...queryKeys.shift.user(userId), "daily", cohortId] as const,
+    dailyDrafts: (userId: string, cohortId: string) => [...queryKeys.shift.user(userId), "daily-drafts", cohortId] as const,
+    dailyHistory: (userId: string, cohortId: string) => [...queryKeys.shift.user(userId), "daily-history", cohortId] as const,
+    cohorts: (userId: string) =>
+      [...queryKeys.shift.user(userId), "cohorts"] as const,
+    selection: (userId: string) =>
+      [...queryKeys.shift.user(userId), "selection"] as const,
+    snapshot: (userId: string, cohortId: string) =>
+      [...queryKeys.shift.user(userId), "snapshot", cohortId] as const,
+    image: (userId: string, path: string) =>
+      [...queryKeys.shift.user(userId), "image", path] as const,
+  },
   // Hackathon domain
   hackathon: {
     all: ["hackathon"] as const,

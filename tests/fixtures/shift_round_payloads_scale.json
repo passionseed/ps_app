@@ -1,0 +1,678 @@
+{
+  "version": 2,
+  "note": "Scale spec 2.2 payload fixtures (ideas, daily, problem_statement.user_group), same format as supabase/tests/fixtures/shift_round_payloads.json. Merge these cases into that file so SQL and zod share them. Rules: unknown keys rejected (also inside idea items); strings trimmed; empty top-level strings dropped (so a blank required field is missing_field); errors inside an idea item are invalid_field on field 'ideas' (rule personal_data for a who label with contact details); picked must be an integer index into ideas, else invalid_field 'picked'; reachable must be a boolean.",
+  "context": {
+    "round_starts_on": "2026-11-10",
+    "today": "2026-11-12"
+  },
+  "valid": [
+    {
+      "name": "ideas minimal",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0
+      }
+    },
+    {
+      "name": "ideas six, trimmed, reachable, note",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          },
+          {
+            "text": "  ไม่มีที่นั่งอ่านหนังสือ  ",
+            "who": "  ม.6 สายวิทย์  "
+          },
+          {
+            "text": "ล็อกเกอร์ไม่พอ",
+            "who": "นักกีฬาโรงเรียน"
+          },
+          {
+            "text": "ไม่รู้ว่ามีชมรมอะไรบ้าง",
+            "who": "นักเรียนใหม่ ม.4"
+          }
+        ],
+        "picked": 5,
+        "reachable": true,
+        "note": "เลือกข้อ 6 เพราะทักรุ่นน้องได้เอง"
+      }
+    },
+    {
+      "name": "ideas reachable false",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 2,
+        "reachable": false
+      }
+    },
+    {
+      "name": "daily built only",
+      "type": "daily",
+      "payload": {
+        "built": "ทำหน้าจองห้องสมุดเสร็จ 1 หน้า"
+      }
+    },
+    {
+      "name": "daily all fields",
+      "type": "daily",
+      "payload": {
+        "built": "ส่งลิงก์ให้เพื่อน 3 คนลอง",
+        "broke": "ปุ่มจองกดไม่ได้บนมือถือ",
+        "heard": "อยากเห็นว่าห้องว่างกี่ที่",
+        "link": "https://example.com/build"
+      }
+    },
+    {
+      "name": "daily empty optionals dropped",
+      "type": "daily",
+      "payload": {
+        "built": "แก้ปุ่มจอง",
+        "broke": "   ",
+        "heard": ""
+      }
+    },
+    {
+      "name": "problem statement with user group",
+      "type": "problem_statement",
+      "payload": {
+        "text": "นักเรียน ม.4 ลำบากกับการหาที่นั่งอ่านหนังสือตอนพักเที่ยง เพราะห้องสมุดเต็ม",
+        "user_group": "นักเรียน ม.4 ที่อ่านหนังสือตอนพัก"
+      }
+    },
+    {
+      "name": "problem statement with link",
+      "type": "problem_statement",
+      "payload": {
+        "text": "Students skip breakfast because the queue is too long",
+        "user_group": "Grade 10 students",
+        "link": "https://example.com/notes"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "ideas two items",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          }
+        ],
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas"
+    },
+    {
+      "name": "ideas seven items",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          },
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          },
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          }
+        ],
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas"
+    },
+    {
+      "name": "ideas missing",
+      "type": "ideas",
+      "payload": {
+        "picked": 0
+      },
+      "code": "missing_field",
+      "field": "ideas"
+    },
+    {
+      "name": "ideas not a list",
+      "type": "ideas",
+      "payload": {
+        "ideas": "three ideas",
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas"
+    },
+    {
+      "name": "picked missing",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ]
+      },
+      "code": "missing_field",
+      "field": "picked"
+    },
+    {
+      "name": "picked out of range",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 3
+      },
+      "code": "invalid_field",
+      "field": "picked"
+    },
+    {
+      "name": "picked negative",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": -1
+      },
+      "code": "invalid_field",
+      "field": "picked"
+    },
+    {
+      "name": "picked not an integer",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 1.5
+      },
+      "code": "invalid_field",
+      "field": "picked"
+    },
+    {
+      "name": "picked as text",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": "0"
+      },
+      "code": "invalid_field",
+      "field": "picked"
+    },
+    {
+      "name": "idea text too short",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ab",
+            "who": "ม.4"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas"
+    },
+    {
+      "name": "idea text too long",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "who": "ม.4"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas"
+    },
+    {
+      "name": "idea who too short",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็ม",
+            "who": "A"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas"
+    },
+    {
+      "name": "idea who blank",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็ม",
+            "who": "   "
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas"
+    },
+    {
+      "name": "idea who phone",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็ม",
+            "who": "พี่ 081-234-5678"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas",
+      "rule": "personal_data"
+    },
+    {
+      "name": "idea who email",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ห้องสมุดเต็ม",
+            "who": "ploy@example.com"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas",
+      "rule": "personal_data"
+    },
+    {
+      "name": "idea unknown key",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2",
+            "phone": "1"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0
+      },
+      "code": "invalid_field",
+      "field": "ideas"
+    },
+    {
+      "name": "reachable as text",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0,
+        "reachable": "yes"
+      },
+      "code": "invalid_field",
+      "field": "reachable"
+    },
+    {
+      "name": "ideas note too long",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0,
+        "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "code": "invalid_field",
+      "field": "note"
+    },
+    {
+      "name": "ideas unknown key",
+      "type": "ideas",
+      "payload": {
+        "ideas": [
+          {
+            "text": "ห้องสมุดเต็มตอนพักเที่ยง",
+            "who": "ม.4 ห้อง 2"
+          },
+          {
+            "text": "ต่อคิวโรงอาหารนาน",
+            "who": "เพื่อนในชมรม"
+          },
+          {
+            "text": "จำวันส่งงานไม่ได้",
+            "who": "รุ่นน้อง ม.3"
+          }
+        ],
+        "picked": 0,
+        "winner": 1
+      },
+      "code": "invalid_field",
+      "field": "winner"
+    },
+    {
+      "name": "daily missing built",
+      "type": "daily",
+      "payload": {
+        "heard": "ชอบ"
+      },
+      "code": "missing_field",
+      "field": "built"
+    },
+    {
+      "name": "daily blank built",
+      "type": "daily",
+      "payload": {
+        "built": "   "
+      },
+      "code": "missing_field",
+      "field": "built"
+    },
+    {
+      "name": "daily built too long",
+      "type": "daily",
+      "payload": {
+        "built": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "code": "invalid_field",
+      "field": "built"
+    },
+    {
+      "name": "daily broke too long",
+      "type": "daily",
+      "payload": {
+        "built": "ok",
+        "broke": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "code": "invalid_field",
+      "field": "broke"
+    },
+    {
+      "name": "daily heard too long",
+      "type": "daily",
+      "payload": {
+        "built": "ok",
+        "heard": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "code": "invalid_field",
+      "field": "heard"
+    },
+    {
+      "name": "daily http link",
+      "type": "daily",
+      "payload": {
+        "built": "ok",
+        "link": "http://example.com"
+      },
+      "code": "link_not_https",
+      "field": "link"
+    },
+    {
+      "name": "daily unknown key",
+      "type": "daily",
+      "payload": {
+        "built": "ok",
+        "photo_url": "https://example.com/a.jpg"
+      },
+      "code": "invalid_field",
+      "field": "photo_url"
+    },
+    {
+      "name": "problem missing user group",
+      "type": "problem_statement",
+      "payload": {
+        "text": "Students skip breakfast because the queue is too long"
+      },
+      "code": "missing_field",
+      "field": "user_group"
+    },
+    {
+      "name": "problem user group too short",
+      "type": "problem_statement",
+      "payload": {
+        "text": "Students skip breakfast because the queue is too long",
+        "user_group": "A"
+      },
+      "code": "invalid_field",
+      "field": "user_group"
+    },
+    {
+      "name": "problem user group too long",
+      "type": "problem_statement",
+      "payload": {
+        "text": "Students skip breakfast because the queue is too long",
+        "user_group": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "code": "invalid_field",
+      "field": "user_group"
+    },
+    {
+      "name": "problem user group handle",
+      "type": "problem_statement",
+      "payload": {
+        "text": "Students skip breakfast because the queue is too long",
+        "user_group": "@grade10.club"
+      },
+      "code": "invalid_field",
+      "field": "user_group",
+      "rule": "personal_data"
+    },
+    {
+      "name": "problem user group line link",
+      "type": "problem_statement",
+      "payload": {
+        "text": "Students skip breakfast because the queue is too long",
+        "user_group": "line.me/ti/p/abc"
+      },
+      "code": "invalid_field",
+      "field": "user_group",
+      "rule": "personal_data"
+    }
+  ]
+}

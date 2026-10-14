@@ -24,6 +24,10 @@ describe("hackathon navigation", () => {
     expect(isAllowedOnboardedAppSegment(undefined)).toBe(false);
   });
 
+  it("allows SHIFT screens without redirecting onboarded users away", () => {
+    expect(isAllowedOnboardedAppSegment("shift")).toBe(true);
+  });
+
   it("allows the hackathon owner email to use hackathon admin access", () => {
     expect(isHackathonAdminEmail("bysfang@gmail.com")).toBe(true);
     expect(isHackathonAdminEmail(" BYSFANG@gmail.com ")).toBe(true);

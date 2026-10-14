@@ -55,15 +55,10 @@ echo "🧹 Cleaning up old backups..."
 find "$BACKUP_DIR" -name "backup_*.sql.gz" -mtime +7 -delete
 find "$BACKUP_DIR" -name "*.log" -mtime +30 -delete
 
-# Sync to Ghost (warm standby - app data only, not auth)
-echo "🔄 Syncing app data to Ghost staging..."
-./scripts/sync-to-ghost.sh 2>&1 | tail -5
-
 echo ""
 echo "✅ Backup complete!"
 echo "📊 Summary:"
 echo "   - Full dump: $BACKUP_DIR/$BACKUP_FILE ($BACKUP_SIZE)"
 echo "   - B2 upload: b2://$B2_BUCKET/daily/$BACKUP_FILE"
-echo "   - Ghost sync: Completed"
 echo "   - Local retention: 7 days"
 echo "   - B2 retention: $RETENTION_DAYS days"

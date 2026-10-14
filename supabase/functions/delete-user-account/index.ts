@@ -99,9 +99,29 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    // 0. SHIFT round data (spec 3.5 shift_round_job_delete_user, E10): delete entries, logs,
+    // media rows, check-ins, squad rows and summaries; tombstone certificates; anonymize events;
+    // queue the user's private media for storage removal. This never deletes the auth user
+    // itself. A failure (e.g. the RPC is not deployed yet) is logged and does not block account
+    // deletion: the entries cascade with auth.users anyway, and orphaned media is swept by the
+    // shift-round-jobs purge.
+    try {
+      const { data: shiftResult, error: shiftError } = await supabase.rpc(
+        "shift_round_job_delete_user",
+        { p_user_id: targetUserId },
+      );
+      if (shiftError) {
+        console.error("[delete-user-account] shift_round_job_delete_user failed:", shiftError.message);
+      } else if (shiftResult && shiftResult.ok === false) {
+        console.error("[delete-user-account] shift_round_job_delete_user error:", shiftResult.error?.code);
+      }
+    } catch (shiftErr) {
+      console.error("[delete-user-account] shift_round_job_delete_user threw:", shiftErr);
+    }
+
     // Delete user data from all tables (in order to respect foreign keys)
     // Note: Order matters for foreign key constraints
-    
+
     // 1. Delete hackathon-related data
     const { error: hackathonCommentsError } = await supabase
       .from("hackathon_comments")

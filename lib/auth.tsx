@@ -13,9 +13,10 @@ if (Platform.OS === "ios") {
 }
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { noteExplicitSignOut } from "./round/session";
 import { getSupabaseRuntimeConfig } from "./runtime-config";
 import { resolveAppLanguage } from "./app-language";
-import { preloadDiscoverData, clearPathlabCaches } from "./pathlab";
+import { clearPathlabCaches } from "./pathlab";
 import {
   clearHackathonScreenDataCache,
   preloadHackathonHomeBundle,
@@ -118,7 +119,10 @@ type AuthContext = {
   guestLanguage: GuestLanguage;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  /** Hackathon participant login (custom token, not a Supabase session). */
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
+  /** Passion Seed account email + password (Supabase session). */
+  signInWithPassword: (email: string, password: string) => Promise<void>;
   signOutHackathon: () => Promise<void>;
   signOut: () => Promise<void>;
   setGuestLanguage: (language: GuestLanguage) => Promise<void>;
@@ -138,6 +142,7 @@ const AuthContext = createContext<AuthContext>({
   signInWithGoogle: async () => {},
   signInWithApple: async () => {},
   signInWithEmailPassword: async () => {},
+  signInWithPassword: async () => {},
   signOutHackathon: async () => {},
   signOut: async () => {},
   setGuestLanguage: async () => {},
@@ -245,27 +250,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           saveHackathonMode(false);
           clearHackathonSession();
         }
-        void preloadDiscoverData({
-          userId: session?.user.id ?? null,
-          includeRecommendations: Boolean(session?.user?.id),
-        });
+        // PathLab Discover is hidden (SHIFT-only app), so its data is no longer preloaded.
 
         if (!session) {
           setProfileLanguageState(null);
           return;
         }
 
-        try {
-          const nextLanguage = await readProfileLanguage(session.user.id);
-          if (!cancelled) {
-            setProfileLanguageState(nextLanguage);
-          }
-        } catch (error) {
-          console.error("[Auth] Failed to load profile language:", error);
-          if (!cancelled) {
-            setProfileLanguageState(null);
-          }
-        }
+        // Do not await this. A hung profiles read must not keep the app on the splash.
+        void readProfileLanguage(session.user.id)
+          .then((nextLanguage) => {
+            if (!cancelled) setProfileLanguageState(nextLanguage);
+          })
+          .catch((error) => {
+            console.error("[Auth] Failed to load profile language:", error);
+            if (!cancelled) setProfileLanguageState(null);
+          });
       })
       .finally(() => {
         if (!cancelled) {
@@ -283,13 +283,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const syncId = ++authSyncIdRef.current;
-        console.log("[Auth] Setting loading=true, syncId:", syncId);
-        setLoading(true);
         setSession(nextSession);
-        void preloadDiscoverData({
-          userId: nextSession?.user.id ?? null,
-          includeRecommendations: Boolean(nextSession?.user?.id),
-        });
+        if (nextSession) { setIsGuest(false); setIsHackathon(false); }
+        setLoading(false);
 
         if (!nextSession) {
           console.log("[Auth] No session, setting loading=false");
@@ -307,42 +303,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        console.log("[Auth] Reading profile language for user:", nextSession.user.id);
-        const languageTimeout = new Promise<null>((resolve) =>
-          setTimeout(() => {
-            console.warn("[Auth] readProfileLanguage timed out after 5s — unblocking navigation");
-            resolve(null);
-          }, 5000)
-        );
-
-        // Defer the query by one tick so the Supabase auth lock is fully released
-        // before we try to make another Supabase call (avoids deadlock on Android)
-        const deferredReadProfileLanguage = new Promise<GuestLanguage>((resolve, reject) =>
-          setTimeout(() => readProfileLanguage(nextSession.user.id).then(resolve).catch(reject), 0)
-        );
-
-        void Promise.race([
-          deferredReadProfileLanguage.then((language) => {
-            console.log("[Auth] readProfileLanguage resolved:", language);
-            return { language };
-          }),
-          languageTimeout.then(() => ({ language: null as null })),
-        ])
-          .then(({ language }) => {
-            if (authSyncIdRef.current !== syncId) return;
-            setProfileLanguageState(language);
-          })
-          .catch((error) => {
-            if (authSyncIdRef.current !== syncId) return;
-            console.error("[Auth] Failed to sync profile language:", error);
-            setProfileLanguageState(null);
-          })
-          .finally(() => {
-            console.log("[Auth] finally: setting loading=false, syncId check:", authSyncIdRef.current === syncId);
-            if (authSyncIdRef.current === syncId) {
-              setLoading(false);
-            }
-          });
+        // Defer past the auth callback so the Supabase lock is free. Language
+        // must not gate navigation; a slow profiles read used to freeze the splash.
+        setTimeout(() => {
+          readProfileLanguage(nextSession.user.id)
+            .then((language) => {
+              if (authSyncIdRef.current !== syncId) return;
+              setProfileLanguageState(language);
+            })
+            .catch((error) => {
+              if (authSyncIdRef.current !== syncId) return;
+              console.error("[Auth] Failed to sync profile language:", error);
+              setProfileLanguageState(null);
+            });
+        }, 0);
       },
     );
 
@@ -356,7 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsGuest(true);
   };
 
-  const setGuestLanguage = (language: GuestLanguage) => {
+  const setGuestLanguage = async (language: GuestLanguage) => {
     setGuestLanguageState(language);
     saveGuestLanguage(language);
   };
@@ -414,6 +388,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void preloadHackathonJourneyBundle();
   };
 
+  const signInWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw error;
+    // onAuthStateChange stores the session; the root navigator routes from there.
+    setIsGuest(false);
+  };
+
   const signOutHackathon = async () => {
     console.log("[Auth] signOutHackathon start");
     clearHackathonSession();
@@ -426,6 +407,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     console.log("[Auth] signOut start");
+    noteExplicitSignOut();
     await supabase.auth.signOut();
     clearHackathonScreenDataCache();
     clearPathlabCaches();
@@ -472,6 +454,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    if (Platform.OS === "web") {
+      const redirectTo = `${window.location.origin}/`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) throw error;
+      return;
+    }
     await signInWithOAuth("google", "passion-seed://google-auth");
   };
 
@@ -582,6 +573,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         signInWithApple,
         signInWithEmailPassword,
+        signInWithPassword,
         signOutHackathon,
         signOut,
         setGuestLanguage,

@@ -2,30 +2,46 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const landingSource = readFileSync(
-  join(__dirname, "../app/index.tsx"),
-  "utf8",
-);
-const glassCardSource = readFileSync(
-  join(__dirname, "../components/Glass/GlassCard.tsx"),
-  "utf8",
-);
+const read = (path: string) => readFileSync(join(__dirname, "..", path), "utf8");
 
-describe("landing page design", () => {
-  it("does not render decorative background orbs", () => {
-    expect(landingSource).not.toContain("styles.orb");
-    expect(landingSource).not.toContain("Floating accent orbs");
+const landingSource = read("app/index.tsx");
+const signInSource = read("app/sign-in.tsx");
+const panelSource = read("components/round/SignInPanel.tsx");
+const glassCardSource = read("components/Glass/GlassCard.tsx");
+
+describe("signed-out welcome (DESIGN.md v4)", () => {
+  it("shares the orb hero and sign-in actions with /sign-in", () => {
+    for (const source of [landingSource, signInSource]) {
+      expect(source).toContain("<WelcomeHero />");
+      expect(source).toContain("<SignInPanel");
+      expect(source).toContain("<RoundShell");
+    }
   });
 
-  it("lets the landing logo overlap the card while preserving the full card outline", () => {
+  it("keeps a way in without an account and lands guests on Home", () => {
+    expect(landingSource).toContain("enterAsGuest()");
+    expect(landingSource).toContain('router.replace("/(tabs)/shift")');
+  });
+
+  it("uses the native Apple button on iOS and Google on a porcelain key with the full-colour G", () => {
+    expect(panelSource).toContain("AppleAuthenticationButton");
+    expect(panelSource).toContain('icon="googleColor"');
+    expect(panelSource).toMatch(/<Key\s+tone="porcelain"/);
+  });
+
+  it("has no retired neon accents or emoji icons", () => {
+    for (const source of [landingSource, signInSource, panelSource]) {
+      expect(source).not.toMatch(/#BFFF00/i);
+      expect(source).not.toMatch(/\p{Extended_Pictographic}/u);
+    }
+  });
+});
+
+describe("legacy glass card (PathLab screens)", () => {
+  it("lets content overlap the card while preserving the full card outline", () => {
     expect(glassCardSource).toContain('overflow: "visible"');
     expect(glassCardSource).toContain("styles.surface");
     expect(glassCardSource).toContain("styles.borderOverlay");
     expect(glassCardSource).toContain('overflow: "hidden"');
-    expect(landingSource).toContain("marginBottom: -36");
-    expect(landingSource).toContain("<View style={styles.cardTopSpacer} />");
-    expect(landingSource).toContain("height: 12");
-    expect(landingSource).toContain('resizeMode="contain"');
-    expect(landingSource).toContain('overflow: "visible"');
   });
 });

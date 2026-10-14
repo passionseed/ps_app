@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F4F2FB",
   },
   logoContainer: {
     alignItems: "center",

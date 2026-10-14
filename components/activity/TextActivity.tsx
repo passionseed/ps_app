@@ -78,7 +78,7 @@ const markdownStyles = {
     paddingLeft: 12,
     marginVertical: 8,
   },
-  link: { color: Accent.yellowDark },
+  link: { color: Accent.purple },
   hr: {
     backgroundColor: "rgba(0,0,0,0.08)",
     height: 1,

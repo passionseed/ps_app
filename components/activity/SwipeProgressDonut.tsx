@@ -16,7 +16,7 @@ const STROKE = 3;
 
 const TRACK = "rgba(79, 70, 229, 0.2)";
 /** Single soft underlay instead of multiple glow paths */
-const GLOW = "rgba(191, 255, 0, 0.22)";
+const GLOW = "rgba(109, 63, 240, 0.22)"; // Violet[600] glow behind the progress stroke
 
 export type SwipeProgressDirection = "next" | "previous";
 
@@ -118,7 +118,7 @@ export function SwipeProgressDonut({
                   path={ringPath}
                   style="stroke"
                   strokeWidth={STROKE}
-                  color={Accent.yellow}
+                  color={Accent.purple}
                   strokeCap="round"
                   start={0}
                   end={progress}

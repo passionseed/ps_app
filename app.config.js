@@ -182,14 +182,14 @@ module.exports = {
     name: `Passion Seed${appVariant.nameSuffix}`,
     scheme: urlScheme,
     slug: "passion-seed",
-    version: "1.3.2",
+    version: "1.5.2",
     orientation: "portrait",
     icon: "./assets/passionseed-logo-1024.png",
     userInterfaceStyle: "light",
     splash: {
       image: "./assets/passionseed-logo-1024.png",
       resizeMode: "contain",
-      backgroundColor: "#F3F4F6",
+      backgroundColor: "#F4F2FB",
     },
     ios: {
       supportsTablet: true,
@@ -244,7 +244,6 @@ module.exports = {
       favicon: "./assets/favicon.png",
     },
     plugins: [
-      "./config-plugins/withTodoWidget",
       withHighMemoryGradle,
       withStableIosBundleEntry,
       [

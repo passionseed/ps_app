@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   tipNumber: {
     fontSize: 20,
     fontWeight: "800",
-    color: Accent.yellow,
+    color: Accent.purple,
   },
   tipText: {
     fontSize: 14,

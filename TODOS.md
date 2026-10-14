@@ -95,3 +95,45 @@
 **Cons:** None material — small migration. Index is premature at ~20 rows.
 **Context:** From eng review 2026-06-12. Client-side tier validation (CQ2 option A) ships in v1; this is the DB-level backstop (CQ2 option C) deferred.
 **Depends on / blocked by:** career_survival table (scope C, T1).
+
+---
+
+## Always-on Challenge (Seasons) — deferred from /autoplan CEO review 2026-10-12
+
+### [P2] TCASfolio-ready project export
+**What:** One-page export of a season project and its evidence in a format that fits TCASfolio.
+**Why:** Certificates matter only if they reach admissions readers in the format they use.
+**Effort:** M (human) / S (CC+gstack). **Depends on:** TCASfolio format research; beta results.
+
+### [P1] Partner co-signed certificates and briefs
+**What:** Get one university faculty or real organization to co-sign a season certificate or post a brief.
+**Why:** Both CEO voices flagged that a Passion Seed-only certificate may carry little admissions weight.
+**Effort:** L (business work, little code). **Depends on:** counselor interviews (plan A48).
+
+### [P3] Real-organization season briefs
+**What:** Organizations post a real problem as the season brief.
+**Effort:** M / S. **Depends on:** E3 partnerships.
+
+### [P2] Cross-season portfolio page
+**What:** One public page per student collecting all season projects.
+**Effort:** M / S. **Depends on:** at least two seasons run.
+
+### [P2] Teams of up to 3 in seasons
+**What:** Team entries with shared evidence attribution.
+**Why:** Relatedness; Claude CEO voice flagged solo-only beta data may not transfer.
+**Effort:** M / S. **Depends on:** beta results.
+
+### [P3] Evidence leaderboard (stretch)
+**What:** Ranked leaderboard with a server-derived score formula.
+**Why:** Competition framing; deferred for SDT controlling-reward and gaming risk.
+**Effort:** S / S. **Depends on:** score formula decision.
+
+### [P3] Credential-free fixture mode for the app (seasons)
+**What:** Run the season screens against local fixtures with no Supabase, for UI work.
+**Why:** DX review: reaches a < 5 min first run for new engineers.
+**Effort:** M / S. **Depends on:** X2 season seed states.
+
+### [P3] Student evidence export before purge
+**What:** "Export my evidence" (JSON or PDF) for a student before the 12-month purge.
+**Why:** Portfolio product; DX/eng reviews flagged delete-only as a gap.
+**Effort:** S / S. **Depends on:** season tables.

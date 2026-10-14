@@ -113,5 +113,5 @@ For production, update these to your Supabase project URL.
 
 ## Versioning Policy (For AI Agents)
 
-- On every shipped app update, bump `expo.version` in `app.json`.
+- On every shipped app update, bump `version` in `app.config.js` (the app version lives there, not in `app.json`).
 - Keep the Profile footer version label sourced from Expo config (`Constants.expoConfig.version`), not hardcoded.

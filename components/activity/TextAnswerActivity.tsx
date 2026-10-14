@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   assessmentSubmittedLabel: {
     fontSize: 13,
-    color: Accent.yellowDark,
+    color: Accent.purple,
     fontWeight: "600",
     marginTop: 12,
   },

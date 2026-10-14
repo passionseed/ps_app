@@ -35,6 +35,16 @@ if (Notifications) {
   }
 }
 
+// E16: while the user has an upcoming/active SHIFT round entry, the server sends the
+// evening nudge, so the legacy local daily reminder must not be scheduled.
+let _legacyReminderSuppressed = false;
+export function setLegacyReminderSuppressed(suppressed: boolean): void {
+  _legacyReminderSuppressed = suppressed;
+}
+export function isLegacyReminderSuppressed(): boolean {
+  return _legacyReminderSuppressed;
+}
+
 /** Check if push notifications are available on this device. */
 export function isNotificationsAvailable(): boolean {
   return _notificationsAvailable;
@@ -53,6 +63,9 @@ export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   reminder_time: "09:00",
   theme: "light",
 };
+
+const LEGACY_REMINDER_TITLE = "Time to grow! 🌱";
+const LEGACY_REMINDER_BODY = "Continue your daily learning path.";
 
 export const REMINDER_TIME_OPTIONS = [
   { value: "07:00", label: "7 AM" },
@@ -207,10 +220,13 @@ export async function removePushToken(userId: string): Promise<void> {
 export async function scheduleDailyReminder(
   hour: number,
   minute: number,
-  title: string = "Time to grow! 🌱",
-  body: string = "Continue your daily learning path.",
+  title: string = LEGACY_REMINDER_TITLE,
+  body: string = LEGACY_REMINDER_BODY,
 ): Promise<string | null> {
   if (!_notificationsAvailable || !Notifications) {
+    return null;
+  }
+  if (_legacyReminderSuppressed) {
     return null;
   }
 
@@ -235,6 +251,25 @@ export async function scheduleDailyReminder(
     console.warn("[notifications] Schedule daily reminder failed:", error);
     _notificationsAvailable = false;
     return null;
+  }
+}
+
+/**
+ * Cancels only the legacy daily learning reminder (E16), leaving any other scheduled
+ * notification alone. Returns how many were cancelled.
+ */
+export async function cancelLegacyReminder(): Promise<number> {
+  if (!_notificationsAvailable || !Notifications) return 0;
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const legacy = scheduled.filter(
+      (n) => n.content?.title === LEGACY_REMINDER_TITLE && n.content?.body === LEGACY_REMINDER_BODY,
+    );
+    await Promise.all(legacy.map((n) => Notifications!.cancelScheduledNotificationAsync(n.identifier)));
+    return legacy.length;
+  } catch (error) {
+    console.warn("[notifications] Cancel legacy reminder failed:", error);
+    return 0;
   }
 }
 

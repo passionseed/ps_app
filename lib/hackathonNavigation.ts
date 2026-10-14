@@ -10,6 +10,7 @@ export function isAllowedOnboardedAppSegment(
     segment === "admin" ||
     segment === "hackathon-login" ||
     segment === "pathlab-activity" ||
+    segment === "shift" ||
     segment === "onboarding"
   );
 }

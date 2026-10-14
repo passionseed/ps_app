@@ -1,9 +1,6 @@
 import "react-native-url-polyfill/auto";
 import { createClient } from "@supabase/supabase-js";
 
-if (typeof window !== "undefined") {
-  import("expo-sqlite/localStorage/install");
-}
 import {
   getSupabaseConfigErrorMessage,
   getSupabaseRuntimeConfig,
@@ -15,7 +12,7 @@ const { url: supabaseUrl, publishableKey, anonKey } =
 
 const supabaseKey = anonKey || publishableKey;
 
-function createMissingConfigProxy(message: string) {
+export function createMissingConfigProxy(message: string) {
   const noopSubscription = { unsubscribe: () => {} };
   const noopAuth = {
     getSession: () => Promise.resolve({ data: { session: null }, error: null }),
@@ -26,16 +23,37 @@ function createMissingConfigProxy(message: string) {
     setSession: () => Promise.resolve({ data: { session: null }, error: null }),
     updateUser: () => Promise.resolve({ data: { user: null }, error: null }),
   };
-  const noopQuery = {
+  const noopQuery: Record<string, unknown> = {
     select: () => noopQuery,
     eq: () => noopQuery,
+    like: () => noopQuery,
+    in: () => noopQuery,
+    order: () => noopQuery,
+    limit: () => noopQuery,
+    update: () => noopQuery,
+    maybeSingle: () => Promise.resolve({ data: null, error: new Error(message) }),
     single: () => Promise.resolve({ data: null, error: new Error(message) }),
     then: (resolve: (v: { data: null; error: Error }) => unknown) =>
       Promise.resolve({ data: null, error: new Error(message) }).then(resolve),
   };
+  // X5: a missing config must surface as `unavailable`, never as "not enrolled".
+  const configError = { message, code: "CONFIG_MISSING", details: null, hint: null };
+  const rpc = () => Promise.resolve({ data: null, error: configError, status: 0, statusText: "" });
+  const storageFailure = () => Promise.resolve({ data: null, error: Object.assign(new Error(message), { statusCode: "CONFIG_MISSING" }) });
+  const noopBucket = {
+    upload: storageFailure,
+    remove: storageFailure,
+    download: storageFailure,
+    list: storageFailure,
+    createSignedUrl: storageFailure,
+    createSignedUrls: storageFailure,
+    getPublicUrl: () => ({ data: { publicUrl: "" } }),
+  };
   return {
     auth: noopAuth,
     from: () => noopQuery,
+    rpc,
+    storage: { from: () => noopBucket },
   };
 }
 
@@ -48,7 +66,7 @@ const noopStorage = {
 };
 
 export const supabase = supabaseConfigError
-  ? (createMissingConfigProxy(supabaseConfigError) as ReturnType<
+  ? (createMissingConfigProxy(supabaseConfigError) as unknown as ReturnType<
       typeof createClient
     >)
   : createClient(supabaseUrl, supabaseKey, {
@@ -56,6 +74,7 @@ export const supabase = supabaseConfigError
         storage: inBrowser ? localStorage : noopStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        // Web Google sign-in returns tokens in the URL hash. Native uses the deep link.
+        detectSessionInUrl: typeof document !== "undefined",
       },
     });

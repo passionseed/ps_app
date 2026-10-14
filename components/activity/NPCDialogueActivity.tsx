@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   typingCursor: {
-    color: Accent.yellow,
+    color: Accent.purple,
     fontWeight: "700",
   },
   timerBarBelowBubble: {
@@ -1042,7 +1042,7 @@ const styles = StyleSheet.create({
   },
   swipeHint: {
     fontSize: 48,
-    color: Accent.yellow,
+    color: Accent.purple,
     marginTop: 24,
   },
   swipeText: {
