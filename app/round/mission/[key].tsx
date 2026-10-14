@@ -2,12 +2,11 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ink, Violet } from "../../../lib/theme";
+import type { CopyKey } from "../../../lib/round/copy";
 import { evidenceStatusKind, evidenceSummary, statusCopyKey } from "../../../lib/round/evidence";
 import { useRoundHome, useRoundLang } from "../../../lib/round/hooks";
-import { MISSION_TYPES, missionDisplay, missionTitleKey, orderedMissions, typeKey } from "../../../lib/round/missions";
+import { missionByKey, missionDisplay, missionTitle, missionTypes, typeKey } from "../../../lib/round/missions";
 import { formatIsoDate } from "../../../lib/round/time";
-import type { MissionKey } from "../../../lib/round/types";
-import { MISSION_KEYS } from "../../../lib/round/types";
 import { RoundShell } from "../../../components/round/RoundShell";
 import { RText } from "../../../components/round/RText";
 import { PillowButton } from "../../../components/round/PillowButton";
@@ -15,14 +14,25 @@ import { Banner, Card, IconButton, Tag } from "../../../components/round/primiti
 import { ListSkeleton } from "../../../components/round/Skeleton";
 import { EvidenceRow } from "../../../components/round/EvidenceRow";
 
+/** One mission (keys are dynamic, from the round config): what it needs, its logs, and a CTA. */
 export default function MissionScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const { lang, t } = useRoundLang();
   const home = useRoundHome();
   const bundle = home.data?.bundle ?? null;
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/shift"));
-  const valid = (MISSION_KEYS as readonly string[]).includes(key ?? "");
-  if (!valid) {
+
+  if (home.isPending) {
+    return (
+      <RoundShell>
+        <IconButton icon="back" label={t("ui.back")} onPress={close} />
+        <ListSkeleton rows={2} />
+      </RoundShell>
+    );
+  }
+  // Before join (or before the server sends counts) the SHIFT default config is the preview.
+  const mission = missionByKey(bundle?.missions, key);
+  if (!mission) {
     return (
       <RoundShell>
         <IconButton icon="back" label={t("ui.back")} onPress={close} />
@@ -30,10 +40,11 @@ export default function MissionScreen() {
       </RoundShell>
     );
   }
-  const missionKey = key as MissionKey;
-  const mission = orderedMissions(bundle?.missions).find((m) => m.key === missionKey)!;
   const display = missionDisplay(mission, bundle?.evidence ?? []);
-  const items = (bundle?.evidence ?? []).filter((e) => MISSION_TYPES[missionKey].includes(e.type));
+  const types = missionTypes(mission);
+  const items = (bundle?.evidence ?? [])
+    .filter((e) => types.includes(e.type))
+    .sort((a, b) => Date.parse(b.submitted_at) - Date.parse(a.submitted_at));
   const nextPart = mission.parts.find((p) => p.have < p.need) ?? mission.parts[0];
   const canLog = !!bundle?.entry && bundle.round?.phase !== "finished";
   const stateText =
@@ -49,16 +60,21 @@ export default function MissionScreen() {
     <RoundShell
       dock={
         canLog ? (
-          <PillowButton label={t("home.cta.log")} icon="pencil" onPress={() => router.push({ pathname: "/round/capture", params: { type: nextPart.type } })} />
+          <PillowButton
+            label={t(`home.cta.${nextPart.type}` as CopyKey)}
+            icon="pencil"
+            onPress={() => router.push({ pathname: "/round/capture", params: { type: nextPart.type } })}
+          />
         ) : undefined
       }
     >
-      <IconButton icon="back" label={t("ui.back")} onPress={close} />
-      <Tag label={t("mission.tag", { n: mission.n })} />
-      <RText variant="display" accessibilityRole="header">
-        {t(missionTitleKey(missionKey))}
+      <View style={styles.top}>
+        <IconButton icon="back" label={t("ui.back")} onPress={close} />
+        <Tag label={t("mission.tag", { n: mission.n })} />
+      </View>
+      <RText variant="display" accessibilityRole="header" style={styles.title}>
+        {missionTitle(lang, mission)}
       </RText>
-      {home.isPending ? <ListSkeleton rows={2} /> : null}
       <Card style={{ gap: 10 }}>
         <RText variant="label">{t("ui.mission.parts")}</RText>
         {mission.parts.map((p) => (
@@ -97,5 +113,7 @@ export default function MissionScreen() {
 }
 
 const styles = StyleSheet.create({
+  top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  title: { fontSize: 26, lineHeight: 34 },
   part: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 32 },
 });

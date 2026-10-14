@@ -63,6 +63,20 @@ export function formatDate(ts: string | number | Date, lang: Lang): string {
   return `${p.day} ${MONTHS[lang][p.month - 1]}`;
 }
 
+/**
+ * Round dates "21–27 ต.ค." (one month) or "30 ต.ค. – 5 พ.ย.". The close is stored as 00:00 ICT on
+ * the day after the last day, so the last day is the close minus one minute (R15).
+ */
+export function formatDateRange(startsAt: string | number | Date, closesAt: string | number | Date, lang: Lang): string {
+  const lastMs = toMs(closesAt) - 60_000;
+  const a = ictParts(startsAt);
+  const b = ictParts(lastMs);
+  if (a.year === b.year && a.month === b.month) {
+    return a.day === b.day ? formatDate(startsAt, lang) : `${a.day}–${b.day} ${MONTHS[lang][a.month - 1]}`;
+  }
+  return `${formatDate(startsAt, lang)} – ${formatDate(lastMs, lang)}`;
+}
+
 /** Date-only string (YYYY-MM-DD, already ICT) to "26 ต.ค.". */
 export function formatIsoDate(isoDate: string, lang: Lang): string {
   const [y, m, d] = isoDate.split("-").map(Number);

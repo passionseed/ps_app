@@ -10,7 +10,9 @@ import {
   withAttemptError,
   type RoundDraft,
 } from "./drafts";
+import { ideasPayload } from "./ideas";
 import { buildMediaArg, mediaPath, removeUploaded, syncDraftMedia, uploadMedia, type MediaDeps } from "./media";
+import { normalizeReceipt } from "./normalize";
 import { validateEvidence, type ValidationIssue } from "./schema";
 import type { ErrorCategory, MediaArg, Receipt, RoundResult } from "./types";
 
@@ -32,6 +34,15 @@ export const defaultSendDeps: SendDeps = {
 
 /** Payload sent to the server for a draft (type-specific shaping of form fields). */
 export function payloadFromDraft(draft: RoundDraft): Record<string, unknown> {
+  if (draft.type === "ideas") {
+    // Rows carry ids in the draft; the payload is the non-empty rows and a 0-based `picked`.
+    const { ideas, picked } = ideasPayload(draft.fields.ideas, draft.fields.picked_id);
+    const out: Record<string, unknown> = { ideas };
+    if (picked !== undefined) out.picked = picked;
+    if (typeof draft.fields.reachable === "boolean") out.reachable = draft.fields.reachable;
+    if (typeof draft.fields.note === "string") out.note = draft.fields.note;
+    return out;
+  }
   const fields = { ...draft.fields };
   if (draft.type === "change" && draft.source_evidence_id) fields.source_evidence_id = draft.source_evidence_id;
   if ((draft.type === "interview" || draft.type === "tester") && draft.audio?.transcript) {
@@ -142,7 +153,7 @@ export async function sendAttempt(draft: RoundDraft, deps: SendDeps = defaultSen
   } catch {
     return failure(current, "retryable", "retryable");
   }
-  if (result.ok) return { kind: "receipt", draft: current, receipt: result.data };
+  if (result.ok) return { kind: "receipt", draft: current, receipt: normalizeReceipt(result.data) };
   return failure(current, result.error.code, result.error.category, {
     field: result.error.field,
     retry_after: result.error.retry_after,

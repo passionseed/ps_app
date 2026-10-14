@@ -6,7 +6,7 @@ export function DiscordFooter({ url, label }: { url: string | null | undefined; 
   if (!url) return null;
   return (
     <View style={styles.wrap}>
-      <TextButton label={label} icon="people" onPress={() => void Linking.openURL(url)} />
+      <TextButton label={label} icon="chat" onPress={() => void Linking.openURL(url)} />
     </View>
   );
 }

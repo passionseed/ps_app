@@ -5,8 +5,7 @@ import { errorOf } from "../../lib/round/api";
 import { errorCopy } from "../../lib/round/copy";
 import { draftStatusCopyKey, draftStatusKind, evidenceStatusKind, evidenceSummary, statusCopyKey } from "../../lib/round/evidence";
 import { useRoundDrafts, useRoundHome, useRoundLang } from "../../lib/round/hooks";
-import { MISSION_TYPES, missionTitleKey, orderedMissions, typeKey } from "../../lib/round/missions";
-import { nextAction } from "../../lib/round/next";
+import { missionTitle, missionTypes, orderedMissions, typeKey } from "../../lib/round/missions";
 import { formatDate, formatIsoDate } from "../../lib/round/time";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
@@ -28,9 +27,14 @@ export default function LogScreen() {
   const bundle = home.data?.bundle ?? null;
   const entryId = bundle?.entry?.id;
   const myDrafts = (drafts.data ?? []).filter((d) => d.entry_id === entryId);
-  const next = nextAction(bundle?.missions);
   const close = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/shift"));
   const canLog = !!bundle?.entry && bundle.round?.phase !== "finished";
+  const missions = orderedMissions(bundle?.missions);
+  const missionTypeSet = new Set(missions.flatMap((m) => missionTypes(m)));
+  // Free logs (first contact, the Daily Show) belong to no mission.
+  const freeItems = (bundle?.evidence ?? [])
+    .filter((e) => !missionTypeSet.has(e.type))
+    .sort((a, b) => Date.parse(b.submitted_at) - Date.parse(a.submitted_at));
 
   return (
     <RoundShell
@@ -41,7 +45,8 @@ export default function LogScreen() {
           <PillowButton
             label={t("log.add")}
             icon="plus"
-            onPress={() => router.push(next.kind === "log" ? { pathname: "/round/capture", params: { type: next.type } } : "/round/capture")}
+            // The type picker: every log type, including the free ones (first contact, the Daily Show).
+            onPress={() => router.push("/round/capture")}
           />
         ) : undefined
       }
@@ -81,9 +86,10 @@ export default function LogScreen() {
       ) : null}
 
       {bundle
-        ? orderedMissions(bundle.missions).map((m) => {
+        ? missions.map((m) => {
+            const types = missionTypes(m);
             const items = bundle.evidence
-              .filter((e) => MISSION_TYPES[m.key].includes(e.type))
+              .filter((e) => types.includes(e.type))
               .sort((a, b) => Date.parse(b.submitted_at) - Date.parse(a.submitted_at));
             if (!items.length) return null;
             return (
@@ -91,7 +97,7 @@ export default function LogScreen() {
                 <View style={styles.groupHead}>
                   <Tag label={t("mission.tag", { n: m.n })} />
                   <RText variant="label" style={{ flex: 1 }}>
-                    {t(missionTitleKey(m.key))}
+                    {missionTitle(lang, m)}
                   </RText>
                 </View>
                 {items.map((e) => {
@@ -112,6 +118,26 @@ export default function LogScreen() {
             );
           })
         : null}
+
+      {freeItems.length ? (
+        <View style={styles.group}>
+          <RText variant="label">{t("mission.title.free")}</RText>
+          {freeItems.map((e) => {
+            const kind = evidenceStatusKind(e);
+            return (
+              <EvidenceRow
+                key={e.id}
+                title={t(typeKey(e.type))}
+                summary={evidenceSummary(e.payload)}
+                meta={formatIsoDate(e.local_date, lang)}
+                status={kind}
+                statusLabel={t(statusCopyKey(kind))}
+                onPress={() => router.push(`/round/evidence/${e.id}`)}
+              />
+            );
+          })}
+        </View>
+      ) : null}
     </RoundShell>
   );
 }

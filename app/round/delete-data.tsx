@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { Status } from "../../lib/theme";
 import { roundApi } from "../../lib/round/api";
 import { errorCopy } from "../../lib/round/copy";
 import { roundDrafts } from "../../lib/round/drafts";
@@ -10,7 +12,11 @@ import { clearRoundUser } from "../../lib/round/queryCore";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
 import { PillowButton } from "../../components/round/PillowButton";
-import { Banner, Card, Field, IconButton, RTextInput } from "../../components/round/primitives";
+import { GlassCard } from "../../components/round/GlassCard";
+import { HeroCard } from "../../components/round/HeroCard";
+import { GemIcon } from "../../components/round/GemIcon";
+import { Icon } from "../../components/round/Icons";
+import { Banner, Field, IconButton, RTextInput, Tag } from "../../components/round/primitives";
 
 /** Delete SHIFT data with a preview of what goes (A21, E10). */
 export default function DeleteDataScreen() {
@@ -49,7 +55,15 @@ export default function DeleteDataScreen() {
   if (done) {
     return (
       <RoundShell dock={<PillowButton label={t("receipt.back")} icon="house" onPress={() => router.replace("/(tabs)/profile")} />}>
-        <RText variant="display">{t("delete.done")}</RText>
+        <View style={styles.doneSpace} />
+        <HeroCard>
+          <View style={styles.done}>
+            <GemIcon icon="check" size={56} />
+            <RText variant="title" accessibilityRole="header">
+              {t("delete.done")}
+            </RText>
+          </View>
+        </HeroCard>
       </RoundShell>
     );
   }
@@ -59,18 +73,36 @@ export default function DeleteDataScreen() {
       keyboard
       dock={<PillowButton label={t("ui.delete.cta")} icon="trash" busy={busy} disabled={confirm.trim() !== "DELETE"} onPress={() => void run()} />}
     >
-      <IconButton icon="back" label={t("ui.back")} onPress={close} />
+      <View style={styles.top}>
+        <IconButton icon="back" label={t("ui.back")} onPress={close} />
+      </View>
       <RText variant="display" accessibilityRole="header">
         {t("delete.title")}
       </RText>
-      <Card style={{ gap: 8 }}>
-        <RText variant="body">{t("delete.body")}</RText>
-        {bundle ? <RText variant="label">{t("ui.delete.preview", { entries, certs })}</RText> : null}
-      </Card>
+      <GlassCard style={styles.warn}>
+        <View style={styles.warnIcon}>
+          <Icon name="alert" size={20} color={Status.error} />
+        </View>
+        <View style={styles.warnText}>
+          <RText variant="body">{t("delete.body")}</RText>
+          {bundle ? <Tag label={t("ui.delete.preview", { entries, certs })} tone="warning" /> : null}
+        </View>
+      </GlassCard>
       {error ? <Banner tone="error" text={error} /> : null}
-      <Field label={t("delete.confirm")}>
-        <RTextInput value={confirm} onChangeText={setConfirm} autoCapitalize="characters" autoCorrect={false} accessibilityLabel={t("delete.confirm")} placeholder="DELETE" />
-      </Field>
+      <GlassCard>
+        <Field label={t("delete.confirm")}>
+          <RTextInput value={confirm} onChangeText={setConfirm} autoCapitalize="characters" autoCorrect={false} accessibilityLabel={t("delete.confirm")} placeholder="DELETE" />
+        </Field>
+      </GlassCard>
     </RoundShell>
   );
 }
+
+const styles = StyleSheet.create({
+  top: { flexDirection: "row" },
+  warn: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
+  warnIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: Status.errorBg, alignItems: "center", justifyContent: "center" },
+  warnText: { flex: 1, minWidth: 0, gap: 10 },
+  done: { alignItems: "center", gap: 12, paddingVertical: 12 },
+  doneSpace: { height: 40 },
+});

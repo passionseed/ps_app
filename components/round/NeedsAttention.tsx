@@ -1,11 +1,15 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { Status } from "../../lib/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { Depth, Ink, Status, Violet } from "../../lib/theme";
 import { Icon } from "./Icons";
 import { TextButton } from "./primitives";
 import { RText } from "./RText";
 
-/** Needs-attention card (DS1, DS5): warning tone with a word and an icon, one action. */
+/**
+ * Needs-attention card (DS1, DS5; DESIGN.md v4): a warm tinted card that sits on the page with a
+ * soft shadow; the state is said with an icon and words, one action.
+ */
 export function NeedsAttention({
   text,
   detail,
@@ -19,18 +23,24 @@ export function NeedsAttention({
   onAction: () => void;
   tone?: "warning" | "violet";
 }) {
-  const bg = tone === "warning" ? Status.warningBg : "#F1ECFF";
-  const fg = tone === "warning" ? Status.warning : "#5B2FD6";
+  const warm = tone === "warning";
+  const fg = warm ? Status.warning : Violet[700];
   return (
-    <View style={[styles.card, { backgroundColor: bg }]} accessibilityRole="summary">
+    <View style={[styles.card, { borderColor: warm ? "#FBE1BC" : "#E4DAFF" }, Depth.row]} accessibilityRole="summary">
+      <LinearGradient
+        colors={warm ? ["#FFF7EC", Status.warningBg] : ["#FFFFFF", Violet[50]]}
+        style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
+      />
       <View style={styles.row}>
-        <Icon name="alert" size={20} color={fg} />
-        <RText variant="label" color={fg} style={{ flex: 1 }}>
+        <View style={[styles.icon, { backgroundColor: warm ? "#FFE7C7" : "#E9E0FF" }]}>
+          <Icon name="alert" size={18} color={fg} />
+        </View>
+        <RText variant="label" color={warm ? fg : Ink.primary} style={{ flex: 1 }}>
           {text}
         </RText>
       </View>
       {detail ? (
-        <RText variant="small" color={fg}>
+        <RText variant="small" color={warm ? fg : Ink.secondary}>
           {detail}
         </RText>
       ) : null}
@@ -42,6 +52,7 @@ export function NeedsAttention({
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 20, padding: 14, gap: 6 },
-  row: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
+  card: { borderRadius: 20, padding: 14, gap: 6, borderWidth: 1, backgroundColor: Status.warningBg },
+  row: { flexDirection: "row", gap: 10, alignItems: "center" },
+  icon: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
 });

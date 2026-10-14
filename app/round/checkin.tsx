@@ -12,6 +12,8 @@ import { RText } from "../../components/round/RText";
 import { PillowButton } from "../../components/round/PillowButton";
 import { Banner, Field, IconButton, RTextInput, TextButton } from "../../components/round/primitives";
 import { ChipPicker } from "../../components/round/ChipPicker";
+import { GlassCard } from "../../components/round/GlassCard";
+import { GemIcon } from "../../components/round/GemIcon";
 
 type Question = { key: string; kind: "scale" | "why" | "text"; label: CopyKey };
 
@@ -79,44 +81,51 @@ export default function CheckinScreen() {
         <IconButton icon="close" size={48} label={t("ui.close")} onPress={close} />
         <TextButton label={t("checkin.skip")} tone="ink" onPress={close} />
       </View>
-      <RText variant="display" accessibilityRole="header">
-        {t("ui.checkin.title")}
-      </RText>
-      <RText variant="meta">{t("checkin.optional")}</RText>
+      <View style={styles.head}>
+        <GemIcon icon="sparkle" shape="tile" size={44} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <RText variant="display" accessibilityRole="header">
+            {t("ui.checkin.title")}
+          </RText>
+          <RText variant="meta">{t("checkin.optional")}</RText>
+        </View>
+      </View>
       {error ? <Banner tone="error" text={error} /> : null}
       {CHECKIN_QUESTIONS[checkpoint].map((q) => (
-        <Field key={q.key} label={t(q.label)}>
-          {q.kind === "scale" ? (
-            <View style={{ gap: 4 }}>
+        <GlassCard key={q.key}>
+          <Field label={t(q.label)}>
+            {q.kind === "scale" ? (
+              <View style={{ gap: 4 }}>
+                <ChipPicker
+                  chips={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))}
+                  value={answers[q.key] ? String(answers[q.key]) : null}
+                  onChange={(v) => setAnswers((a) => ({ ...a, [q.key]: Number(v) }))}
+                  accessibilityLabel={t(q.label)}
+                />
+                <View style={styles.scale}>
+                  <RText variant="meta">{`1 = ${t("ui.scale.low")}`}</RText>
+                  <RText variant="meta">{`5 = ${t("ui.scale.high")}`}</RText>
+                </View>
+              </View>
+            ) : q.kind === "why" ? (
               <ChipPicker
-                chips={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))}
-                value={answers[q.key] ? String(answers[q.key]) : null}
-                onChange={(v) => setAnswers((a) => ({ ...a, [q.key]: Number(v) }))}
+                chips={WHY.map((w) => ({ value: w, label: t(`checkin.why.${w}` as CopyKey) }))}
+                value={(answers[q.key] as string) ?? null}
+                onChange={(v) => setAnswers((a) => ({ ...a, [q.key]: v }))}
                 accessibilityLabel={t(q.label)}
               />
-              <View style={styles.scale}>
-                <RText variant="meta">{`1 = ${t("ui.scale.low")}`}</RText>
-                <RText variant="meta">{`5 = ${t("ui.scale.high")}`}</RText>
-              </View>
-            </View>
-          ) : q.kind === "why" ? (
-            <ChipPicker
-              chips={WHY.map((w) => ({ value: w, label: t(`checkin.why.${w}` as CopyKey) }))}
-              value={(answers[q.key] as string) ?? null}
-              onChange={(v) => setAnswers((a) => ({ ...a, [q.key]: v }))}
-              accessibilityLabel={t(q.label)}
-            />
-          ) : (
-            <RTextInput
-              multiline
-              maxLength={500}
-              value={(answers[q.key] as string) ?? ""}
-              onChangeText={(v) => setAnswers((a) => ({ ...a, [q.key]: v }))}
-              placeholder={t("ui.checkin.text_placeholder")}
-              accessibilityLabel={t(q.label)}
-            />
-          )}
-        </Field>
+            ) : (
+              <RTextInput
+                multiline
+                maxLength={500}
+                value={(answers[q.key] as string) ?? ""}
+                onChangeText={(v) => setAnswers((a) => ({ ...a, [q.key]: v }))}
+                placeholder={t("ui.checkin.text_placeholder")}
+                accessibilityLabel={t(q.label)}
+              />
+            )}
+          </Field>
+        </GlassCard>
       ))}
     </RoundShell>
   );
@@ -124,5 +133,6 @@ export default function CheckinScreen() {
 
 const styles = StyleSheet.create({
   top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  head: { flexDirection: "row", alignItems: "center", gap: 14 },
   scale: { flexDirection: "row", justifyContent: "space-between" },
 });

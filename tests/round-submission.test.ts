@@ -30,8 +30,8 @@ const receipt = (over: Partial<Receipt> = {}): Receipt => ({
   counted: true,
   after_close: false,
   duplicate_label: false,
-  missions: counts({ first_contact: { contact: 1 } }),
-  newly_completed: ["first_contact"],
+  missions: counts({ ideas: { ideas: 1 } }),
+  newly_completed: ["ideas"],
   ...over,
 });
 

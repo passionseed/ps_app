@@ -16,7 +16,7 @@ import { supabase } from "./supabase";
 import { noteExplicitSignOut } from "./round/session";
 import { getSupabaseRuntimeConfig } from "./runtime-config";
 import { resolveAppLanguage } from "./app-language";
-import { preloadDiscoverData, clearPathlabCaches } from "./pathlab";
+import { clearPathlabCaches } from "./pathlab";
 import {
   clearHackathonScreenDataCache,
   preloadHackathonHomeBundle,
@@ -119,7 +119,10 @@ type AuthContext = {
   guestLanguage: GuestLanguage;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  /** Hackathon participant login (custom token, not a Supabase session). */
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
+  /** Passion Seed account email + password (Supabase session). */
+  signInWithPassword: (email: string, password: string) => Promise<void>;
   signOutHackathon: () => Promise<void>;
   signOut: () => Promise<void>;
   setGuestLanguage: (language: GuestLanguage) => Promise<void>;
@@ -139,6 +142,7 @@ const AuthContext = createContext<AuthContext>({
   signInWithGoogle: async () => {},
   signInWithApple: async () => {},
   signInWithEmailPassword: async () => {},
+  signInWithPassword: async () => {},
   signOutHackathon: async () => {},
   signOut: async () => {},
   setGuestLanguage: async () => {},
@@ -246,10 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           saveHackathonMode(false);
           clearHackathonSession();
         }
-        void preloadDiscoverData({
-          userId: session?.user.id ?? null,
-          includeRecommendations: Boolean(session?.user?.id),
-        });
+        // PathLab Discover is hidden (SHIFT-only app), so its data is no longer preloaded.
 
         if (!session) {
           setProfileLanguageState(null);
@@ -285,10 +286,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(nextSession);
         if (nextSession) { setIsGuest(false); setIsHackathon(false); }
         setLoading(false);
-        void preloadDiscoverData({
-          userId: nextSession?.user.id ?? null,
-          includeRecommendations: Boolean(nextSession?.user?.id),
-        });
 
         if (!nextSession) {
           console.log("[Auth] No session, setting loading=false");
@@ -389,6 +386,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsHackathon(true);
     void preloadHackathonHomeBundle();
     void preloadHackathonJourneyBundle();
+  };
+
+  const signInWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw error;
+    // onAuthStateChange stores the session; the root navigator routes from there.
+    setIsGuest(false);
   };
 
   const signOutHackathon = async () => {
@@ -569,6 +573,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         signInWithApple,
         signInWithEmailPassword,
+        signInWithPassword,
         signOutHackathon,
         signOut,
         setGuestLanguage,

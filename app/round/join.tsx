@@ -3,7 +3,7 @@ import { Share, StyleSheet, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { Violet } from "../../lib/theme";
+import { Ink } from "../../lib/theme";
 import { roundApi } from "../../lib/round/api";
 import { errorCopy } from "../../lib/round/copy";
 import { useRoundHome, useRoundLang, useRoundUser } from "../../lib/round/hooks";
@@ -16,6 +16,10 @@ import { RText } from "../../components/round/RText";
 import { PillowButton } from "../../components/round/PillowButton";
 import { Banner, Checkbox, Field, IconButton, RTextInput, Tag, TextButton } from "../../components/round/primitives";
 import { ChipPicker } from "../../components/round/ChipPicker";
+import { GlassCard } from "../../components/round/GlassCard";
+import { GlowProgress } from "../../components/round/GlowProgress";
+import { HeroCard } from "../../components/round/HeroCard";
+import { GemIcon } from "../../components/round/GemIcon";
 
 export default function JoinScreen() {
   const { r } = useLocalSearchParams<{ r?: string }>();
@@ -26,6 +30,7 @@ export default function JoinScreen() {
   const bundle = home.data?.bundle;
   const joinable = bundle?.joinable.find((j) => j.round_id === r) ?? bundle?.joinable[0] ?? null;
   const roundId = r ?? joinable?.round_id ?? null;
+  const roundName = joinable ? t("round.tag", { n: joinable.number }) : "SHIFT";
 
   const [step, setStep] = useState(1);
   const [track, setTrack] = useState<Track | null>("high_school");
@@ -96,7 +101,7 @@ export default function JoinScreen() {
     setError(
       errorCopy(lang, e, {
         field: e.field === "handle" ? t("join.handle.q") : e.field ? t("join.birth.q") : "",
-        day: bundle?.round?.join_cutoff_day ?? 7,
+        day: bundle?.round?.join_cutoff_day ?? 2,
         n: bundle?.round?.number ?? "",
       }),
     );
@@ -111,11 +116,19 @@ export default function JoinScreen() {
   if (done) {
     return (
       <RoundShell dock={<PillowButton label={t("receipt.back")} icon="house" onPress={() => router.replace("/(tabs)/shift")} />}>
-        <Tag label={joinable ? t("round.tag", { n: joinable.number }) : "SHIFT"} tone="success" />
-        <RText variant="display" accessibilityRole="header">
-          {t("join.done")}
-        </RText>
-        <RText variant="body">{t("squad.waiting")}</RText>
+        <View style={styles.doneSpace} />
+        <HeroCard watermark={joinable ? String(joinable.number) : undefined}>
+          <View style={styles.done}>
+            <GemIcon icon="check" size={60} />
+            <Tag label={roundName} tone="success" />
+            <RText variant="display" weight="700" style={styles.center} accessibilityRole="header">
+              {t("join.done")}
+            </RText>
+            <RText variant="body" style={styles.center}>
+              {t("squad.waiting")}
+            </RText>
+          </View>
+        </HeroCard>
       </RoundShell>
     );
   }
@@ -123,13 +136,18 @@ export default function JoinScreen() {
   return (
     <RoundShell
       keyboard
-      dock={<PillowButton label={step === 3 ? t("home.open.cta") : t("join.next")} icon={step === 3 ? "check" : "chevron"} busy={busy} onPress={() => void next()} />}
+      dock={<PillowButton label={step === 3 ? t("home.open.cta") : t("join.next")} icon={step === 3 ? "check" : "arrow"} busy={busy} onPress={() => void next()} />}
     >
       <View style={styles.top}>
         <IconButton icon="back" label={t("ui.back")} onPress={back} />
-        <RText variant="meta">{t("ui.join.step", { n: step })}</RText>
+        <Tag label={roundName} />
       </View>
-      <Tag label={joinable ? t("round.tag", { n: joinable.number }) : "SHIFT"} />
+      <View style={styles.progress}>
+        <RText variant="meta" color={Ink.secondary}>
+          {t("ui.join.step", { n: step })}
+        </RText>
+        <GlowProgress value={step / 3} accessibilityLabel={t("ui.join.step", { n: step })} />
+      </View>
       {!roundId ? <Banner tone="warning" text={t("error.round_not_found")} /> : null}
       {error ? <Banner tone="error" text={error} /> : null}
 
@@ -145,6 +163,7 @@ export default function JoinScreen() {
             ]}
             value={track}
             onChange={(v) => setTrack(v as Track)}
+            accessibilityLabel={t("join.track.q")}
           />
         </>
       ) : null}
@@ -155,34 +174,44 @@ export default function JoinScreen() {
             {t("join.birth.q")}
           </RText>
           <RText variant="body">{t("join.birth.why")}</RText>
-          <Field label={t("ui.join.month")}>
-            <ChipPicker chips={monthChips} value={month ? String(month) : null} onChange={(v) => setMonth(Number(v))} />
-          </Field>
-          <Field label={t("ui.join.year")}>
-            <RTextInput
-              ref={yearRef}
-              value={yearText}
-              onChangeText={(v) => setYearText(v.replace(/[^0-9]/g, "").slice(0, 4))}
-              keyboardType="number-pad"
-              placeholder="2009"
-              accessibilityLabel={t("ui.join.year")}
-            />
-          </Field>
+          <GlassCard style={styles.form}>
+            <Field label={t("ui.join.month")}>
+              <ChipPicker chips={monthChips} value={month ? String(month) : null} onChange={(v) => setMonth(Number(v))} accessibilityLabel={t("ui.join.month")} />
+            </Field>
+            <Field label={t("ui.join.year")}>
+              <RTextInput
+                ref={yearRef}
+                value={yearText}
+                onChangeText={(v) => setYearText(v.replace(/[^0-9]/g, "").slice(0, 4))}
+                keyboardType="number-pad"
+                placeholder="2009"
+                accessibilityLabel={t("ui.join.year")}
+              />
+            </Field>
+          </GlassCard>
           {needsGuardian ? (
-            <View style={styles.guardian}>
-              <RText variant="h3">{t("join.guardian.title")}</RText>
+            <HeroCard style={styles.guardian}>
+              <View style={styles.guardianHead}>
+                <GemIcon icon="shield" size={36} />
+                <RText variant="h3" style={{ flex: 1 }}>
+                  {t("join.guardian.title")}
+                </RText>
+              </View>
               <RText variant="body">{t("join.guardian.body")}</RText>
               <TextButton
                 label={t("join.guardian.share")}
                 icon="share"
                 onPress={() =>
                   void Share.share({
-                    message: t("ui.join.guardian_message", { url: `${bundle?.flags.web_base_url ?? "https://www.passionseed.org"}/shift` }),
+                    message: t("ui.join.guardian_message", {
+                      days: joinable?.duration_days ?? 7,
+                      url: `${bundle?.flags.web_base_url ?? "https://www.passionseed.org"}/shift`,
+                    }),
                   })
                 }
               />
               <Checkbox checked={consent} label={t("join.guardian.check")} onChange={setConsent} />
-            </View>
+            </HeroCard>
           ) : null}
         </>
       ) : null}
@@ -192,19 +221,21 @@ export default function JoinScreen() {
           <RText variant="display" accessibilityRole="header">
             {t("join.handle.q")}
           </RText>
-          <Field hint={t("join.handle.hint")}>
-            <RTextInput
-              ref={handleRef}
-              value={handle}
-              onChangeText={setHandle}
-              maxLength={24}
-              autoCorrect={false}
-              accessibilityLabel={t("join.handle.q")}
-              invalid={!!error}
-              returnKeyType="done"
-              onSubmitEditing={() => void next()}
-            />
-          </Field>
+          <GlassCard>
+            <Field hint={t("join.handle.hint")}>
+              <RTextInput
+                ref={handleRef}
+                value={handle}
+                onChangeText={setHandle}
+                maxLength={24}
+                autoCorrect={false}
+                accessibilityLabel={t("join.handle.q")}
+                invalid={!!error}
+                returnKeyType="done"
+                onSubmitEditing={() => void next()}
+              />
+            </Field>
+          </GlassCard>
         </>
       ) : null}
     </RoundShell>
@@ -213,5 +244,11 @@ export default function JoinScreen() {
 
 const styles = StyleSheet.create({
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  guardian: { backgroundColor: Violet[50], borderRadius: 20, padding: 16, gap: 8 },
+  progress: { gap: 8 },
+  form: { gap: 16 },
+  guardian: { gap: 10 },
+  guardianHead: { flexDirection: "row", alignItems: "center", gap: 12 },
+  done: { alignItems: "center", gap: 12, paddingVertical: 10 },
+  doneSpace: { height: 40 },
+  center: { textAlign: "center" },
 });

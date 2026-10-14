@@ -10,7 +10,6 @@ import {
   cancelLegacyReminder,
   requestPushPermissions,
   savePushToken,
-  scheduleDailyReminder,
   setLegacyReminderSuppressed,
 } from "../notifications";
 
@@ -58,50 +57,23 @@ export async function declinePushPrompt(userId: string): Promise<void> {
   await markPushPrompted(userId);
 }
 
-const guardKey = (userId: string) => `round:legacy-reminder-cancelled:${userId}`;
-const lastGuard = new Map<string, boolean>();
+let legacyRetired = false;
 
 /** @internal */
 export function _resetLegacyGuardForTesting(): void {
-  lastGuard.clear();
+  legacyRetired = false;
 }
 
 /**
- * E16: no duplicate legacy reminder while a round entry is upcoming/active. Acts only when the
- * state changes (home refetches are no-ops):
- * - active: cancel the legacy daily reminder only (other notifications stay) and remember it;
- * - inactive again: reschedule it from `profiles.mobile_settings` if we cancelled one before.
+ * The app is SHIFT-only, so the PathLab daily reminder ("Time to grow!") is retired: cancel any
+ * scheduled copy once per launch (other notifications stay) and keep it suppressed so nothing
+ * reschedules it. Runs for every user, including when the SHIFT RPCs are unavailable.
  */
-export async function applyLegacyReminderGuard(userId: string, activeEntry: boolean): Promise<void> {
-  setLegacyReminderSuppressed(activeEntry);
-  if (!userId || lastGuard.get(userId) === activeEntry) return;
-  lastGuard.set(userId, activeEntry);
-  if (activeEntry) {
-    const cancelled = await cancelLegacyReminder();
-    if (cancelled > 0) await shiftStorage.setItem(guardKey(userId), "1").catch(() => {});
-    return;
-  }
-  const cancelledBefore = (await shiftStorage.getItem(guardKey(userId)).catch(() => null)) === "1";
-  if (!cancelledBefore) return;
-  if (await restoreLegacyReminder(userId)) await shiftStorage.removeItem(guardKey(userId)).catch(() => {});
-}
-
-/** Reschedules the legacy daily reminder from the saved settings. False when it could not tell. */
-async function restoreLegacyReminder(userId: string): Promise<boolean> {
-  try {
-    const { data, error } = (await supabase.from("profiles").select("mobile_settings").eq("id", userId).single()) as {
-      data: { mobile_settings?: { push_enabled?: boolean; reminder_time?: string } | null } | null;
-      error: unknown;
-    };
-    if (error || !data) return false;
-    const settings = data.mobile_settings;
-    if (settings?.push_enabled !== true) return true; // turned off meanwhile: nothing to restore
-    const [hour, minute] = (settings.reminder_time ?? "09:00").split(":").map(Number);
-    await scheduleDailyReminder(Number.isFinite(hour) ? hour : 9, Number.isFinite(minute) ? minute : 0);
-    return true;
-  } catch {
-    return false;
-  }
+export async function retireLegacyReminder(): Promise<void> {
+  setLegacyReminderSuppressed(true);
+  if (legacyRetired) return;
+  legacyRetired = true;
+  await cancelLegacyReminder();
 }
 
 /** SHIFT language: Thai unless the student picked English inside SHIFT (profiles.shift_round_language). */

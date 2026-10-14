@@ -15,15 +15,20 @@ import { certificateImageUrl } from "../../lib/round/certificate";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
 import { PillowButton } from "../../components/round/PillowButton";
-import { Banner, Card, Field, IconButton, RTextInput, Tag, TextButton } from "../../components/round/primitives";
+import { Banner, Field, IconButton, RTextInput, SoftButton, Tag, TextButton } from "../../components/round/primitives";
 import { ChipPicker } from "../../components/round/ChipPicker";
 import { ListSkeleton } from "../../components/round/Skeleton";
+import { GlassCard } from "../../components/round/GlassCard";
+import { HeroCard } from "../../components/round/HeroCard";
+import { GemIcon } from "../../components/round/GemIcon";
+import { useToast } from "../../components/round/Toast";
 
 export default function CertificateScreen() {
   const { userId } = useRoundUser();
   const { lang, t } = useRoundLang();
   const home = useRoundHome();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const bundle = home.data?.bundle ?? null;
   const cert = bundle?.certificate ?? null;
   const entry = bundle?.entry ?? null;
@@ -47,7 +52,9 @@ export default function CertificateScreen() {
   if (!cert || cert.tombstone || !entry || !bundle) {
     return (
       <RoundShell>
-        <IconButton icon="back" label={t("ui.back")} onPress={close} />
+        <View style={styles.top}>
+          <IconButton icon="back" label={t("ui.back")} onPress={close} />
+        </View>
         <Banner tone="violet" text={t("ui.cert.none")} />
       </RoundShell>
     );
@@ -56,13 +63,23 @@ export default function CertificateScreen() {
   const base = bundle.flags.web_base_url;
   const verifyUrl = cert.verify_url;
   const shownDisplay = display ?? entry.name_display;
+  const roundName = bundle.round ? t("round.tag", { n: bundle.round.number }) : "SHIFT";
 
   if (cert.status === "revoked") {
     return (
       <RoundShell>
-        <IconButton icon="back" label={t("ui.back")} onPress={close} />
-        <RText variant="display">{t("cert.revoked.title")}</RText>
-        <RText variant="body">{t("cert.revoked.body", { date: formatDate(cert.revoked_at ?? bundle.now, lang) })}</RText>
+        <View style={styles.top}>
+          <IconButton icon="back" label={t("ui.back")} onPress={close} />
+        </View>
+        <HeroCard>
+          <View style={styles.revoked}>
+            <GemIcon icon="alert" size={48} muted />
+            <RText variant="title" accessibilityRole="header">
+              {t("cert.revoked.title")}
+            </RText>
+            <RText variant="body">{t("cert.revoked.body", { date: formatDate(cert.revoked_at ?? bundle.now, lang) })}</RText>
+          </View>
+        </HeroCard>
       </RoundShell>
     );
   }
@@ -88,6 +105,7 @@ export default function CertificateScreen() {
   const copyLink = async () => {
     await Clipboard.setStringAsync(verifyUrl);
     setCopied(true);
+    toast.show(t("cert.share.copied"));
     void roundApi.logShare(cert.id, "link", "copy");
   };
 
@@ -117,53 +135,58 @@ export default function CertificateScreen() {
       keyboard
       dock={<PillowButton label={t("cert.share.story")} icon="share" busy={sharing} disabled={imageState === "failed"} onPress={() => void share("story")} />}
     >
-      <IconButton icon="back" label={t("ui.back")} onPress={close} />
-      <Tag label={bundle.round ? t("round.tag", { n: bundle.round.number }) : "SHIFT"} tone="success" />
+      <View style={styles.top}>
+        <IconButton icon="back" label={t("ui.back")} onPress={close} />
+        <Tag label={roundName} tone="success" />
+      </View>
       <RText variant="display" accessibilityRole="header">
         {t("home.cert.issued.title")}
       </RText>
+      <RText variant="meta">{t("ui.cert.issued_on", { date: formatDate(cert.issued_at, lang) })}</RText>
       {error ? <Banner tone="error" text={error} /> : null}
 
-      <View style={styles.imageWrap}>
-        {imageState !== "failed" ? (
-          <Image
-            key={`${cert.render_version}-${attempt}`}
-            source={{ uri: certificateImageUrl(base, cert.public_id, "story", cert.render_version) }}
-            style={styles.image}
-            resizeMode="contain"
-            onLoad={() => setImageState("ok")}
-            onError={() => setImageState("failed")}
-            accessibilityLabel={t("home.cert.issued.title")}
-          />
-        ) : null}
-        {imageState === "loading" ? (
-          <View style={styles.overlay}>
-            <ActivityIndicator color={Violet[600]} />
-            <RText variant="meta">{t("cert.rendering")}</RText>
-          </View>
-        ) : null}
-        {imageState === "failed" ? (
-          <View style={styles.overlay}>
-            <RText variant="body">{t("cert.render_failed")}</RText>
-            <TextButton
-              label={t("cert.retry")}
-              onPress={() => {
-                setImageState("loading");
-                setAttempt((a) => a + 1);
-              }}
+      <HeroCard padding={10}>
+        <View style={styles.imageWrap}>
+          {imageState !== "failed" ? (
+            <Image
+              key={`${cert.render_version}-${attempt}`}
+              source={{ uri: certificateImageUrl(base, cert.public_id, "story", cert.render_version) }}
+              style={styles.image}
+              resizeMode="contain"
+              onLoad={() => setImageState("ok")}
+              onError={() => setImageState("failed")}
+              accessibilityLabel={t("home.cert.issued.title")}
             />
-          </View>
-        ) : null}
-      </View>
+          ) : null}
+          {imageState === "loading" ? (
+            <View style={styles.overlay}>
+              <ActivityIndicator color={Violet[600]} />
+              <RText variant="meta">{t("cert.rendering")}</RText>
+            </View>
+          ) : null}
+          {imageState === "failed" ? (
+            <View style={styles.overlay}>
+              <RText variant="body">{t("cert.render_failed")}</RText>
+              <TextButton
+                label={t("cert.retry")}
+                onPress={() => {
+                  setImageState("loading");
+                  setAttempt((a) => a + 1);
+                }}
+              />
+            </View>
+          ) : null}
+        </View>
+      </HeroCard>
 
       <View style={styles.row}>
-        <TextButton label={t("cert.share.square")} icon="share" onPress={() => void share("square")} disabled={sharing} />
-        <TextButton label={copied ? t("cert.share.copied") : t("cert.share.copy")} icon="copy" onPress={() => void copyLink()} />
+        <SoftButton label={t("cert.share.square")} icon="share" onPress={() => void share("square")} disabled={sharing} />
+        <SoftButton label={copied ? t("cert.share.copied") : t("cert.share.copy")} icon="copy" onPress={() => void copyLink()} />
       </View>
       {copied ? <RText variant="small">{t("cert.share.tip")}</RText> : null}
       <TextButton label={t("cert.verify_url", { url: verifyUrl.replace(/^https:\/\//, "") })} icon="link" onPress={() => void Linking.openURL(verifyUrl)} />
 
-      <Card style={{ gap: 10 }}>
+      <GlassCard style={{ gap: 10 }}>
         <RText variant="label">{t("cert.name.title")}</RText>
         <ChipPicker
           chips={[
@@ -175,6 +198,7 @@ export default function CertificateScreen() {
             setDisplay(v as "handle" | "legal");
             setError(null);
           }}
+          accessibilityLabel={t("cert.name.title")}
         />
         {shownDisplay === "legal" && display === "legal" ? (
           <Field hint={t("cert.name.legal_note")}>
@@ -192,7 +216,7 @@ export default function CertificateScreen() {
         ) : display === "legal" && entry.name_display === "legal" ? (
           <TextButton label={t("ui.save")} onPress={() => void saveName()} disabled={saving} />
         ) : null}
-      </Card>
+      </GlassCard>
 
       <TextButton label={t("summary.cta")} icon="pencil" onPress={() => router.push("/round/summary")} />
     </RoundShell>
@@ -200,9 +224,11 @@ export default function CertificateScreen() {
 }
 
 const styles = StyleSheet.create({
-  imageWrap: { width: "100%", aspectRatio: 1080 / 1920, maxHeight: 520, borderRadius: 24, backgroundColor: Violet[50], overflow: "hidden", alignSelf: "center" },
+  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  imageWrap: { width: "100%", aspectRatio: 1080 / 1920, maxHeight: 520, borderRadius: 18, backgroundColor: Violet[50], overflow: "hidden", alignSelf: "center" },
   image: { width: "100%", height: "100%" },
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: 8, padding: 16 },
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  preview: { backgroundColor: Violet[50], borderRadius: 16, padding: 12, gap: 4 },
+  row: { gap: 10 },
+  preview: { backgroundColor: "rgba(241,236,255,0.8)", borderRadius: 16, padding: 12, gap: 4 },
+  revoked: { gap: 10, alignItems: "flex-start" },
 });

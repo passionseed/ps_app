@@ -31,7 +31,11 @@ import {
   resolveDraftUri,
   syncDraftMedia,
 } from "../../lib/round/media";
-import { MISSION_NUMBER, missionTitleKey, orderedMissions, TYPE_MISSION, typeKey } from "../../lib/round/missions";
+import { FREE_TYPES, missionForType, missionNumber, missionTitle, orderedMissions, typeKey } from "../../lib/round/missions";
+import { addIdeaRow, ideaRows, ideasPayload, newIdeaRows, removeIdeaRow, updateIdeaRow } from "../../lib/round/ideas";
+import { progressPost } from "../../lib/round/discord";
+import { currentDay } from "../../lib/round/schedule";
+import { steps as stepsModel } from "../../lib/round/steps";
 import { changeSources, lastHours, recentLabels } from "../../lib/round/next";
 import { acceptPushPrompt, declinePushPrompt, shouldOfferPushPrompt } from "../../lib/round/push";
 import { roundKeys } from "../../lib/round/queryCore";
@@ -52,6 +56,10 @@ import { ChipPicker } from "../../components/round/ChipPicker";
 import { VoiceRecorder } from "../../components/round/VoiceRecorder";
 import { TranscriptPicker } from "../../components/round/TranscriptPicker";
 import { ListSkeleton } from "../../components/round/Skeleton";
+import { IdeasComposer } from "../../components/round/composers/IdeasComposer";
+import { DailyComposer } from "../../components/round/composers/DailyComposer";
+import { ProblemComposer } from "../../components/round/composers/ProblemComposer";
+import { ProgressCopyButton } from "../../components/round/composers/ProgressCopyButton";
 
 type Params = { type?: string; draftId?: string; sourceId?: string; replaces?: string; what?: string };
 type FieldErrors = Record<string, string>;
@@ -75,10 +83,25 @@ const FIELD_LABEL_KEYS: Record<string, CopyKey> = {
   visibility: "capture.demo.public",
   photo: "capture.photo.add",
   audio: "capture.record",
+  ideas: "capture.ideas.text",
+  picked: "capture.ideas.pick",
+  reachable: "capture.ideas.reachable",
+  user_group: "capture.problem.user_group",
+  built: "capture.daily.built",
+  broke: "capture.daily.broke",
+  heard: "capture.daily.heard",
 };
 
 function isEvidenceType(v: string | undefined): v is EvidenceType {
   return !!v && (EVIDENCE_TYPES as readonly string[]).includes(v);
+}
+
+/** Types offered in the picker: today's update first, then the round's mission types in order, then free logs. */
+function pickerTypes(counts: Parameters<typeof orderedMissions>[0]): EvidenceType[] {
+  const out: EvidenceType[] = ["daily"];
+  for (const m of orderedMissions(counts)) for (const p of m.parts) if (!out.includes(p.type)) out.push(p.type);
+  for (const f of FREE_TYPES) if (!out.includes(f)) out.push(f);
+  return out;
 }
 
 export default function CaptureScreen() {
@@ -137,7 +160,9 @@ export default function CaptureScreen() {
                 ? { occurred_on: ictDate(Date.now()) }
                 : params.type === "demo_post"
                   ? { visibility: "public" }
-                  : {},
+                  : params.type === "ideas"
+                    ? { ideas: newIdeaRows(), picked_id: null, reachable: false }
+                    : {},
         });
         if (params.replaces) setDirty(true);
       }
@@ -213,8 +238,7 @@ export default function CaptureScreen() {
   const type = draft?.type ?? null;
   const fields = draft?.fields ?? {};
   const str = (k: string) => (typeof fields[k] === "string" ? (fields[k] as string) : "");
-  const missions = orderedMissions(bundle?.missions);
-  const mission = type ? missions.find((m) => m.key === TYPE_MISSION[type]) : null;
+  const mission = type ? missionForType(bundle?.missions, type) : null;
   const part = mission?.parts.find((p) => p.type === type);
   const partLabel =
     type && part && part.need > 1 ? t("ui.slot", { n: Math.min(part.have + 1, part.need) }) : type ? t(typeKey(type)) : "";
@@ -356,13 +380,23 @@ export default function CaptureScreen() {
       return;
     }
     setStatus("idle");
-    const message = errorCopy(lang, result, {
-      field: result.field ? t(FIELD_LABEL_KEYS[result.field] ?? "ui.note") : "",
-      n: bundle?.round?.number ?? "",
-    });
-    if (result.field) {
-      setErrors({ [result.field]: message });
-      inputs.current[result.field]?.focus();
+    // The server reports problems inside the ideas list on `ideas` with {rule, index, key}; the index
+    // points into the frozen payload, whose rows map back through the (unchanged) draft.
+    const itemIndex = typeof result.details?.index === "number" ? (result.details.index as number) : null;
+    const rowId =
+      result.field === "ideas" && itemIndex !== null && result.draft.type === "ideas"
+        ? ideasPayload(result.draft.fields.ideas, result.draft.fields.picked_id).rowIds[itemIndex] ?? null
+        : null;
+    const fieldLabel = rowId
+      ? t(result.details?.key === "who" ? "capture.ideas.who" : "capture.ideas.text")
+      : result.field
+        ? t(FIELD_LABEL_KEYS[result.field] ?? "ui.note")
+        : "";
+    const message = errorCopy(lang, result, { field: fieldLabel, n: bundle?.round?.number ?? "" });
+    const errorKey = rowId ? `ideas.${rowId}.${result.details?.key === "who" ? "who" : "text"}` : result.field;
+    if (errorKey) {
+      setErrors({ [errorKey]: message });
+      inputs.current[errorKey]?.focus();
     } else {
       setFormError(message);
     }
@@ -374,13 +408,30 @@ export default function CaptureScreen() {
     const check = prepareSend(draft, { earliestDate: earliest, today });
     if (!check.ok) {
       const next: FieldErrors = {};
+      // Idea items are validated as a list; map item issues back to their row (blank rows were dropped).
+      const rowIds = draft.type === "ideas" ? ideasPayload(draft.fields.ideas, draft.fields.picked_id).rowIds : [];
+      let firstKey: string | null = null;
       for (const issue of check.issues) {
-        const label = t(FIELD_LABEL_KEYS[issue.field] ?? "ui.note");
-        next[issue.field] = errorCopy(lang, { code: issue.code, category: "validation", field: label, details: issue.rule ? { rule: issue.rule } : {} });
+        let key: string = issue.field;
+        let message: string;
+        if (issue.field === "ideas" && issue.index !== undefined && rowIds[issue.index]) {
+          key = `ideas.${rowIds[issue.index]}.${issue.key === "who" ? "who" : "text"}`;
+          const label = t(issue.key === "who" ? "capture.ideas.who" : "capture.ideas.text");
+          message = errorCopy(lang, { code: issue.code, category: "validation", field: label, details: issue.rule ? { rule: issue.rule } : {} });
+        } else if (issue.field === "ideas") {
+          message = t("capture.ideas.need_more");
+        } else if (issue.field === "picked") {
+          message = t("capture.ideas.need_pick");
+        } else {
+          const label = t(FIELD_LABEL_KEYS[issue.field] ?? "ui.note");
+          message = errorCopy(lang, { code: issue.code, category: "validation", field: label, details: issue.rule ? { rule: issue.rule } : {} });
+        }
+        if (next[key]) continue;
+        next[key] = message;
+        firstKey = firstKey ?? key;
       }
       setErrors(next);
-      const first = check.issues[0]?.field;
-      if (first && inputs.current[first]) inputs.current[first]?.focus();
+      if (firstKey && inputs.current[firstKey]) inputs.current[firstKey]?.focus();
       AccessibilityInfo.announceForAccessibility(Object.values(next)[0] ?? "");
       return;
     }
@@ -420,8 +471,23 @@ export default function CaptureScreen() {
   if (receipt) {
     const sentType = sent?.type ?? null;
     const sentFields = sent?.fields ?? {};
-    const counts = orderedMissions(receipt.missions);
-    const m = sentType ? counts.find((x) => x.key === TYPE_MISSION[sentType]) : null;
+    const m = sentType ? missionForType(receipt.missions, sentType) : null;
+    const sentPart = m && sentType ? m.parts.find((p) => p.type === sentType) ?? null : null;
+    const sentRound = bundle?.round ?? null;
+    const postDay = sentRound ? currentDay(sentRound, Date.now()) : 0;
+    // Free logs have no mission: the Daily Show shows the habit (days with a log).
+    const dailyStep = sentType === "daily" ? stepsModel(receipt.missions, { lang, day: postDay }).find((x) => x.kind === "daily") ?? null : null;
+    // D7: formatted text for Discord #progress from exactly what was sent (no photos or audio).
+    const postText = sentType
+      ? progressPost({
+          lang,
+          type: sentType,
+          payload: sent?.attempt?.frozen_payload ?? sentFields,
+          roundNumber: sentRound?.number ?? null,
+          day: postDay >= 1 && sentRound && postDay <= sentRound.duration_days ? postDay : null,
+          progress: sentPart ? { have: sentPart.have, need: sentPart.need } : null,
+        })
+      : "";
     const plannedChange =
       typeof sentFields.planned_change === "string" && sentFields.planned_change.trim() && (sentType === "interview" || sentType === "tester");
     return (
@@ -437,14 +503,27 @@ export default function CaptureScreen() {
                     {t("receipt.count", { mission: t(typeKey(p.type)), have: Math.min(p.have, p.need), need: p.need })}
                   </RText>
                 ))
-              : null}
+              : sentType === "daily" && dailyStep
+                ? (
+                    <RText variant="title" latin={false}>
+                      {`${dailyStep.title} · ${dailyStep.trailing}`}
+                    </RText>
+                  )
+                : sentType === "contact"
+                  ? (
+                      <RText variant="title" latin={false}>
+                        {t("home.people", { n: receipt.missions.people_talked_to })}
+                      </RText>
+                    )
+                  : null}
             {receipt.newly_completed.map((key) => (
               <RText key={key} variant="h3" color={Status.success}>
-                {t("receipt.mission_complete", { n: MISSION_NUMBER[key] })}
+                {t("receipt.mission_complete", { n: missionNumber(receipt.missions, key) ?? "" })}
               </RText>
             ))}
           </Card>
         </Animated.View>
+        {postText ? <ProgressCopyButton text={postText} label={t("receipt.copy_progress")} copiedLabel={t("receipt.copied")} /> : null}
         {pushPrompt ? (
           <Card style={{ gap: 8 }}>
             <RText variant="h3">{t("push.prompt.title")}</RText>
@@ -494,8 +573,8 @@ export default function CaptureScreen() {
           <Tag label={t("log.add")} />
           <IconButton icon="close" size={48} label={t("ui.close")} onPress={close} />
         </View>
-        {EVIDENCE_TYPES.map((ty) => {
-          const key = TYPE_MISSION[ty];
+        {pickerTypes(bundle?.missions).map((ty) => {
+          const m = missionForType(bundle?.missions, ty);
           return (
             <Pressable
               key={ty}
@@ -503,10 +582,10 @@ export default function CaptureScreen() {
               onPress={() => restart({ type: ty, draftId: undefined, sourceId: undefined, replaces: undefined, what: undefined })}
               style={({ pressed }) => [styles.typeRow, pressed && { backgroundColor: Violet[50] }]}
             >
-              <Tag label={t("mission.tag", { n: MISSION_NUMBER[key] })} />
+              {m ? <Tag label={t("mission.tag", { n: m.n })} /> : null}
               <View style={{ flex: 1 }}>
                 <RText variant="label">{t(typeKey(ty))}</RText>
-                <RText variant="meta">{t(missionTitleKey(key))}</RText>
+                <RText variant="meta">{missionTitle(lang, m)}</RText>
               </View>
             </Pressable>
           );
@@ -627,6 +706,62 @@ export default function CaptureScreen() {
   let body: React.ReactNode = null;
   let optional: React.ReactNode = null;
   switch (draft.type) {
+    case "ideas": {
+      const rows = ideaRows(fields.ideas);
+      const pickedId = typeof fields.picked_id === "string" ? fields.picked_id : null;
+      // Row errors are keyed `ideas.<rowId>.<text|who>` so only the field at fault is outlined.
+      const rowErrors: Record<string, { key: "text" | "who"; message: string }> = {};
+      for (const [k, v] of Object.entries(errors)) {
+        const m = k.match(/^ideas\.(.+)\.(text|who)$/);
+        if (m && v) rowErrors[m[1]] = { key: m[2] as "text" | "who", message: v };
+      }
+      const clearRow = (id: string) => setErrors((e) => ({ ...e, [`ideas.${id}.text`]: "", [`ideas.${id}.who`]: "", ideas: "" }));
+      body = (
+        <IdeasComposer
+          rows={rows}
+          pickedId={pickedId}
+          reachable={fields.reachable === true}
+          rowErrors={rowErrors}
+          listError={err("ideas")}
+          pickError={err("picked")}
+          readOnly={ro}
+          t={t}
+          onChangeRow={(id, patch) => {
+            update({ fields: { ideas: updateIdeaRow(rows, id, patch) } });
+            clearRow(id);
+          }}
+          onPick={(id) => {
+            setField("picked_id", id);
+            setErrors((e) => ({ ...e, picked: "" }));
+          }}
+          onAdd={() => setField("ideas", addIdeaRow(rows))}
+          onRemove={(id) => {
+            update({ fields: { ideas: removeIdeaRow(rows, id), ...(pickedId === id ? { picked_id: null } : {}) } });
+            clearRow(id);
+          }}
+          onReachable={(v) => setField("reachable", v)}
+          inputRef={ref}
+        />
+      );
+      optional = (
+        <>
+          <Field label={t("ui.note")} error={err("note")}>
+            <RTextInput value={str("note")} editable={!ro} onChangeText={(v) => setField("note", v)} maxLength={280} accessibilityLabel={t("ui.note")} />
+          </Field>
+          {photoField}
+        </>
+      );
+      break;
+    }
+    case "daily":
+      body = <DailyComposer fields={fields} errors={errors} readOnly={ro} t={t} onChange={(k, v) => setField(k, v)} inputRef={ref} />;
+      optional = (
+        <>
+          {linkField}
+          {photoField}
+        </>
+      );
+      break;
     case "contact":
       body = (
         <>
@@ -731,19 +866,7 @@ export default function CaptureScreen() {
       break;
     case "problem_statement":
       body = (
-        <Field label={t("ui.problem_text")} error={err("text")}>
-          <RTextInput
-            ref={ref("text")}
-            value={str("text")}
-            editable={!ro}
-            multiline
-            onChangeText={(v) => setField("text", v)}
-            placeholder={t("capture.template.problem")}
-            accessibilityLabel={t("ui.problem_text")}
-            maxLength={500}
-            invalid={!!err("text")}
-          />
-        </Field>
+        <ProblemComposer fields={fields} errors={errors} readOnly={ro} t={t} onChange={(k, v) => setField(k, v)} inputRef={ref} />
       );
       optional = (
         <>
@@ -885,7 +1008,7 @@ export default function CaptureScreen() {
   return (
     <RoundShell dock={dock} keyboard>
       <View style={styles.top}>
-        <Tag label={`${t("mission.tag", { n: MISSION_NUMBER[TYPE_MISSION[draft.type]] })} · ${partLabel}`} />
+        <Tag label={mission ? `${t("mission.tag", { n: mission.n })} · ${partLabel}` : t(typeKey(draft.type))} />
         <IconButton icon="close" size={48} label={t("ui.close")} onPress={close} />
       </View>
       <RText variant="display" style={{ fontSize: 26, lineHeight: 34 }} accessibilityRole="header">

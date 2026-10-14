@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, Animated, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { onlineManager, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react-native";
 import { AnimatedSplash } from "../components/AnimatedSplash";
+import { Canvas } from "../lib/theme";
 import { shiftStorage } from "../lib/shiftStorage";
-import { queryClient, queryKeys, staleTimes } from "../lib/queryClient";
-import { currentPathWithQuery, decideRoute, isCompanionRoute } from "../lib/round/navigation";
-import { useRoundBackground, useShiftMode } from "../lib/round/hooks";
+import { queryClient } from "../lib/queryClient";
+import { currentPathWithQuery, decideRoute } from "../lib/round/navigation";
+import { useRoundBackground } from "../lib/round/hooks";
 import { clearPendingLink, setPendingLink, usePendingLink } from "../lib/round/pendingLink";
 import { consumeExplicitSignOut } from "../lib/round/session";
 import { roundDrafts } from "../lib/round/drafts";
@@ -39,30 +40,10 @@ function ConfigErrorScreen({ message }: { message: string }) {
   );
 }
 
-/** Legacy profile fetch gives up after this long and falls back to Discover (offline). */
-const PROFILE_TIMEOUT_MS = 10_000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("profile_timeout")), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-}
-
 function RootNavigator() {
   const { router, useSegments, usePathname, useGlobalSearchParams, useRootNavigationState, Stack } =
     require("expo-router") as typeof import("expo-router");
   const { useAuth } = require("../lib/auth") as typeof import("../lib/auth");
-  const { getProfile } = require("../lib/onboarding") as typeof import("../lib/onboarding");
   const { logAppOpened } = require("../lib/eventLogger") as typeof import("../lib/eventLogger");
 
   const { session, loading, isGuest, isHackathon } = useAuth();
@@ -71,26 +52,7 @@ function RootNavigator() {
   const globalParams = useGlobalSearchParams<Record<string, string | string[]>>();
   const navReady = !!useRootNavigationState()?.key;
   const userId = !isGuest && !isHackathon ? session?.user.id ?? "" : "";
-  const shift = useShiftMode();
   const pendingLink = usePendingLink();
-  const root = segments[0];
-  const needsEntry = !root || ["index", "welcome", "onboarding", "sign-in"].includes(root) || isCompanionRoute(segments);
-  // Legacy onboarding is only needed for non-SHIFT users (5.2: SHIFT users never need it).
-  const profileQuery = useQuery({
-    queryKey: queryKeys.profile.detail(userId),
-    queryFn: async () => {
-      const profile = await withTimeout(getProfile(userId), PROFILE_TIMEOUT_MS);
-      // getProfile swallows request errors as null; offline that is "unknown", not "not onboarded".
-      if (!profile && !onlineManager.isOnline()) throw new Error("profile_offline");
-      return profile;
-    },
-    enabled: !!userId && needsEntry && !shift.shiftMode && !shift.pending,
-    staleTime: staleTimes.userContent,
-    networkMode: "offlineFirst",
-    retry: false,
-  });
-  // Offline/timeout: legacy users fall back to Discover rather than onboarding (previous behaviour).
-  const onboarded = !userId || !needsEntry ? null : profileQuery.isError ? true : profileQuery.isPending ? null : !!profileQuery.data?.is_onboarded;
 
   // E14: SIGNED_OUT without an explicit sign-out while drafts exist = expired session.
   const previousUser = useRef(userId);
@@ -122,6 +84,7 @@ function RootNavigator() {
     });
   }, [userId, loading]);
 
+  // D1: every signed-in user goes to Home; nothing waits on flags or the home bundle.
   const decision = decideRoute({
     loading: loading || (!!userId && pendingLink.isPending),
     isHackathon,
@@ -131,10 +94,6 @@ function RootNavigator() {
     segments,
     currentPath: currentPathWithQuery(pathname, segments, globalParams),
     pendingLink: pendingLink.data ?? null,
-    tabEnabled: shift.tabEnabled,
-    hasEntry: shift.hasEntry,
-    shiftPending: shift.pending,
-    onboarded,
   });
   const redirectTo = decision.kind === "redirect" ? decision.to : null;
 
@@ -153,17 +112,6 @@ function RootNavigator() {
   useRoundBackground();
   useRoundPushRouting((path) => router.push(path as never), navReady && decision.kind !== "splash");
 
-  // Sync build todos to widget on foreground
-  useEffect(() => {
-    if (!session) return;
-    const { syncBuildTodos } = require("../lib/build-todos") as typeof import("../lib/build-todos");
-    syncBuildTodos(true);
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") syncBuildTodos(true);
-    });
-    return () => sub.remove();
-  }, [session]);
-
   // Show animated splash while auth or the entry decision is loading
   if (decision.kind === "splash") {
     return <AnimatedSplash />;
@@ -175,8 +123,9 @@ function RootNavigator() {
         headerShown: false,
         animation: "fade",
         animationDuration: 400,
+        // v4 canvas behind every screen so transitions never flash grey.
         contentStyle: {
-          backgroundColor: "#F3F4F6",
+          backgroundColor: Canvas.mid,
         },
       }}
     >
@@ -185,12 +134,16 @@ function RootNavigator() {
       <Stack.Screen name="round/capture" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom", gestureEnabled: false }} />
       <Stack.Screen name="round/join" options={{ presentation: "card" }} />
       <Stack.Screen name="round/log" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/steps" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/guide" options={{ presentation: "card" }} />
+      <Stack.Screen name="round/day/[day]" options={{ presentation: "card" }} />
       <Stack.Screen name="round/mission/[key]" options={{ presentation: "card" }} />
       <Stack.Screen name="round/evidence/[id]" options={{ presentation: "card" }} />
       <Stack.Screen name="round/checkin" options={{ presentation: "modal" }} />
       <Stack.Screen name="round/certificate" options={{ presentation: "card" }} />
       <Stack.Screen name="round/summary" options={{ presentation: "card" }} />
       <Stack.Screen name="round/delete-data" options={{ presentation: "card" }} />
+      <Stack.Screen name="delete-account" options={{ presentation: "card" }} />
       <Stack.Screen name="hackathon-login" options={{ gestureEnabled: false }} />
       <Stack.Screen name="(hackathon)" options={{ gestureEnabled: false }} />
       <Stack.Screen name="hackathon/challenges" options={{ presentation: "card" }} />

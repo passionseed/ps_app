@@ -1,6 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
-import { Ink, Surface, Violet } from "../../lib/theme";
+import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Depth, Gem, Ink, Violet } from "../../lib/theme";
 import { Icon } from "./Icons";
 import { RText } from "./RText";
 
@@ -13,34 +14,53 @@ export type TrailItem = {
   state: "done" | "current" | "todo";
 };
 
-function Node({ state }: { state: TrailItem["state"] }) {
+function Node({ state, number }: { state: TrailItem["state"]; number: number }) {
   if (state === "done") {
     return (
-      <View style={[styles.node, { backgroundColor: Violet[50] }]}>
-        <Icon name="check" size={16} color={Violet[700]} strokeWidth={2.6} />
+      <View style={[styles.node, styles.nodeDone]}>
+        <Icon name="check" size={15} color={Violet[700]} strokeWidth={2.8} />
       </View>
     );
   }
   if (state === "current") {
     return (
       <View style={styles.ring}>
-        <View style={[styles.node, { backgroundColor: Violet[600], width: 26, height: 26 }]} />
+        <View style={[styles.gem, Depth.glow]}>
+          <LinearGradient colors={[...Gem.face]} style={[StyleSheet.absoluteFill, { borderRadius: 15 }]} />
+          <RText variant="label" latin color="#FFFFFF" style={styles.num}>
+            {String(number)}
+          </RText>
+        </View>
       </View>
     );
   }
-  return <View style={[styles.node, { borderWidth: 2, borderColor: Surface.control, backgroundColor: Surface.card }]} />;
+  return (
+    <View style={[styles.node, styles.nodeTodo]}>
+      <RText variant="label" latin color={Ink.tertiary} style={styles.num}>
+        {String(number)}
+      </RText>
+    </View>
+  );
 }
 
 /**
- * Mission trail (DESIGN.md v3): done = violet-50 + check, current = solid violet-600 with ring,
- * not yet = hollow. Horizontal at normal sizes; a vertical list at accessibility text sizes.
+ * Mission trail (DESIGN.md v4): done = violet-50 + check, current = glowing violet gem with a
+ * soft ring, not yet = white with a hairline. Horizontal at normal sizes; a vertical list at
+ * accessibility text sizes. Every node also says its state in words.
  */
 export function MissionTrail({ items, onPress }: { items: TrailItem[]; onPress?: (key: string) => void }) {
   const { fontScale } = useWindowDimensions();
   const vertical = fontScale >= 1.3;
   return (
     <View style={vertical ? styles.vertical : styles.horizontal} accessibilityRole="list">
-      {!vertical ? <View style={styles.line} /> : null}
+      {!vertical ? (
+        <LinearGradient
+          colors={["rgba(139,107,255,0.10)", "rgba(139,107,255,0.28)", "rgba(139,107,255,0.10)"]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.line}
+        />
+      ) : null}
       {items.map((item) => (
         <Pressable
           key={item.key}
@@ -49,7 +69,7 @@ export function MissionTrail({ items, onPress }: { items: TrailItem[]; onPress?:
           onPress={onPress ? () => onPress(item.key) : undefined}
           style={({ pressed }) => [vertical ? styles.rowV : styles.colH, pressed && { opacity: 0.7 }]}
         >
-          <Node state={item.state} />
+          <Node state={item.state} number={item.number} />
           <View style={vertical ? { flex: 1 } : styles.labelH}>
             <RText
               variant="small"
@@ -77,7 +97,7 @@ export function MissionTrail({ items, onPress }: { items: TrailItem[]; onPress?:
 
 const styles = StyleSheet.create({
   horizontal: { flexDirection: "row", justifyContent: "space-between", position: "relative" },
-  line: { position: "absolute", left: 24, right: 24, top: 21, height: 2, backgroundColor: Surface.line },
+  line: { position: "absolute", left: 24, right: 24, top: 21, height: 2, borderRadius: 1 },
   colH: { flex: 1, alignItems: "center", gap: 6, minHeight: 44, paddingHorizontal: 1 },
   labelH: { alignItems: "center" },
   titleH: { fontSize: 12, textAlign: "center", lineHeight: 18 },
@@ -85,14 +105,25 @@ const styles = StyleSheet.create({
   vertical: { gap: 4 },
   rowV: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52 },
   node: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 6 },
+  nodeDone: { backgroundColor: Violet[50], borderWidth: 1, borderColor: "#E4DAFF" },
+  nodeTodo: { backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#CFC8E6" },
   ring: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
-    borderColor: Violet[100],
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 5,
+    borderColor: "rgba(139,107,255,0.16)",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
+    marginTop: 1,
   },
+  gem: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Platform.OS === "android" ? Gem.face[1] : undefined,
+  },
+  num: { fontSize: 13, lineHeight: 17 },
 });

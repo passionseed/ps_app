@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentPathWithQuery, decideRoute, isSafeNext, isShiftMode, linkToPath, type NavInput } from "../lib/round/navigation";
+import { currentPathWithQuery, decideRoute, HIDDEN_TABS, isHiddenTab, isSafeNext, linkToPath, type NavInput } from "../lib/round/navigation";
 
 const base: NavInput = {
   loading: false,
@@ -10,26 +10,27 @@ const base: NavInput = {
   segments: [],
   currentPath: "/",
   pendingLink: null,
-  tabEnabled: false,
-  hasEntry: false,
-  shiftPending: false,
-  onboarded: true,
 };
 const nav = (over: Partial<NavInput>) => decideRoute({ ...base, ...over });
+const HOME = { kind: "redirect", to: "/(tabs)/shift" };
 
-describe("decideRoute matrix (5.2)", () => {
+describe("decideRoute matrix (5.2, scale spec D1)", () => {
   it("shows the splash while loading", () => {
     expect(nav({ loading: true })).toEqual({ kind: "splash" });
   });
 
-  it("keeps hackathon mode in its area", () => {
+  it("keeps hackathon mode in its area (hackathon flows untouched)", () => {
     expect(nav({ isHackathon: true, segments: ["(tabs)", "shift"] })).toEqual({ kind: "redirect", to: "/(hackathon)/home" });
     expect(nav({ isHackathon: true, segments: ["(hackathon)", "home"] })).toEqual({ kind: "stay" });
+    expect(nav({ isHackathon: true, segments: ["hackathon-program", "index"] })).toEqual({ kind: "stay" });
   });
 
-  it("sends guests to the Shift teaser", () => {
-    expect(nav({ isGuest: true, signedIn: false, segments: ["index"] })).toEqual({ kind: "redirect", to: "/(tabs)/shift" });
-    expect(nav({ isGuest: true, signedIn: false, segments: ["(tabs)", "discover"] })).toEqual({ kind: "stay" });
+  it("lands guests on Home and keeps them off hidden tabs", () => {
+    expect(nav({ isGuest: true, signedIn: false, segments: ["index"] })).toEqual(HOME);
+    expect(nav({ isGuest: true, signedIn: false, segments: ["(tabs)", "shift"] })).toEqual({ kind: "stay" });
+    expect(nav({ isGuest: true, signedIn: false, segments: ["(tabs)", "profile"] })).toEqual({ kind: "stay" });
+    expect(nav({ isGuest: true, signedIn: false, segments: ["(tabs)", "discover"] })).toEqual(HOME);
+    expect(nav({ isGuest: true, signedIn: false, segments: ["seed", "[id]"] })).toEqual(HOME);
   });
 
   it("stores a round deep link and asks a signed-out user to sign in", () => {
@@ -60,30 +61,40 @@ describe("decideRoute matrix (5.2)", () => {
     });
   });
 
-  it("uses SHIFT tabs when the flag is on or the user has an entry", () => {
-    expect(nav({ segments: ["index"], tabEnabled: true })).toEqual({ kind: "redirect", to: "/(tabs)/shift" });
-    expect(nav({ segments: ["index"], tabEnabled: false, hasEntry: true })).toEqual({ kind: "redirect", to: "/(tabs)/shift" });
-    expect(nav({ segments: ["onboarding"], tabEnabled: true, onboarded: false })).toEqual({ kind: "redirect", to: "/(tabs)/shift" });
-    expect(nav({ segments: ["(tabs)", "profile"], tabEnabled: true })).toEqual({ kind: "stay" });
+  it("sends every signed-in user to Home: no onboarding, no Discover, no waiting on flags", () => {
+    expect(nav({ segments: [] })).toEqual(HOME);
+    expect(nav({ segments: ["index"] })).toEqual(HOME);
+    expect(nav({ segments: ["welcome"] })).toEqual(HOME);
+    expect(nav({ segments: ["onboarding"] })).toEqual(HOME);
+    expect(nav({ segments: ["sign-in"] })).toEqual(HOME);
+    expect(nav({ segments: ["(tabs)", "shift"] })).toEqual({ kind: "stay" });
+    expect(nav({ segments: ["(tabs)", "squad"] })).toEqual({ kind: "stay" });
+    expect(nav({ segments: ["(tabs)", "profile"] })).toEqual({ kind: "stay" });
+    expect(nav({ segments: ["round", "steps"] })).toEqual({ kind: "stay" });
   });
 
-  it("keeps legacy routing when the flag is off and there is no entry", () => {
-    expect(nav({ segments: ["index"] })).toEqual({ kind: "redirect", to: "/(tabs)/discover" });
-    expect(nav({ segments: ["index"], onboarded: false })).toEqual({ kind: "redirect", to: "/onboarding" });
-    expect(nav({ segments: ["onboarding"], onboarded: false })).toEqual({ kind: "stay" });
+  it("redirects old deep links to hidden tabs to Home", () => {
+    for (const tab of HIDDEN_TABS) {
+      expect(isHiddenTab(["(tabs)", tab]), tab).toBe(true);
+      expect(nav({ segments: ["(tabs)", tab] }), tab).toEqual(HOME);
+    }
+    expect(isHiddenTab(["(tabs)", "shift"])).toBe(false);
+    expect(isHiddenTab(["discover"])).toBe(false);
   });
 
-  it("uses cached flags when app_config is unreadable; an entry always keeps SHIFT tabs (X18)", () => {
-    expect(isShiftMode({ tabEnabled: null, hasEntry: true })).toBe(true);
-    expect(isShiftMode({ tabEnabled: true, hasEntry: null })).toBe(true);
-    expect(isShiftMode({ tabEnabled: null, hasEntry: null })).toBe(false);
-    expect(nav({ segments: ["index"], tabEnabled: null, hasEntry: null, shiftPending: true })).toEqual({ kind: "splash" });
-    expect(nav({ segments: ["index"], tabEnabled: null, hasEntry: null, shiftPending: false })).toEqual({ kind: "redirect", to: "/(tabs)/discover" });
+  it("keeps account deletion reachable for signed-in users and behind sign-in otherwise", () => {
+    expect(nav({ segments: ["delete-account"] })).toEqual({ kind: "stay" });
+    expect(nav({ signedIn: false, segments: ["delete-account"] })).toEqual({ kind: "redirect", to: "/" });
+  });
+
+  it("keeps PathLab detail routes reachable by deep link (no entry points, files stay)", () => {
+    expect(nav({ segments: ["seed", "[id]"] })).toEqual({ kind: "stay" });
+    expect(nav({ segments: ["path", "[enrollmentId]"] })).toEqual({ kind: "stay" });
   });
 
   it("retires companion screens", () => {
-    expect(nav({ segments: ["shift", "today"], hasEntry: true })).toEqual({ kind: "redirect", to: "/(tabs)/shift" });
-    expect(nav({ segments: ["shift", "project"], hasEntry: true })).toEqual({ kind: "stay" });
+    expect(nav({ segments: ["shift", "today"] })).toEqual(HOME);
+    expect(nav({ segments: ["shift", "project"] })).toEqual({ kind: "stay" });
   });
 });
 
@@ -103,6 +114,14 @@ describe("links", () => {
     expect(linkToPath("passion-seed://round")).toBe("/(tabs)/shift");
     expect(linkToPath("passion-seed://round/join?r=abc")).toBe("/round/join?r=abc");
     expect(linkToPath("passion-seed://hackathon/home")).toBeNull();
+  });
+
+  it("maps the session reminder and the new screens", () => {
+    expect(linkToPath("passionseed://round")).toBe("/(tabs)/shift");
+    expect(linkToPath("passion-seed://round/steps")).toBe("/round/steps");
+    expect(linkToPath("passion-seed://round/guide")).toBe("/round/guide");
+    expect(linkToPath("passion-seed://round/day/3")).toBe("/round/day/3");
+    expect(linkToPath("passion-seed://round/day/x")).toBe("/(tabs)/shift");
   });
 });
 

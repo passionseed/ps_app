@@ -5,18 +5,12 @@
  */
 import { supabase } from "../supabase";
 import { shiftStorage } from "../shiftStorage";
+import { DEFAULT_FLAGS } from "./defaults";
 import type { RoundFlags } from "./types";
 
-export const FLAGS_CACHE_KEY = "round:flags";
+export { DEFAULT_FLAGS };
 
-export const DEFAULT_FLAGS: RoundFlags = {
-  tab_enabled: false,
-  enrollment_enabled: true,
-  submissions_enabled: true,
-  transcription_enabled: false,
-  emergency_message: null,
-  web_base_url: "https://www.passionseed.org",
-};
+export const FLAGS_CACHE_KEY = "round:flags";
 
 const BOOL_KEYS = ["tab_enabled", "enrollment_enabled", "submissions_enabled", "transcription_enabled"] as const;
 

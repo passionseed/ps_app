@@ -55,7 +55,8 @@ describe("round copy (X8, DS17)", () => {
   });
 
   it("fills placeholders and maps codes to copy, falling back by category", () => {
-    expect(t("th", "round.tag", { n: 4 })).toBe("SHIFT · รอบที่ 4");
+    expect(t("th", "round.tag", { n: 4 })).toBe("SHIFT[4]");
+    expect(t("en", "round.day_tag", { n: 2, d: 3 })).toBe("SHIFT[2] · DAY 3");
     expect(t("en", "home.closes", { weekday: "Sun", date: "26 Oct" })).toBe("Closes Sun 26 Oct, 23:59");
     expect(errorCopy("en", { code: "rate_limited", category: "retryable", retry_after: 150 })).toContain("3 min");
     expect(errorCopy("en", { code: "invalid_field", category: "validation", details: { rule: "personal_data" } })).toBe(

@@ -34,6 +34,22 @@ function family(thai: boolean, weight: "400" | "500" | "700"): string {
   return weight === "700" ? "LibreFranklin_700Bold" : "LibreFranklin_400Regular";
 }
 
+/** Bai Jamjuree draws "[" "]" like "(" ")", so the SHIFT[N] brand token stays in Libre Franklin. */
+const SHIFT_TOKEN = /(SHIFT\[\d+\])/;
+
+function withLatinTokens(children: React.ReactNode, latinFamily: string): React.ReactNode {
+  if (typeof children !== "string" || !SHIFT_TOKEN.test(children)) return children;
+  return children.split(SHIFT_TOKEN).map((part, i) =>
+    i % 2 === 1 ? (
+      <Text key={i} style={{ fontFamily: latinFamily }}>
+        {part}
+      </Text>
+    ) : (
+      part
+    ),
+  );
+}
+
 export type RTextProps = TextProps & {
   variant?: RTextVariant;
   weight?: "400" | "500" | "700";
@@ -67,7 +83,7 @@ export function RText({ variant = "body", weight, color, latin, style, children,
         thai && Platform.OS === "android" ? { includeFontPadding: true } : null,
       ]}
     >
-      {children}
+      {thai ? withLatinTokens(children, family(false, w)) : children}
     </Text>
   );
 }

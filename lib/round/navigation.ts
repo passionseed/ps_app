@@ -1,6 +1,10 @@
 /**
- * Root routing decision (spec 5.2, DS2, A13, A54, E14, X18). Pure and unit-tested;
+ * Root routing decision (spec 5.2, E14; scale spec D1: the app is SHIFT). Pure and unit-tested;
  * `app/_layout.tsx` performs the side effects it returns.
+ *
+ * Every signed-in non-hackathon user goes to Home (`/(tabs)/shift`): no PathLab onboarding, no
+ * Discover. Guests land on Home too. Hidden tabs (PathLab, Build, the old camp tabs) and retired
+ * companion screens redirect to Home; their files stay.
  */
 
 export type NavInput = {
@@ -14,14 +18,6 @@ export type NavInput = {
   /** Current path including query, e.g. "/round/evidence/abc". */
   currentPath: string;
   pendingLink: string | null;
-  /** Remote flag, or last cached value; null when never readable. */
-  tabEnabled: boolean | null;
-  /** Server says (or cache says) the user holds an entry; null while unknown. */
-  hasEntry: boolean | null;
-  /** True while the SHIFT home/flags are still loading and nothing is cached. */
-  shiftPending: boolean;
-  /** Legacy onboarding; null while unknown. */
-  onboarded: boolean | null;
 };
 
 export type NavDecision =
@@ -29,18 +25,23 @@ export type NavDecision =
   | { kind: "stay" }
   | { kind: "redirect"; to: string; storePendingLink?: string; clearPendingLink?: boolean };
 
+export const HOME_ROUTE = "/(tabs)/shift";
+
 const HACKATHON_ROOTS = ["(hackathon)", "admin", "hackathon", "hackathon-program"];
 const SIGNED_OUT_ROOTS = ["index", "sign-in", "hackathon-login", "google-auth"];
 /** Retired companion screens (dead after the cutover); camp screens under /shift stay reachable. */
 const COMPANION_ROUTES = ["account", "history", "link", "sign-in", "today", "update"];
+/** Tabs hidden by D1: PathLab (discover, explore, my-paths), Build and the old camp tabs. */
+export const HIDDEN_TABS = ["discover", "explore", "my-paths", "build", "today", "projects", "group"] as const;
+/** Root routes that only ever forward somewhere (landing, legacy onboarding, sign-in). */
+const ENTRY_ROOTS = ["index", "welcome", "onboarding", "sign-in"];
 
 export function isCompanionRoute(segments: readonly string[]): boolean {
   return segments[0] === "shift" && COMPANION_ROUTES.includes(segments[1] ?? "");
 }
 
-/** Shift tabs are shown when the flag is on or the user has an entry (A54, X18). */
-export function isShiftMode(input: Pick<NavInput, "tabEnabled" | "hasEntry">): boolean {
-  return input.hasEntry === true || input.tabEnabled === true;
+export function isHiddenTab(segments: readonly string[]): boolean {
+  return segments[0] === "(tabs)" && (HIDDEN_TABS as readonly string[]).includes(segments[1] ?? "");
 }
 
 export function signInHref(next: string | null, reason?: "expired"): string {
@@ -64,7 +65,7 @@ export function decideRoute(input: NavInput): NavDecision {
   }
 
   if (input.isGuest) {
-    return root === "(tabs)" ? { kind: "stay" } : { kind: "redirect", to: "/(tabs)/shift" };
+    return root === "(tabs)" && !isHiddenTab(input.segments) ? { kind: "stay" } : { kind: "redirect", to: HOME_ROUTE };
   }
 
   if (!input.signedIn) {
@@ -81,21 +82,14 @@ export function decideRoute(input: NavInput): NavDecision {
     return { kind: "redirect", to: "/" };
   }
 
-  // Signed in.
+  // Signed in: the app is SHIFT (D1). No waiting on flags or the home bundle: Home itself
+  // handles flag-off and missing RPCs with the built-in landing (D10).
   if (isSafeNext(input.pendingLink)) {
     return { kind: "redirect", to: input.pendingLink, clearPendingLink: true };
   }
-  const needsEntry =
-    !root || ["index", "welcome", "onboarding", "sign-in"].includes(root) || isCompanionRoute(input.segments);
-  if (!needsEntry) return { kind: "stay" };
-
-  const shift = isShiftMode(input);
-  if (shift) return { kind: "redirect", to: "/(tabs)/shift" };
-  // Flags and entry unknown and still loading: wait instead of guessing (X5: unknown != not enrolled).
-  if (input.shiftPending) return { kind: "splash" };
-  if (input.onboarded === null) return { kind: "splash" };
-  if (input.onboarded) return { kind: "redirect", to: "/(tabs)/discover" };
-  return root === "onboarding" ? { kind: "stay" } : { kind: "redirect", to: "/onboarding" };
+  const toHome =
+    !root || ENTRY_ROOTS.includes(root) || isCompanionRoute(input.segments) || isHiddenTab(input.segments);
+  return toHome ? { kind: "redirect", to: HOME_ROUTE } : { kind: "stay" };
 }
 
 /** Deep links (5.2) and push `data.url` (4.4) to an in-app path. */
@@ -106,13 +100,14 @@ export function linkToPath(url: string | null | undefined): string | null {
   if (!rest.startsWith("round")) return null;
   const [pathPart, query] = rest.split("?");
   const parts = pathPart.split("/").filter(Boolean);
-  if (parts.length === 1) return "/(tabs)/shift";
+  if (parts.length === 1) return HOME_ROUTE;
   const [, screen, id] = parts;
   if (screen === "squad") return "/(tabs)/squad";
   if (screen === "evidence" && id) return `/round/evidence/${id}`;
+  if (screen === "day" && id && /^\d{1,2}$/.test(id)) return `/round/day/${id}`;
   if (screen === "join") return query ? `/round/join?${query}` : "/round/join";
-  if (["certificate", "summary", "log", "checkin"].includes(screen ?? "")) return `/round/${screen}`;
-  return "/(tabs)/shift";
+  if (["certificate", "summary", "log", "checkin", "steps", "guide"].includes(screen ?? "")) return `/round/${screen}`;
+  return HOME_ROUTE;
 }
 
 /**

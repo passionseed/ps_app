@@ -48,7 +48,7 @@ vi.mock("../lib/pathNotifications", () => ({
 import {
   _resetLegacyGuardForTesting,
   acceptPushPrompt,
-  applyLegacyReminderGuard,
+  retireLegacyReminder,
   declinePushPrompt,
   shouldOfferPushPrompt,
 } from "../lib/round/push";
@@ -78,52 +78,26 @@ describe("push opt-in (X16)", () => {
   });
 });
 
-describe("legacy local reminder (E16)", () => {
-  it("cancels only the legacy reminder when an entry becomes active, and only on transitions", async () => {
+describe("legacy local reminder (SHIFT-only app)", () => {
+  it("cancels only the legacy reminder, keeps it suppressed, and runs once per launch", async () => {
     notif.cancelLegacyReminder.mockResolvedValueOnce(1);
-    await applyLegacyReminderGuard("u1", true);
+    await retireLegacyReminder();
     expect(notif.setLegacyReminderSuppressed).toHaveBeenCalledWith(true);
     expect(notif.cancelLegacyReminder).toHaveBeenCalledTimes(1);
     expect(notif.cancelAllReminders).not.toHaveBeenCalled();
-    // Home refetches with the same state do nothing.
-    await applyLegacyReminderGuard("u1", true);
-    await applyLegacyReminderGuard("u1", true);
+    await retireLegacyReminder();
+    await retireLegacyReminder();
     expect(notif.cancelLegacyReminder).toHaveBeenCalledTimes(1);
+    expect(notif.setLegacyReminderSuppressed).not.toHaveBeenCalledWith(false);
   });
 
-  it("reschedules the cancelled reminder from mobile_settings once the entry is no longer active", async () => {
+  it("never reschedules the reminder", async () => {
     notif.cancelLegacyReminder.mockResolvedValueOnce(1);
-    db.single.mockResolvedValueOnce({ data: { mobile_settings: { push_enabled: true, reminder_time: "18:30" } }, error: null });
-    await applyLegacyReminderGuard("u1", true);
-    await applyLegacyReminderGuard("u1", false);
-    expect(notif.setLegacyReminderSuppressed).toHaveBeenLastCalledWith(false);
-    expect(notif.scheduleDailyReminder).toHaveBeenCalledWith(18, 30);
-    await applyLegacyReminderGuard("u1", false);
-    expect(notif.scheduleDailyReminder).toHaveBeenCalledTimes(1);
-  });
-
-  it("remembers the cancellation across app launches", async () => {
-    notif.cancelLegacyReminder.mockResolvedValueOnce(1);
-    await applyLegacyReminderGuard("u1", true);
+    await retireLegacyReminder();
     _resetLegacyGuardForTesting(); // new process
-    db.single.mockResolvedValueOnce({ data: { mobile_settings: { push_enabled: true, reminder_time: "07:00" } }, error: null });
-    await applyLegacyReminderGuard("u1", false);
-    expect(notif.scheduleDailyReminder).toHaveBeenCalledWith(7, 0);
-  });
-
-  it("does not schedule a reminder that was never there or that push is now off for", async () => {
-    notif.cancelLegacyReminder.mockResolvedValueOnce(0);
-    await applyLegacyReminderGuard("u1", true);
-    await applyLegacyReminderGuard("u1", false);
+    await retireLegacyReminder();
     expect(notif.scheduleDailyReminder).not.toHaveBeenCalled();
-    _resetLegacyGuardForTesting();
-    await applyLegacyReminderGuard("u2", false);
-    expect(notif.scheduleDailyReminder).not.toHaveBeenCalled();
-    notif.cancelLegacyReminder.mockResolvedValueOnce(1);
-    await applyLegacyReminderGuard("u3", true);
-    db.single.mockResolvedValueOnce({ data: { mobile_settings: { push_enabled: false, reminder_time: "07:00" } }, error: null });
-    await applyLegacyReminderGuard("u3", false);
-    expect(notif.scheduleDailyReminder).not.toHaveBeenCalled();
+    expect(notif.cancelLegacyReminder).toHaveBeenCalledTimes(2);
   });
 
   it("scheduleDailyReminder does nothing while suppressed", async () => {

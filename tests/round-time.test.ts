@@ -4,6 +4,7 @@ import {
   countdown,
   dateTimeDisplay,
   formatCountdown,
+  formatDateRange,
   formatDuration,
   ictDate,
   roundDay,
@@ -24,6 +25,13 @@ describe.each(["UTC", "America/New_York", "Asia/Bangkok"])("Bangkok clock with T
     process.env.TZ = tz;
     expect(closeDisplay(CLOSES, "th")).toEqual({ weekday: "จ.", date: "23 พ.ย.", time: "23:59" });
     expect(closeDisplay(CLOSES, "en")).toEqual({ weekday: "Mon", date: "23 Nov", time: "23:59" });
+  });
+
+  it("shows round dates as a range ending on the last day", () => {
+    process.env.TZ = tz;
+    expect(formatDateRange("2026-10-20T17:00:00Z", "2026-10-27T17:00:00Z", "th")).toBe("21–27 ต.ค.");
+    expect(formatDateRange(STARTS, CLOSES, "en")).toBe("10–23 Nov");
+    expect(formatDateRange("2026-10-29T17:00:00Z", "2026-11-04T17:00:00Z", "th")).toBe("30 ต.ค. – 4 พ.ย.");
   });
 
   it("computes ICT dates and day numbers at the midnight boundary", () => {

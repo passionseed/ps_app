@@ -26,6 +26,22 @@ export function statusCopyKey(kind: EvidenceStatusKind): CopyKey {
 /** One short line of the student's own content (never translated, DS17). */
 export function evidenceSummary(payload: Record<string, unknown>): string {
   const pick = (k: string) => (typeof payload[k] === "string" ? (payload[k] as string).trim() : "");
+  // ideas: the picked idea (a draft keeps rows with ids; a sent payload keeps an index)
+  if (Array.isArray(payload.ideas)) {
+    const ideas = payload.ideas as { id?: unknown; text?: unknown; who?: unknown }[];
+    const picked =
+      typeof payload.picked === "number"
+        ? ideas[payload.picked]
+        : typeof payload.picked_id === "string"
+          ? ideas.find((i) => i?.id === payload.picked_id)
+          : undefined;
+    const idea = picked ?? ideas.find((i) => typeof i?.text === "string" && i.text.trim());
+    const text = typeof idea?.text === "string" ? idea.text.trim() : "";
+    const who = typeof idea?.who === "string" ? idea.who.trim() : "";
+    return text && who ? `${text} · ${who}` : text;
+  }
+  if (pick("built")) return pick("built");
+  if (pick("user_group") && pick("text")) return `${pick("user_group")}: ${pick("text")}`;
   const who = pick("who_label");
   const main = pick("key_point") || pick("text") || pick("what") || pick("note") || pick("url") || pick("link");
   if (who && main) return `${who}: ${main}`;

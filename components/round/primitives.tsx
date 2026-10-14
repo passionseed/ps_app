@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   TextInput,
@@ -8,32 +10,42 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from "react-native";
-import { Ink, Radius, Status, Surface, Violet } from "../../lib/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { Depth, Gem, Glass, Ink, Radius, Status, Surface, Violet } from "../../lib/theme";
+import { GlassCard } from "./GlassCard";
 import { Icon, type IconName } from "./Icons";
 import { RText } from "./RText";
 
-/** White card, 24pt radius, one soft shadow, no border (DESIGN.md v3). */
+/** Card (DESIGN.md v4): a glass card. Kept for existing screens; new code can use GlassCard. */
 export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return (
+    <GlassCard padding={18} style={style}>
+      {children}
+    </GlassCard>
+  );
 }
 
+/**
+ * Tag: violet = glass pill (violet-700 on 72% white, bright rim, soft violet shadow); success,
+ * warning and neutral keep their tinted fills so the colour still says the state (with a word).
+ */
 export function Tag({ label, tone = "violet" }: { label: string; tone?: "violet" | "success" | "warning" | "neutral" }) {
   const palette = {
-    violet: { bg: Violet[50], fg: Violet[700] },
-    success: { bg: Status.successBg, fg: Status.success },
-    warning: { bg: Status.warningBg, fg: Status.warning },
-    neutral: { bg: Surface.line, fg: Ink.secondary },
+    violet: { bg: Platform.OS === "android" ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.72)", fg: Violet[700], border: Glass.border },
+    success: { bg: Status.successBg, fg: Status.success, border: "#CFEBDD" },
+    warning: { bg: Status.warningBg, fg: Status.warning, border: "#FBE1BC" },
+    neutral: { bg: "rgba(255,255,255,0.6)", fg: Ink.secondary, border: Surface.line },
   }[tone];
   return (
-    <View style={[styles.tag, { backgroundColor: palette.bg }]}>
-      <RText variant="tag" color={palette.fg} latin={!/[฀-๿]/.test(label)}>
+    <View style={[styles.tag, { backgroundColor: palette.bg, borderColor: palette.border }, tone === "violet" && Depth.pill]}>
+      <RText variant="tag" color={palette.fg} latin={!/[฀-๿]/.test(label)} style={styles.tagText}>
         {label}
       </RText>
     </View>
   );
 }
 
-/** Secondary action: violet-700 text, 44pt target. */
+/** Secondary action: violet-700 text, 44pt target. Long labels wrap instead of overflowing. */
 export function TextButton({
   label,
   onPress,
@@ -61,14 +73,74 @@ export function TextButton({
       style={({ pressed }) => [styles.textButton, pressed && { opacity: 0.6 }]}
     >
       {icon ? <Icon name={icon} size={18} color={color} /> : null}
-      <RText variant="label" color={color} style={{ fontSize: 15 }}>
+      <RText variant="label" color={color} style={styles.textButtonLabel}>
         {label}
       </RText>
     </Pressable>
   );
 }
 
-/** 44pt icon button on violet-50 (48pt for dismiss/attachment/record). */
+/**
+ * Secondary button (DESIGN.md v4): a full-width glass pill (ink text) or a dark ink pill (white
+ * text, e.g. a custom Apple button). Quieter than the Pillow: no gem, softer shadow. 50pt tall.
+ */
+export function SoftButton({
+  label,
+  onPress,
+  icon,
+  disabled,
+  busy,
+  tone = "glass",
+  accessibilityHint,
+}: {
+  label: string;
+  onPress: () => void;
+  icon?: IconName;
+  disabled?: boolean;
+  busy?: boolean;
+  tone?: "glass" | "dark";
+  accessibilityHint?: string;
+}) {
+  const dark = tone === "dark";
+  const inactive = !!(disabled || busy);
+  const fg = dark ? "#FFFFFF" : disabled ? Ink.tertiary : Ink.primary;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: inactive, busy: !!busy }}
+      disabled={inactive}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.soft,
+        dark ? [styles.softDark, Depth.dark] : [styles.softGlass, !disabled && Depth.control],
+        disabled && { opacity: 0.6 },
+        pressed && styles.softPressed,
+      ]}
+    >
+      {dark ? (
+        <>
+          <LinearGradient colors={["#2A2540", "#14112A"]} style={[StyleSheet.absoluteFill, { borderRadius: 999 }]} />
+          <View style={styles.softDarkHighlight} />
+        </>
+      ) : null}
+      {busy ? (
+        <ActivityIndicator size="small" color={dark ? "#FFFFFF" : Violet[600]} />
+      ) : icon ? (
+        <Icon name={icon} size={18} color={dark ? "#FFFFFF" : Violet[700]} strokeWidth={2.1} />
+      ) : null}
+      <RText variant="label" color={fg} style={styles.softLabel} numberOfLines={2}>
+        {label}
+      </RText>
+    </Pressable>
+  );
+}
+
+/**
+ * Icon button (DESIGN.md v4): a small glossy control, white -> violet-50 with a bright rim and a
+ * soft violet shadow, violet icon. 44pt by default (48 for dismiss/attachment/record).
+ */
 export function IconButton({
   icon,
   label,
@@ -93,10 +165,15 @@ export function IconButton({
       style={({ pressed }) => [
         styles.iconButton,
         { width: size, height: size, borderRadius: size / 2 },
-        pressed && { backgroundColor: Violet[100] },
+        !disabled && Depth.control,
+        pressed && styles.iconButtonPressed,
       ]}
     >
-      <Icon name={icon} size={size >= 56 ? 28 : 20} color={disabled ? Ink.tertiary : Violet[700]} />
+      <LinearGradient
+        colors={disabled ? ["#FFFFFF", "#F6F4FB"] : ["#FFFFFF", Violet[50]]}
+        style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]}
+      />
+      <Icon name={icon} size={size >= 56 ? 28 : 20} color={disabled ? Ink.tertiary : Violet[700]} strokeWidth={2.1} />
     </Pressable>
   );
 }
@@ -129,18 +206,32 @@ export function Field({
   );
 }
 
+/** Input (DESIGN.md v4): white, 1pt control border (3.4:1), 14pt radius, violet focus glow. */
 export const RTextInput = React.forwardRef<TextInput, TextInputProps & { invalid?: boolean }>(function RTextInput(
-  { invalid, style, multiline, ...props },
+  { invalid, style, multiline, onFocus, onBlur, ...props },
   ref,
 ) {
+  const [focused, setFocused] = useState(false);
   return (
     <TextInput
       ref={ref}
       placeholderTextColor={Ink.tertiary}
+      selectionColor={Violet[600]}
+      cursorColor={Violet[600]}
       multiline={multiline}
+      onFocus={(e) => {
+        setFocused(true);
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        setFocused(false);
+        onBlur?.(e);
+      }}
       style={[
         styles.input,
         multiline && styles.inputMulti,
+        focused && styles.inputFocused,
+        focused && Depth.focus,
         invalid && { borderColor: Status.error, borderWidth: 2 },
         style,
       ]}
@@ -166,8 +257,13 @@ export function Checkbox({
       onPress={() => onChange(!checked)}
       style={styles.checkRow}
     >
-      <View style={[styles.checkBox, checked && styles.checkBoxOn]}>
-        {checked ? <Icon name="check" size={16} color="#FFFFFF" strokeWidth={2.6} /> : null}
+      <View style={[styles.checkBox, checked && [styles.checkBoxOn, Depth.glow]]}>
+        {checked ? (
+          <>
+            <LinearGradient colors={[...Gem.face]} style={[StyleSheet.absoluteFill, { borderRadius: 8 }]} />
+            <Icon name="check" size={16} color="#FFFFFF" strokeWidth={2.8} />
+          </>
+        ) : null}
       </View>
       <RText variant="body" color={Ink.primary} style={{ flex: 1 }}>
         {label}
@@ -176,6 +272,10 @@ export function Checkbox({
   );
 }
 
+/**
+ * Banner (DESIGN.md v4): violet = glass with a violet icon; warning / error / success keep their
+ * tinted fills (state colour plus an icon and words), with a soft shadow so they sit on the page.
+ */
 export function Banner({
   tone = "violet",
   text,
@@ -188,15 +288,15 @@ export function Banner({
   onAction?: () => void;
 }) {
   const palette = {
-    violet: { bg: Violet[50], fg: Violet[700] },
-    warning: { bg: Status.warningBg, fg: Status.warning },
-    error: { bg: Status.errorBg, fg: Status.error },
-    success: { bg: Status.successBg, fg: Status.success },
+    violet: { bg: Platform.OS === "android" ? Glass.fillAndroid : "rgba(255,255,255,0.72)", fg: Violet[700], text: Ink.primary, border: Glass.border },
+    warning: { bg: Status.warningBg, fg: Status.warning, text: Status.warning, border: "#FBE1BC" },
+    error: { bg: Status.errorBg, fg: Status.error, text: Status.error, border: "#F7D4D4" },
+    success: { bg: Status.successBg, fg: Status.success, text: Status.success, border: "#CFEBDD" },
   }[tone];
   return (
-    <View style={[styles.banner, { backgroundColor: palette.bg }]} accessibilityRole="alert">
-      <Icon name={tone === "success" ? "check" : "alert"} size={18} color={palette.fg} />
-      <RText variant="small" color={palette.fg} style={{ flex: 1, fontSize: 14 }}>
+    <View style={[styles.banner, { backgroundColor: palette.bg, borderColor: palette.border }, Depth.row]} accessibilityRole="alert">
+      <Icon name={tone === "success" ? "check" : tone === "violet" ? "info" : "alert"} size={18} color={palette.fg} />
+      <RText variant="small" color={palette.text} style={{ flex: 1, fontSize: 14 }}>
         {text}
       </RText>
       {actionLabel && onAction ? (
@@ -211,23 +311,48 @@ export function Banner({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: Surface.card,
-    borderRadius: 24,
-    padding: 18,
-    shadowColor: Ink.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    elevation: 2,
+  tag: { alignSelf: "flex-start", borderRadius: 999, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 5 },
+  tagText: { fontSize: 12 },
+  textButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 4, maxWidth: "100%" },
+  textButtonLabel: { fontSize: 15, flexShrink: 1 },
+  soft: {
+    minHeight: 50,
+    borderRadius: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderWidth: 1,
+    alignSelf: "stretch",
   },
-  tag: { alignSelf: "flex-start", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  textButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 4 },
-  iconButton: { backgroundColor: Violet[50], alignItems: "center", justifyContent: "center" },
+  softGlass: {
+    backgroundColor: Platform.OS === "android" ? "#FFFFFF" : "rgba(255,255,255,0.78)",
+    borderColor: Glass.border,
+  },
+  softDark: { backgroundColor: "#14112A", borderColor: "#14112A" },
+  softDarkHighlight: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 999,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.15)",
+    pointerEvents: "none",
+  },
+  softPressed: { transform: [{ translateY: 1 }], opacity: 0.92 },
+  softLabel: { fontSize: 16, textAlign: "center", flexShrink: 1 },
+  iconButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "#FFFFFF",
+  },
+  iconButtonPressed: { transform: [{ translateY: 1 }], opacity: 0.9 },
   field: { gap: 6 },
   errorRow: { flexDirection: "row", gap: 6, alignItems: "flex-start" },
   input: {
-    minHeight: 48,
+    minHeight: 50,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: Surface.control,
@@ -238,7 +363,14 @@ const styles = StyleSheet.create({
     fontFamily: "BaiJamjuree_400Regular",
     color: Ink.primary,
   },
-  inputMulti: { minHeight: 96, textAlignVertical: "top" },
+  // The violet border + glow is the focus indicator; drop the browser's default outline on web.
+  inputFocused: {
+    borderColor: Violet[600],
+    borderWidth: 1.5,
+    // Chrome ignores outline-width for its `auto` focus ring, so turn the style off on web.
+    ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null),
+  },
+  inputMulti: { minHeight: 104, textAlignVertical: "top" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 44, paddingVertical: 6 },
   checkBox: {
     width: 26,
@@ -250,7 +382,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: Surface.card,
   },
-  checkBoxOn: { backgroundColor: Violet[600], borderColor: Violet[600] },
-  banner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: Radius.md },
+  checkBoxOn: { borderWidth: 0, backgroundColor: Gem.face[1] },
+  banner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: Radius.md + 2,
+    borderWidth: 1,
+  },
   bannerAction: { minHeight: 44, justifyContent: "center" },
 });

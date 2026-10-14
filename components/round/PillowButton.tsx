@@ -1,15 +1,17 @@
-import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { Border, Gradient, Ink, Surface, Violet } from "../../lib/theme";
-import { Icon, type IconName } from "./Icons";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
+import { Depth, Ink, Pillow, Surface, Violet } from "../../lib/theme";
+import { GemIcon } from "./GemIcon";
+import { type IconName } from "./Icons";
 import { RText } from "./RText";
 
 /**
- * The one hero button per screen (DESIGN.md v3): white -> violet-50 pill, violet-700 text,
- * 32pt glossy violet gem, sinks 2pt on press with a light haptic.
+ * The Pillow (DESIGN.md v4): the one glossy, tactile button per screen. White -> lavender pill
+ * with a bright top highlight, a violet glow inside the bottom edge, a radial violet gem holding
+ * the icon and a deep violet shadow. It sinks 2pt on press (shadow tightens) with a light haptic.
  */
 export function PillowButton({
   label,
@@ -30,58 +32,71 @@ export function PillowButton({
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }) {
+  const reduced = useReducedMotion();
   const sink = useSharedValue(0);
+  const [pressed, setPressed] = useState(false);
   const animated = useAnimatedStyle(() => ({ transform: [{ translateY: sink.value }] }));
-  const inactive = disabled || busy;
+  const inactive = !!(disabled || busy);
+  const muted = !!disabled && !busy;
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: !!inactive, busy: !!busy }}
+      accessibilityState={{ disabled: inactive, busy: !!busy }}
       disabled={inactive}
       onPressIn={() => {
-        sink.value = withTiming(2, { duration: 80 });
+        setPressed(true);
+        sink.value = reduced ? 2 : withTiming(2, { duration: 70 });
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }}
       onPressOut={() => {
-        sink.value = withTiming(0, { duration: 120 });
+        setPressed(false);
+        sink.value = reduced ? 0 : withTiming(0, { duration: 140 });
       }}
       onPress={onPress}
       style={[styles.hit, style]}
     >
-      <Animated.View style={[styles.shadow, inactive && styles.shadowOff, animated]}>
-        <LinearGradient colors={inactive ? [Surface.card, Surface.card] : [...Gradient.primaryCta]} style={[styles.pill, inactive && styles.pillOff]}>
-          <LinearGradient colors={inactive ? [Surface.control, Surface.control] : [...Gradient.gem]} style={styles.gem}>
-            {busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Icon name={icon} size={16} color="#FFFFFF" strokeWidth={2.4} />}
-          </LinearGradient>
-          <RText variant="label" style={styles.label} color={inactive ? Ink.tertiary : Violet[700]} numberOfLines={2}>
+      <Animated.View style={[styles.shadow, !muted && (pressed ? Depth.pillowPressed : Depth.pillow), animated]}>
+        <View style={[styles.pill, muted && styles.pillOff]}>
+          <LinearGradient
+            colors={muted ? ["#FFFFFF", "#F7F6FB"] : [...Pillow.colors]}
+            locations={muted ? undefined : [...Pillow.locations]}
+            style={[StyleSheet.absoluteFill, styles.none]}
+          />
+          {!muted ? (
+            <LinearGradient
+              colors={["rgba(139,107,255,0)", Pillow.innerGlow]}
+              style={[styles.innerGlow, styles.none]}
+            />
+          ) : null}
+          <View style={[styles.highlight, styles.none]} />
+          <GemIcon icon={busy ? undefined : icon} size={32} iconSize={16} muted={muted}>
+            {busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : undefined}
+          </GemIcon>
+          <RText variant="label" style={styles.label} color={muted ? Ink.tertiary : Violet[700]} numberOfLines={2}>
             {label}
           </RText>
-          <View style={styles.gemSpacer} />
-        </LinearGradient>
+        </View>
       </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  hit: { minHeight: 58, alignSelf: "stretch" },
+  hit: { minHeight: Pillow.height, alignSelf: "stretch" },
   shadow: {
     borderRadius: 999,
-    shadowColor: Violet[600],
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 6,
+    // Android elevation needs a background to cast from.
+    backgroundColor: Platform.OS === "android" ? "#FFFFFF" : undefined,
   },
-  shadowOff: { shadowOpacity: 0, elevation: 0 },
   pill: {
-    minHeight: 58,
+    minHeight: Pillow.height,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: Border.pillow,
+    borderColor: Pillow.border,
+    overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -90,13 +105,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   pillOff: { borderColor: Surface.line },
-  gem: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
+  innerGlow: { position: "absolute", left: 0, right: 0, bottom: 0, height: "55%" },
+  highlight: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 999,
+    borderTopWidth: 2,
+    borderTopColor: "#FFFFFF",
   },
-  gemSpacer: { width: 0 },
+  none: { pointerEvents: "none" },
   label: { fontSize: 17, textAlign: "center", flexShrink: 1 },
 });

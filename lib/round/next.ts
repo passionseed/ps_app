@@ -1,27 +1,22 @@
 /**
- * Next action, needs-attention priority and home state (DS1, DS3, DS4, DS5, spec 5.3/5.4).
- * Pure functions: the Shift home renders whatever these return.
+ * Next action and needs-attention priority (DS1, DS3, DS5, spec 5.3; scale spec 4.1).
+ * Pure functions: the Home screen renders whatever these return. The Home state machine itself
+ * lives in `lib/round/home.ts`.
  */
 import type { CopyKey, CopyParams } from "./copy";
-import { MISSION_NUMBER, orderedMissions } from "./missions";
+import { orderedMissions } from "./missions";
 import { countdown } from "./time";
-import type {
-  Checkpoint,
-  EvidenceItem,
-  EvidenceType,
-  HomeBundle,
-  JoinableRound,
-  MissionCounts,
-  MissionKey,
-} from "./types";
+import type { Checkpoint, EvidenceItem, EvidenceType, HomeBundle, MissionCounts } from "./types";
 
 export type NextAction =
   | {
       kind: "log";
-      mission: MissionKey;
+      mission: string;
+      /** The mission's 1-based position in the round config. */
       missionNumber: number;
       type: EvidenceType;
       copyKey: CopyKey;
+      /** n = the next item number, need, left = still missing for this part. */
       params: CopyParams;
       voice: boolean;
       slots: { filled: boolean; label: number }[] | null;
@@ -30,22 +25,25 @@ export type NextAction =
 
 const VOICE_TYPES: EvidenceType[] = ["interview", "tester"];
 
-/** First incomplete mission in SHIFT order (DS3), then its first incomplete part. */
+/**
+ * First incomplete mission in config order (DS3, missions are met in any order), then its first
+ * incomplete part.
+ */
 export function nextAction(counts: MissionCounts | null | undefined, opts: { voiceEnabled?: boolean } = {}): NextAction {
   for (const mission of orderedMissions(counts)) {
     if (mission.complete) continue;
     const part = mission.parts.find((p) => p.have < p.need) ?? mission.parts[0];
     const type = part.type;
-    const params: CopyParams = {};
-    if (type === "interview" || type === "tester") params.n = Math.min(part.have + 1, part.need);
+    const have = Math.min(part.have, part.need);
+    const params: CopyParams = { n: Math.min(have + 1, part.need), need: part.need, left: Math.max(1, part.need - have) };
     const slots =
       part.need > 1
-        ? Array.from({ length: part.need }, (_, i) => ({ filled: i < part.have, label: i + 1 }))
+        ? Array.from({ length: part.need }, (_, i) => ({ filled: i < have, label: i + 1 }))
         : null;
     return {
       kind: "log",
       mission: mission.key,
-      missionNumber: MISSION_NUMBER[mission.key],
+      missionNumber: mission.n,
       type,
       copyKey: `home.next.${type}` as CopyKey,
       params,
@@ -80,57 +78,15 @@ export function needsAttention(
   return null;
 }
 
-export type HomeState =
-  | { kind: "guest" }
-  | { kind: "no_round"; nextRound: HomeBundle["next_round"]; onWaitlist: boolean }
-  | { kind: "open"; joinable: JoinableRound }
-  | { kind: "invite_only"; joinable: JoinableRound }
-  | { kind: "join_closed"; joinable: JoinableRound; day: number }
-  | { kind: "already_in_round"; joinable: JoinableRound }
-  | { kind: "pre_start" }
-  | { kind: "active" }
-  | { kind: "review" }
-  | { kind: "review_overdue" }
-  | { kind: "not_eligible" }
-  | { kind: "cert_issued" }
-  | { kind: "cert_revoked" };
-
-const OVERDUE_MS = 2 * 3_600_000;
-
-/** Which Shift home layout to show (5.4 states table). */
-export function homeState(home: HomeBundle | null, opts: { guest?: boolean } = {}): HomeState {
-  if (opts.guest || !home) return { kind: "guest" };
-  const { entry, round } = home;
-  if (entry && round) {
-    if (home.certificate && !home.certificate.tombstone) {
-      return home.certificate.status === "revoked" ? { kind: "cert_revoked" } : { kind: "cert_issued" };
-    }
-    if (entry.outcome === "not_eligible") return { kind: "not_eligible" };
-    if (round.phase === "upcoming") return { kind: "pre_start" };
-    if (round.phase === "active") return { kind: "active" };
-    const nowMs = Date.parse(home.now);
-    if (nowMs > Date.parse(round.review_ends_at) + OVERDUE_MS) return { kind: "review_overdue" };
-    if (round.phase === "review" || round.phase === "finished") return { kind: "review" };
-  }
-  const joinable = home.joinable?.[0];
-  if (joinable) {
-    if (joinable.can_join) return { kind: "open", joinable };
-    if (joinable.reason === "invite_only") return { kind: "invite_only", joinable };
-    if (joinable.reason === "already_in_active_round") return { kind: "already_in_round", joinable };
-    return { kind: "join_closed", joinable, day: home.round?.join_cutoff_day ?? 7 };
-  }
-  return { kind: "no_round", nextRound: home.next_round, onWaitlist: home.on_waitlist };
-}
-
 /** Whether a home bundle describes an entry in an upcoming/active round (E16 reminder guard). */
 export function hasActiveEntry(home: HomeBundle | null | undefined): boolean {
   return !!home?.entry && !!home.round && (home.round.phase === "upcoming" || home.round.phase === "active");
 }
 
-/** Hours/minutes left when within the last 24h (home) or 2h (composer). */
-export function lastHours(home: HomeBundle, withinHours: number): { h: number; m: number } | null {
+/** Hours/minutes left when within the last N hours before close (home 24h, composer 2h). */
+export function lastHours(home: HomeBundle, withinHours: number, now: string | number | Date = home.now): { h: number; m: number } | null {
   if (!home.round || home.round.phase !== "active") return null;
-  const c = countdown(home.now, home.round.closes_at);
+  const c = countdown(now, home.round.closes_at);
   if (c.totalMs <= 0 || c.totalMs > withinHours * 3_600_000) return null;
   return { h: c.d * 24 + c.h, m: c.m };
 }

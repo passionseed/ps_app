@@ -7,6 +7,7 @@ import { shiftStorage } from "../shiftStorage";
 import { roundApi, RoundApiError } from "./api";
 import { cacheFlags } from "./flags";
 import { hasActiveEntry } from "./next";
+import { normalizeHome } from "./normalize";
 import type { HomeBundle, RoundError, SquadBundle } from "./types";
 
 export const roundKeys = {
@@ -44,13 +45,14 @@ export const PENDING_LINK_KEY = "round:pending-link";
 export type HomeResult = { bundle: HomeBundle; fromCache: boolean; error: RoundError | null };
 
 /**
- * Loads the home bundle. On offline/retryable/unavailable errors returns the cached bundle with
- * the error so the screen can show "cached + offline" (5.4). Throws when nothing is cached.
+ * Loads the home bundle (normalized, so older servers still render). On offline/retryable/
+ * unavailable errors returns the cached bundle with the error so the screen can show "cached +
+ * offline" (5.4). Throws when nothing is cached; Home then shows the built-in landing (D10).
  */
 export async function loadHome(userId: string, entryId: string | null = null): Promise<HomeResult> {
   const result = await roundApi.home(entryId);
   if (result.ok) {
-    const bundle = result.data;
+    const bundle = normalizeHome(result.data);
     await Promise.all([
       shiftStorage.setItem(homeCacheKey(userId), JSON.stringify(bundle)).catch(() => {}),
       shiftStorage.setItem(hasEntryKey(userId), bundle.entry ? "1" : "0").catch(() => {}),
@@ -70,8 +72,9 @@ export async function readCachedHome(userId: string): Promise<HomeBundle | null>
   const raw = await shiftStorage.getItem(homeCacheKey(userId)).catch(() => null);
   if (!raw) return null;
   try {
-    const value = JSON.parse(raw) as HomeBundle;
-    return value && typeof value === "object" && "flags" in value ? value : null;
+    const value = JSON.parse(raw) as unknown;
+    // Caches written by older app versions predate plan/habits/session fields: normalize them too.
+    return value && typeof value === "object" && "flags" in value ? normalizeHome(value) : null;
   } catch {
     return null;
   }

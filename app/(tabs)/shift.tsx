@@ -1,61 +1,62 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Linking, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useMutation } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, useReducedMotion } from "react-native-reanimated";
 import { useAuth } from "../../lib/auth";
 import { Ink, Violet } from "../../lib/theme";
-import { roundApi, errorOf, needsSignIn } from "../../lib/round/api";
-import { errorCopy, type CopyKey } from "../../lib/round/copy";
+import { errorOf, roundApi } from "../../lib/round/api";
+import { errorCopy, type CopyKey, type CopyParams } from "../../lib/round/copy";
+import { useInvalidateRound, useRoundDrafts, useRoundHome, useRoundLang, useRoundNow, useRoundUser } from "../../lib/round/hooks";
 import {
-  useInvalidateRound,
-  useRoundDrafts,
-  useRoundHome,
-  useRoundLang,
-  useRoundUser,
-} from "../../lib/round/hooks";
-import { missionDisplay, missionTitleKey, orderedMissions, typeKey } from "../../lib/round/missions";
-import { homeState, lastHours, needsAttention, nextAction } from "../../lib/round/next";
+  activeModel,
+  applyUrl,
+  homeView,
+  missionsTotal,
+  preStartModel,
+  type ActiveModel,
+  type Landing,
+  type LandingCta,
+} from "../../lib/round/home";
+import { needsAttention, lastHours } from "../../lib/round/next";
+import { currentDay, sessionSummary } from "../../lib/round/schedule";
 import { feedLine } from "../../lib/round/squadCopy";
-import { closeDisplay, countdown, dateTimeDisplay, formatCountdown, formatDate } from "../../lib/round/time";
+import { steps as stepsModel, stepsDone } from "../../lib/round/steps";
+import { countdown, dateTimeDisplay, formatCountdown, formatDate, formatDateRange, formatTime, formatWeekday } from "../../lib/round/time";
+import { DEFAULT_DURATION_DAYS, DEFAULT_SESSION_START, typeKey } from "../../lib/round/missions";
 import { shiftStorage } from "../../lib/shiftStorage";
-import type { HomeBundle, Mission } from "../../lib/round/types";
+import type { HomeBundle, JoinableRound, Lang } from "../../lib/round/types";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
 import { PillowButton } from "../../components/round/PillowButton";
-import { Banner, Card, Tag, TextButton } from "../../components/round/primitives";
+import { Banner, Tag, TextButton } from "../../components/round/primitives";
 import { HomeSkeleton } from "../../components/round/Skeleton";
-import { NextMissionCard } from "../../components/round/NextMissionCard";
-import { MissionTrail, type TrailItem } from "../../components/round/MissionTrail";
 import { SquadCard } from "../../components/round/SquadCard";
 import { NeedsAttention } from "../../components/round/NeedsAttention";
 import { DiscordFooter } from "../../components/round/DiscordFooter";
+import { GlassCard } from "../../components/round/GlassCard";
+import { HeroCard } from "../../components/round/HeroCard";
+import { DayStrip } from "../../components/round/DayStrip";
+import { SessionCard, type SessionState } from "../../components/round/SessionCard";
+import { ProgressRing } from "../../components/round/ProgressRing";
+import { StepChip } from "../../components/round/StepChip";
+import { GemIcon } from "../../components/round/GemIcon";
+import { ShiftOrb } from "../../components/round/ShiftOrb";
+import { Icon, type IconName } from "../../components/round/Icons";
+import { SHIFT_TAB_BAR_HEIGHT, shiftTabBarBottom } from "../../components/round/ShiftTabBar";
 
-const TAB_BAR_SPACE = 64;
+/** Public project titles from earlier shifts (titles only: students are minors). */
+const ALUMNI = ["Magnified Lens", "TradBid", "ปฏิทิน กสพท70"] as const;
+const OUTCOMES: CopyKey[] = ["landing.outcome.1", "landing.outcome.2", "landing.outcome.3"];
 
-function trailItems(missions: Mission[], bundle: HomeBundle, currentKey: string | null, t: (k: CopyKey, p?: Record<string, string | number>) => string): TrailItem[] {
-  return missions.map((m) => {
-    const display = missionDisplay(m, bundle.evidence);
-    const have = m.parts.reduce((s, p) => s + Math.min(p.have, p.need), 0);
-    const need = m.parts.reduce((s, p) => s + p.need, 0);
-    const stateLabel =
-      display.state === "done"
-        ? t("mission.done")
-        : m.key === currentKey
-          ? `${have}/${need}`
-          : display.state === "not_yet"
-            ? t("mission.not_yet")
-            : display.state === "credit_removed"
-              ? t("mission.needs_more", { n: display.n })
-              : `${have}/${need}`;
-    return {
-      key: m.key,
-      number: m.n,
-      title: t(missionTitleKey(m.key)),
-      stateLabel,
-      state: m.complete ? "done" : m.key === currentKey ? "current" : "todo",
-    };
-  });
+type T = (key: CopyKey, params?: CopyParams) => string;
+
+/** Space the floating tab bar takes above the safe area (RoundShell adds the safe area itself). */
+function useTabBarInset(): number {
+  const insets = useSafeAreaInsets();
+  return shiftTabBarBottom(insets.bottom) - insets.bottom + SHIFT_TAB_BAR_HEIGHT + 10;
 }
 
 export default function ShiftHomeScreen() {
@@ -65,21 +66,11 @@ export default function ShiftHomeScreen() {
   const home = useRoundHome();
   const drafts = useRoundDrafts();
   const invalidate = useInvalidateRound();
-  const reduced = useReducedMotion();
-  const [celebrate, setCelebrate] = useState(false);
-
+  const bottomInset = useTabBarInset();
   const bundle = home.data?.bundle ?? null;
-  const certId = bundle?.certificate?.status === "issued" ? bundle.certificate.id : null;
-  useEffect(() => {
-    if (!certId || !userId) return;
-    const key = `round:celebrated:${userId}:${certId}`;
-    void shiftStorage.getItem(key).then((seen) => {
-      if (!seen) {
-        setCelebrate(true);
-        void shiftStorage.setItem(key, "1");
-      }
-    });
-  }, [certId, userId]);
+  // Unsent work for this entry: drafts and failed sends, fixed from the log screen.
+  const draftCount = (drafts.data ?? []).filter((d) => d.entry_id === bundle?.entry?.id).length;
+  const now = useRoundNow(bundle?.now, home.dataUpdatedAt, 30_000, home.data?.fromCache);
 
   const waitlist = useMutation({
     mutationFn: async () => {
@@ -95,83 +86,541 @@ export default function ShiftHomeScreen() {
     router.push("/sign-in");
   };
 
-  if (isGuest || !userId) {
-    return (
-      <RoundShell bottomInset={TAB_BAR_SPACE} dock={<PillowButton label={t("ui.sign_in")} icon="person" onPress={goSignIn} />}>
-        <Tag label="SHIFT" />
-        <RText variant="display" accessibilityRole="header">
-          {t("home.guest")}
-        </RText>
-        <RText variant="body">{t("signin.hackathon")}</RText>
-      </RoundShell>
-    );
-  }
+  const signedIn = !!userId && !isGuest;
+  const view = homeView({
+    signedIn,
+    bundle,
+    error: !bundle && home.error ? errorOf(home.error) : null,
+    pending: signedIn && home.isPending,
+  });
 
-  if (home.isPending) {
+  const refresh = signedIn ? { refreshing: home.isRefetching, onRefresh: () => void home.refetch() } : {};
+
+  if (view.kind === "loading") {
     return (
-      <RoundShell bottomInset={TAB_BAR_SPACE}>
+      <RoundShell bottomInset={bottomInset}>
         <HomeSkeleton />
       </RoundShell>
     );
   }
 
-  if (home.isError || !bundle) {
-    const error = errorOf(home.error);
+  /** Runs a landing call to action (sign in, join, apply on the web, waitlist). */
+  const runCta = (cta: LandingCta, _round: JoinableRound | null) => {
+    if (cta.kind === "sign_in") return goSignIn();
+    if (cta.kind === "join") return router.push({ pathname: "/round/join", params: { r: cta.roundId } });
+    if (cta.kind === "waitlist") return waitlist.mutate();
+    const base = bundle?.flags.web_base_url ?? "https://www.passionseed.org";
+    // No fallback to the shown round: a null number means "the next open cohort" (the shown one is closed).
+    void WebBrowser.openBrowserAsync(applyUrl(base, cta.number ?? null)).catch(() => {});
+  };
+
+  if (view.kind === "guest" || view.kind === "landing") {
+    const landing = view.landing;
     return (
-      <RoundShell
-        bottomInset={TAB_BAR_SPACE}
-        dock={
-          needsSignIn(error) ? (
-            <PillowButton label={t("ui.sign_in")} icon="person" onPress={goSignIn} />
-          ) : (
-            <PillowButton label={t("ui.retry")} icon="chevron" onPress={() => void home.refetch()} busy={home.isFetching} />
-          )
-        }
-      >
-        <Tag label="SHIFT" />
-        <Banner tone={error.category === "offline" ? "violet" : "warning"} text={errorCopy(lang, error)} />
+      <RoundShell bottomInset={bottomInset} dock={<LandingDock landing={landing} t={t} busy={waitlist.isPending} onCta={runCta} done={waitlist.isSuccess} />} {...refresh}>
+        <LandingBody
+          landing={landing}
+          bundle={bundle}
+          lang={lang}
+          t={t}
+          waitlistDone={waitlist.isSuccess}
+          waitlistError={waitlist.isError ? errorCopy(lang, waitlist.error as never) : null}
+          fromCache={!!home.data?.fromCache}
+          onRetry={() => void home.refetch()}
+        />
       </RoundShell>
     );
   }
 
-  const state = homeState(bundle);
-  const round = bundle.round;
-  const flags = bundle.flags;
-  const title = round ? (lang === "en" ? round.title_en : round.title_th) : "";
-  const brief = round ? (lang === "en" ? round.brief_en : round.brief_th) : "";
-  const missions = orderedMissions(bundle.missions);
-  const next = nextAction(bundle.missions, { voiceEnabled: flags.transcription_enabled });
-  const attention = needsAttention(bundle, bundle.now);
-  const discordUrl = round?.discord_url ?? null;
-  const pendingDrafts = (drafts.data ?? []).filter((d) => d.entry_id === bundle.entry?.id);
-  const closing = lastHours(bundle, 24);
-  const emergency = flags.emergency_message;
+  // Entry states: a bundle with entry and round exists from here on.
+  const b = bundle!;
+  const round = b.round!;
+  const banners = <HomeBanners bundle={b} now={now} lang={lang} t={t} fromCache={!!home.data?.fromCache} />;
+  const attention = <Attention bundle={b} now={now} t={t} />;
+  const squad = <HomeSquad bundle={b} lang={lang} t={t} />;
+  const footer = <DiscordFooter url={round.discord_url} label={t("footer.discord")} />;
+  const openComposer = (type?: string) => router.push(type ? { pathname: "/round/capture", params: { type } } : "/round/capture");
 
-  const header = round ? (
-    <View style={{ gap: 8 }}>
+  if (view.kind === "active") {
+    const m = activeModel(b, now, lang)!;
+    return (
+      <RoundShell
+        bottomInset={bottomInset}
+        {...refresh}
+        dock={
+          <PillowButton
+            label={t(m.pillow.labelKey)}
+            icon={m.pillow.icon}
+            onPress={() => openComposer(m.pillow.type)}
+            accessibilityHint={t(m.pillow.hintKey, m.pillow.hintParams)}
+          />
+        }
+      >
+        <ActiveBody m={m} bundle={b} now={now} lang={lang} t={t} banners={banners} squad={squad} footer={footer} draftCount={draftCount} />
+      </RoundShell>
+    );
+  }
+
+  if (view.kind === "pre_start") {
+    const m = preStartModel(b, lang)!;
+    const left = countdown(now, m.startsAt);
+    const first = m.first ? new Date(m.first.start) : new Date(m.startsAt);
+    return (
+      <RoundShell
+        bottomInset={bottomInset}
+        {...refresh}
+        dock={
+          round.discord_url ? (
+            <PillowButton label={t("home.discord")} icon="chat" onPress={() => void Linking.openURL(round.discord_url!)} />
+          ) : (
+            <PillowButton label={t("home.cta.ideas")} icon="pencil" onPress={() => openComposer("ideas")} />
+          )
+        }
+      >
+        <View style={styles.kicker}>
+          <Tag label={m.tag} />
+          <RText variant="meta">{formatDateRange(round.starts_at, round.closes_at, lang)}</RText>
+        </View>
+        <RText variant="display" accessibilityRole="header" style={styles.title}>
+          {m.title}
+        </RText>
+        {banners}
+        <HeroCard watermark="1">
+          <Tag label={t("day.tag", { d: 1 })} />
+          <RText variant="h3" style={styles.heroText}>
+            {t("home.pre.first_session", { weekday: formatWeekday(first, lang), date: formatDate(first, lang), time: formatTime(first) })}
+          </RText>
+          <RText variant="label" color={Violet[700]}>
+            {t("home.pre.countdown", { countdown: formatCountdown(left, lang) })}
+          </RText>
+        </HeroCard>
+        <GlassCard style={styles.stack}>
+          <RText variant="label">{t("home.pre.homework.title")}</RText>
+          <RText variant="body">{t("home.pre.homework.body")}</RText>
+          <View style={styles.start}>
+            <TextButton label={t("home.pre.homework.cta")} icon="pencil" onPress={() => openComposer("ideas")} />
+          </View>
+        </GlassCard>
+        {attention}
+        {squad}
+        {footer}
+      </RoundShell>
+    );
+  }
+
+  // 5. After the round: review, overdue, not eligible, certificate.
+  const total = missionsTotal(b.missions);
+  const done = b.missions?.missions_complete ?? 0;
+  const people = b.missions?.people_talked_to ?? 0;
+  let hero: React.ReactNode = null;
+  let dock: React.ReactNode = null;
+  let next: Landing | null = null;
+  /** The next-round card carries its own action unless the Pillow already does. */
+  let nextAction = true;
+  if (view.kind === "review" || view.kind === "review_overdue") {
+    const when = dateTimeDisplay(round.review_ends_at, lang);
+    hero = (
+      <HeroCard>
+        <RText variant="title">{t("home.review.title")}</RText>
+        <RText variant="body" style={styles.heroBody}>
+          {view.kind === "review_overdue"
+            ? t("home.review.overdue")
+            : b.missions?.eligible
+              ? t("home.review.body", when)
+              : t("home.review.incomplete", { n: done, total, ...when })}
+        </RText>
+        <RText variant="meta">{t("home.people", { n: people })}</RText>
+      </HeroCard>
+    );
+  } else if (view.kind === "not_eligible") {
+    next = view.next;
+    hero = (
+      <HeroCard>
+        <RText variant="title">{t("home.not_eligible.title", { n: done, total })}</RText>
+        <RText variant="body" style={styles.heroBody}>
+          {t("home.not_eligible.body", { people })}
+        </RText>
+      </HeroCard>
+    );
+    dock = next.cta ? <LandingDock landing={next} t={t} busy={waitlist.isPending} onCta={runCta} done={waitlist.isSuccess} /> : null;
+    nextAction = false;
+  } else if (view.kind === "cert_issued") {
+    next = view.next;
+    hero = <CertHero bundle={b} lang={lang} t={t} userId={userId} people={people} />;
+    dock = <PillowButton label={t("home.cert.issued.cta")} icon="share" onPress={() => router.push("/round/certificate")} />;
+  } else if (view.kind === "cert_revoked") {
+    next = view.next;
+    hero = (
+      <HeroCard>
+        <RText variant="title">{t("cert.revoked.title")}</RText>
+        <RText variant="body" style={styles.heroBody}>
+          {t("home.cert.revoked", { date: formatDate(b.certificate?.revoked_at ?? b.now, lang) })}
+        </RText>
+      </HeroCard>
+    );
+  }
+  const finalSteps = stepsModel(b.missions, { lang, day: currentDay(round, now) });
+  return (
+    <RoundShell bottomInset={bottomInset} dock={dock} {...refresh}>
       <View style={styles.kicker}>
         <Tag label={t("round.tag", { n: round.number })} />
-        {round.phase === "active" || round.phase === "upcoming" ? (
-          <RText variant="meta" color={closing ? Violet[700] : Ink.tertiary} weight={closing ? "700" : "500"}>
-            {closing ? t("home.last_hours", closing) : t("home.closes", closeDisplay(round.closes_at, lang))}
-          </RText>
-        ) : null}
+        <RText variant="meta">{formatDateRange(round.starts_at, round.closes_at, lang)}</RText>
       </View>
-      <RText variant="display" accessibilityRole="header">
-        {title}
+      <RText variant="display" accessibilityRole="header" style={styles.title}>
+        {(lang === "en" ? round.title_en || round.title_th : round.title_th || round.title_en) || t("round.tag", { n: round.number })}
       </RText>
-      {round.phase === "active" ? (
-        <View style={styles.progress}>
-          <RText variant="meta">{t("home.day", { d: Math.max(1, round.day), total: round.duration_days })}</RText>
-          <View style={styles.track} accessibilityElementsHidden>
-            <View style={[styles.fill, { width: `${Math.min(100, Math.max(4, (round.day / round.duration_days) * 100))}%` }]} />
-          </View>
+      {banners}
+      {attention}
+      {hero}
+      <StepsCard done={stepsDone(finalSteps)} total={finalSteps.length} line={t("home.missions_done", { n: done })} t={t} />
+      {next ? <NextRoundCard landing={next} lang={lang} t={t} onCta={nextAction ? runCta : null} /> : null}
+      {squad}
+      {footer}
+    </RoundShell>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Landing (states 1 and 2)
+// ---------------------------------------------------------------------------
+
+function ctaLabel(cta: LandingCta, t: T): { label: string; icon: IconName } {
+  switch (cta.kind) {
+    case "sign_in":
+      return { label: t("ui.sign_in"), icon: "person" };
+    case "join":
+      return { label: t("landing.join", { n: cta.number }), icon: "arrow" };
+    case "waitlist":
+      return { label: t("landing.notify"), icon: "bell" };
+    case "apply":
+      return { label: cta.number === null ? t("landing.apply_next") : t("landing.apply", { n: cta.number }), icon: "arrow" };
+  }
+}
+
+function LandingDock({
+  landing,
+  t,
+  busy,
+  done,
+  onCta,
+}: {
+  landing: Landing;
+  t: T;
+  busy: boolean;
+  done: boolean;
+  onCta: (cta: LandingCta, round: JoinableRound | null) => void;
+}) {
+  const cta = landing.cta && !(landing.cta.kind === "waitlist" && done) ? landing.cta : null;
+  if (!cta && !landing.inviteLink) return null;
+  const { label, icon } = cta ? ctaLabel(cta, t) : { label: "", icon: "arrow" as IconName };
+  return (
+    <View style={styles.dock}>
+      {cta ? <PillowButton label={label} icon={icon} busy={cta.kind === "waitlist" && busy} onPress={() => onCta(cta, landing.round)} /> : null}
+      {landing.inviteLink ? (
+        <View style={styles.center}>
+          <TextButton
+            label={t("landing.invite")}
+            onPress={() => router.push(landing.round ? { pathname: "/round/join", params: { r: landing.round.round_id } } : "/round/join")}
+          />
         </View>
       ) : null}
     </View>
-  ) : null;
+  );
+}
 
-  const banners = (
+function LandingBody({
+  landing,
+  bundle,
+  lang,
+  t,
+  waitlistDone,
+  waitlistError,
+  fromCache,
+  onRetry,
+}: {
+  landing: Landing;
+  bundle: HomeBundle | null;
+  lang: Lang;
+  t: T;
+  waitlistDone: boolean;
+  waitlistError: string | null;
+  fromCache: boolean;
+  onRetry: () => void;
+}) {
+  const days = landing.round?.duration_days ?? DEFAULT_DURATION_DAYS;
+  const emergency = bundle?.flags.emergency_message;
+  return (
+    <>
+      <View style={styles.orb}>
+        <ShiftOrb size={156} subtitle={t("landing.wordmark_sub", { days })} />
+      </View>
+      <RText variant="display" accessibilityRole="header" style={styles.landingTitle}>
+        {t("landing.title")}
+      </RText>
+      {emergency && (emergency.th || emergency.en) ? (
+        <Banner
+          tone="warning"
+          text={(lang === "en" ? emergency.en : emergency.th) ?? emergency.th ?? emergency.en ?? ""}
+          actionLabel={emergency.url ? t("ui.emergency.more") : undefined}
+          onAction={emergency.url ? () => void Linking.openURL(emergency.url!) : undefined}
+        />
+      ) : null}
+      {fromCache && landing.notice !== "offline" ? <Banner tone="violet" text={t("home.offline")} /> : null}
+      <LandingNotice landing={landing} bundle={bundle} t={t} onRetry={onRetry} />
+      <RoundLine landing={landing} lang={lang} t={t} waitlistDone={waitlistDone} />
+      {waitlistError ? <Banner tone="error" text={waitlistError} /> : null}
+      <RText variant="label" style={styles.section}>
+        {t("landing.outcomes")}
+      </RText>
+      <GlassCard padding={6} style={styles.outcomes}>
+        {OUTCOMES.map((key, i) => (
+          <View key={key} style={[styles.outcome, i > 0 && styles.outcomeLine]}>
+            <View style={styles.num}>
+              <RText variant="label" latin color={Violet[700]} style={styles.numText}>
+                {String(i + 1)}
+              </RText>
+            </View>
+            <RText variant="body" color={Ink.primary} style={styles.flex}>
+              {t(key)}
+            </RText>
+          </View>
+        ))}
+      </GlassCard>
+      <RText variant="label" style={styles.section}>
+        {t("landing.alumni")}
+      </RText>
+      <View style={styles.alumni}>
+        {ALUMNI.map((title) => (
+          <GlassCard key={title} padding={12} style={styles.alumniChip}>
+            <RText variant="label" style={styles.alumniText}>
+              {title}
+            </RText>
+          </GlassCard>
+        ))}
+      </View>
+    </>
+  );
+}
+
+function LandingNotice({ landing, bundle, t, onRetry }: { landing: Landing; bundle: HomeBundle | null; t: T; onRetry: () => void }) {
+  switch (landing.notice) {
+    case "offline":
+      return <Banner tone="violet" text={t("home.offline")} />;
+    case "retry":
+      return <Banner tone="warning" text={t("error.retryable")} actionLabel={t("ui.retry")} onAction={onRetry} />;
+    case "join_closed":
+      return <Banner tone="violet" text={t("home.join_closed", { day: bundle?.round?.join_cutoff_day ?? 2 })} />;
+    case "enrollment_paused":
+      return <Banner tone="warning" text={t("error.enrollment_paused")} />;
+    case "already_in_round":
+      return <Banner tone="violet" text={t("landing.already")} />;
+    case "invite_only":
+      return <Banner tone="violet" text={t("home.invite_only")} />;
+    default:
+      return null;
+  }
+}
+
+/** The next shift: SHIFT[N] · dates and the session time, or "coming soon" with the waitlist state. */
+function RoundLine({ landing, lang, t, waitlistDone }: { landing: Landing; lang: Lang; t: T; waitlistDone: boolean }) {
+  const round = landing.round;
+  let title: string;
+  let meta: string | null;
+  if (round) {
+    title = t("landing.round", { n: round.number, dates: formatDateRange(round.starts_at, round.closes_at, lang) });
+    meta = t("landing.round_line", { time: sessionSummary(round).time });
+  } else if (landing.source === "builtin") {
+    title = t("landing.builtin_round", { days: DEFAULT_DURATION_DAYS });
+    meta = t("landing.round_line", { time: DEFAULT_SESSION_START });
+  } else {
+    title = t("landing.no_round");
+    meta =
+      landing.onWaitlist || waitlistDone
+        ? t("home.no_round.notified")
+        : landing.nextRound
+          ? t("home.no_round.body", { date: formatDate(landing.nextRound.starts_at, lang) })
+          : null;
+  }
+  return (
+    <GlassCard style={styles.row} padding={14}>
+      <GemIcon icon={round || landing.source === "builtin" ? "calendar" : "bell"} shape="tile" size={42} iconSize={19} />
+      <View style={styles.flex}>
+        <RText variant="label">{title}</RText>
+        {meta ? <RText variant="meta">{meta}</RText> : null}
+      </View>
+    </GlassCard>
+  );
+}
+
+function NextRoundCard({
+  landing,
+  lang,
+  t,
+  onCta,
+}: {
+  landing: Landing;
+  lang: Lang;
+  t: T;
+  onCta: ((cta: LandingCta, round: JoinableRound | null) => void) | null;
+}) {
+  if (!landing.round) return null;
+  const cta = onCta ? landing.cta : null;
+  return (
+    <View style={styles.stack}>
+      <RText variant="label" style={styles.section}>
+        {t("home.next_round")}
+      </RText>
+      <RoundLine landing={landing} lang={lang} t={t} waitlistDone={false} />
+      {cta && cta.kind !== "sign_in" ? (
+        <View style={styles.start}>
+          <TextButton label={ctaLabel(cta, t).label} icon="chevron" onPress={() => onCta?.(cta, landing.round)} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Active (state 4, mockup B)
+// ---------------------------------------------------------------------------
+
+function sessionCard(m: ActiveModel, bundle: HomeBundle, now: number, lang: Lang, t: T) {
+  const round = bundle.round!;
+  const discord = round.discord_url;
+  const join = discord ? { actionLabel: t("home.discord"), onAction: () => void Linking.openURL(discord) } : {};
+  const s = m.session;
+  const props: { state: SessionState; title: string; subtitle: string; actionLabel?: string; onAction?: () => void } =
+    s.kind === "upcoming"
+      ? {
+          state: "upcoming",
+          title: t("home.session.upcoming", { time: round.session_start }),
+          subtitle: t("home.session.starts_in", { countdown: formatCountdown(countdown(now, s.window.start), lang) }),
+          ...join,
+        }
+      : s.kind === "live"
+        ? { state: "live", title: t("home.session.live"), subtitle: t("home.session.live_sub", { start: round.session_start, end: round.session_end }), ...join }
+        : s.kind === "ended"
+          ? { state: "ended", title: t("home.session.ended"), subtitle: t("home.session.ended_sub") }
+          : { state: "none", title: t("home.session.none"), subtitle: t("home.session.none_sub") };
+  return <SessionCard {...props} />;
+}
+
+function ActiveBody({
+  m,
+  bundle,
+  now,
+  lang,
+  t,
+  banners,
+  squad,
+  footer,
+  draftCount,
+}: {
+  m: ActiveModel;
+  bundle: HomeBundle;
+  now: number;
+  lang: Lang;
+  t: T;
+  banners: React.ReactNode;
+  squad: React.ReactNode;
+  draftCount: number;
+  footer: React.ReactNode;
+}) {
+  return (
+    <>
+      <View style={styles.kicker}>
+        <Tag label={m.tag} />
+        <RText variant="meta">{m.dateLabel}</RText>
+      </View>
+      <RText variant="display" accessibilityRole="header" style={styles.title}>
+        {m.title}
+      </RText>
+      <DayStrip days={m.strip} onPress={(day) => router.push(`/round/day/${day}`)} />
+      {banners}
+      {/* A sent-back log is urgent; the optional check-in waits below today's mission. */}
+      <Attention bundle={bundle} now={now} t={t} only="rejected" />
+      {sessionCard(m, bundle, now, lang, t)}
+      <HeroCard watermark={m.hero.watermark}>
+        <Tag label={m.hero.tag} />
+        <RText variant="h3" style={styles.heroText}>
+          {m.hero.text}
+        </RText>
+        {m.hero.chips.length ? (
+          <View style={styles.chips}>
+            {m.hero.chips.map((c) => (
+              <StepChip key={c.n} label={c.label} state={c.state} />
+            ))}
+          </View>
+        ) : null}
+      </HeroCard>
+      <StepsCard
+        done={m.stepsDone}
+        total={m.steps.length}
+        line={m.nextText ? t("steps.next", { text: m.nextText }) : t("steps.all_done")}
+        t={t}
+      />
+      <Attention bundle={bundle} now={now} t={t} only="checkin" />
+      <GlassCard
+        onPress={() => router.push("/round/log")}
+        accessibilityLabel={`${t("home.logs.title")}. ${draftCount ? t("home.logs.drafts", { n: draftCount }) : t("home.logs.sub")}`}
+        style={styles.row}
+        padding={14}
+      >
+        <GemIcon icon="book" shape="tile" size={42} iconSize={19} />
+        <View style={styles.flex}>
+          <RText variant="label">{t("home.logs.title")}</RText>
+          <RText variant="meta" color={draftCount ? Violet[700] : undefined}>
+            {draftCount ? t("home.logs.drafts", { n: draftCount }) : t("home.logs.sub")}
+          </RText>
+        </View>
+        <Icon name="chevron" size={20} color={Violet[700]} />
+      </GlassCard>
+      {m.showGuide ? (
+        <GlassCard
+          onPress={() => router.push("/round/guide")}
+          accessibilityLabel={`${t("home.guide.title")}. ${t("home.guide.sub")}`}
+          style={styles.row}
+          padding={14}
+        >
+          <GemIcon icon="chat" shape="tile" size={42} iconSize={19} />
+          <View style={styles.flex}>
+            <RText variant="label">{t("home.guide.title")}</RText>
+            <RText variant="meta">{t("home.guide.sub")}</RText>
+          </View>
+          <Icon name="chevron" size={20} color={Violet[700]} />
+        </GlassCard>
+      ) : null}
+      {squad}
+      {footer}
+    </>
+  );
+}
+
+function StepsCard({ done, total, line, t }: { done: number; total: number; line: string; t: T }) {
+  const title = t("steps.title", { total });
+  return (
+    <GlassCard onPress={() => router.push("/round/steps")} accessibilityLabel={`${title}, ${done}/${total}. ${line}`} style={styles.row} padding={14}>
+      <ProgressRing value={done} total={total} />
+      <View style={styles.flex}>
+        <RText variant="label">{title}</RText>
+        <RText variant="meta" numberOfLines={2}>
+          {line}
+        </RText>
+      </View>
+      <Icon name="chevron" size={20} color={Violet[700]} />
+    </GlassCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared pieces
+// ---------------------------------------------------------------------------
+
+function HomeBanners({ bundle, now, lang, t, fromCache }: { bundle: HomeBundle; now: number; lang: Lang; t: T; fromCache: boolean }) {
+  const emergency = bundle.flags.emergency_message;
+  const closing = lastHours(bundle, 24, now);
+  const round = bundle.round;
+  return (
     <>
       {emergency && (emergency.th || emergency.en) ? (
         <Banner
@@ -181,26 +630,43 @@ export default function ShiftHomeScreen() {
           onAction={emergency.url ? () => void Linking.openURL(emergency.url!) : undefined}
         />
       ) : null}
-      {home.data?.fromCache ? <Banner tone="violet" text={t("home.offline")} /> : null}
-      {!flags.submissions_enabled && bundle.entry && round && round.phase !== "finished" ? (
+      {fromCache ? <Banner tone="violet" text={t("home.offline")} /> : null}
+      {!bundle.flags.submissions_enabled && bundle.entry && round && round.phase !== "finished" ? (
         <Banner tone="warning" text={t("home.paused_submissions")} />
       ) : null}
+      {closing ? <Banner tone="warning" text={t("home.last_hours", closing)} /> : null}
     </>
   );
+}
 
-  const attentionCard =
-    attention?.kind === "rejected" ? (
+function Attention({
+  bundle,
+  now,
+  t,
+  only,
+}: {
+  bundle: HomeBundle;
+  now: number;
+  t: T;
+  only?: "rejected" | "checkin";
+}) {
+  const attention = needsAttention(bundle, now);
+  if (only && attention?.kind !== only) return null;
+  if (attention?.kind === "rejected") {
+    const e = attention.evidence;
+    return (
       <NeedsAttention
         text={t("attention.rejected", {
-          type: t(typeKey(attention.evidence.type)),
-          reason: attention.evidence.status_reason_code
-            ? t(`reason.${attention.evidence.status_reason_code}` as CopyKey, { note: attention.evidence.status_note ?? "" })
-            : "",
+          type: t(typeKey(e.type)),
+          reason: e.status_reason_code ? t(`reason.${e.status_reason_code}` as CopyKey, { note: e.status_note ?? "" }) : "",
         })}
         actionLabel={t("attention.replace")}
-        onAction={() => router.push(`/round/evidence/${attention.evidence.id}`)}
+        onAction={() => router.push(`/round/evidence/${e.id}`)}
       />
-    ) : attention?.kind === "checkin" ? (
+    );
+  }
+  if (attention?.kind === "checkin") {
+    return (
       <NeedsAttention
         tone="violet"
         text={t("attention.checkin")}
@@ -208,228 +674,82 @@ export default function ShiftHomeScreen() {
         actionLabel={t("ui.checkin.title")}
         onAction={() => router.push({ pathname: "/round/checkin", params: { checkpoint: attention.checkpoint } })}
       />
-    ) : null;
+    );
+  }
+  return null;
+}
 
-  const squadCard = bundle.squad ? (
-    <SquadCard
-      title={t("squad.title")}
-      line={bundle.squad.latest ? feedLine(lang, bundle.squad.latest) : t("squad.icebreaker.live")}
-      initials={bundle.squad.latest ? [bundle.squad.latest.handle] : []}
-      onPress={() => router.navigate("/(tabs)/squad")}
-    />
-  ) : bundle.entry && round && round.phase !== "finished" ? (
-    <SquadCard title={t("squad.title")} line={t("squad.waiting")} initials={[]} onPress={() => router.navigate("/(tabs)/squad")} />
-  ) : null;
-
-  const trail = (
-    <View style={{ gap: 10 }}>
-      <RText variant="label">{t("ui.missions")}</RText>
-      <MissionTrail
-        items={trailItems(missions, bundle, next.kind === "log" ? next.mission : null, t)}
-        onPress={(key) => router.push(`/round/mission/${key}`)}
-      />
-      <View style={{ alignItems: "flex-start" }}>
-        <TextButton
-          label={pendingDrafts.length ? `${t("ui.see_all_logs")} (${t("log.draft")} ${pendingDrafts.length})` : t("ui.see_all_logs")}
-          icon="chevron"
-          onPress={() => router.push("/round/log")}
-        />
-      </View>
-    </View>
-  );
-
-  const openComposer = (type?: string) =>
-    router.push(type ? { pathname: "/round/capture", params: { type } } : "/round/capture");
-
-  // ---- Not joined / no round states ----
-  if (state.kind === "no_round" || state.kind === "open" || state.kind === "invite_only" || state.kind === "join_closed" || state.kind === "already_in_round") {
-    const joinable = state.kind === "no_round" ? null : state.joinable;
-    let dock: React.ReactNode = null;
-    let body: React.ReactNode = null;
-    if (state.kind === "no_round") {
-      body = (
-        <Card style={{ gap: 8 }}>
-          <RText variant="title">{t("home.no_round.title")}</RText>
-          <RText variant="body">
-            {state.nextRound ? t("home.no_round.body", { date: formatDate(state.nextRound.starts_at, lang) }) : t("home.no_round.body_unknown")}
-          </RText>
-          {state.onWaitlist || waitlist.isSuccess ? (
-            <RText variant="label" color={Violet[700]}>
-              {t("home.no_round.notified")}
-            </RText>
-          ) : null}
-          {waitlist.isError ? <Banner tone="error" text={errorCopy(lang, waitlist.error as never)} /> : null}
-        </Card>
-      );
-      if (!state.onWaitlist && !waitlist.isSuccess) {
-        dock = <PillowButton label={t("home.no_round.notify")} icon="send" busy={waitlist.isPending} onPress={() => waitlist.mutate()} />;
-      }
-    } else if (joinable) {
-      body = (
-        <Card style={{ gap: 8 }}>
-          <Tag label={t("round.tag", { n: joinable.number })} />
-          <RText variant="title">{t("home.open.title", { n: joinable.number })}</RText>
-          <RText variant="h3">{lang === "en" ? joinable.title_en : joinable.title_th}</RText>
-          {brief ? <RText variant="body">{brief}</RText> : null}
-          {state.kind === "open" ? <RText variant="meta">{t("home.open.join_by", { date: formatDate(joinable.join_by, lang) })}</RText> : null}
-          {state.kind === "invite_only" ? <Banner tone="violet" text={t("home.invite_only")} /> : null}
-          {state.kind === "join_closed" ? <Banner tone="violet" text={t("home.join_closed", { day: state.day })} /> : null}
-          {state.kind === "already_in_round" ? <Banner tone="violet" text={t("error.already_in_active_round", { n: round?.number ?? "" })} /> : null}
-        </Card>
-      );
-      if (state.kind === "open" && flags.enrollment_enabled) {
-        dock = (
-          <PillowButton
-            label={t("home.open.cta")}
-            icon="plus"
-            onPress={() => router.push({ pathname: "/round/join", params: { r: joinable.round_id } })}
-          />
-        );
-      }
-    }
+function HomeSquad({ bundle, lang, t }: { bundle: HomeBundle; lang: Lang; t: T }) {
+  const open = () => router.navigate("/(tabs)/squad");
+  if (bundle.squad) {
+    const latest = bundle.squad.latest;
     return (
-      <RoundShell bottomInset={TAB_BAR_SPACE} dock={dock} refreshing={home.isRefetching} onRefresh={() => void home.refetch()}>
-        <Tag label="SHIFT" />
-        {banners}
-        {state.kind === "open" && !flags.enrollment_enabled ? <Banner tone="warning" text={t("error.enrollment_paused")} /> : null}
-        {body}
-        {bundle.past_certificates?.length ? (
-          <Card style={{ gap: 6 }}>
-            <RText variant="label">{t("profile.certificates")}</RText>
-            {bundle.past_certificates.map((c) => (
-              <TextButton
-                key={c.public_id}
-                label={`${t("round.tag", { n: c.round_number })} · ${c.status === "issued" ? t("ui.cert.valid") : t("ui.cert.revoked")}`}
-                onPress={() => void Linking.openURL(c.verify_url)}
-                icon="link"
-              />
-            ))}
-          </Card>
-        ) : null}
-        <DiscordFooter url={discordUrl} label={t("footer.discord")} />
-      </RoundShell>
-    );
-  }
-
-  // ---- Entry states ----
-  let main: React.ReactNode = null;
-  let dock: React.ReactNode = null;
-  const missionsDone = bundle.missions?.missions_complete ?? 0;
-  const people = bundle.missions?.people_talked_to ?? 0;
-
-  if (state.kind === "active" || state.kind === "pre_start") {
-    if (next.kind === "log") {
-      const mission = missions.find((m) => m.key === next.mission)!;
-      main = (
-        <NextMissionCard
-          tag={t("mission.tag", { n: next.missionNumber })}
-          count={t("home.missions_done", { n: missionsDone })}
-          title={t(missionTitleKey(mission.key))}
-          body={t(next.copyKey, next.params)}
-          slots={next.slots}
-          slotLabel={(n) => t("ui.slot", { n })}
-          filledLabel={t("mission.done")}
-          footer={
-            state.kind === "pre_start" && round ? (
-              <RText variant="meta" color={Violet[700]}>
-                {t("home.pre_start", { countdown: formatCountdown(countdown(bundle.now, round.starts_at), lang) })}
-              </RText>
-            ) : null
-          }
-        />
-      );
-      dock = (
-        <PillowButton
-          label={next.voice ? t("home.cta.voice") : t("home.cta.log")}
-          icon={next.voice ? "mic" : "pencil"}
-          onPress={() => openComposer(next.type)}
-          accessibilityHint={t(next.copyKey, next.params)}
-        />
-      );
-    } else {
-      main = (
-        <Card style={{ gap: 8 }}>
-          <Tag label={t("home.missions_done", { n: 6 })} tone="success" />
-          <RText variant="title">{t("cert.celebrate")}</RText>
-          <RText variant="body">{t("home.next.all_done")}</RText>
-        </Card>
-      );
-      dock = <PillowButton label={t("log.add")} icon="plus" onPress={() => openComposer()} />;
-    }
-  } else if (state.kind === "review" || state.kind === "review_overdue") {
-    const when = round ? dateTimeDisplay(round.review_ends_at, lang) : { date: "", time: "" };
-    main = (
-      <Card style={{ gap: 8 }}>
-        <RText variant="title">{t("home.review.title")}</RText>
-        <RText variant="body">
-          {state.kind === "review_overdue"
-            ? t("home.review.overdue")
-            : bundle.missions?.eligible
-              ? t("home.review.body", when)
-              : t("home.review.incomplete", { n: missionsDone, ...when })}
-        </RText>
-      </Card>
-    );
-  } else if (state.kind === "not_eligible") {
-    main = (
-      <Card style={{ gap: 8 }}>
-        <RText variant="title">{t("home.not_eligible.title", { n: missionsDone })}</RText>
-        <RText variant="body">{t("home.not_eligible.body", { people })}</RText>
-      </Card>
-    );
-    const nextOpen = bundle.joinable?.find((j) => j.can_join);
-    dock = (
-      <PillowButton
-        label={t("home.not_eligible.cta")}
-        icon="chevron"
-        onPress={() =>
-          nextOpen ? router.push({ pathname: "/round/join", params: { r: nextOpen.round_id } }) : waitlist.mutate()
-        }
-        busy={waitlist.isPending}
+      <SquadCard
+        title={t("squad.title")}
+        line={latest ? feedLine(lang, latest, bundle.missions) : t("squad.icebreaker.live")}
+        initials={latest ? [latest.handle] : []}
+        onPress={open}
       />
     );
-  } else if (state.kind === "cert_issued") {
-    main = (
-      <Animated.View entering={celebrate && !reduced ? FadeIn.duration(500) : undefined}>
-        <Card style={{ gap: 8 }}>
-          {celebrate ? <Tag label={t("cert.celebrate")} tone="success" /> : null}
-          <RText variant="title">{t("home.cert.issued.title")}</RText>
-          <RText variant="body">{t("home.people", { n: people })}</RText>
-        </Card>
-      </Animated.View>
-    );
-    dock = <PillowButton label={t("home.cert.issued.cta")} icon="share" onPress={() => router.push("/round/certificate")} />;
-  } else if (state.kind === "cert_revoked") {
-    main = (
-      <Card style={{ gap: 8 }}>
-        <RText variant="title">{t("cert.revoked.title")}</RText>
-        <RText variant="body">{t("home.cert.revoked", { date: formatDate(bundle.certificate?.revoked_at ?? bundle.now, lang) })}</RText>
-      </Card>
-    );
   }
+  if (bundle.entry && bundle.round && bundle.round.phase !== "finished") {
+    return <SquadCard title={t("squad.title")} line={t("squad.waiting")} initials={[]} onPress={open} />;
+  }
+  return null;
+}
 
+function CertHero({ bundle, lang, t, userId, people }: { bundle: HomeBundle; lang: Lang; t: T; userId: string; people: number }) {
+  const reduced = useReducedMotion();
+  const [celebrate, setCelebrate] = useState(false);
+  const certId = bundle.certificate?.status === "issued" ? bundle.certificate.id : null;
+  useEffect(() => {
+    if (!certId || !userId) return;
+    const key = `round:celebrated:${userId}:${certId}`;
+    void shiftStorage.getItem(key).then((seen) => {
+      if (!seen) {
+        setCelebrate(true);
+        void shiftStorage.setItem(key, "1");
+      }
+    });
+  }, [certId, userId]);
+  const issued = bundle.certificate?.issued_at;
   return (
-    <RoundShell bottomInset={TAB_BAR_SPACE} dock={dock} refreshing={home.isRefetching} onRefresh={() => void home.refetch()}>
-      {header}
-      {banners}
-      {attentionCard}
-      {main}
-      {bundle.entry && (state.kind === "active" || state.kind === "pre_start") ? (
-        <View style={{ gap: 2 }}>
-          <RText variant="small">{t("home.people", { n: people })}</RText>
-          <RText variant="meta">{t("home.review_note")}</RText>
-        </View>
-      ) : null}
-      {squadCard}
-      {trail}
-      <DiscordFooter url={discordUrl} label={t("footer.discord")} />
-    </RoundShell>
+    <Animated.View entering={celebrate && !reduced ? FadeIn.duration(500) : undefined}>
+      <HeroCard watermark={String(bundle.round?.number ?? "")}>
+        {celebrate ? <Tag label={t("cert.celebrate")} tone="success" /> : null}
+        <RText variant="title" style={celebrate ? styles.heroText : undefined}>
+          {t("home.cert.issued.title")}
+        </RText>
+        <RText variant="body" style={styles.heroBody}>
+          {t("home.people", { n: people })}
+        </RText>
+        {issued ? <RText variant="meta">{formatDate(issued, lang)}</RText> : null}
+      </HeroCard>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   kicker: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
-  progress: { flexDirection: "row", alignItems: "center", gap: 10 },
-  track: { flex: 1, height: 6, borderRadius: 6, backgroundColor: Violet[100], overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 6, backgroundColor: Violet[600] },
+  title: { fontSize: 26, lineHeight: 34, fontWeight: "600" },
+  landingTitle: { fontSize: 24, lineHeight: 34, textAlign: "center" },
+  orb: { alignItems: "center", paddingTop: 4 },
+  heroText: { marginTop: 10, marginBottom: 4, lineHeight: 27 },
+  heroBody: { marginTop: 6 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  stack: { gap: 8 },
+  start: { alignItems: "flex-start" },
+  center: { alignItems: "center" },
+  flex: { flex: 1, minWidth: 0 },
+  dock: { gap: 4 },
+  section: { marginTop: 6, marginHorizontal: 2 },
+  outcomes: { paddingHorizontal: 14 },
+  outcome: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 10 },
+  outcomeLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(109,63,240,0.12)" },
+  num: { width: 26, height: 26, borderRadius: 9, backgroundColor: Violet[50], alignItems: "center", justifyContent: "center" },
+  numText: { fontSize: 12, lineHeight: 16 },
+  alumni: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  alumniChip: { borderRadius: 16 },
+  alumniText: { fontSize: 14 },
 });

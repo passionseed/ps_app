@@ -6,14 +6,18 @@ import { Ink, Violet } from "../../lib/theme";
 import { roundApi } from "../../lib/round/api";
 import { errorCopy } from "../../lib/round/copy";
 import { useRoundHome, useRoundLang, useRoundUser } from "../../lib/round/hooks";
+import { missionForType } from "../../lib/round/missions";
 import { roundKeys } from "../../lib/round/queryCore";
 import { LINK_PATTERN } from "../../lib/round/schema";
 import type { PublicCounts } from "../../lib/round/types";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
 import { PillowButton } from "../../components/round/PillowButton";
-import { Banner, Card, Checkbox, Field, IconButton, RTextInput, TextButton } from "../../components/round/primitives";
+import { Banner, Checkbox, Field, IconButton, RTextInput, Tag, TextButton } from "../../components/round/primitives";
 import { ListSkeleton } from "../../components/round/Skeleton";
+import { GlassCard } from "../../components/round/GlassCard";
+import { HeroCard } from "../../components/round/HeroCard";
+import { StepChip } from "../../components/round/StepChip";
 
 export default function SummaryScreen() {
   const { userId } = useRoundUser();
@@ -51,7 +55,9 @@ export default function SummaryScreen() {
   if (!entry || !bundle) {
     return (
       <RoundShell>
-        <IconButton icon="back" label={t("ui.back")} onPress={close} />
+        <View style={styles.top}>
+          <IconButton icon="back" label={t("ui.back")} onPress={close} />
+        </View>
         <Banner tone="warning" text={t("error.entry_not_found")} />
       </RoundShell>
     );
@@ -104,11 +110,15 @@ export default function SummaryScreen() {
   };
 
   const people = bundle.missions?.people_talked_to ?? 0;
-  const testers = bundle.missions?.missions.find((m) => m.key === "testers")?.parts[0]?.have ?? 0;
+  const testers = missionForType(bundle.missions, "tester")?.parts.find((p) => p.type === "tester")?.have ?? 0;
+  const missionsDone = bundle.missions?.missions_complete ?? 0;
 
   return (
     <RoundShell keyboard dock={<PillowButton label={t("summary.submit")} icon="send" busy={busy} onPress={() => void submit()} />}>
-      <IconButton icon="back" label={t("ui.back")} onPress={close} />
+      <View style={styles.top}>
+        <IconButton icon="back" label={t("ui.back")} onPress={close} />
+        {bundle.round ? <Tag label={t("round.tag", { n: bundle.round.number })} /> : null}
+      </View>
       <RText variant="display" accessibilityRole="header">
         {t("summary.cta")}
       </RText>
@@ -118,23 +128,27 @@ export default function SummaryScreen() {
         <TextButton label={entry.summary_public ? t("summary.hide") : t("summary.show")} onPress={() => void togglePublic()} disabled={busy} />
       ) : null}
 
-      <Field label={t("summary.title")} error={errors.title}>
-        <RTextInput value={title} onChangeText={setTitle} maxLength={80} accessibilityLabel={t("summary.title")} invalid={!!errors.title} />
-      </Field>
-      <Field label={t("summary.description")} error={errors.description}>
-        <RTextInput value={description} onChangeText={setDescription} multiline maxLength={600} accessibilityLabel={t("summary.description")} invalid={!!errors.description} />
-      </Field>
-      <Field label={t("summary.demo_url")} error={errors.demo_url}>
-        <RTextInput value={demoUrl} onChangeText={setDemoUrl} autoCapitalize="none" keyboardType="url" placeholder="https://" accessibilityLabel={t("summary.demo_url")} invalid={!!errors.demo_url} />
-      </Field>
-      <Field label={t("summary.counts")}>
-        <Checkbox checked={counts.people_talked_to} label={t("ui.summary.counts.people")} onChange={(v) => setCounts((c) => ({ ...c, people_talked_to: v }))} />
-        <Checkbox checked={counts.testers} label={t("ui.summary.counts.testers")} onChange={(v) => setCounts((c) => ({ ...c, testers: v }))} />
-        <Checkbox checked={counts.missions} label={t("ui.summary.counts.missions")} onChange={(v) => setCounts((c) => ({ ...c, missions: v }))} />
-      </Field>
+      <GlassCard style={styles.form}>
+        <Field label={t("summary.title")} error={errors.title}>
+          <RTextInput value={title} onChangeText={setTitle} maxLength={80} accessibilityLabel={t("summary.title")} invalid={!!errors.title} />
+        </Field>
+        <Field label={t("summary.description")} error={errors.description}>
+          <RTextInput value={description} onChangeText={setDescription} multiline maxLength={600} accessibilityLabel={t("summary.description")} invalid={!!errors.description} />
+        </Field>
+        <Field label={t("summary.demo_url")} error={errors.demo_url}>
+          <RTextInput value={demoUrl} onChangeText={setDemoUrl} autoCapitalize="none" keyboardType="url" placeholder="https://" accessibilityLabel={t("summary.demo_url")} invalid={!!errors.demo_url} />
+        </Field>
+        <Field label={t("summary.counts")}>
+          <Checkbox checked={counts.people_talked_to} label={t("ui.summary.counts.people")} onChange={(v) => setCounts((c) => ({ ...c, people_talked_to: v }))} />
+          <Checkbox checked={counts.testers} label={t("ui.summary.counts.testers")} onChange={(v) => setCounts((c) => ({ ...c, testers: v }))} />
+          <Checkbox checked={counts.missions} label={t("ui.summary.counts.missions")} onChange={(v) => setCounts((c) => ({ ...c, missions: v }))} />
+        </Field>
+      </GlassCard>
 
-      <Card style={{ gap: 6 }}>
-        <RText variant="meta">{t("ui.summary.preview")}</RText>
+      <RText variant="label" style={styles.section}>
+        {t("ui.summary.preview")}
+      </RText>
+      <HeroCard style={{ gap: 8 }}>
         <RText variant="h3">{title.trim() || t("summary.title")}</RText>
         <RText variant="body">{description.trim() || t("summary.description")}</RText>
         {demoUrl.trim() ? (
@@ -143,13 +157,21 @@ export default function SummaryScreen() {
           </RText>
         ) : null}
         <View style={styles.counts}>
-          {counts.people_talked_to ? <RText variant="meta" color={Ink.secondary}>{`${t("ui.summary.counts.people")}: ${people}`}</RText> : null}
-          {counts.testers ? <RText variant="meta" color={Ink.secondary}>{`${t("ui.summary.counts.testers")}: ${testers}`}</RText> : null}
-          {counts.missions ? <RText variant="meta" color={Ink.secondary}>{`${t("ui.summary.counts.missions")}: 6`}</RText> : null}
+          {counts.people_talked_to ? <StepChip state="progress" label={`${t("ui.summary.counts.people")}: ${people}`} /> : null}
+          {counts.testers ? <StepChip state="progress" label={`${t("ui.summary.counts.testers")}: ${testers}`} /> : null}
+          {counts.missions ? <StepChip state="done" label={`${t("ui.summary.counts.missions")}: ${missionsDone}`} /> : null}
         </View>
-      </Card>
+        <RText variant="meta" color={Ink.tertiary}>
+          {bundle.certificate?.verify_url.replace(/^https:\/\//, "") ?? ""}
+        </RText>
+      </HeroCard>
     </RoundShell>
   );
 }
 
-const styles = StyleSheet.create({ counts: { gap: 2 } });
+const styles = StyleSheet.create({
+  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  form: { gap: 16 },
+  section: { marginTop: 6, marginLeft: 4 },
+  counts: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
+});

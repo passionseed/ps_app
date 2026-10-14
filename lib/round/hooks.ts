@@ -1,15 +1,13 @@
 /** React hooks for SHIFT rounds (spec 5.3). */
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { onlineManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth";
 import { t as translate, type CopyKey, type CopyParams } from "./copy";
 import { roundDrafts } from "./drafts";
 import { DEFAULT_FLAGS, fetchFlags, readCachedFlags } from "./flags";
-import { isShiftMode } from "./navigation";
-import { applyLegacyReminderGuard, readShiftLanguage } from "./push";
+import { readShiftLanguage, retireLegacyReminder } from "./push";
 import { LOCAL_QUERY_OPTIONS, loadHome, loadSquad, readCachedHasEntry, ROUND_QUERY_OPTIONS, roundKeys } from "./queryCore";
-import { hasActiveEntry } from "./next";
 import { replayPending } from "./sender";
 import type { Lang } from "./types";
 
@@ -104,10 +102,9 @@ export function useRoundBackground() {
     enabled: !!userId,
     ...ROUND_QUERY_OPTIONS,
   });
-  const active = hasActiveEntry(home.data?.bundle);
   useEffect(() => {
-    if (userId && home.data) void applyLegacyReminderGuard(userId, active);
-  }, [active, userId, home.data]);
+    void retireLegacyReminder();
+  }, []);
 
   const running = useRef(false);
   const replay = useCallback(async () => {
@@ -138,23 +135,6 @@ export function useRoundBackground() {
   }, [replay]);
 }
 
-/**
- * Whether the SHIFT entry decision must still wait (spec 5.2, X5). Flags alone do not settle
- * it: without a cached "has entry" bit we wait for home, or a SHIFT entrant whose flag is off
- * would be routed away from the SHIFT tabs.
- */
-export function shiftModePending(input: {
-  userId: string;
-  homePending: boolean;
-  cachePending: boolean;
-  cachedHasEntry: boolean | null;
-  flagsPending: boolean;
-}): boolean {
-  if (!input.userId || !input.homePending) return false;
-  if (input.cachePending || input.cachedHasEntry === null) return true;
-  return input.flagsPending;
-}
-
 /** Memoized round title in the current language. */
 export function useRoundTitle(round: { title_th: string; title_en: string } | null | undefined) {
   const { lang } = useRoundLang();
@@ -162,8 +142,9 @@ export function useRoundTitle(round: { title_th: string; title_en: string } | nu
 }
 
 /**
- * Whether SHIFT tabs are the entry (5.2): `tab_enabled` or an existing entry. Uses cached values
- * when the server is unreachable; an existing entry always keeps SHIFT tabs (X18).
+ * The app is SHIFT (scale spec D1): `shiftMode` is true for every signed-in non-hackathon user.
+ * `squadTab` is true while the user has an entry in a round and in-round features are on
+ * (`tab_enabled`, D10); cached values are used when the server is unreachable (X18).
  */
 export function useShiftMode() {
   const { userId, isGuest } = useRoundUser();
@@ -179,17 +160,36 @@ export function useShiftMode() {
   const hasEntry: boolean | null = home.data ? !!home.data.bundle.entry : cached.data?.hasEntry ?? null;
   const tabEnabled: boolean | null =
     home.data?.bundle.flags?.tab_enabled ?? flags.data?.flags?.tab_enabled ?? cached.data?.flags?.tab_enabled ?? null;
-  const pending = shiftModePending({
-    userId,
-    homePending: home.isPending,
-    cachePending: cached.isPending,
-    cachedHasEntry: cached.data?.hasEntry ?? null,
-    flagsPending: flags.isPending,
-  });
   return {
     hasEntry,
     tabEnabled,
-    pending,
-    shiftMode: !isGuest && !!userId && isShiftMode({ hasEntry, tabEnabled }),
+    pending: !!userId && home.isPending && cached.isPending,
+    shiftMode: !isGuest && !!userId,
+    squadTab: !isGuest && !!userId && hasEntry === true && tabEnabled !== false,
   };
+}
+
+/**
+ * A clock for countdowns that ticks every `intervalMs` and follows the server's clock: the offset
+ * between the bundle's `now` and the time it was fetched is applied to the device clock.
+ */
+export function useRoundNow(serverNow: string | null | undefined, fetchedAt: number, intervalMs = 30_000, fromCache = false): number {
+  const offset = useMemo(() => {
+    if (!serverNow || !fetchedAt || fromCache) return 0;
+    const server = Date.parse(serverNow);
+    return Number.isFinite(server) ? server - fetchedAt : 0;
+  }, [serverNow, fetchedAt, fromCache]);
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    setTick(Date.now());
+    const id = setInterval(() => setTick(Date.now()), intervalMs);
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") setTick(Date.now());
+    });
+    return () => {
+      clearInterval(id);
+      sub.remove();
+    };
+  }, [intervalMs]);
+  return tick + offset;
 }
