@@ -125,7 +125,7 @@ export function homeView(input: HomeInput): HomeView {
 // Active home (state 4) and pre-start (state 3) view models
 // ---------------------------------------------------------------------------
 
-export type PillowAction = {
+export type KeyAction = {
   type: EvidenceType;
   labelKey: CopyKey;
   icon: "mic" | "pencil";
@@ -134,13 +134,13 @@ export type PillowAction = {
 };
 
 /**
- * Pillow = the next incomplete mission's type; "อัปเดตวันนี้" (daily) when every mission is done,
- * or when today's update is still missing after the session time.
+ * The Shift key's action: the next incomplete mission's type; "อัปเดตวันนี้" (daily) when every
+ * mission is done, or when today's update is still missing after the session time.
  */
-export function homePillow(
+export function homeKeyAction(
   counts: MissionCounts | null | undefined,
   ctx: { round: Pick<HomeRound, "session_end">; now: string | number | Date; voiceEnabled: boolean },
-): PillowAction {
+): KeyAction {
   const next = nextAction(counts, { voiceEnabled: ctx.voiceEnabled });
   const todayLogged = counts?.daily?.today_logged ?? false;
   if (next.kind === "all_done" || (!todayLogged && afterSessionEnd(ctx.round, ctx.now))) {
@@ -178,7 +178,7 @@ export type ActiveModel = {
   /** "ถัดไป: …" line for the ring card; null when every mission is done. */
   nextText: string | null;
   showGuide: boolean;
-  pillow: PillowAction;
+  keyAction: KeyAction;
 };
 
 export function activeModel(bundle: HomeBundle, now: string | number | Date, lang: Lang): ActiveModel | null {
@@ -210,7 +210,7 @@ export function activeModel(bundle: HomeBundle, now: string | number | Date, lan
     stepsDone: stepsDone(list),
     nextText: currentStep(list) ? nextText : null,
     showGuide: showGuideCard(rawDay, counts),
-    pillow: homePillow(counts, { round, now, voiceEnabled: bundle.flags.transcription_enabled }),
+    keyAction: homeKeyAction(counts, { round, now, voiceEnabled: bundle.flags.transcription_enabled }),
   };
 }
 

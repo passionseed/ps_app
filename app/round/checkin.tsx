@@ -9,7 +9,7 @@ import { roundKeys } from "../../lib/round/queryCore";
 import type { Checkpoint } from "../../lib/round/types";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
-import { PillowButton } from "../../components/round/PillowButton";
+import { ShiftKey } from "../../components/round/Key";
 import { Banner, Field, IconButton, RTextInput, TextButton } from "../../components/round/primitives";
 import { ChipPicker } from "../../components/round/ChipPicker";
 import { GlassCard } from "../../components/round/GlassCard";
@@ -75,7 +75,7 @@ export default function CheckinScreen() {
   return (
     <RoundShell
       keyboard
-      dock={<PillowButton label={t("checkin.submit")} icon="send" busy={busy} disabled={!Object.keys(answers).length} onPress={() => void submit()} />}
+      dock={<ShiftKey label={t("checkin.submit")} icon="send" busy={busy} disabled={!Object.keys(answers).length} onPress={() => void submit()} />}
     >
       <View style={styles.top}>
         <IconButton icon="close" size={48} label={t("ui.close")} onPress={close} />

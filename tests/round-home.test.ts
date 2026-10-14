@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeModel, applyUrl, homePillow, homeView, landingFrom, preStartModel, showGuideCard, type HomeInput } from "../lib/round/home";
+import { activeModel, applyUrl, homeKeyAction, homeView, landingFrom, preStartModel, showGuideCard, type HomeInput } from "../lib/round/home";
 import type { ErrorCategory, HomeBundle, RoundError } from "../lib/round/types";
 import { allDone, bundle, counts, joinable, plan } from "./fixtures/round";
 
@@ -120,7 +120,7 @@ describe("active home model (state 4, mockup B)", () => {
     expect(m.stepsDone).toBe(4);
     expect(m.nextText).toBe("คุยกับคนจริงอีก 1 คน");
     expect(m.showGuide).toBe(true);
-    expect(m.pillow).toMatchObject({ type: "interview", labelKey: "home.cta.interview", icon: "pencil" });
+    expect(m.keyAction).toMatchObject({ type: "interview", labelKey: "home.cta.interview", icon: "pencil" });
   });
 
   it("session card: upcoming, live, ended, and no session today", () => {
@@ -146,19 +146,19 @@ describe("active home model (state 4, mockup B)", () => {
   });
 });
 
-describe("Pillow (next action)", () => {
+describe("next action (the Shift key)", () => {
   const round = { session_end: "21:00" };
   it("is the next mission's type, with voice for interviews when transcription is on", () => {
-    expect(homePillow(counts(), { round, now: DAY2_NOON, voiceEnabled: false })).toMatchObject({ type: "ideas", labelKey: "home.cta.ideas" });
-    expect(homePillow(counts({ ideas: { ideas: 1 } }), { round, now: DAY2_NOON, voiceEnabled: true })).toMatchObject({ type: "interview", icon: "mic" });
+    expect(homeKeyAction(counts(), { round, now: DAY2_NOON, voiceEnabled: false })).toMatchObject({ type: "ideas", labelKey: "home.cta.ideas" });
+    expect(homeKeyAction(counts({ ideas: { ideas: 1 } }), { round, now: DAY2_NOON, voiceEnabled: true })).toMatchObject({ type: "interview", icon: "mic" });
   });
   it("switches to today's update after the session when today is not logged, or when all missions are done", () => {
     const notLogged = counts({}, { daily: { days: 1, need: 7, today_logged: false } });
-    expect(homePillow(notLogged, { round, now: DAY2_NOON, voiceEnabled: false }).type).toBe("ideas");
-    expect(homePillow(notLogged, { round, now: DAY2_2130, voiceEnabled: false })).toMatchObject({ type: "daily", labelKey: "home.cta.daily" });
+    expect(homeKeyAction(notLogged, { round, now: DAY2_NOON, voiceEnabled: false }).type).toBe("ideas");
+    expect(homeKeyAction(notLogged, { round, now: DAY2_2130, voiceEnabled: false })).toMatchObject({ type: "daily", labelKey: "home.cta.daily" });
     const logged = counts({}, { daily: { days: 2, need: 7, today_logged: true } });
-    expect(homePillow(logged, { round, now: DAY2_2130, voiceEnabled: false }).type).toBe("ideas");
-    expect(homePillow(allDone(), { round, now: DAY2_NOON, voiceEnabled: false }).type).toBe("daily");
+    expect(homeKeyAction(logged, { round, now: DAY2_2130, voiceEnabled: false }).type).toBe("ideas");
+    expect(homeKeyAction(allDone(), { round, now: DAY2_NOON, voiceEnabled: false }).type).toBe("daily");
   });
 });
 

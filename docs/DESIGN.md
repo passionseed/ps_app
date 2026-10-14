@@ -1,9 +1,9 @@
 ---
 name: Passion Seed
 description: SHIFT app. Students run real-world projects in 7-day shifts (SHIFT[N]) with a squad and a mentor.
-version: 4
-codename: Depth
-updated: 2026-10-14
+version: 4.1
+codename: Depth (keys)
+updated: 2026-10-15
 colors:
   canvas-top: "#F1ECFF"
   canvas: "#F4F2FB"
@@ -74,15 +74,21 @@ spacing:
   xl: "20px"
   2xl: "24px"
 components:
-  button-pillow:
-    background: "linear-gradient(180deg, #FFFFFF 0%, #F6F2FF 60%, #EDE5FF 100%)"
-    textColor: "{colors.violet-700}"
-    border: "1px #D9CFFF"
-    rounded: "{rounded.full}"
-    height: "58px"
-    gem: "32px radial {colors.gem-orb}, white icon, highlight rim"
-    shadow: "inset 0 2px 0 #FFF, inset 0 -3px 8px rgba(139,107,255,.18), 0 12px 26px -8px rgba(109,63,240,.45), 0 2px 4px rgba(20,17,42,.06)"
-    pressed: "sinks 2px, shadow tightens, light haptic"
+  key-shift:
+    face: "dish 180deg #7B55FA 0%, #6338EC 34%, #6A41F0 70%, #7550F6 100%"
+    bevel: "1px top rgba(255,255,255,.55), 1px sides rgba(42,14,140,.28), 1.5px front lip rgba(205,190,255,.55)"
+    wall: "5px, #4626BE -> #2E1484 (last 16%)"
+    contact: "1px rgba(26,8,84,.4) under the wall"
+    ambient: "0 12px 16px -10px rgba(52,22,160,.6), fades while pressed"
+    legend: "white Bai Jamjuree 700 17pt, 0 1px 0 rgba(36,10,120,.4); white 2.4 icon"
+    rounded: "14px continuous"
+    height: "53px face + 5px wall"
+    pressed: "face travels 4px in 55ms, rigid haptic; springs back (mass .5, stiffness 520, damping 18: ~0.5px overshoot, settled ~200ms)"
+  key-porcelain:
+    face: "dish #FFFFFF, #F2EEFD, #F7F5FE, #FFFFFF"
+    bevel: "#FFFFFF top, #DCD4F3 sides, #FFFFFF lip"
+    wall: "#D9D0F4 -> #BFB2E6"
+    legend: "{colors.ink}, violet-700 icon"
   glass-card:
     background: "{colors.glass}"
     border: "1px {colors.glass-rim}"
@@ -102,14 +108,19 @@ components:
 # Design System: Passion Seed (v4 "Depth")
 
 Code: `lib/theme.ts` (`Violet`, `Ink`, `Surface`, `Status`, plus the v4 tokens `Canvas`, `Wash`,
-`Orb`, `Glass`, `Hero`, `Gem`, `Glow`, `Pillow`, `Dark` and the `Depth` shadows; legacy aliases
-stay). Kit: `components/round/*`. Reference mockups:
+`Orb`, `Glass`, `Hero`, `Gem`, `Glow`, `Keycap`, `KeySize`, `Dark` and the `Depth` shadows;
+legacy aliases stay). Kit: `components/round/*`. Reference mockups:
 `~/.gstack/projects/passionseed-ps_app/designs/season-home-20261012/depth-v4.html` (sign-in,
 depth language) and `shift-app-v5.html` (home states, steps, guide).
 
 Why v4: the v3 screens were built exactly as v3 said ("flat, calm surfaces everywhere else") and
 read as flat white boxes on flat lavender. v4 keeps the v3 palette, type and contrast rules and
-adds depth: a layered canvas, glass, one raised hero, glowing progress and a glossier Pillow.
+adds depth: a layered canvas, glass, one raised hero, glowing progress.
+
+Why v4.1 (keys): the v4 Pillow was a white-to-lavender pill with a violet glow. It was made of the
+same soft material as the cards and tab bar (about 1.0:1 against the canvas, a 1.3:1 rim, a 26pt
+halo and a 6% contact shadow), so it read as one more cloud, not as something to press. Buttons
+are now keycaps: the one hard, engineered object in a soft world (section 6). SHIFT is a key.
 
 ## 1. Principles
 
@@ -123,13 +134,14 @@ adds depth: a layered canvas, glass, one raised hero, glowing progress and a glo
    comes from the top: rims and highlights are white, shadows are soft violet and sit under the
    card. A white rim is a highlight, not a border; never put a grey or coloured border on a card
    that has a shadow. Real borders belong to inputs and controls (at least 3:1).
-4. **One hero, one Pillow.** Each screen has at most one raised hero card and exactly one
-   Pillow button (the next step). Everything else is glass and quieter.
+4. **One hero, one Shift key.** Each screen has at most one raised hero card and exactly one
+   violet Shift key (the next step). Everything else is glass, porcelain keys or text.
 5. **Readable rhythm.** Body 15pt, line-height 1.55 for Thai, metadata at least 13pt, weights
    400/500/700. Touch targets at least 44pt. Dynamic Type safe.
-6. **Depth everywhere, gloss where you press.** Every surface has depth (canvas, glass, hero,
-   glow). Gloss (highlights, gems, gradients you can feel) is for things you press: the Pillow,
-   gems, selected chips, pill actions, the tab pill. No emoji as icons or navigation.
+6. **Glass is where you are; keys are what you do.** Surfaces, rows, navigation and the tab bar
+   are glass (soft, translucent, diffuse shadows). Anything that commits (save, send, join,
+   choose, cheer, record) is a key (opaque, crisp edges, a wall, travel, a click). If it is soft
+   you read it; if it is solid you press it. No emoji as icons or navigation.
 
 ## 2. Colour and contrast
 
@@ -172,7 +184,7 @@ hackathon screens.
 | Hero | `#FFFFFF -> #FBF9FF -> #F1EBFF` at 160deg, top highlight, radius 26, faded numeral | one per screen |
 | Gem | face / tile / radial orb gradients + white top highlight | icons, numbers, selections |
 | Glow | `#A48BFF -> #6D3FF0` fill, `0 0 12px rgba(109,63,240,.55)`, recessed track `rgba(109,63,240,.12)` | progress |
-| Pillow | `#FFFFFF -> #F6F2FF -> #EDE5FF`, `#D9CFFF` rim, inner top highlight, inner bottom violet glow | the one button |
+| Keycap | dished face, bevels, a wall, contact + ambient shadow (section 6, `Keycap` / `KeySize`) | every action |
 | Dark | `#2A2540 -> #14112A` with a faint top highlight | Apple button, DM card |
 
 Shadows (`Depth` in `lib/theme.ts`): CSS `boxShadow` on iOS and web (exact mockup values,
@@ -185,7 +197,7 @@ it); plain `elevation` on Android (cheap, violet-tinted on API 28+).
 | row | `0 6px 16px -12px rgba(109,63,240,.45)` | 2 |
 | raised (current step) | `0 12px 26px -12px rgba(109,63,240,.55)` | 6 |
 | hero | `0 18px 40px -12px rgba(109,63,240,.28), 0 2px 6px rgba(20,17,42,.05)` | 8 |
-| pillow / pressed | `0 12px 26px -8px rgba(109,63,240,.45), 0 2px 4px rgba(20,17,42,.06)` / tighter | 8 / 3 |
+| nav (back, close) | `0 1px 2px rgba(20,17,42,.08), 0 6px 14px -8px rgba(76,40,200,.4)` | 2 |
 | gem / tile | `0 3px 8px rgba(91,47,214,.5)` / `0 8px 16px -6px rgba(91,47,214,.6)` | 4 / 5 |
 | glow (today, selected, done slot) | `0 8px 18px -6px rgba(109,63,240,.6)` | 5 |
 | pill (tags) | `0 2px 8px rgba(109,63,240,.10)` | 1 |
@@ -211,15 +223,15 @@ Props are the public API; lane screens code against these names.
 
 | Component | Props | Look |
 |---|---|---|
-| `RoundShell` | `children, dock?, scroll?, refreshing?, onRefresh?, bottomInset?, keyboard?, orbs? = true, customOrbs?, center?, fill?` | canvas + washes + orbs, 560pt column, docked Pillow over a fade, toast host. `bottomInset > 0` reserves the floating tab bar |
+| `RoundShell` | `children, dock?, scroll?, refreshing?, onRefresh?, bottomInset?, keyboard?, orbs? = true, customOrbs?, center?, fill?` | canvas + washes + orbs, 560pt column, docked Shift key over a fade, toast host. `bottomInset > 0` reserves the floating tab bar |
 | `GlassCard` | `children, style?, onPress?, accessibilityLabel?, padding? = 16` | glass, radius 22; pressable sinks 1pt |
 | `HeroCard` | `children, watermark?, style?, padding? = 18, onPress?` | raised gradient, top highlight, faded numeral |
-| `PillowButton` | `label, icon?, onPress, disabled?, busy?, style?` | the one glossy button, gem icon, sinks 2pt with haptic |
-| `SoftButton` | `label, onPress, icon?, disabled?, busy?, tone? = glass \| dark` | full-width secondary (glass) or dark (Apple) pill |
-| `IconButton` | `icon, label, onPress, size? = 44` | small glossy white -> violet-50 circle |
+| `ShiftKey` | `label, icon? = check, onPress, disabled?, busy?, style?` | the one violet key per screen (`Key tone="shift" size="lg"`) |
+| `Key` | `label, onPress, tone? = porcelain \| shift \| ink \| danger, size? = md \| lg \| sm, icon?, round?, down?, led?, busy?, disabled?, haptic?` | every keycap (section 6) |
+| `IconButton` | `icon, label, onPress, size? = 44` | glass navigation circle (back, close), ink icon |
 | `TextButton` | `label, onPress, icon?, tone?` | violet-700 text, 44pt, wraps |
 | `Tag` / `StatusTag` | `label, tone?` / `kind, label` | glass pill (violet) or tinted state pill |
-| `ChipPicker` | `chips, value, onChange` | white chips; selected = glowing gem-face gradient |
+| `ChipPicker` | `chips, value, onChange` | radio keys: porcelain with an unlit LED; selected latches down, violet, LED lit |
 | `Checkbox` | `checked, label, onChange` | white box; checked = gem-face with a glow |
 | `RTextInput`, `Field` | TextInput props + `invalid?` | white, control border, violet border + 4pt glow on focus |
 | `Banner` / `NeedsAttention` | tone + text (+ action) | violet = glass with an info icon; states tinted with icon and words |
@@ -237,14 +249,61 @@ Props are the public API; lane screens code against these names.
 | `SkeletonBlock`, `HomeSkeleton`, `ListSkeleton` | sizes | lavender blocks with a shimmer sweep |
 | `useToast()` | returns `show(text)` (also callable) | small glass pill above the dock |
 
-## 6. Motion
+## 6. Keys
 
-- Pillow sinks 2pt (shadow tightens) with a light haptic; cards and rows sink 1pt.
+SHIFT is a key: the one that changes what every other key does. Every action is a keycap, an
+engineered object with a face, a wall, travel and a click. Code: `components/round/Key.tsx`
+(`Key`, `ShiftKey`), tokens `Keycap`, `KeyDish`, `KeySize` in `lib/theme.ts`.
+
+**Anatomy** (light from the top, as everywhere):
+
+| Part | What it does | Shift key values |
+|---|---|---|
+| Face | Dished, not domed: bright top bevel, a shaded band under it, lighter toward the front. A pillow pushes back; a key takes your finger. | `#7B55FA` 0%, `#6338EC` 34%, `#6A41F0` 70%, `#7550F6` 100% |
+| Bevels | Crisp edges. The top catches light, the sides turn away, the front lip catches light again and splits face from wall. | top 1pt white 55%, sides 1pt `rgba(42,14,140,.28)`, lip 1.5pt `rgba(205,190,255,.55)` |
+| Wall | The travel you can see. Darkens near the surface. | 5pt, `#4626BE` -> `#2E1484` |
+| Contact | A 1pt line right under the wall: what makes it sit instead of float. | `rgba(26,8,84,.4)` (a plain view, all platforms) |
+| Ambient | A tight pool under the key, never a halo. Fades out while pressed. | `0 12px 16px -10px rgba(52,22,160,.6)` (iOS, web) |
+| Legend | Printed on the face. Directional glyphs (arrow, chevron, external) follow the label; others lead. | white 700, 1pt legend shadow |
+
+**Tones** (`Keycap`): `shift` violet, the one primary per screen (white legend 6.3:1 where it
+sits); `porcelain` white keycap, ink legend, violet icon, for secondary actions and options;
+`ink` dark keycap (Apple fallback); `danger` ruby for destructive commits (5.1:1); `off` (any
+disabled key): unlit, wall kept, no ambient, ink-3 legend 5.6:1. `tests/round-keys.test.ts`
+checks every legend at the 34% and 70% stops.
+
+**Sizes** (`KeySize`, face + wall, radius about a quarter of the face, continuous corners):
+`lg` 53 + 5, r14, 17pt (Shift key, sign-in); `md` 44 + 4, r13, 16pt (secondary); `sm` 36 + 3, r11,
+14pt (options, small actions; 4pt hit slop makes 44pt). Round keys: 66 / 44 / 38 (record, play,
+remove, cheer).
+
+**Feel:**
+- Press: the face travels `travel - 1` in 55ms (ease out) and stops 1pt short so the edge stays
+  crisp; the ambient fades; the face darkens a touch; a rigid haptic marks the bottom-out.
+- Release: a spring (mass 0.5, stiffness 520, damping 18), about 0.5pt of overshoot (at ~120ms),
+  settled within 0.1pt by ~200ms.
+- Busy: the key stays down with three running lights in place of the icon until the work is
+  done, then springs back.
+- Radio keys (`ChipPicker`, idea pick): the selected key latches down, turns violet and lights
+  its LED; pressing another pops it up, like preset buttons on a car radio. Selection ticks
+  (`selectionAsync`), not clicks. They wait 80ms before springing back so a press that selects
+  them stays down.
+- One-way toggles (cheer): latch down and stay lit even when locked.
+- Reduce Motion: positions change instantly; haptics stay.
+
+**When to use what:** one `ShiftKey` per screen for the next step. Porcelain keys for other
+actions. `TextButton` for tertiary links. Glass (`GlassCard` rows, `IconButton`, the tab bar) for
+navigation. Brand buttons follow their brand: Google is a porcelain key with the full-colour G;
+Apple uses the native black button with key-shaped corners (`KeySize.lg`).
+
+## 7. Motion
+
+- Keys travel and spring as above; cards and rows sink 1pt.
 - Tab pill springs between tabs; `SessionCard` live ring pulses; orb chips float 3pt; skeletons
   shimmer; the toast fades in from below.
 - Every animation checks `useReducedMotion()` and becomes still (or instant) when it is on.
 
-## 7. Platform notes
+## 8. Platform notes
 
 - **Blur:** only the floating tab bar uses `expo-blur` (iOS and web). Android gets an opaque white
   glass instead (no blur cost). Orbs are radial-gradient discs, never a blur filter. No blur on
@@ -258,9 +317,10 @@ Props are the public API; lane screens code against these names.
   crops the image, which makes text look like it runs off the edge at 390pt. Capture with real
   device metrics (e.g. Playwright `viewport: {width: 390, height: 844}, deviceScaleFactor: 2`).
 
-## 8. Do's and Don'ts
+## 9. Do's and Don'ts
 
-- **Do** keep one Pillow and at most one hero card per screen.
+- **Do** keep one Shift key and at most one hero card per screen.
+- **Do** make anything that commits a key, and anything that only navigates glass.
 - **Do** pair every colour state with an icon or word.
 - **Do** put text on glass or white; on the bare canvas use ink or ink-2 for anything near the
   top-right wash.
@@ -270,8 +330,17 @@ Props are the public API; lane screens code against these names.
 - **Don't** add grey or coloured borders to cards that have a shadow (white rims are fine).
 - **Don't** use emoji as icons, bullets or tab icons.
 - **Don't** use side-stripe borders as coloured accents.
+- **Don't** build a button from the same soft material as the surface under it (a white pill on
+  white glass with a violet glow). Buttons need value contrast, a crisp edge and a contact
+  shadow.
+- **Don't** give keys halos or pill radii; keep the shadow a tight pool and the radius key-like.
 
-## 9. Migration notes
+## 10. Migration notes
+
+- v4 -> v4.1 (keys): `PillowButton` is now `ShiftKey` (same props); `SoftButton` is `Key`
+  (`tone="porcelain"`, or `tone="ink"` for dark); `PillAction` is `Key size="sm"`; icon actions
+  (play, remove, record, cheer) are round keys; `ChipPicker` is radio keys; `IconButton` stays
+  for navigation and is glass with an ink icon. The `Pillow` token and `Depth.pillow` are gone.
 
 - v3 -> v4: `Card` is now glass (same API), `Tag` a glass pill, `NextMissionCard` a hero with a
   watermark, `ShiftTabBar` floats (screens keep `bottomInset`), `PillowButton` gained the inner
@@ -280,5 +349,5 @@ Props are the public API; lane screens code against these names.
   `StepRow`, `GemIcon`, `GlowProgress`, `AvatarStack`, `ShiftOrb`, `SignInPanel`, `Toast`,
   `DepthCanvas`.
 - v2 neon -> v3 lavender: `Accent.yellow` / `yellowDark` / `yellowLight` are legacy aliases
-  mapped to violet; replace them with the Pillow screen by screen. Remaining hardcoded
+  mapped to violet; replace them with keys screen by screen. Remaining hardcoded
   `#BFFF00` values in legacy screens are not migrated.

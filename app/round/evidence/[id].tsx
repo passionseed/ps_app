@@ -16,7 +16,7 @@ import { formatIsoDate } from "../../../lib/round/time";
 import type { WithdrawPreview } from "../../../lib/round/types";
 import { RoundShell } from "../../../components/round/RoundShell";
 import { RText } from "../../../components/round/RText";
-import { PillowButton } from "../../../components/round/PillowButton";
+import { ShiftKey } from "../../../components/round/Key";
 import { Banner, IconButton, Tag, TextButton } from "../../../components/round/primitives";
 import { ListSkeleton } from "../../../components/round/Skeleton";
 import { StatusTag } from "../../../components/round/StatusTag";
@@ -142,7 +142,7 @@ export default function EvidenceDetailScreen() {
     <RoundShell
       dock={
         canReplace ? (
-          <PillowButton
+          <ShiftKey
             label={t("attention.replace")}
             icon="pencil"
             onPress={() => router.push({ pathname: "/round/capture", params: { type: item.type, replaces: item.id } })}

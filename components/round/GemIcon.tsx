@@ -7,7 +7,7 @@ import { useSvgId } from "./svgId";
 
 /**
  * Glossy violet gem with a white icon (DESIGN.md v4). `circle` is the radial gem used in the
- * Pillow button and lists; `tile` is the rounded-square gem (session, calendar) with a linear
+ * lists and headers; `tile` is the rounded-square gem (session, calendar) with a linear
  * face. Both carry a top highlight and a violet drop shadow. Decorative: hidden from a11y.
  */
 export function GemIcon({

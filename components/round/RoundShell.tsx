@@ -10,7 +10,7 @@ import { ToastHost } from "./Toast";
 
 /**
  * Screen shell (DESIGN.md v4): the layered lavender canvas (washes + soft orbs) behind a 560pt
- * max column (tablets). `dock` renders a bottom-docked area (the Pillow button) above the safe
+ * max column (tablets). `dock` renders a bottom-docked area (the Shift key) above the safe
  * area; content scrolls under a fade. Toasts from `useToast()` show above the dock.
  */
 export function RoundShell({
@@ -76,9 +76,11 @@ export function RoundShell({
       {body}
       {dock ? (
         <View style={[styles.dockWrap, { paddingBottom: reserve + 12 }]}>
+          {/* Content fades out above the key and is fully covered below it, so the key sits on a
+              clean surface instead of over ghosted text. */}
           <LinearGradient
-            colors={["rgba(247,245,252,0)", "rgba(247,245,252,0.92)", Canvas.bottom]}
-            locations={[0, 0.45, 1]}
+            colors={["rgba(247,245,252,0)", "rgba(247,245,252,0.94)", Canvas.bottom]}
+            locations={[0, 0.3, 0.46]}
             style={[StyleSheet.absoluteFill, styles.none]}
           />
           <View style={styles.column}>{dock}</View>

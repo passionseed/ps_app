@@ -9,7 +9,7 @@ import { missionTitle, missionTypes, orderedMissions, typeKey } from "../../lib/
 import { formatDate, formatIsoDate } from "../../lib/round/time";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
-import { PillowButton } from "../../components/round/PillowButton";
+import { ShiftKey } from "../../components/round/Key";
 import { Banner, IconButton, Tag } from "../../components/round/primitives";
 import { ListSkeleton } from "../../components/round/Skeleton";
 import { EvidenceRow } from "../../components/round/EvidenceRow";
@@ -42,7 +42,7 @@ export default function LogScreen() {
       onRefresh={() => void home.refetch()}
       dock={
         canLog ? (
-          <PillowButton
+          <ShiftKey
             label={t("log.add")}
             icon="plus"
             // The type picker: every log type, including the free ones (first contact, the Daily Show).

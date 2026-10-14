@@ -50,7 +50,7 @@ import type { EvidenceType, Receipt } from "../../lib/round/types";
 import { EVIDENCE_TYPES } from "../../lib/round/types";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
-import { PillowButton } from "../../components/round/PillowButton";
+import { ShiftKey } from "../../components/round/Key";
 import { Banner, Card, Checkbox, Field, IconButton, RTextInput, Tag, TextButton } from "../../components/round/primitives";
 import { ChipPicker } from "../../components/round/ChipPicker";
 import { VoiceRecorder } from "../../components/round/VoiceRecorder";
@@ -461,7 +461,7 @@ export default function CaptureScreen() {
   }
   if (!entry) {
     return (
-      <RoundShell dock={<PillowButton label={t("receipt.back")} icon="back" onPress={close} />}>
+      <RoundShell dock={<ShiftKey label={t("receipt.back")} icon="back" onPress={close} />}>
         <Banner tone="warning" text={t("error.entry_not_found")} />
       </RoundShell>
     );
@@ -491,7 +491,7 @@ export default function CaptureScreen() {
     const plannedChange =
       typeof sentFields.planned_change === "string" && sentFields.planned_change.trim() && (sentType === "interview" || sentType === "tester");
     return (
-      <RoundShell dock={<PillowButton label={t("receipt.back")} icon="house" onPress={() => router.replace("/(tabs)/shift")} />}>
+      <RoundShell dock={<ShiftKey label={t("receipt.back")} icon="house" onPress={() => router.replace("/(tabs)/shift")} />}>
         <Animated.View entering={reduced ? undefined : FadeInUp.duration(350)}>
           <Card style={{ gap: 10 }}>
             <Tag label={t("receipt.title")} tone="success" />
@@ -992,7 +992,7 @@ export default function CaptureScreen() {
 
   const dock = (
     <View style={{ gap: 8 }}>
-      <PillowButton
+      <ShiftKey
         label={sending ? t("capture.sending") : t("capture.save")}
         icon="check"
         busy={sending}

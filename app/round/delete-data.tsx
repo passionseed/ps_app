@@ -11,7 +11,7 @@ import { deleteAllDraftMedia } from "../../lib/round/media";
 import { clearRoundUser } from "../../lib/round/queryCore";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
-import { PillowButton } from "../../components/round/PillowButton";
+import { ShiftKey } from "../../components/round/Key";
 import { GlassCard } from "../../components/round/GlassCard";
 import { HeroCard } from "../../components/round/HeroCard";
 import { GemIcon } from "../../components/round/GemIcon";
@@ -54,7 +54,7 @@ export default function DeleteDataScreen() {
 
   if (done) {
     return (
-      <RoundShell dock={<PillowButton label={t("receipt.back")} icon="house" onPress={() => router.replace("/(tabs)/profile")} />}>
+      <RoundShell dock={<ShiftKey label={t("receipt.back")} icon="house" onPress={() => router.replace("/(tabs)/profile")} />}>
         <View style={styles.doneSpace} />
         <HeroCard>
           <View style={styles.done}>
@@ -71,7 +71,7 @@ export default function DeleteDataScreen() {
   return (
     <RoundShell
       keyboard
-      dock={<PillowButton label={t("ui.delete.cta")} icon="trash" busy={busy} disabled={confirm.trim() !== "DELETE"} onPress={() => void run()} />}
+      dock={<ShiftKey label={t("ui.delete.cta")} icon="trash" busy={busy} disabled={confirm.trim() !== "DELETE"} onPress={() => void run()} />}
     >
       <View style={styles.top}>
         <IconButton icon="back" label={t("ui.back")} onPress={close} />

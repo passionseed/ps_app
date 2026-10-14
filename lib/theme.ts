@@ -1,12 +1,13 @@
 /**
- * Passion Seed design tokens (v4 "Depth", 2026-10-14; v3 2026-10-12).
+ * Passion Seed design tokens (v4.1 "Depth", keys 2026-10-15; v4 2026-10-14; v3 2026-10-12).
  * Layered lavender canvas with soft orbs, glass cards, one raised hero card per screen,
- * glowing progress and a glossy Pillow button. One violet accent. See docs/DESIGN.md.
+ * glowing progress, and keycaps for every action (one violet Shift key per screen). One violet
+ * accent. See docs/DESIGN.md.
  * Contrast is WCAG-measured: body >= 7:1, secondary >= 4.5:1, controls >= 3:1, and it holds on
  * every canvas layer (wash and orbs included); text on glass measures as on white.
  * Legacy names (Accent.yellow, StepThemes, Gradient) are kept as aliases so
  * existing screens keep compiling; new code should use Violet / Ink / Surface and the
- * v4 tokens at the end of this file (Canvas, Wash, Orb, Glass, Hero, Gem, Glow, Depth).
+ * v4 tokens at the end of this file (Canvas, Wash, Orb, Glass, Hero, Gem, Glow, Keycap, Depth).
  */
 import { Platform } from "react-native";
 
@@ -82,7 +83,7 @@ export const Gradient = {
   education: ["#FFFFFF", "#FAF8FF"] as const,
   experience: ["#FFFFFF", "#F7F9FF"] as const,
   destination: ["#FFFFFF", "#F6FBF8"] as const,
-  // Pillow button: white -> violet-50, violet text, gem icon
+  // Legacy CTA fill (PathLab screens); SHIFT screens use Keycap.
   primaryCta: ["#FFFFFF", Violet[50]] as const,
   gem: [Violet[400], Violet[600]] as const,
 };
@@ -122,7 +123,6 @@ export const Border = {
   subtle: "transparent",
   line: Surface.line,
   control: Surface.control,
-  pillow: "#D9CFFF",
 };
 
 // Border Radius
@@ -135,7 +135,7 @@ export const Radius = {
   full: 999,
 };
 
-// Shadows: one soft level for surfaces, a violet-tinted one for the Pillow button.
+// Legacy shadows (PathLab screens): one soft level for surfaces, a violet-tinted CTA glow.
 const softShadow = {
   shadowColor: Ink.primary,
   shadowOffset: { width: 0, height: 8 },
@@ -255,7 +255,7 @@ export const sectionLabel = {
 export const CompanionSurface = { field: Surface.card, line: Surface.line };
 
 // ---------------------------------------------------------------------------------------------
-// v4 "Depth" tokens (DESIGN.md v4). Depth everywhere, gloss where you press.
+// v4 "Depth" tokens (DESIGN.md v4.1). Glass is where you are; keys are what you do.
 // ---------------------------------------------------------------------------------------------
 
 /** Page canvas: vertical lavender gradient (top -> mid -> bottom). */
@@ -305,7 +305,7 @@ export const Hero = {
 
 /**
  * Gems: glossy violet. `face` carries white text (>= 5:1 where text sits), `tile` holds icons
- * only, `orb` is the radial gem behind Pillow and GemIcon icons (centre 35% / 30%).
+ * only, `orb` is the radial gem behind GemIcon icons (centre 35% / 30%).
  */
 export const Gem = {
   face: ["#7E5CFA", "#5F31E3"] as const,
@@ -330,14 +330,115 @@ export const Glow = {
   color: "rgba(109,63,240,0.55)",
 };
 
-/** Pillow button surface (white -> lavender, violet rim). */
-export const Pillow = {
-  colors: ["#FFFFFF", "#F6F2FF", "#EDE5FF"] as const,
-  locations: [0, 0.6, 1] as const,
-  border: "#D9CFFF",
-  innerGlow: "rgba(139,107,255,0.18)",
-  height: 58,
+/**
+ * Keys (DESIGN.md section 6): every action you commit is a keycap. Glass is where you are; keys
+ * are what you do. A key is a dished face (bright top bevel, a shaded band under it, lighter
+ * toward a bright front lip), a front wall whose height is the travel, a 1pt contact shadow and
+ * a tight ambient pool under it, never a halo. Text contrast is measured where the label sits
+ * (between the 34% and 70% dish stops).
+ */
+export type KeyTone = "shift" | "porcelain" | "ink" | "danger";
+
+export type KeyPalette = {
+  /** Face, top to bottom at `KeyDish` stops. */
+  dish: readonly [string, string, string, string];
+  /** Face edges: lit top, shaded sides, the front lip catching light. */
+  bevel: { top: string; side: string; lip: string };
+  /** Front wall, top to bottom (darkens near the surface). */
+  wall: readonly [string, string];
+  label: string;
+  icon: string;
+  /** 1pt legend shadow on coloured faces. */
+  legendShadow?: string;
+  /** Contact shadow right under the wall. */
+  contact: string;
+  /** Ambient pool (CSS box-shadow, iOS and web); fades out while pressed. Empty = none. */
+  ambient: string;
+  /** Pressed-face overlay. */
+  shade: string;
+  /** Unlit radio LED ring. */
+  ledOff: string;
 };
+
+export const Keycap: Record<KeyTone | "off", KeyPalette> = {
+  /** The Shift key: violet, white legend 6.3:1 where it sits. One per screen. */
+  shift: {
+    dish: ["#7B55FA", "#6338EC", "#6A41F0", "#7550F6"],
+    bevel: { top: "rgba(255,255,255,0.55)", side: "rgba(42,14,140,0.28)", lip: "rgba(205,190,255,0.55)" },
+    wall: ["#4626BE", "#2E1484"],
+    label: "#FFFFFF",
+    icon: "#FFFFFF",
+    legendShadow: "rgba(36,10,120,0.4)",
+    contact: "rgba(26,8,84,0.4)",
+    ambient: "0px 12px 16px -10px rgba(52,22,160,0.6)",
+    shade: "rgba(20,6,80,0.10)",
+    ledOff: "rgba(255,255,255,0.55)",
+  },
+  /** Secondary: white keycap, ink legend (16:1), violet icon. */
+  porcelain: {
+    dish: ["#FFFFFF", "#F2EEFD", "#F7F5FE", "#FFFFFF"],
+    bevel: { top: "#FFFFFF", side: "#DCD4F3", lip: "#FFFFFF" },
+    wall: ["#D9D0F4", "#BFB2E6"],
+    label: Ink.primary,
+    icon: Violet[700],
+    contact: "rgba(40,20,120,0.18)",
+    ambient: "0px 10px 14px -10px rgba(76,40,200,0.42)",
+    shade: "rgba(76,40,200,0.05)",
+    ledOff: "#B9B0D9",
+  },
+  /** Dark keycap (Apple fallback). */
+  ink: {
+    dish: ["#3A3358", "#221D38", "#272140", "#302A4C"],
+    bevel: { top: "rgba(255,255,255,0.28)", side: "rgba(0,0,0,0.3)", lip: "rgba(255,255,255,0.14)" },
+    wall: ["#13101F", "#05040C"],
+    label: "#F1ECFF",
+    icon: "#F1ECFF",
+    contact: "rgba(0,0,0,0.45)",
+    ambient: "0px 12px 16px -10px rgba(20,17,42,0.6)",
+    shade: "rgba(0,0,0,0.12)",
+    ledOff: "rgba(241,236,255,0.5)",
+  },
+  /** Destructive commits: ruby keycap, white legend 5.1:1 where it sits. */
+  danger: {
+    dish: ["#E8494F", "#CB2F35", "#D0353B", "#DA4046"],
+    bevel: { top: "rgba(255,255,255,0.5)", side: "rgba(110,10,16,0.3)", lip: "rgba(255,200,202,0.55)" },
+    wall: ["#9A1B21", "#6E1015"],
+    label: "#FFFFFF",
+    icon: "#FFFFFF",
+    legendShadow: "rgba(100,10,14,0.4)",
+    contact: "rgba(80,8,12,0.4)",
+    ambient: "0px 12px 16px -10px rgba(140,20,26,0.5)",
+    shade: "rgba(60,0,0,0.10)",
+    ledOff: "rgba(255,255,255,0.55)",
+  },
+  /** Disabled: an unlit key (wall kept, no ambient), ink-3 legend 5.6:1. */
+  off: {
+    dish: ["#EEEBF7", "#E8E4F4", "#E8E4F4", "#E6E2F3"],
+    bevel: { top: "rgba(255,255,255,0.7)", side: "rgba(255,255,255,0)", lip: "rgba(255,255,255,0.5)" },
+    wall: ["#D6D0E8", "#CCC5E0"],
+    label: Ink.tertiary,
+    icon: Ink.tertiary,
+    contact: "rgba(40,20,120,0.08)",
+    ambient: "",
+    shade: "rgba(0,0,0,0)",
+    ledOff: "#B9B0D9",
+  },
+};
+
+/** Dish stops for `KeyPalette.dish`. */
+export const KeyDish = [0, 0.34, 0.7, 1] as const;
+
+/**
+ * Key sizes. `travel` is the wall height and how far the face moves (it stops 1pt short so the
+ * edge stays crisp). Radii stay key-like (about a quarter of the face), not pills.
+ */
+export const KeySize = {
+  lg: { face: 53, travel: 5, radius: 14, font: 17, icon: 19, pad: 18, gap: 10, round: 66, roundIcon: 28 },
+  md: { face: 44, travel: 4, radius: 13, font: 16, icon: 18, pad: 16, gap: 8, round: 44, roundIcon: 20 },
+  sm: { face: 36, travel: 3, radius: 11, font: 14, icon: 15, pad: 13, gap: 7, round: 38, roundIcon: 17 },
+} as const;
+
+export type KeySizeName = keyof typeof KeySize;
 
 /** Dark surfaces (Apple button, DM card): ink gradient with a soft top highlight. */
 export const Dark = {
@@ -364,9 +465,6 @@ export const Depth = {
   raised: depth("0px 12px 26px -12px rgba(109,63,240,0.55)", 6),
   /** Hero card. */
   hero: depth("0px 18px 40px -12px rgba(109,63,240,0.28), 0px 2px 6px rgba(20,17,42,0.05)", 8),
-  /** Pillow button, resting and pressed (sinks 2pt, shadow tightens). */
-  pillow: depth("0px 12px 26px -8px rgba(109,63,240,0.45), 0px 2px 4px rgba(20,17,42,0.06)", 8),
-  pillowPressed: depth("0px 6px 14px -6px rgba(109,63,240,0.45), 0px 1px 2px rgba(20,17,42,0.06)", 3),
   /** Round gem icons. */
   gem: depth("0px 3px 8px rgba(91,47,214,0.5)", 4, Violet[700]),
   /** Square gem tiles (session, calendar). */
@@ -381,6 +479,8 @@ export const Depth = {
   float: depth("0px 10px 24px -10px rgba(109,63,240,0.45)", 4),
   /** Small glossy controls (icon buttons, pill actions). */
   control: depth("0px 4px 10px rgba(109,63,240,0.2)", 3),
+  /** Glass navigation buttons (back, close): a contact line plus a tight pool, no halo. */
+  nav: depth("0px 1px 2px rgba(20,17,42,0.08), 0px 6px 14px -8px rgba(76,40,200,0.4)", 2),
   /** Avatar gems. */
   avatar: depth("0px 3px 8px rgba(20,17,42,0.15)", 2, Ink.primary),
   /** Floating tab bar. */

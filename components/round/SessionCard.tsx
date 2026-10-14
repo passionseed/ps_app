@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { StyleSheet, View } from "react-native";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -10,32 +9,14 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { Depth, Ink, Violet } from "../../lib/theme";
+import { Ink, Violet } from "../../lib/theme";
 import { GemIcon } from "./GemIcon";
 import { GlassCard } from "./GlassCard";
 import { Icon } from "./Icons";
+import { Key } from "./Key";
 import { RText } from "./RText";
 
 export type SessionState = "upcoming" | "live" | "ended" | "none";
-
-/** Small glossy pill action (white -> violet-50, violet rim), 44pt touch target. */
-export function PillAction({ label, onPress, icon }: { label: string; onPress: () => void; icon?: "external" | "chevron" | "copy" | "share" }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      hitSlop={{ top: 8, bottom: 8 }}
-      style={({ pressed }) => [styles.pill, Depth.control, pressed && styles.pillPressed]}
-    >
-      <LinearGradient colors={["#FFFFFF", Violet[50]]} style={[StyleSheet.absoluteFill, styles.pillRadius]} />
-      <RText variant="label" color={Violet[700]} style={styles.pillText} numberOfLines={1}>
-        {label}
-      </RText>
-      {icon ? <Icon name={icon} size={14} color={Violet[700]} strokeWidth={2.2} /> : null}
-    </Pressable>
-  );
-}
 
 function LivePulse() {
   const reduced = useReducedMotion();
@@ -54,7 +35,7 @@ function LivePulse() {
 
 /**
  * Session card (DESIGN.md v4, mockup B): glass row with a 42pt violet gem tile, title,
- * subtitle and a small pill action. `live` pulses gently (static ring with reduce motion);
+ * subtitle and a small porcelain key. `live` pulses gently (static ring with reduce motion);
  * `none` (no session today) uses a quiet violet-50 tile.
  */
 export function SessionCard({
@@ -89,7 +70,7 @@ export function SessionCard({
         </RText>
         {subtitle ? <RText variant="meta">{subtitle}</RText> : null}
       </View>
-      {actionLabel && onAction ? <PillAction label={actionLabel} onPress={onAction} /> : null}
+      {actionLabel && onAction ? <Key size="sm" label={actionLabel} onPress={onAction} /> : null}
     </GlassCard>
   );
 }
@@ -107,19 +88,4 @@ const styles = StyleSheet.create({
   },
   pulse: { position: "absolute", width: 42, height: 42, borderRadius: 14, backgroundColor: Violet[400] },
   text: { flex: 1, minWidth: 0, gap: 1 },
-  pill: {
-    minHeight: 34,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#DCD0FF",
-    paddingHorizontal: 13,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FFFFFF",
-    flexShrink: 0,
-  },
-  pillRadius: { borderRadius: 999 },
-  pillText: { fontSize: 13, lineHeight: 18 },
-  pillPressed: { transform: [{ translateY: 1 }] },
 });

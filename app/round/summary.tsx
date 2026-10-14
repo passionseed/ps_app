@@ -12,7 +12,7 @@ import { LINK_PATTERN } from "../../lib/round/schema";
 import type { PublicCounts } from "../../lib/round/types";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
-import { PillowButton } from "../../components/round/PillowButton";
+import { ShiftKey } from "../../components/round/Key";
 import { Banner, Checkbox, Field, IconButton, RTextInput, Tag, TextButton } from "../../components/round/primitives";
 import { ListSkeleton } from "../../components/round/Skeleton";
 import { GlassCard } from "../../components/round/GlassCard";
@@ -114,7 +114,7 @@ export default function SummaryScreen() {
   const missionsDone = bundle.missions?.missions_complete ?? 0;
 
   return (
-    <RoundShell keyboard dock={<PillowButton label={t("summary.submit")} icon="send" busy={busy} onPress={() => void submit()} />}>
+    <RoundShell keyboard dock={<ShiftKey label={t("summary.submit")} icon="send" busy={busy} onPress={() => void submit()} />}>
       <View style={styles.top}>
         <IconButton icon="back" label={t("ui.back")} onPress={close} />
         {bundle.round ? <Tag label={t("round.tag", { n: bundle.round.number })} /> : null}

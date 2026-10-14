@@ -13,7 +13,7 @@ import { guardianRequired, handleProblem, normalizeBirthYear } from "../../lib/r
 import type { Track } from "../../lib/round/types";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
-import { PillowButton } from "../../components/round/PillowButton";
+import { ShiftKey } from "../../components/round/Key";
 import { Banner, Checkbox, Field, IconButton, RTextInput, Tag, TextButton } from "../../components/round/primitives";
 import { ChipPicker } from "../../components/round/ChipPicker";
 import { GlassCard } from "../../components/round/GlassCard";
@@ -115,7 +115,7 @@ export default function JoinScreen() {
 
   if (done) {
     return (
-      <RoundShell dock={<PillowButton label={t("receipt.back")} icon="house" onPress={() => router.replace("/(tabs)/shift")} />}>
+      <RoundShell dock={<ShiftKey label={t("receipt.back")} icon="house" onPress={() => router.replace("/(tabs)/shift")} />}>
         <View style={styles.doneSpace} />
         <HeroCard watermark={joinable ? String(joinable.number) : undefined}>
           <View style={styles.done}>
@@ -136,7 +136,7 @@ export default function JoinScreen() {
   return (
     <RoundShell
       keyboard
-      dock={<PillowButton label={step === 3 ? t("home.open.cta") : t("join.next")} icon={step === 3 ? "check" : "arrow"} busy={busy} onPress={() => void next()} />}
+      dock={<ShiftKey label={step === 3 ? t("home.open.cta") : t("join.next")} icon={step === 3 ? "check" : "arrow"} busy={busy} onPress={() => void next()} />}
     >
       <View style={styles.top}>
         <IconButton icon="back" label={t("ui.back")} onPress={back} />

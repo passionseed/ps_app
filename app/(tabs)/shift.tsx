@@ -30,7 +30,7 @@ import { shiftStorage } from "../../lib/shiftStorage";
 import type { HomeBundle, JoinableRound, Lang } from "../../lib/round/types";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
-import { PillowButton } from "../../components/round/PillowButton";
+import { ShiftKey } from "../../components/round/Key";
 import { Banner, Tag, TextButton } from "../../components/round/primitives";
 import { HomeSkeleton } from "../../components/round/Skeleton";
 import { SquadCard } from "../../components/round/SquadCard";
@@ -148,11 +148,11 @@ export default function ShiftHomeScreen() {
         bottomInset={bottomInset}
         {...refresh}
         dock={
-          <PillowButton
-            label={t(m.pillow.labelKey)}
-            icon={m.pillow.icon}
-            onPress={() => openComposer(m.pillow.type)}
-            accessibilityHint={t(m.pillow.hintKey, m.pillow.hintParams)}
+          <ShiftKey
+            label={t(m.keyAction.labelKey)}
+            icon={m.keyAction.icon}
+            onPress={() => openComposer(m.keyAction.type)}
+            accessibilityHint={t(m.keyAction.hintKey, m.keyAction.hintParams)}
           />
         }
       >
@@ -171,9 +171,9 @@ export default function ShiftHomeScreen() {
         {...refresh}
         dock={
           round.discord_url ? (
-            <PillowButton label={t("home.discord")} icon="chat" onPress={() => void Linking.openURL(round.discord_url!)} />
+            <ShiftKey label={t("home.discord")} icon="chat" onPress={() => void Linking.openURL(round.discord_url!)} />
           ) : (
-            <PillowButton label={t("home.cta.ideas")} icon="pencil" onPress={() => openComposer("ideas")} />
+            <ShiftKey label={t("home.cta.ideas")} icon="pencil" onPress={() => openComposer("ideas")} />
           )
         }
       >
@@ -215,7 +215,7 @@ export default function ShiftHomeScreen() {
   let hero: React.ReactNode = null;
   let dock: React.ReactNode = null;
   let next: Landing | null = null;
-  /** The next-round card carries its own action unless the Pillow already does. */
+  /** The next-round card carries its own action unless the Shift key already does. */
   let nextAction = true;
   if (view.kind === "review" || view.kind === "review_overdue") {
     const when = dateTimeDisplay(round.review_ends_at, lang);
@@ -247,7 +247,7 @@ export default function ShiftHomeScreen() {
   } else if (view.kind === "cert_issued") {
     next = view.next;
     hero = <CertHero bundle={b} lang={lang} t={t} userId={userId} people={people} />;
-    dock = <PillowButton label={t("home.cert.issued.cta")} icon="share" onPress={() => router.push("/round/certificate")} />;
+    dock = <ShiftKey label={t("home.cert.issued.cta")} icon="share" onPress={() => router.push("/round/certificate")} />;
   } else if (view.kind === "cert_revoked") {
     next = view.next;
     hero = (
@@ -315,7 +315,7 @@ function LandingDock({
   const { label, icon } = cta ? ctaLabel(cta, t) : { label: "", icon: "arrow" as IconName };
   return (
     <View style={styles.dock}>
-      {cta ? <PillowButton label={label} icon={icon} busy={cta.kind === "waitlist" && busy} onPress={() => onCta(cta, landing.round)} /> : null}
+      {cta ? <ShiftKey label={label} icon={icon} busy={cta.kind === "waitlist" && busy} onPress={() => onCta(cta, landing.round)} /> : null}
       {landing.inviteLink ? (
         <View style={styles.center}>
           <TextButton

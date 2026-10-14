@@ -9,7 +9,7 @@ import { missionByKey, missionDisplay, missionTitle, missionTypes, typeKey } fro
 import { formatIsoDate } from "../../../lib/round/time";
 import { RoundShell } from "../../../components/round/RoundShell";
 import { RText } from "../../../components/round/RText";
-import { PillowButton } from "../../../components/round/PillowButton";
+import { ShiftKey } from "../../../components/round/Key";
 import { Banner, Card, IconButton, Tag } from "../../../components/round/primitives";
 import { ListSkeleton } from "../../../components/round/Skeleton";
 import { EvidenceRow } from "../../../components/round/EvidenceRow";
@@ -60,7 +60,7 @@ export default function MissionScreen() {
     <RoundShell
       dock={
         canLog ? (
-          <PillowButton
+          <ShiftKey
             label={t(`home.cta.${nextPart.type}` as CopyKey)}
             icon="pencil"
             onPress={() => router.push({ pathname: "/round/capture", params: { type: nextPart.type } })}

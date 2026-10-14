@@ -1,11 +1,12 @@
 import React from "react";
-import { Pressable, StyleSheet, Switch, TextInput, View } from "react-native";
+import { StyleSheet, Switch, TextInput, View } from "react-native";
 import { Ink, Status, Surface, Violet } from "../../../lib/theme";
 import type { CopyKey, CopyParams } from "../../../lib/round/copy";
 import { canAddIdea, canRemoveIdea, type IdeaRow } from "../../../lib/round/ideas";
 import { GlassCard } from "../GlassCard";
 import { Icon } from "../Icons";
-import { IconButton, RTextInput, TextButton } from "../primitives";
+import { Key } from "../Key";
+import { RTextInput, TextButton } from "../primitives";
 import { RText } from "../RText";
 
 type T = (key: CopyKey, params?: CopyParams) => string;
@@ -61,22 +62,21 @@ export function IdeasComposer({
                 <RText variant="label" style={styles.flex}>
                   {t("capture.ideas.label", { n: i + 1 })}
                 </RText>
-                <Pressable
+                <Key
+                  size="sm"
+                  tone={picked ? "shift" : "porcelain"}
+                  label={t("capture.ideas.pick")}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: picked, checked: picked, disabled: readOnly }}
                   accessibilityLabel={`${t("capture.ideas.pick")}: ${t("capture.ideas.label", { n: i + 1 })}`}
+                  selected={picked}
+                  down={picked}
+                  led={picked ? "on" : "off"}
+                  haptic="select"
                   disabled={readOnly}
                   onPress={() => onPick(row.id)}
-                  hitSlop={6}
-                  style={({ pressed }) => [styles.pick, picked && styles.pickOn, pressed && !picked && { backgroundColor: Violet[50] }]}
-                >
-                  <View style={[styles.dot, picked && styles.dotOn]}>{picked ? <Icon name="check" size={12} color="#FFFFFF" strokeWidth={3} /> : null}</View>
-                  <RText variant="small" weight="700" color={picked ? "#FFFFFF" : Violet[700]} style={styles.pickText}>
-                    {t("capture.ideas.pick")}
-                  </RText>
-                </Pressable>
+                />
                 {removable ? (
-                  <IconButton icon="trash" label={`${t("capture.ideas.remove")} ${i + 1}`} onPress={() => onRemove(row.id)} />
+                  <Key round size="sm" icon="trash" label={`${t("capture.ideas.remove")} ${i + 1}`} onPress={() => onRemove(row.id)} />
                 ) : null}
               </View>
               <RTextInput
@@ -147,21 +147,6 @@ const styles = StyleSheet.create({
   rowPicked: { borderColor: "#CBB8FF", borderWidth: 1.5 },
   head: { flexDirection: "row", alignItems: "center", gap: 8 },
   flex: { flex: 1, minWidth: 0 },
-  pick: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: "#CFC8E6",
-    backgroundColor: "#FFFFFF",
-  },
-  pickOn: { backgroundColor: Violet[600], borderColor: Violet[600] },
-  pickText: { fontSize: 13 },
-  dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: Violet[600], alignItems: "center", justifyContent: "center" },
-  dotOn: { borderColor: "#FFFFFF", backgroundColor: Violet[700] },
   error: { flexDirection: "row", gap: 6, alignItems: "flex-start" },
   start: { alignItems: "flex-start" },
   switchRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48 },

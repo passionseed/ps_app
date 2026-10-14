@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -14,8 +14,7 @@ import * as Haptics from "expo-haptics";
 import { Ink, Status, Violet } from "../../lib/theme";
 import { formatDuration } from "../../lib/round/time";
 import { MAX_AUDIO_MS } from "../../lib/round/media";
-import { Icon } from "./Icons";
-import { IconButton } from "./primitives";
+import { Key } from "./Key";
 import { RText } from "./RText";
 
 /** AAC in m4a, mono, 64 kbps (spec 2.5). */
@@ -106,14 +105,7 @@ export function VoiceRecorder({
   if (state.isRecording) {
     return (
       <View style={styles.card}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={labels.stop}
-          onPress={() => void stop()}
-          style={[styles.recordButton, { backgroundColor: Status.error }]}
-        >
-          <Icon name="stop" size={28} color="#FFFFFF" strokeWidth={2.4} />
-        </Pressable>
+        <Key round size="lg" tone="danger" icon="stop" label={labels.stop} onPress={() => void stop()} />
         <RText variant="label" latin={false} accessibilityLiveRegion="polite">
           {labels.recording(formatDuration(state.durationMillis))}
         </RText>
@@ -125,10 +117,11 @@ export function VoiceRecorder({
     const playing = playback.playing;
     return (
       <View style={[styles.card, styles.playRow]}>
-        <IconButton
+        <Key
+          round
           icon={playing ? "pause" : "play"}
-          size={48}
           label={playing ? labels.pause : labels.play}
+          haptic="select"
           onPress={() => {
             if (playing) player.pause();
             else {
@@ -147,23 +140,14 @@ export function VoiceRecorder({
         <RText variant="meta" latin>
           {formatDuration(audio.duration_ms)}
         </RText>
-        <IconButton icon="trash" size={48} label={labels.remove} onPress={onRemove} disabled={disabled} />
+        <Key round icon="trash" label={labels.remove} onPress={onRemove} disabled={disabled} />
       </View>
     );
   }
 
   return (
     <View style={styles.card}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={labels.record}
-        accessibilityState={{ disabled: !!disabled }}
-        disabled={disabled}
-        onPress={() => void start()}
-        style={({ pressed }) => [styles.recordButton, pressed && { transform: [{ translateY: 2 }] }, disabled && { opacity: 0.5 }]}
-      >
-        <Icon name="mic" size={28} color="#FFFFFF" strokeWidth={2.2} />
-      </Pressable>
+      <Key round size="lg" tone="shift" icon="mic" label={labels.record} disabled={disabled} onPress={() => void start()} />
       <RText variant="label" color={Violet[700]}>
         {labels.record}
       </RText>
@@ -190,19 +174,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   playRow: { flexDirection: "row", gap: 10 },
-  recordButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Violet[600],
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: Violet[600],
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-  },
   wave: { flex: 1, height: 36, flexDirection: "row", alignItems: "center", gap: 2 },
   bar: { flex: 1, borderRadius: 2, minHeight: 4 },
 });

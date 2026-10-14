@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Platform, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Depth, Gem, Glass, Ink, Status, Violet } from "../../lib/theme";
+import { Depth, Glass, Ink, Status, Violet } from "../../lib/theme";
 import { errorOf, roundApi } from "../../lib/round/api";
 import { errorCopy } from "../../lib/round/copy";
 import { useRoundHome, useRoundLang, useRoundSquad, useRoundUser } from "../../lib/round/hooks";
@@ -13,7 +12,7 @@ import { formatDate, formatTime } from "../../lib/round/time";
 import type { RoundError, SquadBundle } from "../../lib/round/types";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
-import { PillowButton } from "../../components/round/PillowButton";
+import { Key, ShiftKey } from "../../components/round/Key";
 import { Banner, RTextInput, Tag, TextButton } from "../../components/round/primitives";
 import { ListSkeleton } from "../../components/round/Skeleton";
 import { AvatarGem, AvatarStack } from "../../components/round/AvatarStack";
@@ -25,21 +24,12 @@ import { StepChip } from "../../components/round/StepChip";
 
 const TAB_BAR_SPACE = 64;
 
-/** Glossy cheer button: white -> violet-50 at rest, a violet gem once sent. 44pt. */
+/**
+ * Cheer: a small round key with a heart. Sending latches it down and lights it violet for good
+ * (a one-way toggle), so "sent" reads by position and colour, plus the label.
+ */
 function CheerButton({ sent, disabled, label, onPress }: { sent: boolean; disabled: boolean; label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled, selected: sent }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [styles.cheer, sent ? Depth.glow : Depth.control, pressed && styles.pressed]}
-    >
-      <LinearGradient colors={sent ? [...Gem.face] : ["#FFFFFF", Violet[50]]} style={[StyleSheet.absoluteFill, styles.cheerRadius]} />
-      <Icon name="heart" size={20} color={sent ? "#FFFFFF" : Violet[700]} strokeWidth={2.1} />
-    </Pressable>
-  );
+  return <Key round size="sm" tone={sent ? "shift" : "porcelain"} icon="heart" label={label} down={sent} disabled={disabled} onPress={onPress} />;
 }
 
 /** Empty / waiting state: a hero with a people gem and one line. */
@@ -165,7 +155,7 @@ export default function SquadScreen() {
 
   if (squadQuery.isError || !bundle) {
     return (
-      <RoundShell bottomInset={TAB_BAR_SPACE} dock={<PillowButton label={t("ui.retry")} icon="chevron" onPress={() => void squadQuery.refetch()} />}>
+      <RoundShell bottomInset={TAB_BAR_SPACE} dock={<ShiftKey label={t("ui.retry")} icon="chevron" onPress={() => void squadQuery.refetch()} />}>
         {header}
         <RText variant="display">{t("squad.title")}</RText>
         <Banner tone="warning" text={errorCopy(lang, errorOf(squadQuery.error))} />
@@ -205,7 +195,7 @@ export default function SquadScreen() {
       refreshing={squadQuery.isRefetching}
       onRefresh={() => void squadQuery.refetch()}
       keyboard
-      dock={discord ? <PillowButton label={t("squad.discord")} icon="chat" onPress={() => void Linking.openURL(discord)} /> : undefined}
+      dock={discord ? <ShiftKey label={t("squad.discord")} icon="chat" onPress={() => void Linking.openURL(discord)} /> : undefined}
     >
       {header}
       <RText variant="display" accessibilityRole="header">
@@ -355,18 +345,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   feedText: { flex: 1, minWidth: 0, gap: 2 },
-  cheer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.95)",
-    backgroundColor: "#FFFFFF",
-  },
-  cheerRadius: { borderRadius: 22 },
-  pressed: { transform: [{ translateY: 1 }] },
   notice: { alignItems: "center", gap: 10, paddingVertical: 8 },
   center: { textAlign: "center" },
 });

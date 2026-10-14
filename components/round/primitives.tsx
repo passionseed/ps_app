@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   StyleSheet,
@@ -81,65 +80,10 @@ export function TextButton({
 }
 
 /**
- * Secondary button (DESIGN.md v4): a full-width glass pill (ink text) or a dark ink pill (white
- * text, e.g. a custom Apple button). Quieter than the Pillow: no gem, softer shadow. 50pt tall.
- */
-export function SoftButton({
-  label,
-  onPress,
-  icon,
-  disabled,
-  busy,
-  tone = "glass",
-  accessibilityHint,
-}: {
-  label: string;
-  onPress: () => void;
-  icon?: IconName;
-  disabled?: boolean;
-  busy?: boolean;
-  tone?: "glass" | "dark";
-  accessibilityHint?: string;
-}) {
-  const dark = tone === "dark";
-  const inactive = !!(disabled || busy);
-  const fg = dark ? "#FFFFFF" : disabled ? Ink.tertiary : Ink.primary;
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: inactive, busy: !!busy }}
-      disabled={inactive}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.soft,
-        dark ? [styles.softDark, Depth.dark] : [styles.softGlass, !disabled && Depth.control],
-        disabled && { opacity: 0.6 },
-        pressed && styles.softPressed,
-      ]}
-    >
-      {dark ? (
-        <>
-          <LinearGradient colors={["#2A2540", "#14112A"]} style={[StyleSheet.absoluteFill, { borderRadius: 999 }]} />
-          <View style={styles.softDarkHighlight} />
-        </>
-      ) : null}
-      {busy ? (
-        <ActivityIndicator size="small" color={dark ? "#FFFFFF" : Violet[600]} />
-      ) : icon ? (
-        <Icon name={icon} size={18} color={dark ? "#FFFFFF" : Violet[700]} strokeWidth={2.1} />
-      ) : null}
-      <RText variant="label" color={fg} style={styles.softLabel} numberOfLines={2}>
-        {label}
-      </RText>
-    </Pressable>
-  );
-}
-
-/**
- * Icon button (DESIGN.md v4): a small glossy control, white -> violet-50 with a bright rim and a
- * soft violet shadow, violet icon. 44pt by default (48 for dismiss/attachment/record).
+ * Icon button (DESIGN.md v4.1): navigation (back, close) is glass, not a key: it says where you
+ * are, not what you do. A frosted circle with a bright rim, a 1pt contact shadow and a tight
+ * pool; ink icon (violet is for acting). Dips 1pt when pressed. Icon actions (play, remove,
+ * record) are round keys (`Key round`).
  */
 export function IconButton({
   icon,
@@ -165,15 +109,11 @@ export function IconButton({
       style={({ pressed }) => [
         styles.iconButton,
         { width: size, height: size, borderRadius: size / 2 },
-        !disabled && Depth.control,
+        !disabled && Depth.nav,
         pressed && styles.iconButtonPressed,
       ]}
     >
-      <LinearGradient
-        colors={disabled ? ["#FFFFFF", "#F6F4FB"] : ["#FFFFFF", Violet[50]]}
-        style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]}
-      />
-      <Icon name={icon} size={size >= 56 ? 28 : 20} color={disabled ? Ink.tertiary : Violet[700]} strokeWidth={2.1} />
+      <Icon name={icon} size={size >= 56 ? 28 : 20} color={disabled ? Ink.tertiary : Ink.primary} strokeWidth={2.1} />
     </Pressable>
   );
 }
@@ -315,40 +255,14 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 12 },
   textButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 4, maxWidth: "100%" },
   textButtonLabel: { fontSize: 15, flexShrink: 1 },
-  soft: {
-    minHeight: 50,
-    borderRadius: 999,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderWidth: 1,
-    alignSelf: "stretch",
-  },
-  softGlass: {
-    backgroundColor: Platform.OS === "android" ? "#FFFFFF" : "rgba(255,255,255,0.78)",
-    borderColor: Glass.border,
-  },
-  softDark: { backgroundColor: "#14112A", borderColor: "#14112A" },
-  softDarkHighlight: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 999,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.15)",
-    pointerEvents: "none",
-  },
-  softPressed: { transform: [{ translateY: 1 }], opacity: 0.92 },
-  softLabel: { fontSize: 16, textAlign: "center", flexShrink: 1 },
   iconButton: {
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.95)",
-    backgroundColor: "#FFFFFF",
+    borderColor: Glass.border,
+    backgroundColor: Platform.OS === "android" ? Glass.fillAndroid : Glass.fillStrong,
   },
-  iconButtonPressed: { transform: [{ translateY: 1 }], opacity: 0.9 },
+  iconButtonPressed: { transform: [{ translateY: 1 }], backgroundColor: "#FFFFFF" },
   field: { gap: 6 },
   errorRow: { flexDirection: "row", gap: 6, alignItems: "flex-start" },
   input: {

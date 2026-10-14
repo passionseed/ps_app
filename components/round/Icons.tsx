@@ -2,7 +2,10 @@ import React from "react";
 import { Platform } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
-/** Line pictograms (no emoji as icons, DESIGN.md). `google` and `apple` are filled brand marks. */
+/**
+ * Line pictograms (no emoji as icons, DESIGN.md). `google` and `apple` are filled brand marks;
+ * `googleColor` is the full-colour G that Google's sign-in branding requires on light buttons.
+ */
 export type IconName =
   | "house"
   | "people"
@@ -43,6 +46,7 @@ export type IconName =
   | "external"
   | "sparkle"
   | "google"
+  | "googleColor"
   | "apple";
 
 // react-native-svg forwards props to the DOM on web, where the native a11y props are unknown
@@ -261,15 +265,18 @@ export function Icon({
       body = <Path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" {...common} />;
       break;
     case "google":
+    case "googleColor": {
+      const brand = name === "googleColor";
       body = (
         <>
-          <Path fill={color} d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" />
-          <Path fill={color} d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" />
-          <Path fill={color} d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2L6.4 14z" />
-          <Path fill={color} d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z" />
+          <Path fill={brand ? "#4285F4" : color} d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" />
+          <Path fill={brand ? "#34A853" : color} d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" />
+          <Path fill={brand ? "#FBBC05" : color} d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2L6.4 14z" />
+          <Path fill={brand ? "#EA4335" : color} d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z" />
         </>
       );
       break;
+    }
     case "apple":
       body = (
         <Path

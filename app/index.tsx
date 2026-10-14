@@ -10,7 +10,7 @@ import { SignInPanel, signInOrbs, WelcomeHero } from "../components/round/SignIn
 
 /**
  * Signed-out welcome (DESIGN.md v4, depth-v4 middle phone): the glossy SHIFT orb with floating
- * glass chips, the headline, the Google Pillow, the dark Apple button on iOS and "use email
+ * glass chips, the headline, Google on a porcelain key, the native Apple button on iOS and "use email
  * instead". "Look around first" opens Home as a guest (no account needed to read about SHIFT).
  */
 export function LandingPage() {

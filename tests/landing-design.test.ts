@@ -23,10 +23,10 @@ describe("signed-out welcome (DESIGN.md v4)", () => {
     expect(landingSource).toContain('router.replace("/(tabs)/shift")');
   });
 
-  it("uses the native Apple button on iOS and the Google Pillow", () => {
+  it("uses the native Apple button on iOS and Google on a porcelain key with the full-colour G", () => {
     expect(panelSource).toContain("AppleAuthenticationButton");
-    expect(panelSource).toContain('icon="google"');
-    expect(panelSource).toContain("<PillowButton");
+    expect(panelSource).toContain('icon="googleColor"');
+    expect(panelSource).toMatch(/<Key\s+tone="porcelain"/);
   });
 
   it("has no retired neon accents or emoji icons", () => {

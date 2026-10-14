@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import * as Clipboard from "expo-clipboard";
-import { SoftButton } from "../primitives";
+import { Key } from "../Key";
 import { useToast } from "../Toast";
 
 /**
@@ -22,5 +22,5 @@ export function ProgressCopyButton({ text, label, copiedLabel }: { text: string;
       setBusy(false);
     }
   };
-  return <SoftButton label={label} icon="copy" onPress={() => void copy()} />;
+  return <Key label={label} icon="copy" onPress={() => void copy()} />;
 }

@@ -14,8 +14,8 @@ import { formatDate } from "../../lib/round/time";
 import { certificateImageUrl } from "../../lib/round/certificate";
 import { RoundShell } from "../../components/round/RoundShell";
 import { RText } from "../../components/round/RText";
-import { PillowButton } from "../../components/round/PillowButton";
-import { Banner, Field, IconButton, RTextInput, SoftButton, Tag, TextButton } from "../../components/round/primitives";
+import { Key, ShiftKey } from "../../components/round/Key";
+import { Banner, Field, IconButton, RTextInput, Tag, TextButton } from "../../components/round/primitives";
 import { ChipPicker } from "../../components/round/ChipPicker";
 import { ListSkeleton } from "../../components/round/Skeleton";
 import { GlassCard } from "../../components/round/GlassCard";
@@ -133,7 +133,7 @@ export default function CertificateScreen() {
   return (
     <RoundShell
       keyboard
-      dock={<PillowButton label={t("cert.share.story")} icon="share" busy={sharing} disabled={imageState === "failed"} onPress={() => void share("story")} />}
+      dock={<ShiftKey label={t("cert.share.story")} icon="share" busy={sharing} disabled={imageState === "failed"} onPress={() => void share("story")} />}
     >
       <View style={styles.top}>
         <IconButton icon="back" label={t("ui.back")} onPress={close} />
@@ -180,8 +180,8 @@ export default function CertificateScreen() {
       </HeroCard>
 
       <View style={styles.row}>
-        <SoftButton label={t("cert.share.square")} icon="share" onPress={() => void share("square")} disabled={sharing} />
-        <SoftButton label={copied ? t("cert.share.copied") : t("cert.share.copy")} icon="copy" onPress={() => void copyLink()} />
+        <Key label={t("cert.share.square")} icon="share" onPress={() => void share("square")} disabled={sharing} />
+        <Key label={copied ? t("cert.share.copied") : t("cert.share.copy")} icon="copy" onPress={() => void copyLink()} />
       </View>
       {copied ? <RText variant="small">{t("cert.share.tip")}</RText> : null}
       <TextButton label={t("cert.verify_url", { url: verifyUrl.replace(/^https:\/\//, "") })} icon="link" onPress={() => void Linking.openURL(verifyUrl)} />

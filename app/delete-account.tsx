@@ -10,7 +10,7 @@ import { clearLocalRoundDrafts } from "../lib/round/sender";
 import { Status } from "../lib/theme";
 import { RoundShell } from "../components/round/RoundShell";
 import { RText } from "../components/round/RText";
-import { PillowButton } from "../components/round/PillowButton";
+import { ShiftKey } from "../components/round/Key";
 import { GlassCard } from "../components/round/GlassCard";
 import { Icon } from "../components/round/Icons";
 import { Banner, Field, IconButton, RTextInput } from "../components/round/primitives";
@@ -55,7 +55,7 @@ export default function DeleteAccountScreen() {
     <RoundShell
       keyboard
       dock={
-        <PillowButton
+        <ShiftKey
           label={t("ui.delete_account.cta")}
           icon="trash"
           busy={busy}

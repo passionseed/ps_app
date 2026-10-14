@@ -13,9 +13,9 @@ import {
 import { router } from "expo-router";
 import { isAppleAccountSetupError, isAuthCancellationError, useAuth } from "../../lib/auth";
 import { useRoundLang } from "../../lib/round/hooks";
-import { Depth, Ink, Orb } from "../../lib/theme";
-import { PillowButton } from "./PillowButton";
-import { Banner, Field, RTextInput, SoftButton, TextButton } from "./primitives";
+import { Depth, Ink, KeySize, Orb } from "../../lib/theme";
+import { Key } from "./Key";
+import { Banner, Field, RTextInput, TextButton } from "./primitives";
 import { GlassCard } from "./GlassCard";
 import { RText } from "./RText";
 import { ShiftOrb } from "./ShiftOrb";
@@ -72,9 +72,10 @@ const waitForAlertDismissal = async () => {
 };
 
 /**
- * Sign-in actions (DESIGN.md v4): the Google Pillow, the dark Apple button on iOS, "use email
- * instead" expanding the email form, and the hackathon note. The root navigator routes once the
- * session arrives.
+ * Sign-in actions (DESIGN.md v4.1): Google on a porcelain key (Google's branding needs the
+ * full-colour G on a light button), the native black Apple button on iOS (key-shaped corners),
+ * "use email instead" expanding the email form with the violet Shift key, and the hackathon
+ * note. The root navigator routes once the session arrives.
  */
 export function SignInPanel({ notice }: { notice?: string | null }) {
   const { signInWithGoogle, signInWithApple, signInWithPassword, loading: authLoading } = useAuth();
@@ -156,9 +157,11 @@ export function SignInPanel({ notice }: { notice?: string | null }) {
     <View style={styles.panel}>
       {notice ? <Banner tone="violet" text={notice} /> : null}
       {error ? <Banner tone="error" text={error} /> : null}
-      <PillowButton
+      <Key
+        tone="porcelain"
+        size="lg"
         label={t("ui.signin.google")}
-        icon="google"
+        icon="googleColor"
         busy={busy === "google"}
         disabled={!!busy && busy !== "google"}
         onPress={() => void google()}
@@ -168,7 +171,7 @@ export function SignInPanel({ notice }: { notice?: string | null }) {
           <native.AppleAuthenticationButton
             buttonType={native.AppleAuthenticationButtonType.SIGN_IN}
             buttonStyle={native.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={26}
+            cornerRadius={KeySize.lg.radius}
             style={styles.appleNative}
             onPress={() => void apple()}
           />
@@ -177,7 +180,7 @@ export function SignInPanel({ notice }: { notice?: string | null }) {
           </RNAnimated.View>
         </View>
       ) : Platform.OS === "ios" ? (
-        <SoftButton tone="dark" icon="apple" label={t("ui.signin.apple")} disabled={!!busy} onPress={() => void apple()} />
+        <Key tone="ink" size="lg" icon="apple" label={t("ui.signin.apple")} disabled={!!busy} onPress={() => void apple()} />
       ) : null}
 
       <View style={styles.links}>
@@ -213,7 +216,8 @@ export function SignInPanel({ notice }: { notice?: string | null }) {
               onSubmitEditing={() => void emailSignIn()}
             />
           </Field>
-          <SoftButton
+          <Key
+            tone="shift"
             label={t("ui.signin.email_cta")}
             icon="arrow"
             busy={busy === "email"}
@@ -238,8 +242,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, lineHeight: 40, textAlign: "center" },
   center: { textAlign: "center" },
   panel: { gap: 12, marginTop: 18 },
-  appleWrap: { height: 52, borderRadius: 26, backgroundColor: "#000000" },
-  appleNative: { width: "100%", height: 52 },
+  appleWrap: { height: KeySize.lg.face, borderRadius: KeySize.lg.radius, backgroundColor: "#000000" },
+  appleNative: { width: "100%", height: KeySize.lg.face },
   appleSpinner: { position: "absolute", top: 0, right: 18, bottom: 0, justifyContent: "center", pointerEvents: "none" },
   links: { alignItems: "center" },
   emailCard: { gap: 12 },

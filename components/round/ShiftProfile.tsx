@@ -22,13 +22,12 @@ import { GlassCard } from "./GlassCard";
 import { GlowProgress } from "./GlowProgress";
 import { HeroCard } from "./HeroCard";
 import { Icon, type IconName } from "./Icons";
-import { PillowButton } from "./PillowButton";
+import { Key, ShiftKey } from "./Key";
 import { Banner, RTextInput, Tag, TextButton } from "./primitives";
 import { ProgressRing } from "./ProgressRing";
 import { SkeletonBlock } from "./Skeleton";
 import { RoundShell } from "./RoundShell";
 import { RText } from "./RText";
-import { PillAction } from "./SessionCard";
 
 const TAB_BAR_SPACE = 64;
 // react-native-web colours the "on" thumb with its own prop (teal by default).
@@ -241,8 +240,8 @@ export function ShiftProfileView({ model, actions, lang }: { model: ShiftProfile
               <Tag label={cert.status === "issued" ? t("ui.cert.valid") : t("ui.cert.revoked")} tone={cert.status === "issued" ? "success" : "warning"} />
             </View>
             <View style={styles.certActions}>
-              {cert.status === "issued" ? <PillAction label={t("ui.cert.share")} icon="share" onPress={() => actions.onShareCert(cert)} /> : null}
-              <PillAction label={t("ui.cert.open")} onPress={() => actions.onOpenCert(cert)} />
+              {cert.status === "issued" ? <Key size="sm" label={t("ui.cert.share")} icon="share" onPress={() => actions.onShareCert(cert)} /> : null}
+              <Key size="sm" label={t("ui.cert.open")} onPress={() => actions.onOpenCert(cert)} />
             </View>
           </View>
         ))}
@@ -385,7 +384,7 @@ export function ShiftProfile() {
   if (!userId) {
     return (
       <RoundShell bottomInset={TAB_BAR_SPACE} dock={
-          <PillowButton
+          <ShiftKey
             label={t("ui.sign_in")}
             icon="person"
             onPress={() => {
