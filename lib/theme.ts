@@ -360,7 +360,7 @@ export type KeyPalette = {
   contact: string;
   /** Ambient pool (CSS box-shadow, iOS and web); fades out while pressed. Empty = none. */
   ambient: string;
-  /** Pressed-face overlay. */
+  /** Pressed-face overlay (v4.2.1: 20% lighter). */
   shade: string;
   /** Unlit radio LED ring. */
   ledOff: string;
@@ -377,7 +377,7 @@ export const Keycap: Record<KeyTone | "off", KeyPalette> = {
     legendShadow: "rgba(50,36,100,0.32)",
     contact: "rgba(45,34,90,0.3)",
     ambient: "0px 10px 16px -10px rgba(78,64,132,0.42)",
-    shade: "rgba(40,28,90,0.1)",
+    shade: "rgba(40,28,90,0.08)",
     ledOff: "rgba(255,255,255,0.55)",
   },
   /** Secondary: white keycap, ink legend (12.7:1), violet icon. */
@@ -389,7 +389,7 @@ export const Keycap: Record<KeyTone | "off", KeyPalette> = {
     icon: Violet[700],
     contact: "rgba(45,40,90,0.14)",
     ambient: "0px 10px 14px -10px rgba(78,64,132,0.3)",
-    shade: "rgba(78,64,132,0.05)",
+    shade: "rgba(78,64,132,0.04)",
     ledOff: "#B1AEC6",
   },
   /** Dark keycap (Apple fallback). */
@@ -401,7 +401,7 @@ export const Keycap: Record<KeyTone | "off", KeyPalette> = {
     icon: "#F4F3FF",
     contact: "rgba(0,0,0,0.35)",
     ambient: "0px 10px 16px -10px rgba(42,40,56,0.5)",
-    shade: "rgba(0,0,0,0.1)",
+    shade: "rgba(0,0,0,0.08)",
     ledOff: "rgba(244,243,255,0.5)",
   },
   /** Destructive commits: a muted brick red, white legend 4.8:1 where it sits. */
@@ -414,7 +414,7 @@ export const Keycap: Record<KeyTone | "off", KeyPalette> = {
     legendShadow: "rgba(90,20,18,0.32)",
     contact: "rgba(70,16,14,0.3)",
     ambient: "0px 10px 16px -10px rgba(120,40,36,0.4)",
-    shade: "rgba(60,0,0,0.08)",
+    shade: "rgba(60,0,0,0.064)",
     ledOff: "rgba(255,255,255,0.55)",
   },
   /** Disabled: an unlit key (wall kept, no ambient), ink-3 legend 4.7:1. */

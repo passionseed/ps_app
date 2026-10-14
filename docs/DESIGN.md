@@ -85,7 +85,7 @@ components:
     legend: "white Bai Jamjuree 700 17pt, 0 1px 0 rgba(50,36,100,.32); white 2.4 icon"
     rounded: "14px continuous"
     height: "53px face + 5px wall"
-    pressed: "face travels 4px in 55ms, rigid haptic; springs back (mass .5, stiffness 520, damping 18: ~0.5px overshoot, settled ~200ms)"
+    pressed: "face eases down 3.2px in 66ms (cubic), light haptic, pool keeps 20%; settles back (mass .5, stiffness 416, damping 20: ~0.16px overshoot, ~175ms)"
   key-porcelain:
     face: "dish #FFFFFF, #F1F0FA, #F5F5FC, #FFFFFF"
     bevel: "#FFFFFF top, #DFDDEE sides, #FFFFFF lip"
@@ -306,12 +306,14 @@ commits (4.8:1); `off` (any disabled key): unlit, wall kept, no ambient, ink-3 l
 remove, cheer).
 
 **Feel:**
-- Press: the face travels `travel - 1` in 55ms (ease out) and stops 1pt short so the edge stays
-  crisp; the ambient fades; the face darkens a touch; a rigid haptic marks the bottom-out.
-- Release: a spring (mass 0.5, stiffness 520, damping 18), about 0.5pt of overshoot (at ~120ms),
-  settled within 0.1pt by ~200ms.
-- Busy: the key stays down with three running lights in place of the icon until the work is
-  done, then springs back.
+- Press (v4.2.1, 20% softer than v4.1, which "did too much"): the face eases down 80% of
+  `travel - 1` (3.2pt on a large key) in 66ms (ease-out cubic), so the wall never fully
+  closes. The face darkens 8% (porcelain 4%), the ambient pool keeps 20%, and a light haptic
+  (not rigid) marks the press.
+- Release: a spring (mass 0.5, stiffness 416, damping 20, damping ratio 0.69), about 0.16pt of
+  overshoot, so no visible bounce, settled within 0.1pt by ~175ms.
+- Busy: the key stays down with three slow lights breathing (45-90% opacity, 1.08s cycle) in
+  place of the icon until the work is done, then settles back.
 - Radio keys (`ChipPicker`, idea pick): the selected key latches down, turns violet and lights
   its LED; pressing another pops it up, like preset buttons on a car radio. Selection ticks
   (`selectionAsync`), not clicks. They wait 80ms before springing back so a press that selects
@@ -326,7 +328,7 @@ Apple uses the native black button with key-shaped corners (`KeySize.lg`).
 
 ## 7. Motion
 
-- Keys travel and spring as above; cards and rows sink 1pt.
+- Keys ease down and settle as above; cards and rows sink 1pt.
 - Tab pill springs between tabs; `SessionCard` live ring pulses; orb chips float 3pt; skeletons
   shimmer; the toast fades in from below.
 - Every animation checks `useReducedMotion()` and becomes still (or instant) when it is on.

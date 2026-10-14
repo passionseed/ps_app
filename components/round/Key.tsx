@@ -18,10 +18,18 @@ import { KeyDish, Keycap, KeySize, type KeyPalette, type KeySizeName, type KeyTo
 import { Icon, type IconName } from "./Icons";
 import { RText } from "./RText";
 
-/** Bottoming out: fast and eased, like a switch. */
-const PRESS = { duration: 55, easing: Easing.out(Easing.quad) };
-/** Return spring: snappy, about 0.5pt of overshoot on 4pt of travel, settled in about 200ms. */
-const RELEASE = { mass: 0.5, stiffness: 520, damping: 18 };
+/**
+ * Press feel (v4.2.1: 20% softer than the first cut, which "did too much"). The face eases down
+ * like a cushioned switch, goes 80% of the way so the wall never fully closes, darkens a little
+ * and keeps a fifth of its pool. It returns without a visible bounce.
+ */
+const PRESS = { duration: 66, easing: Easing.out(Easing.cubic) };
+/** Return spring: damping ratio 0.69, about 0.16pt of overshoot, settled in about 175ms. */
+const RELEASE = { mass: 0.5, stiffness: 416, damping: 20 };
+/** Share of `travel - 1` the face moves when pressed (3.2pt on a large key). */
+const PRESS_DEPTH = 0.8;
+/** Share of the ambient pool that stays while pressed. */
+const PRESSED_AMBIENT = 0.2;
 /** Radio keys wait this long before springing back, so a press that selects them stays down. */
 const LATCH_GRACE_MS = 80;
 
@@ -43,7 +51,7 @@ export type KeyProps = {
   led?: "off" | "on";
   busy?: boolean;
   disabled?: boolean;
-  /** `click` = rigid tap as the key bottoms out; `select` = selection tick (radio keys). */
+  /** `click` = light tap as the key goes down; `select` = selection tick (radio keys). */
   haptic?: "click" | "select" | "none";
   accessibilityRole?: "button" | "radio";
   /** Defaults to `label`. */
@@ -58,9 +66,9 @@ export type KeyProps = {
 };
 
 /**
- * A keycap (DESIGN.md section 6). The face travels down over its wall while pressed (stopping
- * 1pt short), the ambient shadow fades, and a rigid haptic marks the bottom-out. Busy keys stay
- * down with an activity light until the work finishes, then spring back. Radio keys latch down
+ * A keycap (DESIGN.md section 6). The face eases down over its wall while pressed (never closing
+ * it), the ambient shadow softens, and a light haptic marks the press. Busy keys stay down with
+ * a gentle activity light until the work finishes, then settle back. Radio keys latch down
  * while selected, so pressing one pops the previous one up, like preset buttons on a car radio.
  */
 export function Key({
@@ -102,12 +110,12 @@ export function Key({
     else pos.value = held ? withTiming(1, PRESS) : withSpring(0, RELEASE);
   }, [held, reduced, pos]);
 
-  const faceMotion = useAnimatedStyle(() => ({ transform: [{ translateY: pos.value * (travel - 1) }] }));
-  const ambientMotion = useAnimatedStyle(() => ({ opacity: 1 - Math.min(1, Math.max(0, pos.value)) }));
+  const faceMotion = useAnimatedStyle(() => ({ transform: [{ translateY: pos.value * (travel - 1) * PRESS_DEPTH }] }));
+  const ambientMotion = useAnimatedStyle(() => ({ opacity: 1 - (1 - PRESSED_AMBIENT) * Math.min(1, Math.max(0, pos.value)) }));
   const shadeMotion = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.max(0, pos.value)) }));
 
   const pressIn = () => {
-    if (haptic === "click") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid).catch(() => {});
+    if (haptic === "click") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     else if (haptic === "select") void Haptics.selectionAsync().catch(() => {});
     if (held) return;
     pos.value = reduced ? 1 : withTiming(1, PRESS);
@@ -216,7 +224,7 @@ function Led({ on, palette }: { on: boolean; palette: KeyPalette }) {
   return <View style={[styles.led, on ? styles.ledOn : { borderColor: palette.ledOff }]} />;
 }
 
-/** Busy: three lights running left to right while the key is held down. */
+/** Busy: three lights breathing left to right while the key is held down (slow, low contrast). */
 function ActivityLight({ color }: { color: string }) {
   return (
     <View style={styles.dots} aria-hidden>
@@ -229,12 +237,12 @@ function ActivityLight({ color }: { color: string }) {
 
 function Dot({ index, color }: { index: number; color: string }) {
   const reduced = useReducedMotion();
-  const level = useSharedValue(reduced ? 0.8 : 0.35);
+  const level = useSharedValue(reduced ? 0.75 : 0.45);
   useEffect(() => {
     if (reduced) return;
     level.value = withDelay(
-      index * 150,
-      withRepeat(withSequence(withTiming(1, { duration: 270 }), withTiming(0.35, { duration: 630 })), -1, false),
+      index * 180,
+      withRepeat(withSequence(withTiming(0.9, { duration: 324 }), withTiming(0.45, { duration: 756 })), -1, false),
     );
     return () => cancelAnimation(level);
   }, [index, level, reduced]);
